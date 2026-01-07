@@ -1,0 +1,116 @@
+{
+  "name": "IASystemFlow Ingest",
+  "nodes": [
+    {
+      "id": "webhook_post",
+      "name": "Webhook Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "position": [300, 300],
+      "parameters": {
+        "path": "iasystemflow",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "auth_check",
+      "name": "Auth Check",
+      "type": "n8n-nodes-base.function",
+      "position": [520, 300],
+      "parameters": {
+        "functionCode": "const apiKey = $json.headers?.['x-api-key'] || $json.headers?.['X-API-Key'];\nif (!apiKey || apiKey !== $env.N8N_API_KEY) {\n  return [{ json: { unauthorized: true, message: 'Invalid API key' } }];\n}\nreturn items;"
+      }
+    },
+    {
+      "id": "respond_unauth",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [760, 180],
+      "parameters": {
+        "responseCode": 401,
+        "responseData": "={{ { ok: false, error: 'unauthorized' } }}"
+      }
+    },
+    {
+      "id": "validate",
+      "name": "Validate & Normalize",
+      "type": "n8n-nodes-base.function",
+      "position": [760, 420],
+      "parameters": {
+        "functionCode": "const body = $json.body || $json;\nconst errors = [];\nif (!body?.user?.id) errors.push('user.id');\nif (!body?.user?.nome && !body?.user?.name) errors.push('user.nome');\nif (!body?.user?.email) errors.push('user.email');\nif (typeof body?.message !== 'string' || !body.message.trim()) errors.push('message');\nconst metadata = body.metadata || {};\nmetadata.timestamp = metadata.timestamp || new Date().toISOString();\nmetadata.origin = metadata.origin || 'web';\nreturn [{ json: { ...body, metadata, invalid: errors.length>0, errors } }];"
+      }
+    },
+    {
+      "id": "respond_400",
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1000, 540],
+      "parameters": {
+        "responseCode": 400,
+        "responseData": "={{ { ok:false, errors: $json.errors } }}"
+      }
+    },
+    {
+      "id": "ensure_session",
+      "name": "Ensure Session",
+      "type": "n8n-nodes-base.function",
+      "position": [1000, 360],
+      "parameters": {
+        "functionCode": "const crypto = require('crypto');\nconst has = $json.metadata?.session_id;\nconst v4 = crypto.randomUUID ? crypto.randomUUID() : [crypto.randomBytes(4).toString('hex'), crypto.randomBytes(2).toString('hex'), '4'+crypto.randomBytes(2).toString('hex').slice(1), ((parseInt(crypto.randomBytes(2).toString('hex'),16)&0x3fff)|0x8000).toString(16), crypto.randomBytes(6).toString('hex')].join('-');\nconst id = has || v4;\n$json.metadata = { ...$json.metadata, session_id: id };\n$json.newSession = !has;\nreturn items;"
+      }
+    },
+    {
+      "id": "db_upsert_user",
+      "name": "DB Upsert User",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1240, 360],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO users (id, name, email) VALUES ({{$json.user.id}}, {{$json.user.nome || $json.user.name}}, {{$json.user.email}}) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email;"
+      },
+      "credentials": { "postgres": { "id": "POSTGRES_CRED_ID" } }
+    },
+    {
+      "id": "db_insert_session",
+      "name": "DB Insert Session",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1480, 260],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sessions (id, user_id) VALUES ({{$json.metadata.session_id}}, {{$json.user.id}}) ON CONFLICT DO NOTHING;"
+      },
+      "credentials": { "postgres": { "id": "POSTGRES_CRED_ID" } }
+    },
+    {
+      "id": "db_insert_message",
+      "name": "DB Insert Message",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1480, 460],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (id, session_id, user_id, role, content, origin) VALUES (uuid_generate_v4(), {{$json.metadata.session_id}}, {{$json.user.id}}, 'user', {{$json.message}}, {{$json.metadata.origin}});"
+      },
+      "credentials": { "postgres": { "id": "POSTGRES_CRED_ID" } }
+    },
+    {
+      "id": "respond_ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1720, 360],
+      "parameters": {
+        "responseCode": 200,
+        "responseData": "={{ { ok:true, session_id: $json.metadata.session_id, received_at: $json.metadata.timestamp, reply: $json.reply || 'Recebido' } }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Ingest": { "main": [{ "node": "Auth Check", "type": "main", "index": 0 }] },
+    "Auth Check": { "main": [{ "node": "Validate & Normalize", "type": "main", "index": 0 }, { "node": "Respond 401", "type": "main", "index": 0 }] },
+    "Validate & Normalize": { "main": [{ "node": "Ensure Session", "type": "main", "index": 0 }, { "node": "Respond 400", "type": "main", "index": 0 }] },
+    "Ensure Session": { "main": [{ "node": "DB Upsert User", "type": "main", "index": 0 }] },
+    "DB Upsert User": { "main": [{ "node": "DB Insert Message", "type": "main", "index": 0 }, { "node": "DB Insert Session", "type": "main", "index": 0 }] },
+    "DB Insert Session": { "main": [{ "node": "DB Insert Message", "type": "main", "index": 0 }] },
+    "DB Insert Message": { "main": [{ "node": "Respond 200", "type": "main", "index": 0 }] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

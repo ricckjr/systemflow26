@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <!-- Core -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>SystemFlow | Apliflow</title>
+
+    <!-- SEO / Branding -->
+    <meta name="description" content="SystemFlow — Plataforma Inteligente de Operações, CRM e Automação da Apliflow" />
+    <meta name="theme-color" content="#081522" />
+
+    <!-- Cache Control (SPA) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <!-- Preload Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- SystemFlow Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Prevent Flash of Light Mode -->
+    <script>
+      document.documentElement.classList.add('dark');
+    </script>
+
+    <!-- Global Font Setup -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #081522;
+        color: #e5e7eb;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        height: 100%;
+        overflow-y: auto;
+      }
+
+      #root {
+        height: 100%;
+      }
+
+      .mono {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+    </style>
+
+    <!-- ElevenLabs (Async, non-blocking) -->
+    <script
+      src="https://unpkg.com/@elevenlabs/convai-widget-embed"
+      async
+      defer
+      type="text/javascript"
+    ></script>
+
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- Vite Entry -->
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "System Flow (Apliflow)",
+  "description": "A comprehensive corporate web system for monitoring, analyzing, and interacting with Supabase data, featuring an internal social network, commercial dashboards, communication tools, and AI integration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

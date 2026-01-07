@@ -1,0 +1,31 @@
+# Changelog
+
+## 2026-01-05
+- Comercial
+  - Unificado cockpit: `VisaoGeral` canônico.
+  - Componentes extraídos: `TrendCard`, `InfoBox`.
+  - Utilitários criados: `utils/comercial/format.ts` (`parseValorProposta`, `formatCurrency`).
+  - Rotas atualizadas:
+    - `/comercial/vendedores` → `pages/Comercial/Vendedores.tsx`
+    - `/comercial/oportunidades` → `pages/Comercial/Oportunidades.tsx`
+    - `/comercial/overview` → `pages/Comercial/VisaoGeral.tsx`
+  - Navegação e título:
+    - Menu: “Visão Geral” renomeado para “Visão Comercial”
+    - Header mostra “VISÃO COMERCIAL” para `/comercial/overview`
+- Networking
+  - Removido ping ativo do Supabase no boot.
+  - Fallback de perfil local e cache de indisponibilidade (`supabaseDown`).
+  - `Layout` usa `navigator.onLine` para status.
+- Comunidade
+  - Pós-login redireciona para `/comunidade` (InstaFlow).
+  - Atualizado menu da Comunidade para rotas `/comunidade` e `/comunidade/taskflow`.
+  - Lazy loading com `React.lazy` + `Suspense` e `ErrorBoundary` para InstaFlow/TaskFlow.
+- TaskFlow
+  - Busca com debounce e filtragem por coluna.
+  - Atalhos N (nova tarefa) e F (focar busca).
+  - Visual alinhado ao glass azul (containers e cards).
+- Paginação
+  - InstaFlow: paginação assíncrona com tamanho de página (10/25/50), controles anterior/próxima, indicador Página X/Y e opção de rolagem infinita.
+  - TaskFlow: paginação por coluna com tamanho de página global e botão “Mais”; toggle de rolagem infinita.
+  - Serviços: APIs paginadas `fetchFeed({ page, pageSize, search })` e `fetchTasksPaged(boardId, columnId, page, pageSize, search)` incluindo `count`.
+  - Tests: página `'/debug/tests'` para validar utilitários de paginação em dev.

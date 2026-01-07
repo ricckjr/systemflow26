@@ -1,0 +1,82 @@
+{
+  "name": "IASystemFlow History",
+  "nodes": [
+    {
+      "id": "webhook_get",
+      "name": "Webhook History",
+      "type": "n8n-nodes-base.webhook",
+      "position": [300, 300],
+      "parameters": {
+        "path": "iasystemflow/history",
+        "httpMethod": "GET",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "auth_check",
+      "name": "Auth Check",
+      "type": "n8n-nodes-base.function",
+      "position": [520, 300],
+      "parameters": {
+        "functionCode": "const apiKey = $json.headers?.['x-api-key'] || $json.headers?.['X-API-Key'];\nif (!apiKey || apiKey !== $env.N8N_API_KEY) {\n  return [{ json: { unauthorized: true } }];\n}\nreturn items;"
+      }
+    },
+    {
+      "id": "respond_unauth",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [760, 180],
+      "parameters": {
+        "responseCode": 401,
+        "responseData": "={{ { ok:false, error:'unauthorized' } }}"
+      }
+    },
+    {
+      "id": "validate_params",
+      "name": "Validate Params",
+      "type": "n8n-nodes-base.function",
+      "position": [760, 420],
+      "parameters": {
+        "functionCode": "const q = $json.query || {};\nconst limit = Math.min(parseInt(q.limit||'50',10)||50, 200);\nconst offset = parseInt(q.offset||'0',10)||0;\nif (!q.session_id && !q.user_id) {\n  return [{ json: { badRequest:true, errors:['session_id or user_id required'] } }];\n}\nreturn [{ json: { ...q, limit, offset } }];"
+      }
+    },
+    {
+      "id": "respond_400",
+      "name": "Respond 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1000, 540],
+      "parameters": {
+        "responseCode": 400,
+        "responseData": "={{ { ok:false, errors: $json.errors } }}"
+      }
+    },
+    {
+      "id": "fetch_messages",
+      "name": "Fetch Messages",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1000, 360],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{$json.session_id ? `SELECT * FROM messages WHERE session_id='${$json.session_id}' ORDER BY created_at ASC LIMIT ${$json.limit} OFFSET ${$json.offset};` : `SELECT * FROM messages WHERE user_id='${$json.user_id}' ORDER BY created_at DESC LIMIT ${$json.limit} OFFSET ${$json.offset};`}}"
+      },
+      "credentials": { "postgres": { "id": "POSTGRES_CRED_ID" } }
+    },
+    {
+      "id": "respond_ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1240, 360],
+      "parameters": {
+        "responseCode": 200,
+        "responseData": "={{ { ok:true, session_id: $json.session_id, user_id: $json.user_id, limit: $json.limit, offset: $json.offset, messages: $items(0).map(i=>i.json) } }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook History": { "main": [{ "node": "Auth Check", "type": "main", "index": 0 }] },
+    "Auth Check": { "main": [{ "node": "Validate Params", "type": "main", "index": 0 }, { "node": "Respond 401", "type": "main", "index": 0 }] },
+    "Validate Params": { "main": [{ "node": "Fetch Messages", "type": "main", "index": 0 }, { "node": "Respond 400", "type": "main", "index": 0 }] },
+    "Fetch Messages": { "main": [{ "node": "Respond 200", "type": "main", "index": 0 }] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

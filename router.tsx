@@ -47,15 +47,33 @@ function withAuth<P extends object>(
 ) {
   // Returns a component that requires original props MINUS the injected ones
   return function Wrapped(props: Omit<P, keyof InjectedProps>) {
-    const { profile, perms } = useAuth()
+    const { profile, perms, loading, session } = useAuth()
 
-    if (!profile) return <Loader text="Carregando usuário..." />
+    // Loading + Sem Sessão -> Aguardando init (Loader)
+    if (loading && !session) return <Loader text="Iniciando sistema..." />
+    
+    // Sem sessão -> Não deveria estar aqui, mas se estiver, não renderiza nada (ProtectedRoute vai redirecionar)
+    if (!session) return null
+
+    // Sessão OK, mas perfil carregando -> Renderiza o componente mesmo assim!
+    // O componente deve saber lidar com profile=null ou usar skeleton interno se quiser.
+    // Mas para evitar quebra total, passamos um profile fake/fallback se ainda for null.
+    
+    const safeProfile = profile || {
+        id: session.user.id,
+        nome: 'Carregando...',
+        email_login: session.user.email || '',
+        role: 'user',
+        status: 'online',
+        ativo: true,
+        created_at: new Date().toISOString()
+    }
 
     // Create full props object
     const componentProps = {
       ...props,
-      profile,
-      perms: perms
+      profile: safeProfile,
+      perms: perms || []
     } as unknown as P;
 
     return <Component {...componentProps} />

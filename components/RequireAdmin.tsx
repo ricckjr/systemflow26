@@ -6,7 +6,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
   const { profile, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) {
+  if (loading && !profile) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0b1e2d]">
         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>

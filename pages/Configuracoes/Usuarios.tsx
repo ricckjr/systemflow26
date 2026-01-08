@@ -12,12 +12,18 @@ import {
 } from 'lucide-react'
 import { useScrollLock } from '../../hooks/useScrollLock'
 import { fetchProfiles } from '../../services/profiles'
+import { useAuth } from '../../src/contexts/AuthContext'
 
 interface UsuariosProps {
-  profile: Profile
+  profile?: Profile
 }
 
-export default function Usuarios({ profile }: UsuariosProps) {
+export default function Usuarios({ profile: propProfile }: UsuariosProps) {
+  const { profile: authProfile } = useAuth();
+  const profile = propProfile || authProfile;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
   const [usuarios, setUsuarios] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')

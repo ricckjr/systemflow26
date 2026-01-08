@@ -1,10 +1,18 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Profile, Post } from '../../types';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Heart, MessageCircle, Share2, Image as ImageIcon, Send, MoreHorizontal, Trash2, Edit2, EyeOff, X, Check } from 'lucide-react';
 import { fetchFeed, uploadMedia, createPost, likePost, unlikePost, hasUserLiked, fetchComments, addComment, deletePost, editPost } from '../../services/instaflow';
 
-const InstaFlow: React.FC<{ profile: Profile }> = ({ profile }) => {
+const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
+  const { profile: authProfile } = useAuth();
+  const profile = propProfile || authProfile;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
+  const user = profile; // Alias for legacy code usage if needed
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [file, setFile] = useState<File | null>(null);

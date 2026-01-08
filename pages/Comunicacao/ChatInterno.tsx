@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Profile } from '../../types';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Search, Send, Plus, Phone, Video, Info } from 'lucide-react';
 
 const contacts = [
@@ -10,7 +11,12 @@ const contacts = [
   { id: '4', name: 'Julia Costa', status: 'away', role: 'Vendas' },
 ];
 
-const ChatInterno: React.FC<{ profile: Profile }> = ({ profile }) => {
+const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
+  const { profile: authProfile } = useAuth();
+  const profile = propProfile || authProfile;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
   const [activeChat, setActiveChat] = useState(contacts[0]);
   const [message, setMessage] = useState('');
 

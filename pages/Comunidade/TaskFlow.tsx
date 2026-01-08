@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Profile } from '../../types';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { 
   ensureDefaultBoard, 
   fetchBoardData, 
@@ -52,7 +53,14 @@ const getColumnColor = (name: string) => {
   }
 };
 
-const TaskFlow: React.FC<{ profile: Profile }> = ({ profile }) => {
+const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
+  const { profile: authProfile } = useAuth();
+  const profile = propProfile || authProfile;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
+  const user = profile; // Alias for legacy code usage
+
   const [board, setBoard] = useState<TFBoard | null>(null);
   const [columns, setColumns] = useState<TFColumn[]>([]);
   const [tasks, setTasks] = useState<TFTask[]>([]);

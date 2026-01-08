@@ -2,10 +2,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Loader2, AlertCircle, User, Bot, Sparkles } from 'lucide-react';
 import { Profile, ProfilePermissao } from '../../types';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 type ChatMsg = { id: string; role: 'user' | 'assistant' | 'system'; content: string; at: string };
 
-const IAFlow: React.FC<{ profile: Profile; perms: ProfilePermissao[] }> = ({ profile, perms }) => {
+const IAFlow: React.FC<{ profile?: Profile; perms?: ProfilePermissao[] }> = ({ profile: propProfile, perms: propPerms }) => {
+  const { profile: authProfile, permissions: authPerms } = useAuth();
+  const profile = propProfile || authProfile;
+  const perms = propPerms || authPerms;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
   const WEBHOOK_URL = 'https://flowsharp.ddns.net/webhook-test/iasystemflow';
   const [messages, setMessages] = useState<ChatMsg[]>(() => {
     const saved = localStorage.getItem('iaflow-chat');

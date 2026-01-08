@@ -26,15 +26,14 @@ export default function ForgotPassword() {
 
     setLoading(true)
 
-    try {
+  try {
       // 1. Verificar Rate Limit (via RPC criado na migration)
-      const { data: limitData, error: limitError } = await supabase.rpc('request_password_reset', {
-        p_email: email
-      })
+      const { data: limitData, error: limitError } = await ((supabase as any).rpc('request_password_reset', { p_email: email }))
 
       if (limitError) throw limitError
-      if (limitData && !limitData.success) {
-        throw new Error(limitData.message || 'Muitas tentativas.')
+      const limitInfo = (limitData || null) as { success: boolean; message?: string } | null
+      if (limitInfo && !limitInfo.success) {
+        throw new Error(limitInfo.message || 'Muitas tentativas.')
       }
 
       // 2. Enviar email de reset (usando API nativa do Supabase)

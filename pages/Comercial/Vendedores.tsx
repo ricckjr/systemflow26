@@ -1,83 +1,169 @@
-
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 import { Trophy, Star, Target, Users } from 'lucide-react';
 
+/* ===========================
+   MOCK DATA (INALTERADO)
+=========================== */
 const rankingData = [
-  { name: 'Heinrik', vendas: 120, meta: 100, cor: '#4f46e5' },
-  { name: 'Amanda', vendas: 95, meta: 100, cor: '#6366f1' },
-  { name: 'Carlos', vendas: 110, meta: 100, cor: '#818cf8' },
-  { name: 'Julia', vendas: 75, meta: 100, cor: '#a5b4fc' },
-  { name: 'Ricardo', vendas: 130, meta: 100, cor: '#4338ca' },
+  { name: 'Heinrik', vendas: 120, meta: 100, cor: 'var(--primary-700)' },
+  { name: 'Amanda', vendas: 95, meta: 100, cor: 'var(--primary-600)' },
+  { name: 'Carlos', vendas: 110, meta: 100, cor: 'var(--primary)' },
+  { name: 'Julia', vendas: 75, meta: 100, cor: 'rgba(56,189,248,0.4)' },
+  { name: 'Ricardo', vendas: 130, meta: 100, cor: 'var(--primary)' },
 ];
 
 const SellerPerformance: React.FC = () => {
   return (
-    <div className="space-y-6 md:space-y-8 animate-fade-in">
+    <div className="space-y-8">
+      {/* HEADER */}
       <div>
-        <h2 className="text-2xl font-black text-industrial-text-primary tracking-tight uppercase">Performance da Equipe</h2>
-        <p className="text-xs text-industrial-text-secondary font-bold uppercase tracking-widest mt-1">Monitoramento individual e ranking de vendas</p>
+        <h2 className="text-[18px] font-semibold tracking-wide text-[var(--text-main)]">
+          Performance da Equipe
+        </h2>
+        <p className="text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mt-1">
+          Ranking e indicadores de vendas
+        </p>
       </div>
 
+      {/* TOP SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Top Performer Card */}
-        <div className="lg:col-span-1 bg-brand-600 dark:bg-brand-500/20 rounded-3xl p-6 text-white shadow-2xl shadow-brand-600/20 relative overflow-hidden group">
-          <Trophy className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10 group-hover:rotate-12 transition-transform duration-700" />
-          <h3 className="font-black text-brand-100 mb-6 flex items-center gap-2 uppercase tracking-[0.2em] text-[10px]">
-            Vendedor do Mês
-          </h3>
-          <div className="flex items-center gap-4 mb-8 relative z-10">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl font-black border border-white/20 shadow-inner">
+        {/* TOP SELLER */}
+        <div className="lg:col-span-1 card-panel p-6 relative overflow-hidden">
+          <Trophy
+            className="absolute -right-6 -bottom-6 w-24 h-24 text-[var(--primary)]/10"
+          />
+
+          <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--text-soft)] mb-4">
+            Vendedor do mês
+          </p>
+
+          <div className="flex items-center gap-4 mb-6 relative z-10">
+            <div className="w-14 h-14 rounded-xl bg-[var(--primary-soft)]
+                            border border-[var(--primary)]/20
+                            flex items-center justify-center
+                            text-[var(--primary)] font-bold text-xl">
               R
             </div>
             <div>
-              <p className="text-xl font-black leading-tight">Ricardo Alvez</p>
-              <p className="text-brand-200 text-xs font-bold uppercase tracking-widest mt-1">Comercial Sênior</p>
+              <p className="text-[15px] font-semibold text-[var(--text-main)] leading-tight">
+                Ricardo Alvez
+              </p>
+              <p className="text-[11px] text-[var(--text-soft)] mt-1">
+                Comercial Sênior
+              </p>
             </div>
           </div>
+
           <div className="space-y-3 relative z-10">
-            <div className="flex justify-between items-center bg-white/10 rounded-2xl p-4 border border-white/10">
-              <span className="text-xs font-black uppercase tracking-widest opacity-80">Vendas</span>
-              <span className="font-black text-xl">130</span>
+            <div className="flex justify-between items-center
+                            bg-white/5 border border-[var(--border)]
+                            rounded-xl px-4 py-3">
+              <span className="text-[11px] uppercase tracking-widest text-[var(--text-soft)]">
+                Vendas
+              </span>
+              <span className="font-semibold text-[var(--text-main)]">
+                130
+              </span>
             </div>
-            <div className="flex justify-between items-center bg-white/10 rounded-2xl p-4 border border-white/10">
-              <span className="text-xs font-black uppercase tracking-widest opacity-80">Conversão</span>
-              <span className="font-black text-xl">24.5%</span>
+
+            <div className="flex justify-between items-center
+                            bg-white/5 border border-[var(--border)]
+                            rounded-xl px-4 py-3">
+              <span className="text-[11px] uppercase tracking-widest text-[var(--text-soft)]">
+                Conversão
+              </span>
+              <span className="font-semibold text-[var(--text-main)]">
+                24,5%
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Stats Column */}
+        {/* STATS */}
         <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StatCard label="Média de Satisfação" value="4.9 / 5.0" icon={Star} color="yellow" />
-          <StatCard label="Meta Global" value="92% Atingida" icon={Target} color="green" />
-          <StatCard label="Atendimentos Hoje" value="248" icon={Users} color="blue" />
+          <StatCard
+            label="Média de satisfação"
+            value="4.9 / 5.0"
+            icon={Star}
+            tone="warning"
+          />
+          <StatCard
+            label="Meta global"
+            value="92% atingida"
+            icon={Target}
+            tone="success"
+          />
+          <StatCard
+            label="Atendimentos hoje"
+            value="248"
+            icon={Users}
+            tone="info"
+          />
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm p-6 md:p-8 overflow-hidden">
-        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-10">Ranking de Conversão (Vendas x Meta)</h3>
-        <div className="h-[400px] w-full min-w-0">
+      {/* CHART */}
+      <div className="card-panel p-6">
+        <h3 className="text-[11px] uppercase tracking-widest font-semibold
+                       text-[var(--text-soft)] mb-6">
+          Ranking de conversão (vendas × meta)
+        </h3>
+
+        <div className="h-[360px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rankingData} layout="vertical" margin={{ left: -10, right: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" className="dark:stroke-slate-800/50" />
+            <BarChart
+              data={rankingData}
+              layout="vertical"
+              margin={{ left: 0, right: 24 }}
+            >
+              <CartesianGrid
+                horizontal
+                vertical={false}
+                stroke="rgba(255,255,255,0.04)"
+              />
+
               <XAxis type="number" hide />
-              <YAxis 
-                dataKey="name" 
-                type="category" 
-                axisLine={false} 
-                tickLine={false} 
-                // Removed invalid textTransform property from SVG tick object to fix TypeScript error
-                tick={{fill: '#64748b', fontSize: 10, fontWeight: 900}} 
+
+              <YAxis
+                type="category"
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fill: 'var(--text-soft)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
               />
-              <Tooltip 
-                cursor={{fill: '#f8fafc', opacity: 0.1}}
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '12px', background: '#0f172a', color: '#fff' }}
-                itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
+
+              <Tooltip
+                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                contentStyle={{
+                  background: 'var(--bg-panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  color: 'var(--text-main)',
+                }}
+                itemStyle={{
+                  color: 'var(--primary)',
+                  fontWeight: 600,
+                }}
               />
-              <Bar dataKey="vendas" radius={[0, 12, 12, 0]} barSize={24}>
+
+              <Bar dataKey="vendas" barSize={22} radius={[0, 10, 10, 0]}>
                 {rankingData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.cor} />
+                  <Cell key={index} fill={entry.cor} />
                 ))}
               </Bar>
             </BarChart>
@@ -88,20 +174,39 @@ const SellerPerformance: React.FC = () => {
   );
 };
 
-const StatCard: React.FC<{ label: string, value: string, icon: any, color: string }> = ({ label, value, icon: Icon, color }) => {
-  const colors: any = {
-    yellow: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
-    green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+/* ===========================
+   STAT CARD
+=========================== */
+const StatCard: React.FC<{
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  tone: 'success' | 'warning' | 'info';
+}> = ({ label, value, icon: Icon, tone }) => {
+  const tones = {
+    success: 'bg-emerald-500/10 text-emerald-400',
+    warning: 'bg-amber-500/10 text-amber-400',
+    info: 'bg-blue-500/10 text-blue-400',
   };
+
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between hover:scale-105 transition-transform duration-500">
-      <div className={`w-14 h-14 ${colors[color]} rounded-2xl flex items-center justify-center mb-6 shadow-sm`}>
-        <Icon size={24} />
+    <div className="card-panel p-6 flex flex-col justify-between">
+      <div
+        className={`w-12 h-12 rounded-xl
+                    ${tones[tone]}
+                    flex items-center justify-center mb-4`}
+      >
+        <Icon size={20} />
       </div>
+
       <div>
-        <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-2xl font-black text-slate-900 dark:text-white leading-none">{value}</p>
+        <p className="text-[11px] uppercase tracking-widest
+                      text-[var(--text-soft)] mb-1">
+          {label}
+        </p>
+        <p className="text-[18px] font-semibold text-[var(--text-main)]">
+          {value}
+        </p>
       </div>
     </div>
   );

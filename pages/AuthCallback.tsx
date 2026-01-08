@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { Loader2 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../src/contexts/AuthContext'
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate()

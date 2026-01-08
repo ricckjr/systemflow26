@@ -2,9 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { Permissao, Profile } from '../../types';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { Shield, Plus, Info, Settings, Edit3, Trash2 } from 'lucide-react';
 
-const Permissoes: React.FC<{ profile: Profile }> = ({ profile }) => {
+const Permissoes: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
+  const { profile: authProfile } = useAuth();
+  const profile = propProfile || authProfile;
+
+  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+
   const [modulos, setModulos] = useState<Permissao[]>([]);
   const [loading, setLoading] = useState(true);
 

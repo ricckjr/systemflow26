@@ -1,237 +1,214 @@
 import React, { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { useAuth } from '../context/AuthContext'
-import { Lock, Mail, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react'
+import { useAuth } from '../src/contexts/AuthContext'
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import capaLogin from './imagem/capalogin.png'
+import { logInfo, logError } from '../utils/logger'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, loading } = useAuth() // Monitora a sessão do contexto
+  const { session, loading } = useAuth()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [localLoading, setLocalLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [remember, setRemember] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
+
   const navMessage = (location.state as any)?.message as string | undefined
 
-  // Redireciona automaticamente se já estiver logado (e o contexto já tiver atualizado)
-  useEffect(() => {
-    if (!loading && session) {
-      navigate('/app/comunidade', { replace: true })
-    }
-  }, [session, loading, navigate])
-
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberEmail') || ''
-    const savedRemember = localStorage.getItem('remember') === 'true'
-    if (savedEmail) setEmail(savedEmail)
-    setRemember(savedRemember)
-  }, [])
-
-  const validateEmail = (v: string) => {
-    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-    setFieldErrors(p => ({ ...p, email: ok ? undefined : 'E-mail inválido' }))
-    return ok
-  }
-
-  const validatePassword = (v: string) => {
-    const ok = v.trim().length >= 6
-    setFieldErrors(p => ({ ...p, password: ok ? undefined : 'Mínimo 6 caracteres' }))
-    return ok
-  }
+  const alreadyLogged = !loading && !!session
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLocalLoading(true)
+    if (submitting) return
+
+    setSubmitting(true)
     setError(null)
 
     try {
-      if (!validateEmail(email) || !validatePassword(password)) {
-        throw new Error('Verifique os campos')
-      }
-
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-      if (authError) throw authError
-
-      if (data.user) {
-        remember
-          ? localStorage.setItem('rememberEmail', email)
-          : localStorage.removeItem('rememberEmail')
-        remember
-          ? localStorage.setItem('remember', 'true')
-          : localStorage.removeItem('remember')
-
-        // Verificação opcional de status do perfil (apenas se a query funcionar)
-        try {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('ativo, status')
-              .eq('id', data.user.id)
-              .single()
-            
-            // Só valida se trouxer dados com sucesso. Se der erro (ex: rede/RLS), deixa passar e o AuthContext resolve.
-            if (!profileError && profile) {
-                if (profile.ativo === false) throw new Error('Conta desativada. Entre em contato com o suporte.')
-                if (profile.status === 'bloqueado') throw new Error('Conta bloqueada por segurança.')
-            }
-        } catch (err: any) {
-            // Se for erro de validação (conta desativada/bloqueada), repassa o erro e desloga
-            if (err.message.includes('Conta')) {
-                await supabase.auth.signOut()
-                throw err
-            }
-            // Se for erro de rede/query, ignora e deixa o fluxo seguir (resiliência)
-            console.warn('Login: Erro não-bloqueante ao verificar perfil:', err)
-        }
-        
-        // Aguarda hidratação da sessão de forma explícita para evitar loop
-        const start = Date.now()
-        let ok = false
-        while (Date.now() - start < 2500) {
-          const { data: s } = await supabase.auth.getSession()
-          if (s?.session) { ok = true; break }
-          await new Promise(r => setTimeout(r, 200))
-        }
-        if (ok) {
-          navigate('/app', { replace: true })
-        } else {
-          throw new Error('Falha ao estabelecer sessão. Tente novamente.')
-        }
-      }
+      logInfo('auth', 'login attempt', { email })
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) throw error
+      logInfo('auth', 'login success', { email })
+      navigate('/app', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'Falha na autenticação')
-      setLocalLoading(false) // Só para loading se der erro. Se sucesso, mantemos loading até o redirect.
+      logError('auth', 'login failed', err)
+      setError(err.message || 'Falha ao autenticar')
+      setSubmitting(false)
     }
   }
 
   return (
-    <div className="min-h-screen w-full flex bg-background text-white relative overflow-hidden">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#0B0F14] text-white">
 
-      
+      {/* ================= ESQUERDA ================= */}
+      <div className="hidden lg:flex lg:col-span-7 relative overflow-hidden">
+        <img
+          src={capaLogin}
+          alt="SystemFlow"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0B0F14]/95 via-[#0B0F14]/75 to-transparent" />
 
-      <div className="hidden lg:block w-[55%] relative overflow-hidden">
-        <img src={capaLogin} className="absolute inset-0 w-full h-full object-cover opacity-90" />
-        <div className="absolute inset-0 bg-background/80" />
+        <div className="relative z-10 flex flex-col justify-end p-16 max-w-xl">
+          <h1 className="text-5xl font-extrabold tracking-tight">
+            SystemFlow
+          </h1>
+          <p className="mt-4 text-base text-white/80 leading-relaxed">
+            Sua gestão mais inteligente.
+            <br />
+            Automação, controle e performance industrial em um único sistema.
+          </p>
+        </div>
       </div>
 
-      
+      {/* ================= DIREITA ================= */}
+      <div className="lg:col-span-5 flex items-center justify-center px-6 sm:px-10">
+        <div className="w-full max-w-md">
 
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-8 relative z-10">
-        <div className="w-full max-w-[520px] bg-card border border-line rounded-[24px] p-10">
+          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-10 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
 
-          <div className="flex justify-center mb-8">
-            <img
-              src="https://apliflow.com.br/wp-content/uploads/2024/06/af-prata-e-azul-1-1.png"
-              alt="ApliFlow"
-              className="h-16"
-            />
-          </div>
+            {/* Logo */}
+            <div className="flex justify-center mb-10">
+              <img
+                src="https://apliflow.com.br/wp-content/uploads/2024/06/af-prata-e-azul-1-1.png"
+                alt="ApliFlow"
+                className="h-12"
+              />
+            </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+            {alreadyLogged && (
+              <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400 flex items-center justify-between gap-3">
+                <span>Você já está autenticado.</span>
+                <button
+                  type="button"
+                  onClick={() => navigate('/app', { replace: true })}
+                  className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition"
+                >
+                  Entrar
+                </button>
+              </div>
+            )}
 
             {navMessage && (
-              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-3 rounded-lg text-sm">
+              <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
                 {navMessage}
               </div>
             )}
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">
+              <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                 {error}
               </div>
             )}
 
-            {/* Email */}
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onBlur={() => validateEmail(email)}
-                autoComplete="email"
-                inputMode="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-invalid={!!fieldErrors.email}
-                aria-describedby="email-error"
-                className="w-full h-12 pl-10 pr-4 rounded-xl bg-white/7 border border-white/10 text-white outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 hover:bg-white/10"
-                placeholder="E-mail"
-              />
-            </div>
-            {fieldErrors.email && (
-              <p id="email-error" className="text-xs text-red-400 ml-1 -mt-1">
-                {fieldErrors.email}
-              </p>
-            )}
+            <form onSubmit={handleLogin} className="space-y-6">
 
-            {/* Password */}
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onBlur={() => validatePassword(password)}
-                autoComplete="current-password"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-invalid={!!fieldErrors.password}
-                aria-describedby="password-error"
-                className="w-full h-12 pl-10 pr-10 rounded-xl bg-white/7 border border-white/10 text-white outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 hover:bg-white/10"
-                placeholder="Senha"
-              />
+              {/* EMAIL */}
+              <div>
+                <label className="block text-xs font-semibold tracking-widest text-white/60 mb-2">
+                  E-MAIL
+                </label>
+                <div className="relative">
+                  <Mail
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-black"
+                    size={16}
+                  />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    className="
+                      w-full h-12 pl-11 pr-4
+                      rounded-xl
+                      bg-[#EEF4FF]
+                      border border-transparent
+                      text-[#0B0F14]
+                      placeholder:text-gray-500
+                      focus:outline-none
+                      focus:border-[#38BDF8]
+                      focus:ring-2 focus:ring-[#38BDF8]/30
+                      transition
+                    "
+                    placeholder="usuario@empresa.com"
+                  />
+                </div>
+              </div>
+
+              {/* SENHA */}
+              <div>
+                <label className="block text-xs font-semibold tracking-widest text-white/60 mb-2">
+                  SENHA
+                </label>
+                <div className="relative">
+                  <Lock
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-black"
+                    size={16}
+                  />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    className="
+                      w-full h-12 pl-11 pr-12
+                      rounded-xl
+                      bg-[#EEF4FF]
+                      border border-transparent
+                      text-[#0B0F14]
+                      placeholder:text-gray-500
+                      focus:outline-none
+                      focus:border-[#38BDF8]
+                      focus:ring-2 focus:ring-[#38BDF8]/30
+                      transition
+                    "
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* BOTÃO */}
               <button
-                type="button"
-                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors"
+                type="submit"
+                disabled={submitting}
+                className="
+                  w-full h-12
+                  rounded-xl
+                  bg-[#38BDF8]
+                  hover:bg-[#0EA5E9]
+                  text-[#0B0F14]
+                  font-bold
+                  tracking-wide
+                  transition
+                  shadow-[0_12px_30px_rgba(56,189,248,0.35)]
+                  hover:-translate-y-[1px]
+                  disabled:opacity-60
+                  flex items-center justify-center
+                "
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {submitting ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  'ENTRAR'
+                )}
               </button>
-            </div>
-            {fieldErrors.password && (
-              <p id="password-error" className="text-xs text-red-400 ml-1 -mt-1">
-                {fieldErrors.password}
-              </p>
-            )}
 
-            <button
-              type="submit"
-              disabled={localLoading}
-              aria-busy={localLoading}
-              className="w-full h-12 bg-brand-600 rounded-full font-bold flex items-center justify-center gap-2 hover:brightness-110 transition disabled:opacity-70 disabled:pointer-events-none"
-            >
-              {localLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
-              {!localLoading && <ArrowRight size={16} />}
-            </button>
-
-            <div className="flex items-center justify-between text-xs text-zinc-400 mt-4">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={remember} onChange={() => setRemember(!remember)} />
-                Manter conectado
-              </label>
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="hover:text-blue-400 transition-colors"
-              >
-                Esqueci minha senha
-              </button>
-            </div>
-
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

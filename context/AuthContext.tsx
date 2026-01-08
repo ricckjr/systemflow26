@@ -107,6 +107,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (mounted.current) {
          setPermissions(permsData || [])
+         if (permsData) {
+             localStorage.setItem('systemflow-permissions-cache', JSON.stringify(permsData))
+         }
       }
       
     } catch (err: unknown) {
@@ -147,10 +150,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Tenta recuperar do cache local primeiro para evitar flash de "User"
     const cachedProfileStr = localStorage.getItem('systemflow-profile-cache')
+    const cachedPermsStr = localStorage.getItem('systemflow-permissions-cache')
+    
     if (cachedProfileStr) {
         try {
             const cachedProfile = JSON.parse(cachedProfileStr)
             setProfile(cachedProfile)
+            
+            if (cachedPermsStr) {
+                const cachedPerms = JSON.parse(cachedPermsStr)
+                setPermissions(cachedPerms)
+            }
         } catch {}
     }
     
@@ -232,15 +242,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = useCallback(async () => {
     try {
         setLoading(true)
-        await supabase.auth.signOut()
+        // Race condition: Timeout vs Supabase SignOut
+        // Se o supabase demorar mais que 2s, forçamos o logout local
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+        await Promise.race([supabase.auth.signOut(), timeoutPromise])
     } catch (err) {
-        console.error('Erro logout:', err)
+        console.warn('Logout (network/timeout):', err)
     } finally {
         if (mounted.current) {
             try {
-              localStorage.clear() // Limpeza agressiva
-              // Garante remoção do cache de perfil específico
+              localStorage.clear() 
               localStorage.removeItem('systemflow-profile-cache')
+              localStorage.removeItem('systemflow-permissions-cache')
             } catch {}
             
             setSession(null)
@@ -248,6 +261,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setPermissions([])
             setLoading(false)
             setError(null)
+            // Force redirect para garantir limpeza visual
+            // navigate não está disponível aqui, mas o ProtectedRoute deve pegar
         }
     }
   }, [])

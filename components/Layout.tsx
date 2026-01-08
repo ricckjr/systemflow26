@@ -17,8 +17,11 @@ import {
 } from 'lucide-react';
 import { Profile, ProfilePermissao } from '../types';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 import { useScrollLock } from '../hooks/useScrollLock';
+
+import { LogoutModal } from './LogoutModal';
 
 interface NavItem {
   label: string;
@@ -68,9 +71,11 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) => {
+  const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(window.innerWidth < 1280);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Comercial', 'Comunicação']);
   const [supabaseConnected, setSupabaseConnected] = useState(true);
   const location = useLocation();
@@ -132,15 +137,15 @@ const Layout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) => {
     );
   };
 
-  const handleLogout = async () => {
-    const ok = window.confirm('Deseja sair do sistema?')
-    if (!ok) return
-    try {
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('sb-')) localStorage.removeItem(k);
-      });
-    } catch {}
-    await supabase.auth.signOut()
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const confirmLogout = async () => {
+    setIsLogoutModalOpen(false);
+    await signOut();
+    // Navigate é redundante se o AuthContext já limpar a sessão (ProtectedRoute redireciona), 
+    // mas deixamos aqui como garantia extra.
     navigate('/login', { replace: true })
   };
 
@@ -253,7 +258,7 @@ const Layout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) => {
           {(!isCollapsed || isMobileMenuOpen) && <span className="text-sm font-bold">Usuários</span>}
         </button>
         <button
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl border border-line bg-white/5 hover:bg-white/8 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-600/30"
           title="Sair do Sistema"
           aria-label="Sair do sistema"
@@ -352,6 +357,11 @@ const Layout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) => {
         </main>
       </div>
       {/* modal removido; perfil agora é uma página dedicada */}
+      <LogoutModal 
+        isOpen={isLogoutModalOpen} 
+        onClose={() => setIsLogoutModalOpen(false)} 
+        onConfirm={confirmLogout} 
+      />
     </div>
   );
 };

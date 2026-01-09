@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { logInfo, logWarn } from '@/utils/logger';
 
 const rawUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseUrl = rawUrl?.replace(/\/+$/, '');
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseUrl = rawUrl?.trim().replace(/\/+$/, '');
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
 
 // Singleton pattern for HMR safety
 // Evita que o cliente seja recriado a cada hot-reload, mantendo a conexão realtime e sessão estáveis.

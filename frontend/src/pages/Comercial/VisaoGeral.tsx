@@ -7,8 +7,10 @@ import {
   Ban,
   Percent,
   ShoppingCart,
-  FileText, // Importando ícone para Propostas
-  Phone // Importando ícone para Ligações
+  FileText,
+  Phone,
+  Clock,
+  Calendar
 } from 'lucide-react'
 import {
   BarChart,
@@ -29,10 +31,8 @@ import { fetchOportunidades, isVenda, isAtivo, CRM_Oportunidade, fetchLigacoes, 
    HELPERS
 =========================== */
 function getYearMonth(d: CRM_Oportunidade) {
-  // Prioridade absoluta para o campo 'data' (formato MM-YYYY) conforme solicitado
   const raw = d.data || d.data_inclusao
   const dateObj = parseDate(raw)
-  
   if (!dateObj) return null
   return [String(dateObj.getFullYear()), String(dateObj.getMonth() + 1).padStart(2, '0')]
 }
@@ -41,56 +41,59 @@ export default function VisaoGeral() {
   const [data, setData] = useState<CRM_Oportunidade[]>([])
   const [ligacoes, setLigacoes] = useState<CRM_Ligacao[]>([])
   const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [error, setError] = useState<string | null>(null)
 
-  /* ===========================
-     LOAD
-  ============================ */
+  // Relógio em tempo real para o dashboard
+  const [currentTime, setCurrentTime] = useState(new Date())
+
   useEffect(() => {
-    let alive = true
-
-    const load = async () => {
-      setLoading(true)
-      try {
-        // Busca paralela de Oportunidades e Ligações
-        const [items, calls] = await Promise.all([
-          fetchOportunidades({ orderDesc: true }),
-          fetchLigacoes()
-        ])
-        
-        if (alive) {
-          setData(items)
-          setLigacoes(calls)
-          logInfo('crm', 'visao-geral', { count: items.length, calls: calls.length })
-        }
-      } catch (err) {
-        logError('crm', 'visao-geral-load', err)
-        if (alive) setError('Erro ao carregar dados. Verifique a conexão.')
-      } finally {
-        if (alive) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      alive = false
-    }
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   /* ===========================
-     STATS
+     LOAD DATA
+  ============================ */
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      const [items, calls] = await Promise.all([
+        fetchOportunidades({ orderDesc: true }),
+        fetchLigacoes()
+      ])
+      
+      setData(items)
+      setLigacoes(calls)
+      setLastUpdated(new Date())
+      logInfo('crm', 'visao-geral', { count: items.length, calls: calls.length })
+    } catch (err) {
+      logError('crm', 'visao-geral-load', err)
+      setError('Erro ao atualizar dados.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    // Auto-refresh a cada 5 minutos
+    const autoRefresh = setInterval(loadData, 5 * 60 * 1000)
+    return () => clearInterval(autoRefresh)
+  }, [])
+
+  /* ===========================
+     STATS CALCULATION
   ============================ */
   const stats = useMemo(() => {
     const now = new Date()
     const currentM = String(now.getMonth() + 1).padStart(2, '0')
     const currentY = String(now.getFullYear())
 
-    // Cálculo Mês Anterior
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const lastM = String(lastMonthDate.getMonth() + 1).padStart(2, '0')
     const lastY = String(lastMonthDate.getFullYear())
 
-    // Helper de filtro
     const filterByMonth = (list: CRM_Oportunidade[], m: string, y: string) => {
       return list.filter(d => {
         const ym = getYearMonth(d)
@@ -98,19 +101,10 @@ export default function VisaoGeral() {
       })
     }
 
-    // Dados do Mês Atual
     const currentData = filterByMonth(data, currentM, currentY)
-    // Se mês atual vazio, usa tudo (fallback original) APENAS para valores absolutos,
-    // mas para tendência precisamos comparar laranjas com laranjas.
-    // Vamos manter a lógica: Se currentData vazio, effective = data.
-    // MAS para tendência, se currentData for vazio, a tendência será distorcida se compararmos "Tudo" com "Mês Passado".
-    // Ajuste: O fallback "effective" é apenas para exibição quando não há dados.
     const effective = currentData.length > 0 ? currentData : data
-
-    // Dados do Mês Anterior (sempre real)
     const lastData = filterByMonth(data, lastM, lastY)
 
-    // Função para calcular métricas de um conjunto de dados
     const calculateMetrics = (dataset: CRM_Oportunidade[]) => {
       const vendaValue = dataset.reduce((a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta) : 0), 0)
       const vendaCount = dataset.reduce((a, o) => a + (isVenda(o.status) ? 1 : 0), 0)
@@ -119,17 +113,6 @@ export default function VisaoGeral() {
       const perdidoItems = dataset.filter(o => (o.status || '').toUpperCase() === 'PERDIDO')
       const canceladoItems = dataset.filter(o => (o.status || '').toUpperCase() === 'CANCELADO')
 
-      // Propostas (data_inclusao)
-      // Nota: O dataset já está filtrado por data (geralmente data da venda ou atualização).
-      // Para propostas geradas, precisamos filtrar novamente pela data_inclusao original se quisermos precisão,
-      // mas se assumirmos que o dataset já é "do mês", podemos contar.
-      // Porém, para consistência com o código anterior, vamos recalcular propostas baseadas em data_inclusao no dataset GLOBAL
-      // filtrando pelo mês/ano específico deste dataset.
-      
-      // Mas espere, o dataset recebido aqui já foi filtrado por `getYearMonth` (que prioriza `data` mas usa `data_inclusao` como fallback).
-      // Para manter a lógica exata de "Propostas Geradas" (criação), vamos contar quantas desse dataset tem data_inclusao compatível?
-      // Ou melhor: Vamos usar a lógica dedicada de propostas para cada período.
-      
       return {
         vendaValue,
         vendaCount,
@@ -138,16 +121,14 @@ export default function VisaoGeral() {
         perdidoValue: perdidoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta), 0),
         perdidoCount: perdidoItems.length,
         canceladoValue: canceladoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta), 0),
-        canceladoCount: canceladoItems.length,
-        totalItems: dataset.length
+        canceladoCount: canceladoItems.length
       }
     }
 
-    // Calcula métricas atuais e anteriores
     const curr = calculateMetrics(effective)
     const last = calculateMetrics(lastData)
 
-    // Cálculo específico de Propostas Geradas (Pela data de inclusão estrita)
+    // Propostas (data_inclusao)
     const countProposals = (m: string, y: string) => data.filter(d => {
        const raw = d.data_inclusao
        const dateObj = parseDate(raw)
@@ -158,7 +139,7 @@ export default function VisaoGeral() {
     const propCurr = countProposals(currentM, currentY)
     const propLast = countProposals(lastM, lastY)
 
-    // Cálculo de Ligações Feitas (Baseado em data_hora da tabela crm_ligacoes)
+    // Ligações
     const countCalls = (m: string, y: string) => ligacoes.filter(l => {
        const d = new Date(l.data_hora)
        if (isNaN(d.getTime())) return false
@@ -168,33 +149,16 @@ export default function VisaoGeral() {
     const callsCurr = countCalls(currentM, currentY)
     const callsLast = countCalls(lastM, lastY)
 
-    // Helper de tendência
     const calcTrend = (currVal: number, lastVal: number) => {
-      if (lastVal === 0) return currVal > 0 ? 100 : 0 // Se base 0, subiu 100% se tiver algo
+      if (lastVal === 0) return currVal > 0 ? 100 : 0
       return ((currVal - lastVal) / lastVal) * 100
     }
 
     return {
-      venda: { 
-        value: curr.vendaValue, 
-        count: curr.vendaCount,
-        trend: calcTrend(curr.vendaValue, last.vendaValue)
-      },
-      ativo: { 
-        value: curr.ativoValue,
-        count: curr.ativoCount,
-        trend: calcTrend(curr.ativoValue, last.ativoValue)
-      },
-      perdido: { 
-        value: curr.perdidoValue,
-        count: curr.perdidoCount,
-        trend: calcTrend(curr.perdidoValue, last.perdidoValue)
-      },
-      cancelado: { 
-        value: curr.canceladoValue,
-        count: curr.canceladoCount,
-        trend: calcTrend(curr.canceladoValue, last.canceladoValue)
-      },
+      venda: { value: curr.vendaValue, count: curr.vendaCount, trend: calcTrend(curr.vendaValue, last.vendaValue) },
+      ativo: { value: curr.ativoValue, count: curr.ativoCount, trend: calcTrend(curr.ativoValue, last.ativoValue) },
+      perdido: { value: curr.perdidoValue, count: curr.perdidoCount, trend: calcTrend(curr.perdidoValue, last.perdidoValue) },
+      cancelado: { value: curr.canceladoValue, count: curr.canceladoCount, trend: calcTrend(curr.canceladoValue, last.canceladoValue) },
       conversion: {
         value: effective.length ? (curr.vendaCount / effective.length) * 100 : 0,
         trend: calcTrend(
@@ -209,66 +173,109 @@ export default function VisaoGeral() {
           last.vendaCount ? last.vendaValue / last.vendaCount : 0
         )
       },
-      propostasGeradas: {
-        value: propCurr,
-        trend: calcTrend(propCurr, propLast)
-      },
-      ligacoesFeitas: {
-        value: callsCurr,
-        trend: calcTrend(callsCurr, callsLast)
-      }
+      propostasGeradas: { value: propCurr, trend: calcTrend(propCurr, propLast) },
+      ligacoesFeitas: { value: callsCurr, trend: calcTrend(callsCurr, callsLast) }
     }
   }, [data, ligacoes])
 
-  /* ===========================
-     LOADING
-  ============================ */
-  if (loading) {
+  if (loading && data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[var(--primary)]">
-        <RefreshCw className="animate-spin" />
+      <div className="flex flex-col items-center justify-center h-full text-[var(--primary)] animate-pulse">
+        <RefreshCw className="w-12 h-12 mb-4 animate-spin" />
+        <p className="text-sm font-medium tracking-widest uppercase">Carregando Dashboard...</p>
       </div>
     )
   }
 
-  /* ===========================
-     UI
-  ============================ */
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* HEADER DASHBOARD TV */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight flex items-center gap-3">
+            <span className="w-2 h-8 bg-[var(--primary)] rounded-full block"></span>
+            Monitoramento Comercial
+          </h1>
+          <p className="text-sm text-[var(--text-soft)] mt-1 flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            Atualizado em: {lastUpdated.toLocaleTimeString()}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="text-right hidden md:block">
+            <p className="text-3xl font-bold text-[var(--text-main)] leading-none font-mono">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p className="text-xs text-[var(--text-soft)] uppercase tracking-widest mt-1">
+              {currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          
+          <button 
+            onClick={loadData}
+            className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300"
+            title="Atualizar Dados"
+          >
+            <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+      </div>
+
       {error && (
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8 gap-4">
+      {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KPI 
           title="Ligações Feitas" 
           value={String(stats.ligacoesFeitas.value)} 
           trend={stats.ligacoesFeitas.trend}
-          icon={Phone} 
+          icon={Phone}
+          color="blue"
         />
         <KPI 
           title="Propostas Geradas" 
           value={String(stats.propostasGeradas.value)} 
           trend={stats.propostasGeradas.trend}
-          icon={FileText} 
+          icon={FileText}
+          color="indigo"
         />
         <KPI 
-          title="Vendas" 
+          title="Vendas (Mês)" 
           value={formatCurrency(stats.venda.value)} 
           count={stats.venda.count}
           trend={stats.venda.trend}
-          icon={Award} 
+          icon={Award}
+          color="amber"
+          isMain
         />
         <KPI 
-          title="Ativo" 
+          title="Ticket Médio" 
+          value={formatCurrency(stats.avgTicket.value)} 
+          trend={stats.avgTicket.trend}
+          icon={ShoppingCart}
+          color="emerald"
+        />
+        
+        {/* Row 2 */}
+        <KPI 
+          title="Pipeline Ativo" 
           value={formatCurrency(stats.ativo.value)} 
           count={stats.ativo.count}
           trend={stats.ativo.trend}
-          icon={TrendingUp} 
+          icon={TrendingUp}
+          color="sky"
+        />
+        <KPI 
+          title="Taxa de Conversão" 
+          value={`${stats.conversion.value.toFixed(1)}%`} 
+          trend={stats.conversion.trend}
+          icon={Percent}
+          color="violet"
         />
         <KPI 
           title="Perdido" 
@@ -276,7 +283,8 @@ export default function VisaoGeral() {
           count={stats.perdido.count}
           trend={stats.perdido.trend}
           icon={Ban} 
-          invertTrend // Queda é bom
+          invertTrend
+          color="rose"
         />
         <KPI 
           title="Cancelado" 
@@ -284,130 +292,106 @@ export default function VisaoGeral() {
           count={stats.cancelado.count}
           trend={stats.cancelado.trend}
           icon={X} 
-          invertTrend // Queda é bom
-        />
-        <KPI 
-          title="Conversão" 
-          value={`${stats.conversion.value.toFixed(1)}%`} 
-          trend={stats.conversion.trend}
-          icon={Percent} 
-        />
-        <KPI 
-          title="Ticket Médio" 
-          value={formatCurrency(stats.avgTicket.value)} 
-          trend={stats.avgTicket.trend}
-          icon={ShoppingCart} 
+          invertTrend
+          color="gray"
         />
       </div>
 
-      {/* GRIDS INFERIORES */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* FUNIL DE VENDAS */}
-        <FunnelSection data={data} />
+      {/* MAIN CHARTS SECTION */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
+        {/* FUNIL - Takes 7 cols */}
+        <div className="xl:col-span-7 h-full">
+          <FunnelSection data={data} />
+        </div>
 
-        {/* RANKING DE VENDEDORES */}
-        <RankingSection data={data} />
+        {/* RANKING - Takes 5 cols */}
+        <div className="xl:col-span-5 h-full">
+          <RankingSection data={data} />
+        </div>
       </div>
     </div>
   )
 }
 
 /* ===========================
-   RANKING COMPONENT
+   KPI COMPONENT (TV STYLE)
 =========================== */
-const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
-  const ranking = useMemo(() => {
-    // 0. Data Atual para filtro de mês
-    const now = new Date()
-    const currentM = String(now.getMonth() + 1).padStart(2, '0')
-    const currentY = String(now.getFullYear())
+interface KPIProps {
+  title: string
+  value: string
+  count?: number
+  trend?: number
+  icon: React.ElementType
+  invertTrend?: boolean
+  color?: 'blue' | 'indigo' | 'amber' | 'emerald' | 'rose' | 'sky' | 'violet' | 'gray'
+  isMain?: boolean
+}
 
-    // 1. Filtra apenas vendas (Conquistado/Ganho/etc) E do Mês Atual
-    const vendasDoMes = data.filter(d => {
-       const isSold = isVenda(d.status)
-       // Usa o mesmo helper de data dos KPIs para garantir consistência
-       const ym = getYearMonth(d)
-       const isCurrentMonth = ym ? ym[0] === currentY && ym[1] === currentM : false
-       
-       return isSold && isCurrentMonth
-    })
+const KPI = ({
+  title,
+  value,
+  count,
+  trend,
+  icon: Icon,
+  invertTrend = false,
+  color = 'blue',
+  isMain = false
+}: KPIProps) => {
+  const getTrendColor = (t: number) => {
+    if (t === 0) return 'text-[var(--text-muted)]'
+    const positive = t > 0
+    if (invertTrend) return positive ? 'text-rose-400' : 'text-emerald-400'
+    return positive ? 'text-emerald-400' : 'text-rose-400'
+  }
 
-    // 2. Agrupa por vendedor
-    const grouped = vendasDoMes.reduce((acc, item) => {
-      const vendedor = item.vendedor || 'Não Identificado'
-      const valor = parseValorProposta(item.valor_proposta)
-      
-      if (!acc[vendedor]) acc[vendedor] = 0
-      acc[vendedor] += valor
-      return acc
-    }, {} as Record<string, number>)
-
-    // 3. Converte para array e ordena
-    const sorted = Object.entries(grouped)
-      .map(([name, total]) => ({ name, total }))
-      .sort((a, b) => b.total - a.total)
-
-    // 4. Pega o valor máximo para a barra de progresso
-    const maxVal = sorted.length > 0 ? sorted[0].total : 0
-
-    return { list: sorted, max: maxVal }
-  }, [data])
-
-  // Removido o retorno null antecipado para mostrar o empty state
-  // if (ranking.list.length === 0) return null
+  // Mapeamento de cores para classes Tailwind
+  const colorMap = {
+    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    sky: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+    violet: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    gray: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  }
 
   return (
-    <div className="card-panel p-6 flex flex-col h-full min-h-[400px]">
-      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
-        <Award size={16} className="text-yellow-500" />
-        Ranking de Vendedores (Mês Atual)
-      </h3>
-
-      {ranking.list.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-[var(--text-soft)] pb-8">
-           <Award size={48} className="mb-3 opacity-20" />
-           <p className="text-sm font-medium">Nenhuma venda confirmada neste mês.</p>
-           <p className="text-xs mt-1 opacity-60">As vendas aparecerão aqui assim que o status for alterado para Conquistado.</p>
+    <div className={`
+      relative overflow-hidden rounded-2xl p-6 transition-all duration-300
+      border backdrop-blur-md
+      ${isMain ? 'bg-[var(--bg-panel)] shadow-lg shadow-amber-900/10 border-amber-500/30' : 'bg-[var(--bg-panel)] border-[var(--border)]'}
+      hover:border-[var(--primary)]/30 group
+    `}>
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-xl ${colorMap[color]} transition-colors`}>
+          <Icon size={24} />
         </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar max-h-[400px]">
-          {ranking.list.map((item, index) => {
-          const isTop3 = index < 3
-          const medalColor = index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-600'
-          const percent = ranking.max > 0 ? (item.total / ranking.max) * 100 : 0
-          
-          return (
-            <div key={item.name} className="relative group">
-              <div className="flex items-center justify-between mb-1 z-10 relative">
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold w-6 text-center ${medalColor} ${isTop3 ? 'text-lg' : 'text-sm'}`}>
-                    {index + 1}º
-                  </span>
-                  <span className="text-sm font-medium text-[var(--text-main)] truncate max-w-[150px]">
-                    {item.name}
-                  </span>
-                </div>
-                <span className="text-sm font-bold text-[var(--primary)]">
-                  {formatCurrency(item.total)}
-                </span>
-              </div>
-              
-              {/* Progress Bar Background */}
-              <div className="h-2 w-full bg-[var(--bg-body)] rounded-full overflow-hidden">
-                {/* Progress Bar Fill */}
-                <div 
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{ 
-                    width: `${percent}%`,
-                    backgroundColor: index === 0 ? '#fbbf24' : 'var(--primary)' 
-                  }}
-                />
-              </div>
-            </div>
-          )
-        })}
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-[var(--bg-body)] ${getTrendColor(trend)}`}>
+            {trend > 0 ? '↑' : trend < 0 ? '↓' : '•'} {Math.abs(trend).toFixed(1)}%
+          </div>
+        )}
       </div>
-      )}
+
+      <div>
+        <p className="text-[11px] uppercase tracking-widest font-semibold text-[var(--text-soft)] mb-1">
+          {title}
+        </p>
+        <div className="flex items-baseline gap-2">
+          <h3 className={`font-bold tracking-tight text-[var(--text-main)] ${isMain ? 'text-3xl' : 'text-2xl'}`}>
+            {value}
+          </h3>
+          {count !== undefined && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--bg-body)] text-[var(--text-soft)] border border-[var(--border)]">
+              {count} un
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {/* Decorative Glow */}
+      <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full blur-3xl opacity-10 pointer-events-none ${colorMap[color].split(' ')[0].replace('/10', '/30')}`} />
     </div>
   )
 }
@@ -417,7 +401,6 @@ const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
 =========================== */
 const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
   const funnelData = useMemo(() => {
-    // Definição da ordem e cores
     const stages = [
       { id: 'PROSPECCAO', label: 'Prospecção', color: '#818cf8' },
       { id: 'QUALIFICACAO', label: 'Qualificação', color: '#60a5fa' },
@@ -428,16 +411,10 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
       { id: 'CONQUISTADO', label: 'Conquistado', color: '#4ade80' }
     ]
 
-    // Agrupa dados
     const grouped = data.reduce((acc, item) => {
-      // Normaliza a fase removendo acentos e espaços
       const raw = (item.fase_kanban || '').toUpperCase()
-      const normalized = raw
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
-        .replace(/Ç/g, 'C') // Ç -> C
-        .replace(/[^A-Z]/g, '') // Mantém apenas letras
-
-      // Mapeia para os IDs esperados (tratando variações comuns)
+      const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Ç/g, 'C').replace(/[^A-Z]/g, '')
+      
       let stageId = ''
       if (normalized.includes('PROSPECCAO')) stageId = 'PROSPECCAO'
       else if (normalized.includes('QUALIFICACAO')) stageId = 'QUALIFICACAO'
@@ -445,50 +422,43 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
       else if (normalized.includes('PROPOSTA')) stageId = 'PROPOSTA'
       else if (normalized.includes('NEGOCIACAO')) stageId = 'NEGOCIACAO'
       else if (normalized.includes('CONCLUSAO')) stageId = 'CONCLUSAO'
-      else if (normalized.includes('CONQUISTADO') || normalized.includes('GANHO') || normalized.includes('VENDIDO')) stageId = 'CONQUISTADO'
+      else if (normalized.includes('CONQUISTADO') || normalized.includes('GANHO')) stageId = 'CONQUISTADO'
 
       if (stageId) {
         if (!acc[stageId]) acc[stageId] = { count: 0, value: 0 }
         acc[stageId].count += 1
         acc[stageId].value += parseValorProposta(item.valor_proposta)
       }
-      
       return acc
     }, {} as Record<string, { count: number, value: number }>)
 
-    // Formata para o gráfico mantendo a ordem estrita
     return stages.map(stage => {
       const info = grouped[stage.id] || { count: 0, value: 0 }
       return {
         name: stage.label,
-        value: info.count, // O tamanho do funil será baseado na quantidade
-        totalValue: info.value, // Guardamos o valor monetário para o tooltip
+        value: info.count,
+        totalValue: info.value,
         fill: stage.color
       }
-    }).filter(item => item.value > 0) // Opcional: mostrar apenas fases com dados? O usuário pediu "nessa ordem", então talvez mostrar tudo seja melhor, mas funil vazio fica estranho. Vou filtrar zeros para ficar mais bonito, ou manter se quiser ver o buraco. O padrão de funil é filtrar.
+    }).filter(item => item.value > 0)
   }, [data])
 
-  if (funnelData.length === 0) return null
-
   return (
-    <div className="card-panel p-6">
-      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider">
+    <div className="card-panel p-6 h-full flex flex-col">
+      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
+        <TrendingUp size={16} className="text-indigo-400" />
         Funil de Vendas (Etapas)
       </h3>
       
-      <div className="w-full h-[400px]">
+      <div className="flex-1 w-full min-h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            layout="vertical"
-            data={funnelData}
-            margin={{ top: 0, right: 50, left: 50, bottom: 0 }}
-          >
+          <BarChart layout="vertical" data={funnelData} margin={{ top: 0, right: 60, left: 40, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
             <XAxis type="number" hide />
             <YAxis 
               type="category" 
               dataKey="name" 
-              width={100}
+              width={90}
               tick={{ fill: 'var(--text-soft)', fontSize: 11, fontWeight: 500 }}
               axisLine={false}
               tickLine={false}
@@ -500,19 +470,19 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
                 borderColor: 'rgba(255,255,255,0.1)', 
                 borderRadius: '8px',
                 color: '#f8fafc',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
               }}
               formatter={(value: any, name: any, props: any) => [
                 <div key="tooltip" className="flex flex-col gap-1 py-1">
-                  <span className="font-bold text-white text-lg">{value} oportunidades</span>
+                  <span className="font-bold text-white text-lg">{value} ops</span>
                   <span className="text-sm text-gray-400">
-                    Valor total: <span className="text-emerald-400 font-medium">{formatCurrency(props.payload.totalValue)}</span>
+                    Total: <span className="text-emerald-400 font-medium">{formatCurrency(props.payload.totalValue)}</span>
                   </span>
                 </div>,
                 name
               ]}
             />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={28}>
+            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
               {funnelData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
@@ -520,17 +490,10 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
                 dataKey="value" 
                 position="right"
                 content={(props: any) => {
-                  const { x, y, width, height, value, index } = props
+                  const { x, y, height, value, index } = props
                   const item = funnelData[index]
                   return (
-                    <text 
-                      x={x + 8} 
-                      y={y + height / 2} 
-                      dy={4}
-                      fill="var(--text-main)" 
-                      fontSize={11}
-                      fontWeight={500}
-                    >
+                    <text x={x + 8} y={y + height / 2} dy={4} fill="var(--text-main)" fontSize={11} fontWeight={500}>
                       {value} • {formatCurrency(item.totalValue)}
                     </text>
                   )
@@ -545,67 +508,90 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
 }
 
 /* ===========================
-   KPI COMPONENT (ENHANCED)
+   RANKING COMPONENT
 =========================== */
-interface KPIProps {
-  title: string
-  value: string      // Valor principal (geralmente monetário ou percentual)
-  count?: number     // Quantidade opcional
-  trend?: number     // Tendência em %
-  icon: React.ElementType
-  invertTrend?: boolean // Se true, queda é bom (ex: Perdido)
-}
+const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
+  const ranking = useMemo(() => {
+    const now = new Date()
+    const currentM = String(now.getMonth() + 1).padStart(2, '0')
+    const currentY = String(now.getFullYear())
 
-const KPI = ({
-  title,
-  value,
-  count,
-  trend,
-  icon: Icon,
-  invertTrend = false
-}: KPIProps) => {
-  // Define cor da tendência
-  const getTrendColor = (t: number) => {
-    if (t === 0) return 'text-gray-400'
-    const positive = t > 0
-    // Se invertTrend for true, subir é ruim (vermelho), descer é bom (verde)
-    if (invertTrend) return positive ? 'text-red-400' : 'text-emerald-400'
-    // Padrão: subir é bom (verde), descer é ruim (vermelho)
-    return positive ? 'text-emerald-400' : 'text-red-400'
-  }
+    const vendasDoMes = data.filter(d => {
+       const isSold = isVenda(d.status)
+       const ym = getYearMonth(d)
+       return isSold && (ym ? ym[0] === currentY && ym[1] === currentM : false)
+    })
+
+    const grouped = vendasDoMes.reduce((acc, item) => {
+      const vendedor = item.vendedor || 'Não Identificado'
+      const valor = parseValorProposta(item.valor_proposta)
+      if (!acc[vendedor]) acc[vendedor] = 0
+      acc[vendedor] += valor
+      return acc
+    }, {} as Record<string, number>)
+
+    const sorted = Object.entries(grouped)
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total)
+
+    const maxVal = sorted.length > 0 ? sorted[0].total : 0
+    return { list: sorted, max: maxVal }
+  }, [data])
 
   return (
-    <div className="card-panel p-5 flex items-start gap-4 h-full relative overflow-hidden group">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
-                   bg-[var(--primary-soft)] text-[var(--primary)] mt-1"
-      >
-        <Icon size={18} />
-      </div>
+    <div className="card-panel p-6 flex flex-col h-full">
+      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
+        <Award size={16} className="text-yellow-500" />
+        Ranking de Vendedores (Mês Atual)
+      </h3>
 
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-widest text-[var(--text-soft)] font-semibold mb-1">
-          {title}
-        </p>
-        
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <p className="text-[18px] font-bold text-[var(--text-main)] leading-tight">
-            {value}
-          </p>
-          {count !== undefined && (
-            <span className="text-xs font-medium text-[var(--text-muted)] bg-white/5 px-1.5 py-0.5 rounded">
-              {count} un
-            </span>
-          )}
+      {ranking.list.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-[var(--text-soft)] min-h-[300px] border-2 border-dashed border-[var(--border)] rounded-xl bg-[var(--bg-body)]/50">
+           <div className="p-4 rounded-full bg-[var(--bg-body)] mb-3">
+             <Award size={32} className="text-[var(--text-muted)]" />
+           </div>
+           <p className="text-sm font-medium">Sem vendas confirmadas</p>
+           <p className="text-xs mt-1 opacity-60">Janeiro/2026</p>
         </div>
-
-        {trend !== undefined && (
-          <div className={`text-xs font-medium mt-2 flex items-center gap-1 ${getTrendColor(trend)}`}>
-             {trend > 0 ? '↑' : trend < 0 ? '↓' : '•'} {Math.abs(trend).toFixed(1)}% 
-             <span className="text-[var(--text-muted)] opacity-60 ml-1 font-normal">vs mês anterior</span>
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto pr-2 space-y-5 custom-scrollbar max-h-[400px]">
+          {ranking.list.map((item, index) => {
+            const isTop3 = index < 3
+            const medalColor = index === 0 ? 'text-yellow-400 drop-shadow-md' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-700' : 'text-gray-600'
+            const percent = ranking.max > 0 ? (item.total / ranking.max) * 100 : 0
+            
+            return (
+              <div key={item.name} className="relative group">
+                <div className="flex items-center justify-between mb-2 z-10 relative">
+                  <div className="flex items-center gap-3">
+                    <span className={`font-black w-6 text-center ${medalColor} ${isTop3 ? 'text-lg' : 'text-sm'}`}>
+                      {index + 1}º
+                    </span>
+                    <span className="text-sm font-bold text-[var(--text-main)] truncate max-w-[150px]">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                    {formatCurrency(item.total)}
+                  </span>
+                </div>
+                
+                <div className="h-2.5 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)]">
+                  <div 
+                    className="h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
+                    style={{ 
+                      width: `${percent}%`,
+                      backgroundColor: index === 0 ? '#fbbf24' : 'var(--primary)' 
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -135,7 +135,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 />
                 <button
                   onClick={() => inputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-ink-800 hover:text-white hover:bg-white/10 transition-all text-xs font-bold border border-white/10"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#38BDF8] text-white hover:bg-[#38BDF8]/90 transition-all text-xs font-bold shadow-lg shadow-[#38BDF8]/20"
                 >
                   <ImageIcon size={18} className="stroke-[2.5]" />
                   <span>Mídia</span>
@@ -144,7 +144,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
               <button
                 onClick={handlePost}
                 disabled={publishing || (!newPost.trim() && !file)}
-                className="bg-gradient-to-r from-brand-600 to-brand-700 text-white px-8 py-3 rounded-full font-extrabold hover:from-brand-500 hover:to-brand-600 transition-all flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-600/30"
+                className="bg-[#38BDF8] text-white px-8 py-3 rounded-full font-extrabold hover:bg-[#38BDF8]/90 transition-all flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#38BDF8]/30"
               >
                 {publishing ? (
                   <span className="animate-pulse">Publicando...</span>

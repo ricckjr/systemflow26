@@ -19,13 +19,14 @@ const Login: React.FC = () => {
 
   const navMessage = (location.state as any)?.message as string | undefined
 
+  // Redireciona automaticamente se já estiver autenticado
   useEffect(() => {
     if (!loading && session) {
       navigate('/app', { replace: true })
     }
   }, [loading, session, navigate])
 
-  // Show loader while checking auth state to prevent flash of content/image aborts
+  // Evita flash visual e erros de imagem durante bootstrap do auth
   if (loading || session) {
     return (
       <div className="min-h-screen bg-[#0B0F14] flex items-center justify-center">
@@ -43,13 +44,16 @@ const Login: React.FC = () => {
 
     try {
       logInfo('auth', 'login attempt', { email })
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+
       if (error) throw error
+
       logInfo('auth', 'login success', { email })
-      // A navegação será tratada pelo useEffect quando loading for false e session existir
+      // A navegação será disparada automaticamente pelo useEffect quando session existir
     } catch (err: any) {
       logError('auth', 'login failed', err)
       setError(err.message || 'Falha ao autenticar')
@@ -125,18 +129,7 @@ const Login: React.FC = () => {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    className="
-                      w-full h-12 pl-11 pr-4
-                      rounded-xl
-                      bg-[#EEF4FF]
-                      border border-transparent
-                      text-[#0B0F14]
-                      placeholder:text-gray-500
-                      focus:outline-none
-                      focus:border-[#38BDF8]
-                      focus:ring-2 focus:ring-[#38BDF8]/30
-                      transition
-                    "
+                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-gray-500 focus:outline-none focus:border-[#38BDF8] focus:ring-2 focus:ring-[#38BDF8]/30 transition"
                     placeholder="usuario@empresa.com"
                   />
                 </div>
@@ -157,18 +150,7 @@ const Login: React.FC = () => {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
-                    className="
-                      w-full h-12 pl-11 pr-12
-                      rounded-xl
-                      bg-[#EEF4FF]
-                      border border-transparent
-                      text-[#0B0F14]
-                      placeholder:text-gray-500
-                      focus:outline-none
-                      focus:border-[#38BDF8]
-                      focus:ring-2 focus:ring-[#38BDF8]/30
-                      transition
-                    "
+                    className="w-full h-12 pl-11 pr-12 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-gray-500 focus:outline-none focus:border-[#38BDF8] focus:ring-2 focus:ring-[#38BDF8]/30 transition"
                     placeholder="••••••••"
                   />
                   <button
@@ -185,26 +167,9 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="
-                  w-full h-12
-                  rounded-xl
-                  bg-[#38BDF8]
-                  hover:bg-[#0EA5E9]
-                  text-[#0B0F14]
-                  font-bold
-                  tracking-wide
-                  transition
-                  shadow-[0_12px_30px_rgba(56,189,248,0.35)]
-                  hover:-translate-y-[1px]
-                  disabled:opacity-60
-                  flex items-center justify-center
-                "
+                className="w-full h-12 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-bold tracking-wide transition shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px] disabled:opacity-60 flex items-center justify-center"
               >
-                {submitting ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  'ENTRAR'
-                )}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : 'ENTRAR'}
               </button>
 
             </form>

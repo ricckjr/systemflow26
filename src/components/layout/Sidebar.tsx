@@ -57,6 +57,7 @@ interface SidebarProps {
   isCollapsed: boolean;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
+  setIsExpanded?: (expand: boolean) => void;
   profile: Profile;
 }
 
@@ -64,6 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
+  setIsExpanded,
   profile,
 }) => {
   const { signOut } = useAuth();
@@ -77,13 +79,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const toggleMenu = (label: string) => {
-    // Se estiver colapsado, expande a sidebar automaticamente
-    if (isCollapsed) {
-       // Não podemos controlar o estado colapsado diretamente aqui pois é prop, 
-       // mas podemos assumir que o usuário quer ver o menu.
-       // Idealmente, a sidebar deveria receber uma função para expandir.
-       // Como não temos, vamos apenas permitir a expansão do menu interno para quando o usuário expandir a sidebar.
+    // If collapsed, expand the sidebar first
+    if (isCollapsed && setIsExpanded) {
+      setIsExpanded(true);
+      // Ensure the menu is open when expanding
+      if (!expandedMenus.includes(label)) {
+        setExpandedMenus((prev) => [...prev, label]);
+      }
+      return;
     }
+
     setExpandedMenus((prev) =>
       prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
     );
@@ -93,33 +98,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleLogoutClick = () => setIsLogoutModalOpen(true);
 
   const confirmLogout = async () => {
-    setIsLogoutModalOpen(false) // Close modal immediately
+    setIsLogoutModalOpen(false);
     await signOut();
-    // Navigate is redundant here because signOut forces redirect, but kept for safety
     navigate('/login', { replace: true });
   };
 
   const showText = !isCollapsed || isMobileMenuOpen;
 
+  // Profile Avatar Logic
+  const profileName = profile?.nome?.trim();
+  const profileEmail = profile?.email_login || '';
+  const profileInitial = (profileName || profileEmail || 'U').substring(0, 1).toUpperCase();
+  const avatarUrl = profile?.avatar_url;
+
   return (
     <>
       {/* BRAND / HEADER */}
-      <div className="h-16 flex items-center px-4 border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#38BDF8]/10 border border-[#38BDF8]/20 flex items-center justify-center text-[#38BDF8] shrink-0">
-            <div className="w-4 h-4 bg-current rounded-sm rotate-45" />
-          </div>
+      <div className={`h-16 flex items-center shrink-0 border-b border-white/5 transition-all duration-300
+        ${showText ? 'px-6 justify-start' : 'px-0 justify-center'}`}>
+        
+        {/* Logo Image */}
+        <img
+          src="https://apliflow.com.br/wp-content/uploads/2024/06/af-prata-e-azul-1-1.png"
+          alt="ApliFlow"
+          className={`transition-all duration-300 object-contain
+            ${showText ? 'h-8 opacity-100' : 'h-6 opacity-90 grayscale hover:grayscale-0'}`}
+          draggable={false}
+        />
 
-          {showText && (
-            <img
-              src="https://apliflow.com.br/wp-content/uploads/2024/06/af-prata-e-azul-1-1.png"
-              alt="ApliFlow"
-              className="h-6 opacity-90 grayscale hover:grayscale-0 transition"
-              draggable={false}
-            />
-          )}
-        </div>
-
+        {/* Mobile Close Button */}
         {isMobileMenuOpen && (
           <button
             onClick={() => setIsMobileMenuOpen(false)}
@@ -132,7 +139,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* NAV */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1">
+      <nav className={`flex-1 py-4 overflow-y-auto custom-scrollbar space-y-2
+        ${showText ? 'px-3' : 'px-2'}`}>
         {navItems.map((item) => {
           const isExpanded = expandedMenus.includes(item.label);
           const isActive =
@@ -142,22 +150,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const menuId = `menu-${item.label.replace(/\s+/g, '-').toLowerCase()}`;
 
           return (
-            <div key={item.label}>
+            <div key={item.label} className="group relative">
               <button
-                onClick={() => showText && toggleMenu(item.label)}
+                onClick={() => toggleMenu(item.label)}
                 aria-expanded={isExpanded}
                 aria-controls={menuId}
-                className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition
-                  ${
-                    isActive
-                      ? 'text-[#38BDF8]'
-                      : 'text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'
+                className={`w-full flex items-center transition-all duration-200 rounded-xl
+                  ${showText 
+                    ? 'justify-between px-3 py-3 gap-3' 
+                    : 'justify-center p-3 aspect-square'
+                  }
+                  ${isActive
+                    ? 'text-[#38BDF8] bg-[#38BDF8]/10 shadow-[0_0_15px_rgba(56,189,248,0.1)]'
+                    : 'text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'
                   }`}
               >
-                <div className="flex items-center gap-3">
-                  <item.icon size={18} strokeWidth={1.5} />
+                <div className={`flex items-center ${showText ? 'gap-3' : 'gap-0'}`}>
+                  <item.icon 
+                    size={showText ? 20 : 22} 
+                    strokeWidth={1.5} 
+                    className={`transition-transform duration-300 ${isActive && !showText ? 'scale-110' : ''}`}
+                  />
+                  
                   {showText && (
-                    <span className="text-[12px] font-semibold tracking-wide">
+                    <span className="text-[13px] font-semibold tracking-wide">
                       {item.label}
                     </span>
                   )}
@@ -166,17 +182,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {showText && (
                   <ChevronDown
                     size={14}
-                    className={`transition-transform ${
+                    className={`transition-transform duration-300 ${
                       isExpanded ? 'rotate-180' : ''
                     } opacity-50`}
                   />
                 )}
               </button>
 
+              {/* Tooltip for Collapsed State */}
+              {!showText && (
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 
+                                bg-[#1E293B] text-white text-xs font-medium rounded-md shadow-xl 
+                                opacity-0 group-hover:opacity-100 pointer-events-none 
+                                transition-opacity duration-200 whitespace-nowrap z-50
+                                border border-white/10 translate-x-2 group-hover:translate-x-0">
+                  {item.label}
+                  {/* Triangle arrow */}
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-[#1E293B]" />
+                </div>
+              )}
+
+              {/* Submenu */}
               {showText && isExpanded && (
                 <div
                   id={menuId}
-                  className="mt-1 ml-3 pl-3 border-l border-white/10 space-y-1"
+                  className="mt-1 ml-3 pl-3 border-l border-white/10 space-y-1 animate-in slide-in-from-top-2 fade-in duration-200"
                 >
                   {item.subItems?.map((sub) => {
                     const active = location.pathname === sub.path;
@@ -186,11 +216,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         key={sub.path}
                         to={sub.path}
                         aria-current={active ? 'page' : undefined}
-                        className={`block px-3 py-2 rounded-md text-[11px] font-medium transition
-                          ${
-                            active
-                              ? 'text-[#38BDF8] bg-[#38BDF8]/10'
-                              : 'text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'
+                        className={`block px-3 py-2 rounded-lg text-[12px] font-medium transition-colors
+                          ${active
+                            ? 'text-[#38BDF8] bg-[#38BDF8]/5'
+                            : 'text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'
                           }`}
                       >
                         {sub.label}
@@ -205,55 +234,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {/* FOOTER / PROFILE */}
-      <div className="p-4 space-y-3 border-t border-white/5 shrink-0">
+      <div className={`shrink-0 border-t border-white/5 transition-all duration-300
+         ${showText ? 'p-4 space-y-3' : 'p-3 space-y-0'}`}>
+        
+        {/* User Info Button */}
         <button
           onClick={openProfilePage}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition"
+          className={`flex items-center rounded-xl transition-colors hover:bg-white/5
+            ${showText ? 'w-full gap-3 px-3 py-2' : 'w-full justify-center aspect-square p-0'}`}
+          title={!showText ? "Perfil" : undefined}
         >
-          <div className="w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 flex items-center justify-center text-[11px] font-semibold">
-            {(() => {
-              const name = profile?.nome?.trim();
-              const base = name || profile?.email_login || '';
-              const initial = base.length ? base.substring(0, 1) : 'U';
-              return initial.toUpperCase();
-            })()}
+          {/* Avatar */}
+          <div className={`relative rounded-full bg-[#0F172A] border border-white/10 flex items-center justify-center overflow-hidden shrink-0
+            ${showText ? 'w-9 h-9' : 'w-10 h-10'}`}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[12px] font-semibold text-[#E5E7EB]">{profileInitial}</span>
+            )}
           </div>
 
+          {/* Text Info */}
           {showText && (
-            <div className="min-w-0 text-left">
-              <p className="text-[13px] font-medium truncate text-[#E5E7EB]">
-                {(() => {
-                  const name = profile?.nome?.trim();
-                  if (name) return name;
-                  const email = profile?.email_login || '';
-                  const local = email ? email.split('@')[0] : '';
-                  return local;
-                })()}
+            <div className="min-w-0 text-left flex-1">
+              <p className="text-[13px] font-semibold truncate text-[#E5E7EB]">
+                {profileName || profileEmail.split('@')[0]}
               </p>
-              <p className="text-[10px] truncate text-[#9CA3AF]">
-                {profile.email_login || ''}
+              <p className="text-[11px] truncate text-[#9CA3AF]">
+                {profileEmail}
               </p>
             </div>
           )}
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => navigate('/app/configuracoes/usuarios')}
-            className="flex items-center justify-center p-2 rounded-lg text-[#9CA3AF] hover:text-[#38BDF8] hover:bg-white/5 transition"
-            title="Configurações"
-          >
-            <Settings size={18} strokeWidth={1.5} />
-          </button>
+        {/* Action Buttons (Only when expanded) */}
+        {showText && (
+          <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <button
+              onClick={() => navigate('/app/configuracoes/usuarios')}
+              className="flex items-center justify-center p-2 rounded-lg text-[#9CA3AF] hover:text-[#38BDF8] hover:bg-[#38BDF8]/10 transition-colors border border-transparent hover:border-[#38BDF8]/20"
+              title="Configurações"
+            >
+              <Settings size={18} strokeWidth={1.5} />
+            </button>
 
-          <button
-            onClick={handleLogoutClick}
-            className="flex items-center justify-center p-2 rounded-lg text-[#9CA3AF] hover:text-red-400 hover:bg-red-500/10 transition"
-            title="Sair"
-          >
-            <LogOut size={18} strokeWidth={1.5} />
-          </button>
-        </div>
+            <button
+              onClick={handleLogoutClick}
+              className="flex items-center justify-center p-2 rounded-lg text-[#9CA3AF] hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
+              title="Sair"
+            >
+              <LogOut size={18} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
       </div>
 
       <LogoutModal

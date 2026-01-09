@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Profile } from '@/types';
@@ -14,7 +13,9 @@ import {
   logActivity, 
   fetchUsers,
   assignUsers,
-  TFBoard, 
+  fetchTaskAssignees,
+  uploadTaskAttachment,
+  TFBoard,  
   TFColumn, 
   TFTask 
 } from '@/services/taskflow';
@@ -32,7 +33,14 @@ import {
   X,
   Clock,
   CheckCircle2,
-  Send
+  Send,
+  Kanban,
+  List,
+  Sparkles,
+  Zap,
+  ChevronRight,
+  Hash,
+  Users
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,24 +48,29 @@ import { useScrollLock } from '@/hooks/useScrollLock';
 
 const priorities = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
 
-// Helper to calculate column color
-const getColumnColor = (name: string) => {
-  switch (name) {
-    case 'ENTRADA': return 'border-l-slate-500';
-    case 'EM ANÁLISE': return 'border-l-blue-500';
-    case 'PENDENTE': return 'border-l-amber-500';
-    case 'EM ANDAMENTO': return 'border-l-indigo-500';
-    case 'EM REVISÃO': return 'border-l-purple-500';
-    case 'CONCLUÍDO': return 'border-l-emerald-500';
-    default: return 'border-l-slate-500';
-  }
+// Helper to calculate column color with Neon Theme
+const getColumnTheme = (name: string) => {
+  const n = (name || '').toUpperCase();
+  if (n.includes('ENTRADA') || n.includes('TODO')) return { border: 'border-t-slate-400', glow: 'shadow-slate-500/20', text: 'text-slate-400' };
+  if (n.includes('ANÁLISE') || n.includes('ANALYSIS')) return { border: 'border-t-cyan-500', glow: 'shadow-cyan-500/20', text: 'text-cyan-400' };
+  if (n.includes('PENDENTE') || n.includes('WAITING')) return { border: 'border-t-amber-500', glow: 'shadow-amber-500/20', text: 'text-amber-400' };
+  if (n.includes('ANDAMENTO') || n.includes('PROGRESS')) return { border: 'border-t-blue-500', glow: 'shadow-blue-500/20', text: 'text-blue-400' };
+  if (n.includes('REVISÃO') || n.includes('REVIEW')) return { border: 'border-t-purple-500', glow: 'shadow-purple-500/20', text: 'text-purple-400' };
+  if (n.includes('CONCLUÍDO') || n.includes('DONE')) return { border: 'border-t-emerald-500', glow: 'shadow-emerald-500/20', text: 'text-emerald-400' };
+  return { border: 'border-t-slate-500', glow: 'shadow-slate-500/20', text: 'text-slate-400' };
 };
 
 const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
   const { profile: authProfile } = useAuth();
   const profile = propProfile || authProfile;
 
-  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+  if (!profile) return (
+    <div className="flex items-center justify-center h-[50vh] text-[var(--text-soft)] animate-pulse gap-2">
+      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+    </div>
+  );
 
   const user = profile; // Alias for legacy code usage
 
@@ -78,11 +91,16 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const [newTaskDesc, setNewTaskDesc] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTaskColumnId, setNewTaskColumnId] = useState<string>('');
+  const [newTaskMedia, setNewTaskMedia] = useState<File | null>(null);
+  const [newTaskAssignments, setNewTaskAssignments] = useState<string[]>([]);
+  const [isNewTaskAssignOpen, setIsNewTaskAssignOpen] = useState(false);
   
   // Detail View State
   const [comments, setComments] = useState<Record<string, { id: string; user_id: string; content: string; created_at: string; user_nome?: string; user_avatar?: string }[]>>({});
   const [newComment, setNewComment] = useState('');
   const [users, setUsers] = useState<{ id: string; nome: string; avatar_url?: string }[]>([]);
+  const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
 
   // Computed
   const [search, setSearch] = useState('')
@@ -141,8 +159,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         if (isNewTaskModalOpen) setIsNewTaskModalOpen(false);
         if (activeTaskId) setActiveTaskId(null);
       }
-      if (e.key.toLowerCase() === 'n') openNewTaskModal();
-      if (e.key.toLowerCase() === 'f') {
+      if (e.key.toLowerCase() === 'n' && !isNewTaskModalOpen && !activeTaskId) openNewTaskModal();
+      if (e.key.toLowerCase() === 'f' && !isNewTaskModalOpen && !activeTaskId) {
         const el = document.getElementById('taskflow-search') as HTMLInputElement | null
         el?.focus()
       }
@@ -167,21 +185,46 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   };
 
   const handleCreateTask = async () => {
-    if (!board || !newTaskTitle.trim() || !newTaskColumnId) return;
+    // Default to first column if not set, though we hide the selector now
+    const targetColumnId = columns[0]?.id;
+    if (!board || !newTaskTitle.trim() || !targetColumnId) return;
     
-    const t = await createTask(board.id, newTaskColumnId, newTaskTitle.trim(), newTaskDesc.trim(), profile.id, newTaskPriority);
+    // 1. Create Task
+    const t = await createTask(board.id, targetColumnId, newTaskTitle.trim(), newTaskDesc.trim(), profile.id, newTaskPriority);
+    
+    // 2. Upload Media if present
+    if (newTaskMedia) {
+      try {
+        await uploadTaskAttachment(t.id, newTaskMedia, profile.id);
+      } catch (e) {
+        console.error("Failed to upload media on create", e);
+      }
+    }
+
+    // 3. Assign Users if selected
+    if (newTaskAssignments.length > 0) {
+      await assignUsers(t.id, newTaskAssignments, profile.nome);
+    }
+
     setTasks(prev => [...prev, t]);
     
     // Reset and Close
     setNewTaskTitle('');
     setNewTaskDesc('');
+    setNewTaskMedia(null);
+    setNewTaskAssignments([]);
     setIsNewTaskModalOpen(false);
     
     await logActivity(t.id, profile.id, 'task_created', newTaskTitle.trim());
   };
 
   const openNewTaskModal = (columnId?: string) => {
-    setNewTaskColumnId(columnId || columns[0]?.id || '');
+    // Always reset to defaults
+    setNewTaskTitle('');
+    setNewTaskDesc('');
+    setNewTaskMedia(null);
+    setNewTaskAssignments([]);
+    setNewTaskColumnId(columns[0]?.id || '');
     setIsNewTaskModalOpen(true);
   };
 
@@ -189,6 +232,16 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     setActiveTaskId(taskId);
     const cs = await fetchComments(taskId);
     setComments(prev => ({ ...prev, [taskId]: cs }));
+    
+    const assignees = await fetchTaskAssignees(taskId);
+    setAssignedUsers(assignees.map((a: any) => a.user_id));
+  };
+
+  const handleAssign = async (userIds: string[]) => {
+    if (!activeTaskId) return;
+    await assignUsers(activeTaskId, userIds, profile.nome);
+    setAssignedUsers(userIds);
+    setIsAssignOpen(false);
   };
 
   const handleAddComment = async () => {
@@ -208,269 +261,290 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
+    <div className="h-[calc(100vh-6rem)] flex flex-col animate-in fade-in duration-700">
       {/* Header Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-black text-ink-900">TaskFlow</h2>
-          <p className="text-xs text-ink-800 font-medium">Gerenciamento Avançado de Tarefas</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0 px-4 md:px-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <Kanban size={20} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-[var(--text-main)]">TaskFlow</h2>
+            <p className="text-xs text-[var(--text-soft)]">Gerenciamento de Projetos</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-ink-800">Itens por página</span>
-            <select value={pageSize} onChange={e => setPageSize(parseInt(e.target.value))} className="bg-white/5 border border-white/10 rounded-md px-2 py-1 text-xs text-white">
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <label className="ml-3 flex items-center gap-2 text-xs text-ink-800">
-              <input type="checkbox" checked={infinite} onChange={e => setInfinite(e.target.checked)} />
-              Rolagem infinita
-            </label>
-          </div>
-          <div className="flex items-center gap-2 bg-surface border border-line rounded-xl px-3 py-2 shadow-sm">
-             <Calendar size={18} className="text-ink-800" />
-             <span className="text-xs font-bold text-ink-800">Agenda</span>
-          </div>
-          
-          <div className="relative">
-             <button className="bg-surface border border-line rounded-xl p-2 shadow-sm text-ink-800 hover:text-brand-500 transition-colors">
-               <Bell size={20} />
-               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background"></span>
-             </button>
-          </div>
-
           <button 
             onClick={() => openNewTaskModal()}
-            className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg shadow-brand-600/20 transition-all active:scale-95"
+            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             NOVA TAREFA
           </button>
         </div>
       </div>
 
-      {/* Filters Bar (Visual Only for now) */}
-      <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300" />
+      {/* Filters Bar */}
+      <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide shrink-0 px-4 md:px-0">
+        <div className="relative flex-1 min-w-[240px] max-w-sm group">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-cyan-400 transition-colors" />
           <input 
             id="taskflow-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar tarefas..." 
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#0f2538]/60 border border-white/10 text-xs font-medium focus:ring-2 focus:ring-blue-500 transition-all text-white placeholder:text-blue-200"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] shadow-sm"
           />
         </div>
-        
-        <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-line text-xs font-bold text-ink-800 hover:bg-background transition-colors">
-          <Filter size={16} />
-          Filtros
-        </button>
-        
-        <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-line text-xs font-bold text-ink-800 hover:bg-background transition-colors ml-auto">
-          <Download size={16} />
-          Exportar
-        </button>
       </div>
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
-          <div className="flex h-full gap-4 min-w-[1200px]">
-            {columns.map(col => (
-              <div key={col.id} className="flex flex-col w-72 shrink-0">
-                {/* Column Header */}
-                <div className={`flex items-center justify-between mb-3 pl-3 border-l-4 ${getColumnColor(col.name)}`}>
-                   <h3 className="text-xs font-black uppercase tracking-widest text-ink-800">{col.name}</h3>
-                   <span className="text-[10px] font-bold bg-surface border border-line text-ink-800 px-2 py-0.5 rounded-full">
-                     {byColumn[col.id]?.length || 0}
-                   </span>
-                </div>
+        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4 px-4 md:px-0">
+          <div className="flex h-full gap-5 min-w-[1200px]">
+            {columns.map(col => {
+              const theme = getColumnTheme(col.name);
+              return (
+                <div key={col.id} className="flex flex-col w-80 shrink-0">
+                  {/* Column Header */}
+                  <div className={`flex items-center justify-between mb-4 pb-2 border-t-4 ${theme.border} bg-[var(--bg-panel)] px-4 py-3 rounded-xl shadow-sm border-x border-b border-[var(--border)] group hover:shadow-md transition-shadow`}>
+                     <div className="flex items-center gap-2">
+                       <h3 className={`text-xs font-black uppercase tracking-widest ${theme.text}`}>{col.name}</h3>
+                     </div>
+                     <span className="text-[10px] font-bold bg-[var(--bg-body)] text-[var(--text-soft)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
+                       {byColumn[col.id]?.length || 0}
+                     </span>
+                  </div>
 
-                {/* Droppable Area */}
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex-1 rounded-2xl bg-[#0f2538]/50 border border-white/10 p-2 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-[#0f2538]/60' : ''}`}
-                    >
-                      {byColumn[col.id]?.map((task, index) => (
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              onClick={() => openTask(task.id)}
-                              style={{ ...provided.draggableProps.style }}
-                              className={`group mb-2 p-3 rounded-xl bg-[#0f2538]/60 border border-white/10 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-all ${snapshot.isDragging ? 'rotate-2 scale-105 shadow-xl ring-2 ring-blue-500 z-50' : ''}`}
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide ${
-                                  task.priority === 'high' ? 'bg-rose-500/10 text-rose-400' : 
-                                  task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400' : 
-                                  'bg-emerald-500/10 text-emerald-400'
-                                }`}>
-                                  {priorities[task.priority]}
-                                </span>
-                                <button className="text-industrial-text-secondary hover:text-industrial-text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <MoreVertical size={14} />
-                                </button>
-                              </div>
-                              
-                              <h4 className="text-xs font-bold text-white mb-2 line-clamp-2 leading-relaxed">
-                                {task.title}
-                              </h4>
-                              
-                              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                <div className="flex -space-x-1.5">
-                                  {/* Mock Avatars */}
-                                  <div className="w-5 h-5 rounded-full bg-blue-600/30 text-[8px] text-white flex items-center justify-center border-2 border-[#0f2538]">RN</div>
+                  {/* Droppable Area */}
+                  <Droppable droppableId={col.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex-1 rounded-2xl p-2 overflow-y-auto custom-scrollbar transition-all ${snapshot.isDraggingOver ? 'bg-cyan-500/5 ring-2 ring-cyan-500/20' : ''}`}
+                      >
+                        {byColumn[col.id]?.map((task, index) => (
+                          <Draggable key={task.id} draggableId={task.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                onClick={() => openTask(task.id)}
+                                style={{ ...provided.draggableProps.style }}
+                                className={`
+                                  group mb-3 p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] 
+                                  shadow-sm hover:shadow-lg hover:border-cyan-500/30 cursor-grab active:cursor-grabbing transition-all
+                                  ${snapshot.isDragging ? 'rotate-2 scale-105 shadow-2xl ring-2 ring-cyan-500 z-50 bg-slate-800' : ''}
+                                `}
+                              >
+                                <div className="flex items-start justify-between mb-3">
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                    task.priority === 'high' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
+                                    task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
+                                    'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  }`}>
+                                    {priorities[task.priority]}
+                                  </span>
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreVertical size={14} className="text-[var(--text-muted)] hover:text-[var(--text-main)]" />
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 text-blue-200">
-                                  {task.due_date && (
-                                    <div className="flex items-center gap-1 text-[10px]" title="Prazo">
-                                      <Clock size={12} />
-                                      <span>{format(new Date(task.due_date), 'dd/MM')}</span>
+                                <h4 className="text-sm font-semibold text-[var(--text-main)] mb-3 line-clamp-2 leading-relaxed group-hover:text-cyan-400 transition-colors">
+                                  {task.title}
+                                </h4>
+                                
+                                <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
+                                  <div className="flex -space-x-2">
+                                    {/* Mock Avatars - In real app, map assignees */}
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-[8px] text-white flex items-center justify-center border-2 border-[var(--bg-panel)] shadow-sm font-bold uppercase">
+                                      {user.nome.substring(0, 2)}
                                     </div>
-                                  )}
-                                  <div className="flex items-center gap-1 text-[10px]">
-                                    <Paperclip size={12} />
-                                    <span>0</span>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-3 text-[var(--text-soft)]">
+                                    {task.due_date && (
+                                      <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${new Date(task.due_date) < new Date() ? 'text-rose-400 bg-rose-500/10' : 'bg-[var(--bg-body)]'}`} title="Prazo">
+                                        <Clock size={10} />
+                                        <span>{format(new Date(task.due_date), 'dd/MM')}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1 text-[10px] font-medium hover:text-cyan-400 transition-colors">
+                                      <MessageCircle size={10} />
+                                      <span>0</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      
-                      <div className="flex gap-2 mt-2">
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        
                         <button 
                           onClick={() => openNewTaskModal(col.id)}
-                          className="flex-1 py-2 rounded-xl border border-dashed border-white/20 text-blue-200 hover:text-blue-400 hover:border-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold flex items-center justify-center gap-2 opacity-70 hover:opacity-100"
+                          className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-xs font-bold flex items-center justify-center gap-2 mt-2 group opacity-60 hover:opacity-100"
                         >
-                          <Plus size={14} />
-                          Adicionar
+                          <Plus size={14} className="group-hover:scale-110 transition-transform" />
+                          Adicionar Tarefa
                         </button>
-                        {!infinite && (
-                          <button
-                            onClick={async () => {
-                              if (!board) return
-                              const next = (pageByColumn[col.id] || 1) + 1
-                              const { items, total } = await fetchTasksPaged(board.id, col.id, next, pageSize)
-                              if (items.length) {
-                                setTasks(prev => [...prev, ...items])
-                                setPageByColumn(p => ({ ...p, [col.id]: next }))
-                                setHasMoreByColumn(m => ({ ...m, [col.id]: (next * pageSize) < total }))
-                              } else {
-                                setHasMoreByColumn(m => ({ ...m, [col.id]: false }))
-                              }
-                            }}
-                            disabled={!hasMoreByColumn[col.id]}
-                            className="px-3 py-2 rounded-xl border border-white/20 text-blue-200 hover:text-blue-400 hover:border-blue-400 hover:bg-blue-500/10 transition-all text-xs font-bold"
-                          >
-                            {hasMoreByColumn[col.id] ? 'Mais' : 'Fim'}
-                          </button>
-                        )}
                       </div>
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            ))}
+                    )}
+                  </Droppable>
+                </div>
+              );
+            })}
           </div>
         </div>
       </DragDropContext>
 
       {/* New Task Modal */}
       {isNewTaskModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-dialog w-full max-w-lg bg-surface rounded-3xl shadow-2xl border border-line overflow-hidden animate-in zoom-in-95 duration-200" role="dialog" aria-modal="true" aria-labelledby="new-task-title">
-            <div className="modal-header px-6 py-4 border-b border-line flex items-center justify-between bg-background/50">
-              <h3 id="new-task-title" className="font-black text-white uppercase tracking-widest text-sm">Nova Tarefa</h3>
-              <button onClick={() => setIsNewTaskModalOpen(false)} className="text-industrial-text-secondary hover:text-rose-500 transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setIsNewTaskModalOpen(false)} />
+          <div className="relative w-full max-w-2xl bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]">
+              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-lg">
+                <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                  <Zap size={18} />
+                </div>
+                Nova Tarefa
+              </h3>
+              <button onClick={() => setIsNewTaskModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-2 hover:bg-[var(--bg-panel)] rounded-full">
                 <X size={20} />
               </button>
             </div>
             
-            <div className="modal-body p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-ink-800 uppercase tracking-widest">Título da Tarefa <span className="text-rose-500">*</span></label>
-                <input 
-                  value={newTaskTitle}
-                  onChange={e => setNewTaskTitle(e.target.value)}
-                  className="w-full rounded-xl bg-background border border-line px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-brand-500 text-white transition-all"
-                  placeholder="Ex: Implementar nova landing page"
-                  autoFocus
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-ink-800 uppercase tracking-widest">Prioridade</label>
-                  <select 
-                    value={newTaskPriority}
-                    onChange={(e: any) => setNewTaskPriority(e.target.value)}
-                    className="w-full rounded-xl bg-background border border-line px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500 text-white transition-all appearance-none"
-                  >
-                    <option value="low">Baixa</option>
-                    <option value="medium">Média</option>
-                    <option value="high">Alta</option>
-                  </select>
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Título</label>
+                  <input 
+                    value={newTaskTitle}
+                    onChange={e => setNewTaskTitle(e.target.value)}
+                    className="w-full rounded-xl bg-[var(--bg-body)] border border-[var(--border)] px-4 py-3 text-lg font-medium focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-[var(--text-main)] transition-all outline-none placeholder:text-[var(--text-muted)]/50"
+                    placeholder="O que precisa ser feito?"
+                    autoFocus
+                  />
                 </div>
                 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-ink-800 uppercase tracking-widest">Coluna</label>
-                  <select 
-                    value={newTaskColumnId}
-                    onChange={(e) => setNewTaskColumnId(e.target.value)}
-                    className="w-full rounded-xl bg-background border border-line px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-brand-500 text-white transition-all appearance-none"
-                  >
-                    {columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Detalhes</label>
+                  <textarea 
+                    value={newTaskDesc}
+                    onChange={e => setNewTaskDesc(e.target.value)}
+                    className="w-full h-32 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] transition-all resize-none outline-none placeholder:text-[var(--text-muted)]/50"
+                    placeholder="Adicione contexto, requisitos ou checklist..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-4 pt-2">
+                  {/* Media Button */}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="new-task-media"
+                      className="hidden"
+                      onChange={e => setNewTaskMedia(e.target.files?.[0] || null)}
+                    />
+                    <label 
+                      htmlFor="new-task-media"
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed cursor-pointer transition-all ${
+                        newTaskMedia 
+                          ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' 
+                          : 'border-[var(--border)] text-[var(--text-muted)] hover:border-cyan-500/50 hover:text-[var(--text-main)]'
+                      }`}
+                    >
+                      <Paperclip size={16} />
+                      <span className="text-xs font-bold">{newTaskMedia ? newTaskMedia.name : 'Adicionar Mídia'}</span>
+                      {newTaskMedia && (
+                        <button 
+                          onClick={(e) => { e.preventDefault(); setNewTaskMedia(null); }}
+                          className="p-1 hover:bg-rose-500/20 text-rose-400 rounded-full ml-2"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Share/Assign Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsNewTaskAssignOpen(!isNewTaskAssignOpen)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed transition-all ${
+                        newTaskAssignments.length > 0
+                          ? 'bg-blue-500/10 border-blue-500 text-blue-400'
+                          : 'border-[var(--border)] text-[var(--text-muted)] hover:border-blue-500/50 hover:text-[var(--text-main)]'
+                      }`}
+                    >
+                      <Users size={16} />
+                      <span className="text-xs font-bold">
+                        {newTaskAssignments.length > 0 
+                          ? `${newTaskAssignments.length} Compartilhado(s)` 
+                          : 'Compartilhar'
+                        }
+                      </span>
+                    </button>
+
+                    {isNewTaskAssignOpen && (
+                      <div className="absolute top-full left-0 mt-2 w-64 bg-[var(--bg-panel)] rounded-xl shadow-2xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-body)]">
+                          <h5 className="text-xs font-bold text-[var(--text-main)]">Compartilhar com:</h5>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                          {users.map(u => {
+                            const isSelected = newTaskAssignments.includes(u.id);
+                            return (
+                              <button
+                                key={u.id}
+                                onClick={() => {
+                                  setNewTaskAssignments(prev => 
+                                    isSelected ? prev.filter(id => id !== u.id) : [...prev, u.id]
+                                  );
+                                }}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                                  isSelected 
+                                    ? 'bg-blue-500/10 text-blue-400 font-bold' 
+                                    : 'text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                                }`}
+                              >
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold uppercase ${
+                                  isSelected ? 'bg-blue-500 text-white' : 'bg-[var(--bg-body)] text-[var(--text-muted)] border border-[var(--border)]'
+                                }`}>
+                                  {isSelected ? <CheckCircle2 size={12} /> : u.nome.substring(0, 2)}
+                                </div>
+                                <span>{u.nome}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-ink-800 uppercase tracking-widest">Descrição</label>
-                <textarea 
-                  value={newTaskDesc}
-                  onChange={e => setNewTaskDesc(e.target.value)}
-                  className="w-full h-24 rounded-xl bg-background border border-line px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-brand-500 text-white transition-all resize-none"
-                  placeholder="Detalhes adicionais..."
-                />
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
-                 <button className="flex-1 py-3 rounded-xl border border-line text-ink-800 font-bold text-xs hover:bg-background transition-colors flex items-center justify-center gap-2">
-                   <Paperclip size={16} />
-                   Anexar Arquivo
-                 </button>
-                 <button className="flex-1 py-3 rounded-xl border border-line text-ink-800 font-bold text-xs hover:bg-background transition-colors flex items-center justify-center gap-2">
-                   <UserPlus size={16} />
-                   Compartilhar
-                 </button>
-              </div>
+              {/* Hidden Priority (Default Medium) */}
+              <input type="hidden" value={newTaskPriority} />
             </div>
 
-            <div className="modal-footer p-4 bg-background/50 border-t border-line flex justify-end gap-3">
+            <div className="p-6 border-t border-[var(--border)] flex justify-end gap-3 bg-[var(--bg-body)]/50 backdrop-blur-md">
               <button 
                 onClick={() => setIsNewTaskModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl text-ink-800 hover:text-white font-bold text-xs transition-colors"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleCreateTask}
                 disabled={!newTaskTitle.trim()}
-                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center gap-2"
               >
+                <Plus size={16} />
                 Criar Tarefa
               </button>
             </div>
@@ -480,126 +554,204 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
       {/* Task Details Modal */}
       {activeTaskId && (
-        <div className="modal-overlay" onClick={() => setActiveTaskId(null)}>
-          <div className="modal-dialog w-full max-w-4xl bg-surface rounded-3xl shadow-2xl border border-line overflow-hidden flex flex-col md:flex-row" role="dialog" aria-modal="true" aria-labelledby="task-details-title" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveTaskId(null)} />
+          <div className="relative w-full max-w-6xl h-[85vh] bg-[var(--bg-panel)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            
             {/* Main Content */}
-            <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar border-r border-line">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-industrial-text-secondary mb-2 block">
-                     {selectedTask?.id.split('-')[0]}
-                  </span>
-                  <h2 id="task-details-title" className="text-2xl font-black text-white leading-tight">
-                    {tasks.find(t => t.id === activeTaskId)?.title}
-                  </h2>
-                </div>
-                <button onClick={() => setActiveTaskId(null)} className="p-2 rounded-xl hover:bg-industrial-bg text-industrial-text-secondary transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
+            <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-body)]/30">
+              <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                 {/* Header */}
+                 <div className="flex items-start justify-between mb-8">
+                    <div className="space-y-4 flex-1 mr-8">
+                       <div className="flex items-center gap-3">
+                         <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-500/20">
+                           {tasks.find(t => t.id === activeTaskId)?.id.split('-')[0]}
+                         </span>
+                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            priorities[tasks.find(t => t.id === activeTaskId)?.priority as keyof typeof priorities] === 'Alta' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
+                            'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                         }`}>
+                           {priorities[tasks.find(t => t.id === activeTaskId)?.priority as keyof typeof priorities]}
+                         </span>
+                       </div>
+                       <h2 className="text-3xl font-black text-[var(--text-main)] leading-tight">
+                         {tasks.find(t => t.id === activeTaskId)?.title}
+                       </h2>
+                    </div>
+                    <button onClick={() => setActiveTaskId(null)} className="p-2 rounded-xl hover:bg-[var(--bg-body)] text-[var(--text-muted)] transition-colors hover:text-rose-400">
+                      <X size={24} />
+                    </button>
+                 </div>
 
-              <div className="space-y-8">
-                <div>
-                   <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-industrial-text-secondary mb-3">
-                     <AlertTriangle size={14} /> Descrição
-                   </h4>
-                   <p className="text-sm text-industrial-text-primary leading-relaxed whitespace-pre-wrap">
-                     {tasks.find(t => t.id === activeTaskId)?.description || 'Sem descrição.'}
-                   </p>
-                </div>
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                   {/* Left Column: Description & Checklist */}
+                   <div className="lg:col-span-2 space-y-8">
+                      <div className="group">
+                         <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-4 group-hover:text-cyan-400 transition-colors">
+                           <AlertTriangle size={14} /> Descrição
+                         </h4>
+                         <div className="bg-[var(--bg-panel)] p-6 rounded-2xl border border-[var(--border)] min-h-[120px] shadow-sm">
+                           <p className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
+                             {tasks.find(t => t.id === activeTaskId)?.description || <span className="text-[var(--text-muted)] italic">Sem descrição fornecida.</span>}
+                           </p>
+                         </div>
+                      </div>
 
-                <div>
-                   <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-industrial-text-secondary mb-3">
-                     <Paperclip size={14} /> Anexos
-                   </h4>
-                   <div className="border-2 border-dashed border-industrial-border rounded-xl p-6 text-center">
-                     <p className="text-xs text-industrial-text-secondary font-medium">Nenhum arquivo anexado</p>
-                     <button className="mt-2 text-brand-600 font-bold text-xs hover:underline">Fazer upload</button>
+                      <div>
+                         <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-4">
+                           <CheckCircle2 size={14} /> Checklist
+                         </h4>
+                         <div className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                           <div className="p-8 text-center text-[var(--text-muted)] text-sm italic">
+                             Checklist indisponível no momento.
+                           </div>
+                         </div>
+                      </div>
                    </div>
-                </div>
 
-                <div>
-                   <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-industrial-text-secondary mb-3">
-                     <CheckCircle2 size={14} /> Atividade
-                   </h4>
-                   {/* Activity Log Placeholder */}
-                   <div className="text-xs text-industrial-text-secondary italic">Histórico de atividades em breve...</div>
-                </div>
+                   {/* Right Column: Meta Info */}
+                   <div className="space-y-6">
+                      <div className="bg-[var(--bg-panel)] p-5 rounded-2xl border border-[var(--border)] space-y-5">
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Status</label>
+                          <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)]">
+                            {columns.find(c => c.id === tasks.find(t => t.id === activeTaskId)?.column_id)?.name}
+                            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2 flex items-center justify-between">
+                            Responsáveis
+                            <button onClick={() => setIsAssignOpen(!isAssignOpen)} className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                              <Users size={14} />
+                            </button>
+                          </label>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            {assignedUsers.length === 0 ? (
+                               <span className="text-sm text-[var(--text-muted)] italic">Nenhum responsável</span>
+                            ) : (
+                              assignedUsers.map(uid => {
+                                const u = users.find(u => u.id === uid);
+                                if (!u) return null;
+                                return (
+                                  <div key={uid} className="flex items-center gap-2 bg-[var(--bg-body)] px-3 py-1.5 rounded-xl border border-[var(--border)]">
+                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-[8px] font-bold uppercase shadow-sm">
+                                      {u.nome.substring(0, 2)}
+                                    </div>
+                                    <span className="text-xs font-bold text-[var(--text-main)]">{u.nome.split(' ')[0]}</span>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Assignment Dropdown */}
+                          {isAssignOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-64 bg-[var(--bg-panel)] rounded-xl shadow-2xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                              <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-body)]">
+                                <h5 className="text-xs font-bold text-[var(--text-main)]">Atribuir a:</h5>
+                              </div>
+                              <div className="max-h-48 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                {users.map(u => {
+                                  const isAssigned = assignedUsers.includes(u.id);
+                                  return (
+                                    <button
+                                      key={u.id}
+                                      onClick={() => {
+                                        const newIds = isAssigned 
+                                          ? assignedUsers.filter(id => id !== u.id)
+                                          : [...assignedUsers, u.id];
+                                        handleAssign(newIds);
+                                      }}
+                                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                                        isAssigned 
+                                          ? 'bg-cyan-500/10 text-cyan-400 font-bold' 
+                                          : 'text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                                      }`}
+                                    >
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold uppercase ${
+                                        isAssigned ? 'bg-cyan-500 text-white' : 'bg-[var(--bg-body)] text-[var(--text-muted)] border border-[var(--border)]'
+                                      }`}>
+                                        {isAssigned ? <CheckCircle2 size={12} /> : u.nome.substring(0, 2)}
+                                      </div>
+                                      <span>{u.nome}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Anexos</label>
+                           <button className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-xs font-bold flex items-center justify-center gap-2">
+                             <Paperclip size={14} />
+                             Adicionar
+                           </button>
+                        </div>
+                      </div>
+                   </div>
+                 </div>
               </div>
             </div>
 
-            {/* Sidebar (Comments & Meta) */}
-            <div className="w-full md:w-80 bg-industrial-bg/50 flex flex-col">
-              <div className="p-4 border-b border-industrial-border">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-industrial-text-secondary block mb-1">Status</label>
-                    <div className="text-xs font-bold text-white bg-industrial-bg border border-industrial-border px-3 py-2 rounded-lg">
-                     {columns.find(c => c.id === selectedTask?.column_id)?.name}
-                  </div>
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-industrial-text-secondary block mb-1">Responsáveis</label>
-                    <div className="flex flex-wrap gap-2">
-                      <button className="w-8 h-8 rounded-full bg-industrial-bg flex items-center justify-center text-industrial-text-secondary hover:text-brand-500 hover:bg-industrial-surface transition-all border border-transparent hover:border-industrial-border shadow-sm">
-                        <UserPlus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Sidebar (Comments) */}
+            <div className="w-full md:w-[400px] bg-[var(--bg-panel)] border-l border-[var(--border)] flex flex-col h-full">
+               <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-body)]/50">
+                  <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
+                    <MessageCircle size={14} /> Comentários
+                  </h4>
+               </div>
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-4 border-b border-industrial-border">
-                   <h4 className="text-xs font-black uppercase tracking-widest text-industrial-text-secondary">Comentários</h4>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
-                  {(comments[activeTaskId] || []).map(c => (
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
+                 {(comments[activeTaskId] || []).map(c => (
                     <div key={c.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="w-8 h-8 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-[10px] font-black shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-[10px] font-black shrink-0 border border-cyan-500/20 mt-1">
                         {c.user_nome ? c.user_nome.substring(0, 2).toUpperCase() : 'U'}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5 max-w-[85%]">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white">{c.user_nome}</span>
-                          <span className="text-[10px] text-industrial-text-secondary">{format(new Date(c.created_at), "d 'de' MMM, HH:mm", { locale: ptBR })}</span>
+                          <span className="text-xs font-bold text-[var(--text-main)]">{c.user_nome}</span>
+                          <span className="text-[10px] text-[var(--text-muted)]">{format(new Date(c.created_at), "d MMM, HH:mm", { locale: ptBR })}</span>
                         </div>
-                        <p className="text-xs text-industrial-text-primary bg-industrial-surface border border-industrial-border p-3 rounded-r-xl rounded-bl-xl shadow-sm">
+                        <div className="text-xs text-[var(--text-main)] bg-[var(--bg-body)] border border-[var(--border)] p-3 rounded-2xl rounded-tl-none shadow-sm leading-relaxed">
                           {c.content}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   ))}
                   {!(comments[activeTaskId]?.length) && (
-                    <div className="text-center py-8">
-                       <div className="w-12 h-12 rounded-full bg-industrial-bg mx-auto flex items-center justify-center text-industrial-text-secondary mb-2">
-                         <Clock size={20} />
+                    <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] opacity-50 gap-3">
+                       <div className="w-16 h-16 rounded-full bg-[var(--bg-body)] flex items-center justify-center border border-[var(--border)]">
+                         <MessageCircle size={24} />
                        </div>
-                       <p className="text-xs text-industrial-text-secondary">Nenhum comentário ainda.</p>
+                       <p className="text-xs">Nenhum comentário ainda.</p>
                     </div>
                   )}
-                </div>
+               </div>
 
-                <div className="p-4 bg-industrial-surface border-t border-industrial-border">
+               <div className="p-4 bg-[var(--bg-body)] border-t border-[var(--border)]">
                   <div className="relative">
                     <input
                       value={newComment}
                       onChange={e => setNewComment(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleAddComment()}
                       placeholder="Escreva um comentário..."
-                      className="w-full pl-4 pr-12 py-3 rounded-xl bg-industrial-bg border border-industrial-border text-xs focus:ring-2 focus:ring-brand-500 transition-all text-white placeholder:text-industrial-text-secondary"
+                      className="w-full pl-4 pr-12 py-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-xs focus:ring-2 focus:ring-cyan-500/30 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none shadow-inner"
                     />
                     <button 
                       onClick={handleAddComment}
                       disabled={!newComment.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-brand-600 text-white disabled:opacity-50 disabled:bg-slate-600 hover:bg-brand-500 transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-cyan-500 text-white disabled:opacity-50 disabled:bg-[var(--text-muted)] hover:bg-cyan-400 transition-colors shadow-sm"
                     >
                       <Send size={14} />
                     </button>
                   </div>
-                </div>
-              </div>
+               </div>
             </div>
           </div>
         </div>

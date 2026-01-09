@@ -110,12 +110,45 @@ export async function moveTask(taskId: string, toColumnId: string) {
   return data;
 }
 
-export async function assignUsers(taskId: string, userIds: string[]) {
+export async function assignUsers(taskId: string, userIds: string[], assignerName: string) {
   // Clear existing first for simple "set" logic
+  // Note: In a real app, we might want to diff to avoid re-notifying, but here we'll just notify new adds
+  // For simplicity in this "set" logic, we'll just notify everyone newly added
+  
+  const { data: currentAssignments } = await supabase
+    .from('taskflow_task_users')
+    .select('user_id')
+    .eq('task_id', taskId);
+    
+  const currentIds = new Set((currentAssignments || []).map(a => a.user_id));
+  
+  // Delete all (simple sync)
   await supabase.from('taskflow_task_users').delete().eq('task_id', taskId);
   
+  if (userIds.length === 0) return [];
+
   const rows = userIds.map(uid => ({ task_id: taskId, user_id: uid, role: 'assignee' }));
   const { data } = await supabase.from('taskflow_task_users').insert(rows).select('*');
+
+  // Send notifications to NEW assignees
+  const newAssignees = userIds.filter(uid => !currentIds.has(uid));
+  
+  if (newAssignees.length > 0) {
+    const { data: task } = await supabase.from('taskflow_tasks').select('title').eq('id', taskId).single();
+    const taskTitle = task?.title || 'uma tarefa';
+    
+    const notifications = newAssignees.map(uid => ({
+      user_id: uid,
+      title: 'Nova Tarefa Compartilhada',
+      content: `${assignerName} compartilhou a tarefa "${taskTitle}" com você.`,
+      link: `/tasks?id=${taskId}`,
+      type: 'task_assigned',
+      is_read: false
+    }));
+    
+    await supabase.from('notifications').insert(notifications);
+  }
+
   return data || [];
 }
 

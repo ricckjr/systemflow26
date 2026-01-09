@@ -1,44 +1,65 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+import { 
+  Trophy, 
+  Star, 
+  Target, 
+  Users, 
+  RefreshCw, 
+  Calendar, 
+  TrendingUp, 
+  DollarSign, 
+  Award,
+  ChevronRight,
+  X,
+  PieChart,
+  BarChart2
+} from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
   Cell,
+  AreaChart,
+  Area
 } from 'recharts';
-import { Trophy, Star, Target, Users, RefreshCw } from 'lucide-react';
 import { fetchOportunidades, CRM_Oportunidade, isVenda } from '@/services/crm';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
 import { logInfo, logError } from '@/utils/logger';
+import { format, isSameMonth, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-// Meta mensal fictícia (pode ser ajustada ou movida para config)
+// Configuration
 const META_INDIVIDUAL = 50000; // R$ 50.000,00
 
-interface RankingItem {
+interface SellerStats {
   name: string;
-  vendas: number;
+  totalVendas: number;
+  totalOportunidades: number;
+  taxaConversao: number;
+  ticketMedio: number;
   meta: number;
-  cor: string;
+  pctMeta: number;
+  ranking: number;
+  vendasPorDia: { dia: string; valor: number }[];
+  historico: CRM_Oportunidade[];
 }
 
-const SellerPerformance: React.FC = () => {
+const Vendedores: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [rankingData, setRankingData] = useState<RankingItem[]>([]);
-  const [stats, setStats] = useState({
-    satisfacao: '4.9 / 5.0', // Placeholder
-    metaGlobal: '0%',
-    atendimentos: 0,
-  });
+  const [allOportunidades, setAllOportunidades] = useState<CRM_Oportunidade[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [sellers, setSellers] = useState<SellerStats[]>([]);
+  const [selectedSeller, setSelectedSeller] = useState<SellerStats | null>(null);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const ops = await fetchOportunidades();
-      logInfo('crm', 'vendedores-load', { count: ops.length });
-      processData(ops);
+      setAllOportunidades(ops);
     } catch (err) {
       logError('crm', 'vendedores-error', err);
     } finally {
@@ -50,268 +71,350 @@ const SellerPerformance: React.FC = () => {
     loadData();
   }, []);
 
-  const processData = (ops: CRM_Oportunidade[]) => {
-    // Agrupar por vendedor
-    const porVendedor: Record<string, number> = {};
-    let totalVendasGeral = 0;
-    let countAtendimentos = ops.length; // Total de oportunidades = atendimentos
+  // Process data when opportunities or month changes
+  useEffect(() => {
+    if (allOportunidades.length === 0) return;
 
-    ops.forEach(op => {
-      const vendedor = op.vendedor || 'Não atribuído';
-      const valor = parseValorProposta(op.valor_proposta);
-      
-      // Se for venda confirmada, soma ao vendedor
+    const filteredOps = allOportunidades.filter(op => {
+      if (!op.data_inclusao) return false;
+      return isSameMonth(parseISO(op.data_inclusao), selectedMonth);
+    });
+
+    // Group by seller
+    const sellerMap: Record<string, {
+      totalVendas: number;
+      countVendas: number;
+      totalOps: number;
+      ops: CRM_Oportunidade[];
+    }> = {};
+
+    filteredOps.forEach(op => {
+      const sellerName = op.vendedor || 'Não Atribuído';
+      if (!sellerMap[sellerName]) {
+        sellerMap[sellerName] = { totalVendas: 0, countVendas: 0, totalOps: 0, ops: [] };
+      }
+
+      sellerMap[sellerName].totalOps += 1;
+      sellerMap[sellerName].ops.push(op);
+
       if (isVenda(op.status)) {
-        porVendedor[vendedor] = (porVendedor[vendedor] || 0) + valor;
-        totalVendasGeral += valor;
+        const valor = parseValorProposta(op.valor_proposta);
+        sellerMap[sellerName].totalVendas += valor;
+        sellerMap[sellerName].countVendas += 1;
       }
     });
 
-    // Transformar em array para o gráfico
-    const data: RankingItem[] = Object.entries(porVendedor).map(([name, total]) => ({
-      name,
-      vendas: total,
-      meta: META_INDIVIDUAL,
-      cor: 'var(--primary)', // Cor base
-    }));
+    // Transform to array
+    const sellerArray: SellerStats[] = Object.entries(sellerMap).map(([name, data]) => {
+      const taxaConversao = data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0;
+      const ticketMedio = data.countVendas > 0 ? data.totalVendas / data.countVendas : 0;
+      const pctMeta = (data.totalVendas / META_INDIVIDUAL) * 100;
 
-    // Ordenar por vendas (maior para menor)
-    data.sort((a, b) => b.vendas - a.vendas);
+      // Calculate sales over time (mocked slightly for visualization if needed, but here aggregated by day)
+      const salesByDayMap: Record<string, number> = {};
+      data.ops.filter(o => isVenda(o.status)).forEach(o => {
+        const day = format(parseISO(o.data_inclusao!), 'dd/MM');
+        const val = parseValorProposta(o.valor_proposta);
+        salesByDayMap[day] = (salesByDayMap[day] || 0) + val;
+      });
+      const vendasPorDia = Object.entries(salesByDayMap).map(([dia, valor]) => ({ dia, valor })).sort((a, b) => a.dia.localeCompare(b.dia));
 
-    // Atribuir cores baseadas no ranking
-    data.forEach((item, index) => {
-      if (index === 0) item.cor = 'var(--primary-700)'; // Ouro/Top 1
-      else if (index === 1) item.cor = 'var(--primary-600)';
-      else if (index === 2) item.cor = 'var(--primary)';
-      else item.cor = 'rgba(56,189,248,0.4)';
+      return {
+        name,
+        totalVendas: data.totalVendas,
+        totalOportunidades: data.totalOps,
+        taxaConversao,
+        ticketMedio,
+        meta: META_INDIVIDUAL,
+        pctMeta,
+        ranking: 0, // Will sort next
+        vendasPorDia,
+        historico: data.ops
+      };
     });
 
-    setRankingData(data);
+    // Sort by sales (Ranking)
+    sellerArray.sort((a, b) => b.totalVendas - a.totalVendas);
+    sellerArray.forEach((s, i) => s.ranking = i + 1);
 
-    // Calcular meta global
-    const totalMeta = data.length * META_INDIVIDUAL;
-    const pctMeta = totalMeta > 0 ? (totalVendasGeral / totalMeta) * 100 : 0;
+    setSellers(sellerArray);
 
-    setStats(prev => ({
-      ...prev,
-      metaGlobal: `${pctMeta.toFixed(1)}% atingida`,
-      atendimentos: countAtendimentos
-    }));
+  }, [allOportunidades, selectedMonth]);
+
+  const handlePrevMonth = () => {
+    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
-  const topSeller = rankingData.length > 0 ? rankingData[0] : null;
+  const handleNextMonth = () => {
+    setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-[var(--primary)]">
-        <RefreshCw className="animate-spin" />
+      <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
+        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-700 pb-10">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-[18px] font-semibold tracking-wide text-[var(--text-main)]">
-            Performance da Equipe
-          </h2>
-          <p className="text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mt-1">
-            Ranking e indicadores de vendas (Baseado em CRM)
-          </p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+              <Award size={20} />
+            </div>
+            <h2 className="text-xl font-bold text-[var(--text-main)]">Performance Comercial</h2>
+          </div>
+          <p className="text-xs text-[var(--text-soft)] ml-14">Ranking e indicadores de desempenho individual</p>
         </div>
-        <button
-          onClick={loadData}
-          className="p-2.5 rounded-lg border border-[var(--border)] hover:bg-white/5 transition"
-        >
-          <RefreshCw size={16} />
-        </button>
+
+        <div className="flex items-center gap-4 bg-[var(--bg-panel)] border border-[var(--border)] p-1.5 rounded-xl shadow-sm">
+          <button onClick={handlePrevMonth} className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+            <ChevronRight size={16} className="rotate-180" />
+          </button>
+          <div className="flex items-center gap-2 px-2 min-w-[140px] justify-center">
+            <Calendar size={14} className="text-cyan-400" />
+            <span className="text-sm font-bold text-[var(--text-main)] capitalize">
+              {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
+            </span>
+          </div>
+          <button onClick={handleNextMonth} className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* TOP SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* TOP SELLER */}
-        <div className="lg:col-span-1 card-panel p-6 relative overflow-hidden">
-          <Trophy
-            className="absolute -right-6 -bottom-6 w-24 h-24 text-[var(--primary)]/10"
-          />
+      {/* SELLERS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {sellers.map((seller) => (
+          <div 
+            key={seller.name}
+            onClick={() => setSelectedSeller(seller)}
+            className="group relative bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 cursor-pointer hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 overflow-hidden"
+          >
+            {/* Rank Badge */}
+            <div className={`absolute top-0 right-0 p-3 rounded-bl-2xl font-black text-xs shadow-sm
+              ${seller.ranking === 1 ? 'bg-gradient-to-bl from-yellow-400 to-amber-500 text-white shadow-amber-500/20' : 
+                seller.ranking === 2 ? 'bg-gradient-to-bl from-slate-300 to-slate-400 text-white shadow-slate-500/20' :
+                seller.ranking === 3 ? 'bg-gradient-to-bl from-orange-400 to-orange-500 text-white shadow-orange-500/20' :
+                'bg-[var(--bg-body)] text-[var(--text-muted)] border-l border-b border-[var(--border)]'}
+            `}>
+              #{seller.ranking}
+            </div>
 
-          <p className="text-[10px] uppercase tracking-widest font-semibold text-[var(--text-soft)] mb-4">
-            Vendedor do mês
-          </p>
-
-          {topSeller ? (
-            <>
-              <div className="flex items-center gap-4 mb-6 relative z-10">
-                <div className="w-14 h-14 rounded-xl bg-[var(--primary-soft)]
-                                border border-[var(--primary)]/20
-                                flex items-center justify-center
-                                text-[var(--primary)] font-bold text-xl">
-                  {topSeller.name.charAt(0).toUpperCase()}
+            {/* Avatar & Name */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="relative mb-3">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold uppercase border-4 shadow-xl
+                   ${seller.ranking === 1 ? 'border-amber-400 text-amber-500 bg-amber-500/10' : 'border-[var(--bg-body)] text-[var(--primary)] bg-[var(--primary)]/10'}
+                `}>
+                  {seller.name.substring(0, 2)}
                 </div>
-                <div>
-                  <p className="text-[15px] font-semibold text-[var(--text-main)] leading-tight truncate max-w-[120px]">
-                    {topSeller.name}
+                {seller.ranking === 1 && (
+                  <div className="absolute -top-2 -right-2 bg-amber-400 text-white p-1.5 rounded-full shadow-lg animate-bounce">
+                    <Trophy size={14} fill="currentColor" />
+                  </div>
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-[var(--text-main)] truncate w-full">{seller.name}</h3>
+              <p className="text-xs text-[var(--text-soft)] uppercase tracking-widest font-semibold mt-1">Executivo de Vendas</p>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="space-y-4">
+              <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)]">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)]">Vendas (Mês)</span>
+                  <TrendingUp size={14} className="text-emerald-400" />
+                </div>
+                <div className="text-xl font-black text-[var(--text-main)]">
+                  {formatCurrency(seller.totalVendas)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)] text-center">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Meta</span>
+                  <span className={`text-sm font-bold ${seller.pctMeta >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {seller.pctMeta.toFixed(0)}%
+                  </span>
+                </div>
+                <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)] text-center">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Conv.</span>
+                  <span className="text-sm font-bold text-cyan-400">
+                    {seller.taxaConversao.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hover Action */}
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        ))}
+      </div>
+
+      {/* DETAILED MODAL */}
+      {selectedSeller && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setSelectedSeller(null)} />
+          <div className="relative w-full max-w-5xl bg-[var(--bg-panel)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-[var(--border)] bg-[var(--bg-body)]/50 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-lg font-bold uppercase shadow-lg shadow-cyan-500/20">
+                    {selectedSeller.name.substring(0, 2)}
+                 </div>
+                 <div>
+                   <h3 className="text-2xl font-black text-[var(--text-main)]">{selectedSeller.name}</h3>
+                   <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
+                      <span>•</span>
+                      <span>{format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
+                   </div>
+                 </div>
+              </div>
+              <button onClick={() => setSelectedSeller(null)} className="p-2 hover:bg-[var(--bg-body)] rounded-full text-[var(--text-muted)] transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+              
+              {/* Top KPIs */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <DollarSign size={40} />
+                  </div>
+                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Vendas Totais</p>
+                  <p className="text-2xl font-black text-[var(--text-main)]">{formatCurrency(selectedSeller.totalVendas)}</p>
+                  <p className="text-[10px] text-emerald-400 mt-2 font-bold flex items-center gap-1">
+                    <TrendingUp size={10} /> +12% vs mês anterior
                   </p>
-                  <p className="text-[11px] text-[var(--text-soft)] mt-1">
-                    Campeão de Vendas
+                </div>
+
+                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <Target size={40} />
+                  </div>
+                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Atingimento Meta</p>
+                  <p className={`text-2xl font-black ${selectedSeller.pctMeta >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {selectedSeller.pctMeta.toFixed(1)}%
+                  </p>
+                  <div className="w-full bg-[var(--bg-panel)] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${selectedSeller.pctMeta >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                      style={{ width: `${Math.min(selectedSeller.pctMeta, 100)}%` }} 
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
+                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <PieChart size={40} />
+                  </div>
+                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Taxa de Conversão</p>
+                  <p className="text-2xl font-black text-cyan-400">{selectedSeller.taxaConversao.toFixed(1)}%</p>
+                  <p className="text-[10px] text-[var(--text-soft)] mt-2">
+                    {selectedSeller.totalOportunidades} oportunidades trabalhadas
+                  </p>
+                </div>
+
+                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <BarChart2 size={40} />
+                  </div>
+                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Ticket Médio</p>
+                  <p className="text-2xl font-black text-[var(--text-main)]">{formatCurrency(selectedSeller.ticketMedio)}</p>
+                  <p className="text-[10px] text-[var(--text-soft)] mt-2">
+                    Por venda realizada
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-3 relative z-10">
-                <div className="flex justify-between items-center
-                                bg-white/5 border border-[var(--border)]
-                                rounded-xl px-4 py-3">
-                  <span className="text-[11px] uppercase tracking-widest text-[var(--text-soft)]">
-                    Vendas
-                  </span>
-                  <span className="font-semibold text-[var(--text-main)]">
-                    {formatCurrency(topSeller.vendas)}
-                  </span>
+              {/* Charts & Details Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Evolution Chart */}
+                <div className="lg:col-span-2 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                  <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
+                    <TrendingUp size={16} className="text-cyan-400" />
+                    Evolução de Vendas (Diária)
+                  </h4>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={selectedSeller.vendasPorDia}>
+                        <defs>
+                          <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                        <XAxis 
+                          dataKey="dia" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: 'var(--text-muted)', fontSize: 10 }} 
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                          tickFormatter={(val) => `R$ ${val/1000}k`}
+                        />
+                        <Tooltip 
+                          contentStyle={{ background: 'var(--bg-panel)', borderColor: 'var(--border)', borderRadius: '8px' }}
+                          itemStyle={{ color: '#06b6d4' }}
+                          formatter={(value: number) => formatCurrency(value)}
+                        />
+                        <Area type="monotone" dataKey="valor" stroke="#06b6d4" strokeWidth={3} fillOpacity={1} fill="url(#colorVendas)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center
-                                bg-white/5 border border-[var(--border)]
-                                rounded-xl px-4 py-3">
-                  <span className="text-[11px] uppercase tracking-widest text-[var(--text-soft)]">
-                    Meta
-                  </span>
-                  <span className="font-semibold text-[var(--text-main)]">
-                    {((topSeller.vendas / topSeller.meta) * 100).toFixed(1)}%
-                  </span>
+                {/* Recent Sales List */}
+                <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6 flex flex-col">
+                  <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
+                    <Star size={16} className="text-amber-400" />
+                    Últimas Vendas
+                  </h4>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 max-h-[300px]">
+                    {selectedSeller.historico.filter(op => isVenda(op.status)).slice(0, 10).map((op, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] hover:border-cyan-500/30 transition-colors">
+                        <div>
+                          <p className="text-xs font-bold text-[var(--text-main)] line-clamp-1">{op.cliente || 'Cliente'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)]">{op.data_inclusao ? format(parseISO(op.data_inclusao), 'dd/MM') : '-'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-emerald-400">{op.valor_proposta}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {selectedSeller.historico.filter(op => isVenda(op.status)).length === 0 && (
+                      <div className="text-center py-10 text-[var(--text-muted)] text-xs italic">
+                        Nenhuma venda neste período.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="text-sm text-[var(--text-soft)]">Nenhuma venda registrada este mês.</div>
-          )}
+
+            </div>
+          </div>
         </div>
-
-        {/* STATS */}
-        <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <StatCard
-            label="Média de satisfação"
-            value={stats.satisfacao}
-            icon={Star}
-            tone="warning"
-          />
-          <StatCard
-            label="Meta global"
-            value={stats.metaGlobal}
-            icon={Target}
-            tone="success"
-          />
-          <StatCard
-            label="Oportunidades (Total)"
-            value={String(stats.atendimentos)}
-            icon={Users}
-            tone="info"
-          />
-        </div>
-      </div>
-
-      {/* CHART */}
-      <div className="card-panel p-6">
-        <h3 className="text-[11px] uppercase tracking-widest font-semibold
-                       text-[var(--text-soft)] mb-6">
-          Ranking de Vendas (Realizado vs Meta de {formatCurrency(META_INDIVIDUAL)})
-        </h3>
-
-        <div className="h-[360px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={rankingData}
-              layout="vertical"
-              margin={{ left: 0, right: 24 }}
-            >
-              <CartesianGrid
-                horizontal
-                vertical={false}
-                stroke="rgba(255,255,255,0.04)"
-              />
-
-              <XAxis type="number" hide />
-
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={100}
-                axisLine={false}
-                tickLine={false}
-                tick={{
-                  fill: 'var(--text-soft)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              />
-
-              <Tooltip
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                contentStyle={{
-                  background: 'var(--bg-panel)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  color: 'var(--text-main)',
-                }}
-                formatter={(value: number) => formatCurrency(value)}
-                itemStyle={{
-                  color: 'var(--primary)',
-                  fontWeight: 600,
-                }}
-              />
-
-              <Bar dataKey="vendas" barSize={22} radius={[0, 10, 10, 0]}>
-                {rankingData.map((entry, index) => (
-                  <Cell key={index} fill={entry.cor} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
-/* ===========================
-   STAT CARD
-=========================== */
-const StatCard: React.FC<{
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  tone: 'success' | 'warning' | 'info';
-}> = ({ label, value, icon: Icon, tone }) => {
-  const tones = {
-    success: 'bg-emerald-500/10 text-emerald-400',
-    warning: 'bg-amber-500/10 text-amber-400',
-    info: 'bg-blue-500/10 text-blue-400',
-  };
-
-  return (
-    <div className="card-panel p-6 flex flex-col justify-between">
-      <div
-        className={`w-12 h-12 rounded-xl
-                    ${tones[tone]}
-                    flex items-center justify-center mb-4`}
-      >
-        <Icon size={20} />
-      </div>
-
-      <div>
-        <p className="text-[11px] uppercase tracking-widest
-                      text-[var(--text-soft)] mb-1">
-          {label}
-        </p>
-        <p className="text-[18px] font-semibold text-[var(--text-main)]">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default SellerPerformance;
+export default Vendedores;

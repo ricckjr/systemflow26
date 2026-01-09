@@ -2,17 +2,34 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Profile, Post } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Heart, MessageCircle, Share2, Image as ImageIcon, Send, MoreHorizontal, Trash2, Edit2, EyeOff, X, Check } from 'lucide-react';
+import { 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Image as ImageIcon, 
+  Send, 
+  MoreHorizontal, 
+  Trash2, 
+  Edit2, 
+  EyeOff, 
+  X, 
+  Check,
+  Sparkles,
+  Smile
+} from 'lucide-react';
 import { fetchFeed, uploadMedia, createPost, likePost, unlikePost, hasUserLiked, fetchComments, addComment, deletePost, editPost } from '@/services/instaflow';
 
 const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
   const { profile: authProfile } = useAuth();
   const profile = propProfile || authProfile;
 
-  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+  if (!profile) return (
+    <div className="flex items-center justify-center h-[50vh] text-[var(--text-soft)] animate-pulse">
+      Carregando feed...
+    </div>
+  );
 
-  const user = profile; // Alias for legacy code usage if needed
-
+  const user = profile;
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -31,7 +48,6 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
     })();
   }, [profile.id]);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setMenuOpenId(null);
     window.addEventListener('click', handleClickOutside);
@@ -101,27 +117,52 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 py-4 px-4 sm:px-0">
-      <div className="bg-card rounded-[2rem] border border-line p-8 shadow-card relative overflow-hidden group">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 to-brand-700"></div>
-        <div className="flex gap-5">
-          <div className="w-12 h-12 rounded-full bg-brand-400/20 p-[2px] shadow-sm shrink-0 border border-white/10">
-            <div className="w-full h-full rounded-full bg-[#0f2538] flex items-center justify-center font-extrabold text-sm text-white">
-              {profile.nome[0]}
-            </div>
+    <div className="max-w-2xl mx-auto py-6 px-4 sm:px-0 space-y-8 animate-in fade-in duration-700">
+      
+      {/* HEADER */}
+      <div className="flex items-center gap-3 pb-4 border-b border-[var(--border)]">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+          <Sparkles size={20} />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-[var(--text-main)]">InstaFlow</h1>
+          <p className="text-xs text-[var(--text-soft)]">Compartilhe momentos com a equipe</p>
+        </div>
+      </div>
+
+      {/* CREATE POST CARD */}
+      <div className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] p-6 shadow-xl shadow-black/5 relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600"></div>
+        
+        <div className="flex gap-4">
+          <div className="shrink-0">
+             {profile.avatar_url ? (
+               <img 
+                 src={profile.avatar_url} 
+                 alt={profile.nome} 
+                 className="w-12 h-12 rounded-full object-cover border-2 border-cyan-500/30 p-[1px]"
+               />
+             ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 p-[2px] shadow-lg shadow-cyan-500/20">
+                  <div className="w-full h-full rounded-full bg-[var(--bg-panel)] flex items-center justify-center font-bold text-sm text-[var(--text-main)] uppercase">
+                    {profile.nome.substring(0, 2)}
+                  </div>
+                </div>
+             )}
           </div>
+          
           <div className="flex-1 space-y-4">
             <div className="relative">
               <textarea
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 placeholder={`No que você está pensando, ${profile.nome.split(' ')[0]}?`}
-                className="w-full bg-white/7 border border-white/10 rounded-2xl p-4 text-white focus:bg-white/10 transition-all resize-none min-h-[100px] placeholder:text-ink-800 text-sm font-bold focus:ring-2 focus:ring-brand-400/30 focus:border-brand-500"
+                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-xl p-4 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 outline-none transition-all resize-none min-h-[100px] placeholder:text-[var(--text-muted)]"
               />
             </div>
             
             <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <input
                   ref={inputRef}
                   type="file"
@@ -135,137 +176,157 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 />
                 <button
                   onClick={() => inputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#38BDF8] text-white hover:bg-[#38BDF8]/90 transition-all text-xs font-bold shadow-lg shadow-[#38BDF8]/20"
+                  className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-cyan-400 transition-colors"
+                  title="Adicionar Foto/Vídeo"
                 >
-                  <ImageIcon size={18} className="stroke-[2.5]" />
-                  <span>Mídia</span>
+                  <ImageIcon size={20} />
+                </button>
+                <button
+                  className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+                  title="Adicionar Emoji"
+                >
+                  <Smile size={20} />
                 </button>
               </div>
+
               <button
                 onClick={handlePost}
                 disabled={publishing || (!newPost.trim() && !file)}
-                className="bg-[#38BDF8] text-white px-8 py-3 rounded-full font-extrabold hover:bg-[#38BDF8]/90 transition-all flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#38BDF8]/30"
+                className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20"
               >
                 {publishing ? (
                   <span className="animate-pulse">Publicando...</span>
                 ) : (
                   <>
                     <span>Publicar</span>
-                    <Send size={14} className="stroke-[2.5]" />
+                    <Send size={14} />
                   </>
                 )}
               </button>
             </div>
-            {error && <div className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>{error}</div>}
+            
+            {error && (
+              <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg">
+                {error}
+              </div>
+            )}
           </div>
         </div>
         
         {previewUrl && (
-          <div className="mt-6 rounded-2xl overflow-hidden relative group/preview border border-white/10 shadow-sm">
+          <div className="mt-4 ml-14 rounded-xl overflow-hidden relative group/preview border border-[var(--border)]">
             {file?.type.startsWith('video') ? (
-              <video src={previewUrl} controls className="w-full max-h-[400px] object-cover bg-black" />
+              <video src={previewUrl} controls className="w-full max-h-[300px] object-cover bg-black" />
             ) : (
-              <img src={previewUrl} alt="" className="w-full max-h-[400px] object-cover" />
+              <img src={previewUrl} alt="" className="w-full max-h-[300px] object-cover" />
             )}
             <button 
               onClick={() => { setFile(null); setPreviewUrl(null); }} 
-              className="absolute top-3 right-3 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full backdrop-blur-sm transition-all opacity-0 group-hover/preview:opacity-100 shadow-lg"
+              className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full backdrop-blur-sm transition-all opacity-0 group-hover/preview:opacity-100"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         )}
       </div>
 
+      {/* POSTS LIST */}
       <div className="space-y-6">
         {posts.map(post => (
-          <div key={post.id} className="bg-card rounded-[2rem] border border-white/10 overflow-hidden shadow-card hover:shadow-soft transition-shadow duration-300">
-            <div className="px-8 py-6 flex items-center justify-between border-b border-white/10">
-              <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-brand-400/20 p-[2px] border border-white/10">
-                  <div className="w-full h-full rounded-full bg-[#0f2538] flex items-center justify-center text-white font-extrabold text-sm">
+          <div key={post.id} className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+            
+            {/* Post Header */}
+            <div className="px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 p-[2px]">
+                  <div className="w-full h-full rounded-full bg-[var(--bg-panel)] flex items-center justify-center text-[var(--text-main)] font-bold text-xs uppercase">
                     {post.usuario_nome[0]}
                   </div>
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-white text-sm">{post.usuario_nome}</h4>
-                  <p className="text-[11px] text-ink-800 font-bold opacity-80">Acabou de postar</p>
+                  <h4 className="font-semibold text-[var(--text-main)] text-sm">{post.usuario_nome}</h4>
+                  <p className="text-[11px] text-[var(--text-muted)]">Postado recentemente</p>
                 </div>
               </div>
-              <div className="text-ink-800 relative z-20">
+              
+              <div className="relative">
                 <button 
                   onClick={(e) => { 
                     e.stopPropagation();
-                    e.nativeEvent.stopImmediatePropagation();
                     setMenuOpenId(menuOpenId === post.id ? null : post.id); 
                   }} 
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  className="p-2 hover:bg-[var(--bg-body)] rounded-full text-[var(--text-muted)] transition-colors"
                 >
                   <MoreHorizontal size={20} />
                 </button>
+                
                 {menuOpenId === post.id && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-[#0f2538]/95 rounded-2xl shadow-xl border border-white/10 overflow-hidden z-30 py-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-panel)] rounded-xl shadow-xl border border-[var(--border)] overflow-hidden z-30 py-1 animate-in fade-in zoom-in-95 duration-100">
                     {(post.usuario_id === profile.id) && (
-                      <button onClick={(e) => handleStartEdit(post, e)} className="w-full text-left px-5 py-3 text-xs hover:bg-white/10 flex items-center gap-3 text-white font-bold transition-colors">
-                        <Edit2 size={14} /> Editar Publicação
+                      <button onClick={(e) => handleStartEdit(post, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-body)] flex items-center gap-2 text-[var(--text-main)] transition-colors">
+                        <Edit2 size={14} /> Editar
                       </button>
                     )}
                     {(post.usuario_id === profile.id || profile.cargo === 'ADMIN') && (
-                      <button onClick={(e) => handleDelete(post.id, e)} className="w-full text-left px-5 py-3 text-xs hover:bg-rose-500/10 flex items-center gap-3 text-rose-400 font-bold transition-colors">
-                        <Trash2 size={14} /> Excluir Publicação
+                      <button onClick={(e) => handleDelete(post.id, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-rose-500/10 flex items-center gap-2 text-rose-400 transition-colors">
+                        <Trash2 size={14} /> Excluir
                       </button>
                     )}
-                    <button onClick={(e) => handleHide(post.id, e)} className="w-full text-left px-5 py-3 text-xs hover:bg-white/10 flex items-center gap-3 text-ink-800 font-bold transition-colors">
-                      <EyeOff size={14} /> Ocultar do Feed
+                    <button onClick={(e) => handleHide(post.id, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-body)] flex items-center gap-2 text-[var(--text-soft)] transition-colors">
+                      <EyeOff size={14} /> Ocultar
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
-            {post.image_url && (
-              <div className="bg-white/5">
-                {post.image_url.match(/\.(mp4|webm|ogg)$/i) ? (
-                  <video src={post.image_url} controls className="w-full max-h-[600px] object-contain" />
-                ) : (
-                  <img src={post.image_url} alt="" className="w-full max-h-[600px] object-contain" />
-                )}
-              </div>
-            )}
-
-            <div className="px-8 py-6">
-              {editingId === post.id ? (
-                <div className="space-y-4 bg-white/7 p-6 rounded-2xl border border-white/10">
+            {/* Post Content */}
+            <div className="px-6 pb-2">
+               {editingId === post.id ? (
+                <div className="space-y-3">
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full bg-white/7 border border-white/10 rounded-xl p-4 text-sm text-white font-bold focus:outline-none focus:ring-4 focus:ring-brand-400/30 focus:border-brand-500 transition-all"
+                    className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-xl p-3 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/50 outline-none"
                     rows={3}
                   />
-                  <div className="flex items-center gap-3 justify-end">
-                    <button onClick={handleCancelEdit} className="p-2 text-ink-800 hover:text-white hover:bg-white/10 rounded-full transition-all"><X size={18} /></button>
-                    <button onClick={handleSaveEdit} className="p-2 text-white bg-brand-600 hover:bg-brand-700 rounded-full transition-all shadow-lg shadow-brand-600/30"><Check size={18} /></button>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={handleCancelEdit} className="p-1.5 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)]"><X size={16} /></button>
+                    <button onClick={handleSaveEdit} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"><Check size={16} /></button>
                   </div>
                 </div>
               ) : (
-                <p className="text-white leading-relaxed text-[15px] font-medium whitespace-pre-wrap">{post.content}</p>
+                <p className="text-[var(--text-main)] leading-relaxed text-[15px] whitespace-pre-wrap">{post.content}</p>
               )}
-              
-              <div className="mt-8 pt-6 border-t border-white/10 flex items-center gap-6">
-                <LikeButton postId={post.id} userId={profile.id} initialCount={post.likes} />
-                <button className="flex items-center gap-2 text-ink-800 hover:text-brand-600 transition-colors text-xs font-extrabold group">
-                  <div className="p-2.5 rounded-full bg-white/7 group-hover:bg-white/10 transition-colors border border-white/10">
-                    <MessageCircle size={20} className="stroke-[2.5]" />
-                  </div>
-                  <span>{post.comments_count}</span>
-                </button>
-                <button className="ml-auto text-ink-800 hover:text-white transition-colors p-2.5 hover:bg-white/10 rounded-full">
-                  <Share2 size={20} className="stroke-[2.5]" />
-                </button>
-              </div>
             </div>
 
-            <div className="bg-white/5 px-8 py-6 border-t border-white/10">
+            {/* Media */}
+            {post.image_url && (
+              <div className="mt-3 bg-black/5 dark:bg-black/20">
+                {post.image_url.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video src={post.image_url} controls className="w-full max-h-[500px] object-contain" />
+                ) : (
+                  <img src={post.image_url} alt="" className="w-full max-h-[500px] object-cover" />
+                )}
+              </div>
+            )}
+            
+            {/* Actions Bar */}
+            <div className="px-6 py-4 flex items-center gap-6 border-t border-[var(--border)] mt-2">
+              <LikeButton postId={post.id} userId={profile.id} initialCount={post.likes} />
+              
+              <button className="flex items-center gap-2 text-[var(--text-soft)] hover:text-cyan-400 transition-colors text-sm group">
+                <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
+                <span>{post.comments_count}</span>
+              </button>
+              
+              <button className="ml-auto text-[var(--text-soft)] hover:text-[var(--text-main)] transition-colors">
+                <Share2 size={20} />
+              </button>
+            </div>
+
+            {/* Comments */}
+            <div className="bg-[var(--bg-body)]/30 px-6 py-4 border-t border-[var(--border)]">
               <CommentSection postId={post.id} userId={user.id} />
             </div>
           </div>
@@ -275,17 +336,17 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   );
 };
 
-export default InstaFlow;
-
 const LikeButton: React.FC<{ postId: string; userId: string; initialCount: number }> = ({ postId, userId, initialCount }) => {
   const [liked, setLiked] = useState(false);
   const [count, setCount] = useState(initialCount);
+  
   useEffect(() => {
     (async () => {
       const has = await hasUserLiked(postId, userId);
       setLiked(has);
     })();
   }, [postId, userId]);
+
   const toggleLike = async () => {
     if (liked) {
       const ok = await unlikePost(postId, userId);
@@ -301,11 +362,13 @@ const LikeButton: React.FC<{ postId: string; userId: string; initialCount: numbe
       }
     }
   };
+
   return (
-    <button onClick={toggleLike} className={`flex items-center gap-2 transition-all text-xs font-extrabold group ${liked ? 'text-rose-400' : 'text-ink-800 hover:text-rose-400'}`}>
-      <div className={`p-2.5 rounded-full transition-colors border border-white/10 ${liked ? 'bg-rose-500/10' : 'bg-white/7 group-hover:bg-rose-500/10'}`}>
-        <Heart size={20} className={liked ? "fill-current stroke-[2.5]" : "stroke-[2.5]"} />
-      </div>
+    <button 
+      onClick={toggleLike} 
+      className={`flex items-center gap-2 transition-all text-sm group ${liked ? 'text-cyan-500' : 'text-[var(--text-soft)] hover:text-cyan-400'}`}
+    >
+      <Heart size={20} className={`${liked ? "fill-current scale-110" : "group-hover:scale-110"} transition-transform`} />
       <span>{count}</span>
     </button>
   );
@@ -314,12 +377,14 @@ const LikeButton: React.FC<{ postId: string; userId: string; initialCount: numbe
 const CommentSection: React.FC<{ postId: string; userId: string }> = ({ postId, userId }) => {
   const [items, setItems] = useState<any[]>([]);
   const [text, setText] = useState('');
+  
   useEffect(() => {
     (async () => {
       const data = await fetchComments(postId);
       setItems(data);
     })();
   }, [postId]);
+
   const submit = async () => {
     if (!text.trim()) return;
     const c = await addComment(postId, userId, text.trim());
@@ -328,37 +393,45 @@ const CommentSection: React.FC<{ postId: string; userId: string }> = ({ postId, 
       setText('');
     }
   };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {items.length > 0 && (
-        <div className="space-y-4 pl-4 border-l-2 border-brand-400/30">
+        <div className="space-y-3">
           {items.map(c => (
-            <div key={c.id} className="group">
-              <div className="flex items-baseline justify-between">
-                <div className="text-[13px] text-white font-bold bg-white/7 px-3 py-2 rounded-lg shadow-sm border border-white/10 inline-block">{c.content}</div>
-                <div className="text-[10px] text-ink-800 opacity-0 group-hover:opacity-100 transition-opacity ml-2 whitespace-nowrap font-bold">
-                  {new Date(c.created_at).toLocaleString()}
-                </div>
+            <div key={c.id} className="flex gap-2 text-sm group">
+              <span className="font-semibold text-[var(--text-main)] text-xs opacity-70">Usuário:</span>
+              <div className="flex-1">
+                 <p className="text-[var(--text-main)] bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-1.5 rounded-lg inline-block rounded-tl-none">
+                   {c.content}
+                 </p>
+                 <span className="text-[10px] text-[var(--text-muted)] ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   {new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                 </span>
               </div>
             </div>
           ))}
         </div>
       )}
-      <div className="flex items-center gap-3 pt-2">
+      
+      <div className="relative">
         <input 
           value={text} 
           onChange={e => setText(e.target.value)} 
           placeholder="Escreva um comentário..." 
-          className="flex-1 rounded-xl bg-white/7 border border-white/10 px-5 py-3 text-xs text-white focus:ring-4 focus:ring-brand-400/30 focus:border-brand-500 transition-all placeholder:text-ink-800 font-bold shadow-sm" 
+          className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] pl-4 pr-12 py-2.5 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 outline-none transition-all placeholder:text-[var(--text-muted)]" 
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
         />
         <button 
           onClick={submit} 
           disabled={!text.trim()}
-          className="p-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 text-white hover:from-brand-500 hover:to-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-600/20"
+          className="absolute right-2 top-1.5 p-1.5 rounded-lg text-cyan-500 hover:bg-cyan-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
         >
-          <Send size={16} className="stroke-[2.5]" />
+          <Send size={16} />
         </button>
       </div>
     </div>
   );
 };
+
+export default InstaFlow;

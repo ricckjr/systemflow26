@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: systemflow-backend
+    restart: always
+    ports:
+      - "7005:7005"
+    environment:
+      - PORT=7005
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    networks:
+      - systemflow-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: systemflow-frontend
+    restart: always
+    ports:
+      - "7001:80"
+    networks:
+      - systemflow-network
+
+networks:
+  systemflow-network:
+    driver: bridge

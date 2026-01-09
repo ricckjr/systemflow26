@@ -22,7 +22,8 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
 
   // Force profile creation if missing
   const isProfilePage = location.pathname === '/app/configuracoes/perfil'
-  if (!profile && !loading) {
+  // Adicionado check !error para evitar redirect em caso de falha de conexão/timeout
+  if (!profile && !loading && !error) {
      if (!isProfilePage) {
          return <Navigate to="/app/configuracoes/perfil" replace state={{ message: 'Complete seu perfil para continuar.' }} />
      }

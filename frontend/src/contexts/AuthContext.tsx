@@ -358,8 +358,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Como removemos o token localmente, o usuário está efetivamente deslogado neste dispositivo.
     
     setLoading(false)
-    // Força recarregamento ou redirecionamento para garantir limpeza
-    window.location.href = '/login'
+    // Força recarregamento ou redirecionamento para garantir limpeza, apenas se não estiver no login
+    if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+    }
   }, [])
 
   const refreshProfile = useCallback(async () => {

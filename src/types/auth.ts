@@ -1,19 +1,27 @@
-export type UserRole = 'admin' | 'user';
-export type UserStatus = 'offline' | 'online' | 'bloqueado';
+export type Cargo =
+  | 'ADMIN'
+  | 'VENDEDOR'
+  | 'MARKETING'
+  | 'ADMINISTRATIVO'
+  | 'FINANCEIRO'
+  | 'RECURSOS_HUMANOS'
+  | 'DEPARTAMENTO_PESSOAL'
+  | 'LOGISTICA'
+  | 'OFICINA'
+  | 'TECNICO';
 
 export interface Profile {
   id: string;
   nome: string;
   email_login: string;
-  email_corporativo?: string;
-  telefone?: string;
-  ramal?: string;
-  departamento?: string;
-  role: UserRole;
-  status: UserStatus;
+  email_corporativo?: string | null;
+  telefone?: string | null;
+  ramal?: string | null;
   ativo: boolean;
-  avatar_url?: string;
+  avatar_url?: string | null;
   created_at: string;
+  updated_at?: string;
+  cargo: Cargo | null;
 }
 
 export interface Permissao {

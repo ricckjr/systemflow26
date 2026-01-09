@@ -49,7 +49,7 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: ProfilePermissao[] }> = ({ p
         excluir: p.excluir,
       }));
       const payload = {
-        user: { id: profile.id, nome: profile.nome, email: profile.email_login, role: profile.role },
+        user: { id: profile.id, nome: profile.nome, email: profile.email_login, cargo: profile.cargo },
         message: text,
         metadata: { origin: 'web', timestamp: new Date().toISOString() },
         permissions,

@@ -28,14 +28,14 @@ USING (
   bucket_id = 'instaflow'
   AND (
     auth.uid() = owner
-    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
   )
 )
 WITH CHECK (
   bucket_id = 'instaflow'
   AND (
     auth.uid() = owner
-    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
   )
 );
 
@@ -46,6 +46,6 @@ USING (
   bucket_id = 'instaflow'
   AND (
     auth.uid() = owner
-    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+    OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
   )
 );

@@ -30,25 +30,7 @@ export default function Perfil() {
   /* ===========================
      PROFILE FALLBACK
   ============================ */
-  const profile = useMemo(() => {
-    if (contextProfile) return contextProfile
-    if (session?.user) {
-      return {
-        id: session.user.id,
-        nome: '',
-        email_login: session.user.email || '',
-        avatar_url: '',
-        email_corporativo: '',
-        telefone: '',
-        ramal: '',
-        role: 'user',
-        status: 'online',
-        ativo: true,
-        created_at: new Date().toISOString(),
-      } as any
-    }
-    return null
-  }, [contextProfile, session])
+  const profile = contextProfile
 
   /* ===========================
      STATE
@@ -120,7 +102,23 @@ export default function Perfil() {
     )
   }
 
-  if (!profile) return null
+  if (!profile) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+               <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4">
+                   <ShieldCheck size={32} />
+               </div>
+               <h2 className="text-xl font-semibold mb-2">Não foi possível carregar seu perfil</h2>
+               <p className="text-[var(--text-soft)] mb-6 max-w-md">
+                   Isso pode ter ocorrido por uma falha de conexão. Tente recarregar para restaurar seus dados.
+               </p>
+               <button onClick={() => refreshProfile()} className="btn-primary flex items-center gap-2">
+                   <Loader2 size={16} className={loading ? 'animate-spin' : 'hidden'} />
+                   Tentar Novamente
+               </button>
+           </div>
+      )
+  }
 
   /* ===========================
      HELPERS (INALTERADOS)
@@ -375,6 +373,13 @@ export default function Perfil() {
                 onChange={e => setForm({ ...form, ramal: e.target.value })}
                 className="input-primary"
               />
+            </div>
+
+            <div>
+              <Label>Cargo</Label>
+              <div className="input-primary opacity-50 cursor-not-allowed flex items-center">
+                  {profile.cargo || 'Sem Cargo Definido'}
+              </div>
             </div>
           </div>
 

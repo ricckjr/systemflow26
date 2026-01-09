@@ -93,8 +93,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleLogoutClick = () => setIsLogoutModalOpen(true);
 
   const confirmLogout = async () => {
-    setIsLogoutModalOpen(false);
+    setIsLogoutModalOpen(false) // Close modal immediately
     await signOut();
+    // Navigate is redundant here because signOut forces redirect, but kept for safety
     navigate('/login', { replace: true });
   };
 

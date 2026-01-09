@@ -23,10 +23,10 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
     id: '',
     nome: '',
     email_login: '',
-    role: 'user',
-    status: 'online',
     ativo: true,
+    avatar_url: '',
     created_at: new Date().toISOString(),
+    cargo: null,
   };
 
   const profileView = useMemo(() => safeProfile, [safeProfile]);

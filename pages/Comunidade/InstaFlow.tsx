@@ -210,7 +210,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                         <Edit2 size={14} /> Editar Publicação
                       </button>
                     )}
-                    {(post.usuario_id === profile.id || profile.role === 'admin') && (
+                    {(post.usuario_id === profile.id || profile.cargo === 'ADMIN') && (
                       <button onClick={(e) => handleDelete(post.id, e)} className="w-full text-left px-5 py-3 text-xs hover:bg-rose-500/10 flex items-center gap-3 text-rose-400 font-bold transition-colors">
                         <Trash2 size={14} /> Excluir Publicação
                       </button>

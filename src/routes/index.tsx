@@ -22,7 +22,6 @@ const IAFlow = lazy(() => import('../../pages/Comunicacao/IAFlow'))
 const Usuarios = lazy(() => import('../../pages/Configuracoes/Usuarios'))
 const Permissoes = lazy(() => import('../../pages/Configuracoes/Permissoes'))
 const Perfil = lazy(() => import('../../pages/Configuracoes/Perfil'))
-const Tests = lazy(() => import('../../pages/Debug/Tests'))
 
 // ==============================
 // Loader
@@ -76,8 +75,6 @@ export const router = createBrowserRouter([
       { path: 'configuracoes/usuarios', element: lazyPage(<RequireAdmin><Usuarios /></RequireAdmin>, 'Carregando Usuários...') },
       { path: 'configuracoes/perfil', element: lazyPage(<Perfil />, 'Carregando Perfil...') },
       { path: 'configuracoes/permissoes', element: lazyPage(<RequireAdmin><Permissoes /></RequireAdmin>, 'Carregando Permissões...') },
-
-      { path: 'debug/tests', element: lazyPage(<Tests />, 'Executando testes...') },
     ]
   },
 

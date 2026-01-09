@@ -1,7 +1,15 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react'
-import { Session } from '@supabase/supabase-js'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef
+} from 'react'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../../supabaseClient'
-import { Profile, ProfilePermissao } from '../../types'
+import type { Profile, ProfilePermissao } from '../../types'
 import { logInfo, logError, logWarn } from '../../utils/logger'
 import { decodeJwt, isJwtExpired } from '../../utils/jwt'
 
@@ -19,240 +27,344 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const PROFILE_CACHE_KEY = 'systemflow-profile-cache'
+const PERMS_CACHE_KEY   = 'systemflow-permissions-cache'
+
+function safeParse<T>(v: string | null): T | null {
+  if (!v) return null
+  try { return JSON.parse(v) } catch { return null }
+}
+
+// Helper to ensure profile has cargo instead of role
+function normalizeProfile(p: any): Profile | null {
+  if (!p) return null
+  // If we have 'role' but no 'cargo', map it
+  if (p.role && !p.cargo) {
+     const roleMap: Record<string, any> = {
+         'admin': 'ADMIN',
+         'user': 'VENDEDOR'
+     }
+     p.cargo = roleMap[p.role.toLowerCase()] || 'VENDEDOR'
+  }
+  return p as Profile
+}
+
+function isRealAuthError(err: any) {
+  const status = err?.status || err?.statusCode
+  const msg = String(err?.message || '').toLowerCase()
+  return (
+    status === 401 ||
+    msg.includes('invalid jwt') ||
+    msg.includes('session expired')
+  )
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [permissions, setPermissions] = useState<ProfilePermissao[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  
+
   const mounted = useRef(true)
-  const isFetchingProfile = useRef(false)
+  // Use a Promise ref to handle concurrent requests correctly
+  const loadProfilePromise = useRef<Promise<void> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const initialized = useRef(false)
   const sessionRef = useRef<Session | null>(null)
+  const profileRef = useRef<Profile | null>(null)
 
-  useEffect(() => {
-    sessionRef.current = session
-  }, [session])
+  useEffect(() => { sessionRef.current = session }, [session])
+  useEffect(() => { profileRef.current = profile }, [profile])
 
   // ============================
-  // Load Profile Logic
+  // Load Profile
   // ============================
-  const loadProfile = useCallback(async (currentSession: Session) => {
-    if (isFetchingProfile.current) return
-    
-    try {
-      isFetchingProfile.current = true
-      logInfo('auth', 'loadProfile start', { userId: currentSession.user.id })
-      setError(null)
+  const loadProfile = useCallback(async (currentSession: Session, silent = false) => {
+    // 1. Abort previous request if active
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
-      const { data: profileData, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentSession.user.id)
-        .maybeSingle()
-
-      if (profileErr) {
-        logError('auth', 'perfil fetch error', profileErr)
-        if (mounted.current) {
-            setError(new Error(profileErr.message))
-            setProfile(null)
-        }
-      } else if (!profileData) {
-        logWarn('auth', 'perfil not found, provisioning minimal')
-        const minimal = {
-          id: currentSession.user.id,
-          nome:
-            (currentSession.user?.user_metadata as any)?.full_name ||
-            (currentSession.user?.user_metadata as any)?.name ||
-            (currentSession.user?.email?.split('@')[0] || ''),
-          email_login: currentSession.user.email || '',
-          role: 'user',
-          status: 'online',
-          ativo: true,
-          created_at: new Date().toISOString(),
-        } as Profile
+    // Race condition handling: Wait for existing promise if any
+    if (loadProfilePromise.current) {
+        if (!silent) setLoading(true)
         try {
-          await supabase.from('profiles').upsert({
-            id: minimal.id,
-            email_login: minimal.email_login,
-            nome: minimal.nome,
-            role: minimal.role,
-            status: minimal.status,
-            ativo: minimal.ativo,
-            created_at: minimal.created_at,
-            updated_at: new Date().toISOString(),
-          } as any)
+            await loadProfilePromise.current
         } catch (e) {
-          logWarn('auth', 'minimal profile provision failed', e)
+            // Ignore error from shared promise
+        } finally {
+            if (mounted.current && !silent && abortControllerRef.current === controller) setLoading(false)
         }
-        if (mounted.current) {
-          setProfile(minimal)
-          localStorage.setItem('systemflow-profile-cache', JSON.stringify(minimal))
+        return
+    }
+
+    if (!silent) setLoading(true)
+    setError(null)
+
+    const task = async () => {
+      // Retry x3 (proxy / cold start / kong)
+      let data: Profile | null = null
+      let err: any = null
+
+      for (let i = 0; i < 3; i++) {
+        if (controller.signal.aborted) return // Early exit
+
+        // Add timeout to fetch to prevent hanging
+        const fetchPromise = supabase
+          .from('profiles')
+          .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, created_at, updated_at, cargo')
+          .eq('id', currentSession.user.id)
+          .abortSignal(controller.signal) // Supabase supports abortSignal
+          .maybeSingle()
+        
+        const timeoutPromise = new Promise<any>((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout loading profile')), 5000)
+        )
+
+        try {
+            const res = await Promise.race([fetchPromise, timeoutPromise])
+            if (!res.error && res.data) {
+                data = res.data
+                err = null
+                break
+            }
+            err = res.error
+        } catch (e: any) {
+            if (e.name === 'AbortError') return // Silent exit
+            err = e
         }
+        
+        if (i < 2 && !controller.signal.aborted) await new Promise(r => setTimeout(r, 500 * (i + 1)))
+      }
+
+      if (controller.signal.aborted) return
+
+      if (err) throw err
+
+      if (!mounted.current) return
+
+      // Se veio do banco → atualiza + cache
+      if (data) {
+        // Ensure data is normalized before saving
+        data = normalizeProfile(data)!
+        setProfile(data)
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data))
       } else {
-        if (mounted.current) {
-            setProfile(profileData)
-            localStorage.setItem('systemflow-profile-cache', JSON.stringify(profileData))
+        // Se não veio, tenta preservar cache/estado
+        let cached = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
+        cached = normalizeProfile(cached)
+        
+        if (cached && cached.id === currentSession.user.id) {
+          logWarn('auth', 'DB empty, using cached profile', { id: cached.id })
+          setProfile(cached)
+        } else if (profileRef.current?.id === currentSession.user.id) {
+          logWarn('auth', 'DB empty, preserving state profile', { id: profileRef.current.id })
+        } else {
+          setProfile(null)
         }
       }
 
-      // Carrega permissões
-      const { data: permsData } = await supabase
-        .from('profile_permissoes')
-        .select('*, permissoes(*)')
-        .eq('profile_id', currentSession.user.id)
+      // Permissões
+      if (!controller.signal.aborted) {
+          const { data: perms } = await supabase
+            .from('profile_permissoes')
+            .select('*, permissoes(*)')
+            .eq('profile_id', currentSession.user.id)
+            .abortSignal(controller.signal)
 
-      if (mounted.current) {
-         setPermissions(permsData || [])
-         if (permsData) {
-             localStorage.setItem('systemflow-permissions-cache', JSON.stringify(permsData))
-         }
+          if (mounted.current && !controller.signal.aborted) {
+            setPermissions(perms || [])
+            if (perms) localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(perms))
+          }
       }
+    }
+
+    // Assign the task to the promise ref
+    loadProfilePromise.current = task()
+
+    try {
+      await loadProfilePromise.current
+    } catch (e: any) {
+      if (e.name === 'AbortError' || controller.signal.aborted) return
       
-    } catch (err: unknown) {
-      logError('auth', 'loadProfile fatal', err)
-      if (mounted.current) {
-          setError(err instanceof Error ? err : new Error('Erro desconhecido'))
+      if (!mounted.current) return
+
+      if (isRealAuthError(e)) {
+        logWarn('auth', 'real auth error → logout', e)
+        try { await supabase.auth.signOut() } catch {}
+        setSession(null)
+        setProfile(null)
+        setPermissions([])
+        localStorage.removeItem(PROFILE_CACHE_KEY)
+        localStorage.removeItem(PERMS_CACHE_KEY)
+      } else {
+        logWarn('auth', 'network/profile error, keeping cache', e)
+        let cached = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
+        cached = normalizeProfile(cached)
+        if (cached) setProfile(cached)
+        setError(new Error('Falha temporária ao sincronizar perfil'))
       }
     } finally {
-      isFetchingProfile.current = false
-      if (mounted.current) {
-          setLoading(false)
-      }
+      // Clear the promise ref
+      loadProfilePromise.current = null
+      if (mounted.current && !silent && abortControllerRef.current === controller) setLoading(false)
     }
   }, [])
 
   // ============================
-  // Initialization & Listeners
+  // Init + Listener
   // ============================
   useEffect(() => {
     mounted.current = true
-    
-    // Timeout de segurança para evitar loading infinito
-    const safetyTimeout = setTimeout(() => {
-        if (mounted.current && loading) {
-            console.warn('[Auth] Timeout de segurança atingido. Forçando fim do loading.')
+
+    // Safety timeout to prevent infinite loading loop (10s max)
+    const safetyTimer = setTimeout(() => {
+        if (loading && mounted.current) {
+            console.warn('AuthContext: Force stopping loading state after timeout')
             setLoading(false)
         }
-    }, 6000)
+    }, 10000)
 
-    const initAuth = async () => {
-        try {
-            const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession()
-            
-            if (sessionError) throw sessionError
+    // Pré-carrega cache
+    let cachedProfile = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
+    const cachedPerms   = safeParse<ProfilePermissao[]>(localStorage.getItem(PERMS_CACHE_KEY))
+    
+    // Normalize legacy cache
+    cachedProfile = normalizeProfile(cachedProfile)
 
-            if (!mounted.current) return
+    if (cachedProfile) setProfile(cachedProfile)
+    if (cachedPerms) setPermissions(cachedPerms)
 
-            if (initialSession) {
-                const tokenInfo = decodeJwt(initialSession.access_token)
-                const expired = isJwtExpired(initialSession.access_token)
-                logInfo('auth', 'initial session', { userId: initialSession.user.id, expired })
-                if (expired === true) {
-                    logWarn('auth', 'access token expired at init; waiting refresh')
-                }
-                const cachedProfileStr = localStorage.getItem('systemflow-profile-cache')
-                const cachedPermsStr = localStorage.getItem('systemflow-permissions-cache')
-                if (cachedProfileStr) {
-                    try {
-                        setProfile(JSON.parse(cachedProfileStr))
-                        if (cachedPermsStr) setPermissions(JSON.parse(cachedPermsStr))
-                    } catch {}
-                }
-                setSession(initialSession)
-                await loadProfile(initialSession)
-            } else {
-                setLoading(false)
-            }
-        } catch (err) {
-            logError('auth', 'init failure', err)
-            if (mounted.current) setLoading(false)
+    const init = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!mounted.current) return
+
+        if (!data.session) {
+          setLoading(false)
+          initialized.current = true
+          return
         }
+
+        setSession(data.session)
+
+        // Se temos cache → libera UI já
+        if (cachedProfile) {
+          setLoading(false)
+          void loadProfile(data.session, true)
+        } else {
+          await loadProfile(data.session, false)
+        }
+
+        initialized.current = true
+      } catch {
+        if (mounted.current) setLoading(false)
+        initialized.current = true
+      }
     }
 
-    // Apenas roda initAuth se não houver um evento de sessão inicial já disparado
-    // Mas para garantir, deixamos rodar. O lock no loadProfile cuida de duplicações.
-    initAuth()
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-        if (!mounted.current) return
-        
-        logInfo('auth', `event ${event}`, undefined)
+      if (!mounted.current) return
 
-        if (event === 'SIGNED_OUT' || !newSession) {
-            setSession(null)
-            setProfile(null)
-            setPermissions([])
-            setLoading(false)
-            localStorage.removeItem('systemflow-profile-cache')
-            localStorage.removeItem('systemflow-permissions-cache')
-            return
+      if (event === 'INITIAL_SESSION') {
+        if (initialized.current) return
+        if (!newSession) {
+          setLoading(false)
+          initialized.current = true
+          return
         }
 
-        const currentToken = sessionRef.current?.access_token
-        const newToken = newSession.access_token
-        
-        if (currentToken !== newToken) {
-            setSession(newSession)
+        setSession(newSession)
+        const cached = safeParse<Profile>(localStorage.getItem(PROFILE_CACHE_KEY))
+        if (cached) {
+          setProfile(cached)
+          setLoading(false)
+          void loadProfile(newSession, true)
+        } else {
+          await loadProfile(newSession, false)
         }
 
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION') {
-             // Se for INITIAL_SESSION, já pode ter sido tratado pelo initAuth, mas o lock protege
-             await loadProfile(newSession)
-        } else if (event === 'TOKEN_REFRESHED') {
-             const expired = isJwtExpired(sessionRef.current?.access_token)
-             logInfo('auth', 'token refreshed', { expiredBefore: expired })
-             if (!profile) {
-               await loadProfile(newSession)
-             }
+        initialized.current = true
+        return
+      }
+
+      if (event === 'SIGNED_OUT' || !newSession) {
+        setSession(null)
+        setProfile(null)
+        setPermissions([])
+        setLoading(false)
+        localStorage.removeItem(PROFILE_CACHE_KEY)
+        localStorage.removeItem(PERMS_CACHE_KEY)
+        return
+      }
+
+      // Atualiza sessão se token mudou
+      if (sessionRef.current?.access_token !== newSession.access_token) {
+        setSession(newSession)
+      }
+
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        await loadProfile(newSession, false)
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        if (!profileRef.current) {
+          void loadProfile(newSession, true)
         }
+      }
     })
 
     return () => {
-        mounted.current = false
-        clearTimeout(safetyTimeout)
-        subscription.unsubscribe()
+      mounted.current = false
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
     }
-  }, []) 
+  }, [loadProfile])
 
   // ============================
   // Actions
   // ============================
   const signOut = useCallback(async () => {
-    // 1. Limpeza Otimista: Remove dados locais imediatamente
+    setLoading(true)
+
+    // 1. Limpeza LOCAL (Garante saída visual imediata)
     try {
-        setLoading(true)
-        localStorage.removeItem('systemflow-profile-cache')
-        localStorage.removeItem('systemflow-permissions-cache')
-        
-        // Limpa estado React imediatamente para feedback visual rápido
-        if (mounted.current) {
-            setSession(null)
-            setProfile(null)
-            setPermissions([])
-        }
+      localStorage.removeItem(PROFILE_CACHE_KEY)
+      localStorage.removeItem(PERMS_CACHE_KEY)
+      localStorage.removeItem('systemflow-auth-token') // Remove o token específico do app
+      
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('sb-')) localStorage.removeItem(k)
+      })
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith('sb-')) sessionStorage.removeItem(k)
+      })
+    } catch {}
 
-        // 2. Logout local (evita chamada remota que causa ERR_ABORTED em navegação)
-        await supabase.auth.signOut({ scope: 'local' }).catch(err => console.warn('[Auth] Logout local falhou:', err))
+    // 2. Limpeza ESTADO
+    setSession(null)
+    setProfile(null)
+    setPermissions([])
+    setError(null)
 
-    } catch (err) {
-        console.error('[Auth] Erro crítico no logout:', err)
-    } finally {
-        if (mounted.current) {
-            setLoading(false)
-        }
-    }
+    // 3. Logout SERVIDOR
+    // Omitimos a chamada de rede (supabase.auth.signOut) pois ela frequentemente
+    // causa erros "net::ERR_ABORTED" quando seguida imediatamente por um reload/navegação.
+    // Como removemos o token localmente, o usuário está efetivamente deslogado neste dispositivo.
+    
+    setLoading(false)
+    // Força recarregamento ou redirecionamento para garantir limpeza
+    window.location.href = '/login'
   }, [])
 
   const refreshProfile = useCallback(async () => {
-    if (session) {
-        try {
-            setLoading(true)
-            await loadProfile(session)
-        } finally {
-            if (mounted.current) setLoading(false)
-        }
-    }
+    if (!session) return
+    await loadProfile(session, false)
   }, [session, loadProfile])
 
   const value = useMemo(() => ({
@@ -263,15 +375,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     error,
     signOut,
-    isAdmin: profile?.role === 'admin',
+    isAdmin: profile?.cargo === 'ADMIN',
     refreshProfile
   }), [session, profile, permissions, loading, error, signOut, refreshProfile])
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => {

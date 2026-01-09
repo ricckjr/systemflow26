@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
               })()}
             </p>
             <p className="mt-1 text-[10px] uppercase tracking-widest font-medium text-[#9CA3AF]">
-              {profile?.role || 'Visitante'}
+              {profile?.cargo || ''}
             </p>
           </div>
 

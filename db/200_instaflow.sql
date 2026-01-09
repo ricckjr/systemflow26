@@ -116,49 +116,49 @@ CREATE POLICY instaflow_posts_select ON public.instaflow_posts FOR SELECT USING 
 CREATE POLICY instaflow_posts_insert ON public.instaflow_posts FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY instaflow_posts_update ON public.instaflow_posts FOR UPDATE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 ) WITH CHECK (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 CREATE POLICY instaflow_posts_delete ON public.instaflow_posts FOR DELETE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 
 CREATE POLICY instaflow_comments_select ON public.instaflow_comments FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY instaflow_comments_insert ON public.instaflow_comments FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY instaflow_comments_update ON public.instaflow_comments FOR UPDATE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 ) WITH CHECK (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 CREATE POLICY instaflow_comments_delete ON public.instaflow_comments FOR DELETE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 
 CREATE POLICY instaflow_likes_select ON public.instaflow_likes FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY instaflow_likes_insert ON public.instaflow_likes FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY instaflow_likes_delete ON public.instaflow_likes FOR DELETE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 
 CREATE POLICY instaflow_media_select ON public.instaflow_media FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY instaflow_media_insert ON public.instaflow_media FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY instaflow_media_delete ON public.instaflow_media FOR DELETE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 
 CREATE POLICY instaflow_recognitions_select ON public.instaflow_recognitions FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY instaflow_recognitions_insert ON public.instaflow_recognitions FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY instaflow_recognitions_delete ON public.instaflow_recognitions FOR DELETE USING (
   created_by = auth.uid()
-  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+  OR EXISTS(SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.cargo = 'ADMIN')
 );
 
 -- Feed view

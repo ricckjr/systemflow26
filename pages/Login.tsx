@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../src/contexts/AuthContext'
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
-import capaLogin from './imagem/capalogin.png'
 import { logInfo, logError } from '../utils/logger'
+import capaLogin from '../src/assets/capalogin.png'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
@@ -19,7 +19,20 @@ const Login: React.FC = () => {
 
   const navMessage = (location.state as any)?.message as string | undefined
 
-  const alreadyLogged = !loading && !!session
+  useEffect(() => {
+    if (!loading && session) {
+      navigate('/app', { replace: true })
+    }
+  }, [loading, session, navigate])
+
+  // Show loader while checking auth state to prevent flash of content/image aborts
+  if (loading || session) {
+    return (
+      <div className="min-h-screen bg-[#0B0F14] flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#38BDF8]" size={48} />
+      </div>
+    )
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,7 +49,7 @@ const Login: React.FC = () => {
       })
       if (error) throw error
       logInfo('auth', 'login success', { email })
-      navigate('/app', { replace: true })
+      // A navegação será tratada pelo useEffect quando loading for false e session existir
     } catch (err: any) {
       logError('auth', 'login failed', err)
       setError(err.message || 'Falha ao autenticar')
@@ -82,19 +95,6 @@ const Login: React.FC = () => {
                 className="h-12"
               />
             </div>
-
-            {alreadyLogged && (
-              <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400 flex items-center justify-between gap-3">
-                <span>Você já está autenticado.</span>
-                <button
-                  type="button"
-                  onClick={() => navigate('/app', { replace: true })}
-                  className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition"
-                >
-                  Entrar
-                </button>
-              </div>
-            )}
 
             {navMessage && (
               <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">

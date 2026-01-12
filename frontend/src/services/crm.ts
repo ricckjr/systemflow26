@@ -5,19 +5,27 @@ export interface CRM_Oportunidade {
   cod_oportunidade: string | null
   cliente: string | null
   nome_contato: string | null
+  telefone01_contato: string | null
+  telefone02_contato: string | null
+  email: string | null
+  id_vendedor: string | null
   vendedor: string | null
   solucao: string | null
   origem: string | null
-  fase_kanban: string | null
+  etapa: string | null
   status: string | null
   temperatura: number | null
   valor_proposta: string | null
-  data: string | null
-  data_inclusao: string | null
-  dias_abertos: number | null
-  observacoes_vendedor: string | null
-  system_nota: string | null
   descricao_oportunidade: string | null
+  observacoes_vendedor: string | null
+  empresa_correspondente: string | null
+  data_inclusao: string | null
+  data: string | null
+  dias_abertos: number | null
+  dias_parado: number | null
+  criado_em: string | null
+  atualizado_em: string | null
+  system_nota: string | null
 }
 
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {

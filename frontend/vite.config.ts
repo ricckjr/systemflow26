@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
         },
       },
       optimizeDeps: {
-        force: true,
+        include: ['react', 'react-dom'],
       },
       plugins: [react(), tailwindcss()],
       define: {

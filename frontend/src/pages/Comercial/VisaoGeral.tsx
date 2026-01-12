@@ -55,8 +55,30 @@ export default function VisaoGeral() {
   /* ===========================
      LOAD DATA
   ============================ */
-  const loadData = async () => {
-    setLoading(true)
+  const CACHE_KEY = 'dashboard_data_cache'
+
+  const loadData = async (forceRefresh = false) => {
+    // Se não for forçado (ex: clique no botão), tenta carregar do cache primeiro
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { items, calls, date } = JSON.parse(cached)
+          setData(items)
+          setLigacoes(calls)
+          setLastUpdated(new Date(date))
+          setLoading(false) // Libera a UI imediatamente com dados em cache
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar cache do dashboard', e)
+      }
+    }
+
+    // Se não tinha cache, mostra loading. Se tinha cache, mantém UI e atualiza em background (loading=false)
+    if (!localStorage.getItem(CACHE_KEY) || forceRefresh) {
+       setLoading(true)
+    }
+
     try {
       const [items, calls] = await Promise.all([
         fetchOportunidades({ orderDesc: true }),
@@ -66,6 +88,14 @@ export default function VisaoGeral() {
       setData(items)
       setLigacoes(calls)
       setLastUpdated(new Date())
+      
+      // Salva no cache
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        items,
+        calls,
+        date: new Date()
+      }))
+
       logInfo('crm', 'visao-geral', { count: items.length, calls: calls.length })
     } catch (err) {
       logError('crm', 'visao-geral-load', err)
@@ -76,9 +106,9 @@ export default function VisaoGeral() {
   }
 
   useEffect(() => {
-    loadData()
+    loadData(false) // Load with cache strategy
     // Auto-refresh a cada 5 minutos
-    const autoRefresh = setInterval(loadData, 5 * 60 * 1000)
+    const autoRefresh = setInterval(() => loadData(true), 5 * 60 * 1000)
     return () => clearInterval(autoRefresh)
   }, [])
 
@@ -213,7 +243,7 @@ export default function VisaoGeral() {
           </div>
           
           <button 
-            onClick={loadData}
+            onClick={() => loadData(true)}
             className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300"
             title="Atualizar Dados"
           >
@@ -406,28 +436,29 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
       { id: 'QUALIFICACAO', label: 'Qualificação', color: '#60a5fa' },
       { id: 'APRESENTACAO', label: 'Apresentação', color: '#38bdf8' },
       { id: 'PROPOSTA', label: 'Proposta', color: '#2dd4bf' },
-      { id: 'NEGOCIACAO', label: 'Negociação', color: '#fbbf24' },
-      { id: 'CONCLUSAO', label: 'Conclusão', color: '#fb923c' },
-      { id: 'CONQUISTADO', label: 'Conquistado', color: '#4ade80' }
+      { id: 'NEGOCIACAO', label: 'Negociação', color: '#fbbf24' }
     ]
 
     const grouped = data.reduce((acc, item) => {
-      const raw = (item.fase_kanban || '').toUpperCase()
+      // Normalização robusta: usa etapa
+      const raw = (item.etapa || '').toUpperCase()
       const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Ç/g, 'C').replace(/[^A-Z]/g, '')
       
       let stageId = ''
+      // Mapeamento exato baseado no input do usuário
       if (normalized.includes('PROSPECCAO')) stageId = 'PROSPECCAO'
       else if (normalized.includes('QUALIFICACAO')) stageId = 'QUALIFICACAO'
       else if (normalized.includes('APRESENTACAO')) stageId = 'APRESENTACAO'
       else if (normalized.includes('PROPOSTA')) stageId = 'PROPOSTA'
       else if (normalized.includes('NEGOCIACAO')) stageId = 'NEGOCIACAO'
-      else if (normalized.includes('CONCLUSAO')) stageId = 'CONCLUSAO'
-      else if (normalized.includes('CONQUISTADO') || normalized.includes('GANHO')) stageId = 'CONQUISTADO'
 
       if (stageId) {
         if (!acc[stageId]) acc[stageId] = { count: 0, value: 0 }
         acc[stageId].count += 1
         acc[stageId].value += parseValorProposta(item.valor_proposta)
+      } else {
+         // Debug log para ajudar a identificar etapas não mapeadas
+         if (raw) console.log('Etapa não mapeada:', raw, 'Normalized:', normalized)
       }
       return acc
     }, {} as Record<string, { count: number, value: number }>)
@@ -440,7 +471,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         totalValue: info.value,
         fill: stage.color
       }
-    }).filter(item => item.value > 0)
+    })
   }, [data])
 
   return (
@@ -450,18 +481,23 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         Funil de Vendas (Etapas)
       </h3>
       
-      <div className="flex-1 w-full min-h-[350px]">
+      <div className="flex-1 w-full min-h-[450px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart layout="vertical" data={funnelData} margin={{ top: 0, right: 60, left: 40, bottom: 0 }}>
+          <BarChart layout="vertical" data={funnelData} margin={{ top: 0, right: 180, left: 20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
             <XAxis type="number" hide />
             <YAxis 
               type="category" 
               dataKey="name" 
-              width={90}
-              tick={{ fill: 'var(--text-soft)', fontSize: 11, fontWeight: 500 }}
+              width={120}
+              tick={({ x, y, payload }) => (
+                <text x={x} y={y} dy={4} textAnchor="end" fill="#ffffff" fontSize={14} fontWeight={700}>
+                  {payload.value}
+                </text>
+              )}
               axisLine={false}
               tickLine={false}
+              interval={0}
             />
             <Tooltip 
               cursor={{ fill: 'rgba(255,255,255,0.03)' }}
@@ -482,7 +518,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
                 name
               ]}
             />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
+            <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={40}>
               {funnelData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
               ))}
@@ -492,9 +528,21 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
                 content={(props: any) => {
                   const { x, y, height, value, index } = props
                   const item = funnelData[index]
+                  if (!item) return null
                   return (
-                    <text x={x + 8} y={y + height / 2} dy={4} fill="var(--text-main)" fontSize={11} fontWeight={500}>
-                      {value} • {formatCurrency(item.totalValue)}
+                    <text 
+                      x={x + 12} 
+                      y={y + height / 2} 
+                      dy={6} 
+                      fontSize={16} 
+                      fontWeight={700} 
+                      fill="#ffffff" 
+                      className="animate-pulse"
+                      style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
+                    >
+                      {formatCurrency(item.totalValue)}
+                      <tspan dx={12} fill="#ffffff" fontWeight={400} fontSize={14}>—</tspan>
+                      <tspan dx={12} fill="#ffffff" fontWeight={700} fontSize={16}>{value}</tspan> <tspan fontSize={14} fill="#cbd5e1" fontWeight={500}>ops</tspan>
                     </text>
                   )
                 }}

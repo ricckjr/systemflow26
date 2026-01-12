@@ -303,13 +303,13 @@ const Oportunidades: React.FC = () => {
 
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1.5 items-start">
-                        {op.fase_kanban && (
-                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(op.fase_kanban)}`}>
-                            {op.fase_kanban}
+                        {op.etapa && (
+                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(op.etapa)}`}>
+                            {op.etapa}
                           </span>
                         )}
                         {/* Se o status for diferente da fase, mostra tbm */}
-                        {op.status && op.status !== op.fase_kanban && (
+                        {op.status && op.status !== op.etapa && (
                           <span className="text-[10px] text-[var(--text-muted)] border border-[var(--border)] px-1.5 rounded bg-[var(--bg-body)]">
                             {op.status}
                           </span>
@@ -389,10 +389,10 @@ const Oportunidades: React.FC = () => {
                    </div>
                    <p className="text-xs uppercase text-[var(--text-muted)] font-semibold mb-2">Status do Funil</p>
                    <div className="flex flex-wrap gap-2">
-                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${getStatusColor(selected.fase_kanban || '')}`}>
-                        {selected.fase_kanban || 'N/A'}
+                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${getStatusColor(selected.etapa || '')}`}>
+                        {selected.etapa || 'N/A'}
                      </span>
-                     {selected.status && selected.status !== selected.fase_kanban && (
+                     {selected.status && selected.status !== selected.etapa && (
                         <span className="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] text-[var(--text-muted)]">
                           {selected.status}
                         </span>

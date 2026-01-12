@@ -212,18 +212,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* FOOTER */}
       <div className={`shrink-0 border-t border-white/5 bg-[#0B1120] transition-all duration-300
-         ${showText ? 'p-4' : 'p-3 flex flex-col items-center gap-4'}`}>
+         ${showText ? 'p-4' : 'py-6 flex flex-col items-center gap-6'}`}>
         
         <button
           onClick={openProfilePage}
-          className={`flex items-center gap-3 group transition-colors w-full rounded-lg
+          className={`flex items-center gap-3 group transition-colors w-full rounded-lg relative
             ${showText ? 'hover:bg-white/5 p-2' : 'justify-center'}`}
         >
-          <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-white/10">
+          <div className={`rounded-xl bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-white/10 transition-all duration-300
+            ${showText ? 'w-8 h-8' : 'w-10 h-10 ring-2 ring-white/5 group-hover:ring-white/20'}`}>
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-xs font-bold text-slate-400">{profileInitial}</span>
+              <span className={`${showText ? 'text-xs' : 'text-sm'} font-bold text-slate-400`}>{profileInitial}</span>
             )}
           </div>
           
@@ -237,26 +238,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </p>
             </div>
           )}
+
+          {/* Tooltip (Collapsed) */}
+          {!showText && (
+            <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
+              {profile?.nome || 'Meu Perfil'}
+            </div>
+          )}
         </button>
 
-        <div className={`flex items-center gap-1 mt-2 ${showText ? '' : 'flex-col'}`}>
+        <div className={`flex items-center ${showText ? 'gap-2 mt-2' : 'flex-col gap-3 w-full'}`}>
            <button
              onClick={() => navigate('/app/configuracoes/usuarios')}
-             className={`flex-1 flex items-center justify-center rounded-md border border-white/5 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors
-               ${showText ? 'h-8 gap-2' : 'w-8 h-8'}`}
-             title="Configurações"
+             className={`group relative flex items-center justify-center rounded-lg border border-white/5 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200
+               ${showText ? 'flex-1 h-8 gap-2' : 'w-10 h-10 hover:scale-105 active:scale-95'}`}
            >
-             <Settings size={14} />
+             <Settings size={showText ? 14 : 18} />
              {showText && <span className="text-[11px] font-medium">Ajustes</span>}
+             
+             {/* Tooltip */}
+             {!showText && (
+               <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
+                 Configurações
+               </div>
+             )}
            </button>
            <button
              onClick={handleLogoutClick}
-             className={`flex-1 flex items-center justify-center rounded-md border border-white/5 bg-white/5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-colors
-               ${showText ? 'h-8 gap-2' : 'w-8 h-8'}`}
-             title="Sair"
+             className={`group relative flex items-center justify-center rounded-lg border border-white/5 bg-white/5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-200
+               ${showText ? 'flex-1 h-8 gap-2' : 'w-10 h-10 hover:scale-105 active:scale-95'}`}
            >
-             <LogOut size={14} />
+             <LogOut size={showText ? 14 : 18} />
              {showText && <span className="text-[11px] font-medium">Sair</span>}
+
+             {/* Tooltip */}
+             {!showText && (
+               <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
+                 Sair
+               </div>
+             )}
            </button>
         </div>
       </div>

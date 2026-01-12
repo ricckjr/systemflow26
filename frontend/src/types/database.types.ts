@@ -259,20 +259,41 @@ export interface Database {
         Row: {
           id: string
           nome: string
-          avatar_url: string | null
+          email_login: string
+          email_corporativo: string | null
+          telefone: string | null
+          ramal: string | null
           ativo: boolean
+          avatar_url: string | null
+          created_at: string
+          updated_at: string | null
+          cargo: string | null // Enum tratado como string no retorno JSON
         }
         Insert: {
           id: string
           nome: string
-          avatar_url?: string | null
+          email_login: string
+          email_corporativo?: string | null
+          telefone?: string | null
+          ramal?: string | null
           ativo?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string | null
+          cargo?: string | null
         }
         Update: {
           id?: string
           nome?: string
-          avatar_url?: string | null
+          email_login?: string
+          email_corporativo?: string | null
+          telefone?: string | null
+          ramal?: string | null
           ativo?: boolean
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string | null
+          cargo?: string | null
         }
       }
     }

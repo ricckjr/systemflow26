@@ -134,7 +134,7 @@ export async function assignUsers(taskId: string, userIds: string[], assignerNam
   const newAssignees = userIds.filter(uid => !currentIds.has(uid));
   
   if (newAssignees.length > 0) {
-    const { data: task } = await supabase.from('taskflow_tasks').select('title').eq('id', taskId).single();
+    const { data: task } = await supabase.from('taskflow_tasks').select('title, board_id').eq('id', taskId).single();
     const taskTitle = task?.title || 'uma tarefa';
     
     const notifications = newAssignees.map(uid => ({
@@ -152,8 +152,9 @@ export async function assignUsers(taskId: string, userIds: string[], assignerNam
   return data || [];
 }
 
-export async function addComment(taskId: string, userId: string, content: string) {
-  const { data } = await supabase.from('taskflow_comments').insert([{ task_id: taskId, user_id: userId, content }]).select('*').single();
+export async function addComment(taskId: string, userId: string, content: string): Promise<TFComment | null> {
+  const { data, error } = await supabase.from('taskflow_comments').insert([{ task_id: taskId, user_id: userId, content }]).select('*').single();
+  if (error) return null;
   return data;
 }
 

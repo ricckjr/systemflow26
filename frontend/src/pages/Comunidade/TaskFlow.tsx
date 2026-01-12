@@ -40,7 +40,8 @@ import {
   Zap,
   ChevronRight,
   Hash,
-  Users
+  Users,
+  MessageCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -192,6 +193,11 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     // 1. Create Task
     const t = await createTask(board.id, targetColumnId, newTaskTitle.trim(), newTaskDesc.trim(), profile.id, newTaskPriority);
     
+    if (!t) {
+       console.error("Failed to create task");
+       return;
+    }
+
     // 2. Upload Media if present
     if (newTaskMedia) {
       try {
@@ -346,7 +352,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                     task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
                                     'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                   }`}>
-                                    {priorities[task.priority]}
+                                    {priorities[task.priority as keyof typeof priorities] || task.priority}
                                   </span>
                                   <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                                     <MoreVertical size={14} className="text-[var(--text-muted)] hover:text-[var(--text-main)]" />

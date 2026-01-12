@@ -1,5 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { Database } from '@/types/database.types';
 import { logInfo, logWarn } from '@/utils/logger';
 
 const rawUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -8,9 +9,9 @@ const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim
 
 // Singleton pattern for HMR safety
 // Evita que o cliente seja recriado a cada hot-reload, mantendo a conexão realtime e sessão estáveis.
-const globalSupabase = globalThis as unknown as { __systemflow_supabase: ReturnType<typeof createClient> };
+const globalSupabase = globalThis as unknown as { __systemflow_supabase: ReturnType<typeof createClient<Database>> };
 
-export const supabase = globalSupabase.__systemflow_supabase || createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = globalSupabase.__systemflow_supabase || createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

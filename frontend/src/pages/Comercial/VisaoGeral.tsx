@@ -9,8 +9,6 @@ import {
   ShoppingCart,
   FileText,
   Phone,
-  Clock,
-  Calendar
 } from 'lucide-react'
 import {
   BarChart,
@@ -23,9 +21,9 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { logInfo, logError } from '@/utils/logger'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
-import { fetchOportunidades, isVenda, isAtivo, CRM_Oportunidade, fetchLigacoes, CRM_Ligacao } from '@/services/crm'
+import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
+import { useOportunidades, useLigacoes, useInvalidateCRM } from '@/hooks/useCRM'
 
 /* ===========================
    HELPERS
@@ -38,11 +36,25 @@ function getYearMonth(d: CRM_Oportunidade) {
 }
 
 export default function VisaoGeral() {
-  const [data, setData] = useState<CRM_Oportunidade[]>([])
-  const [ligacoes, setLigacoes] = useState<CRM_Ligacao[]>([])
-  const [loading, setLoading] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-  const [error, setError] = useState<string | null>(null)
+  // React Query Hooks
+  const { 
+    data: oportunidadesData, 
+    isLoading: isLoadingOps, 
+    dataUpdatedAt: opsUpdatedAt 
+  } = useOportunidades()
+  
+  const { 
+    data: ligacoesData, 
+    isLoading: isLoadingLig 
+  } = useLigacoes()
+  
+  const invalidateCRM = useInvalidateCRM()
+  
+  // Derived state
+  const data = oportunidadesData || []
+  const ligacoes = ligacoesData || []
+  const loading = isLoadingOps || isLoadingLig
+  const lastUpdated = opsUpdatedAt ? new Date(opsUpdatedAt) : new Date()
 
   // Relógio em tempo real para o dashboard
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -50,66 +62,6 @@ export default function VisaoGeral() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
-  }, [])
-
-  /* ===========================
-     LOAD DATA
-  ============================ */
-  const CACHE_KEY = 'dashboard_data_cache'
-
-  const loadData = async (forceRefresh = false) => {
-    // Se não for forçado (ex: clique no botão), tenta carregar do cache primeiro
-    if (!forceRefresh) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY)
-        if (cached) {
-          const { items, calls, date } = JSON.parse(cached)
-          setData(items)
-          setLigacoes(calls)
-          setLastUpdated(new Date(date))
-          setLoading(false) // Libera a UI imediatamente com dados em cache
-        }
-      } catch (e) {
-        console.warn('Erro ao carregar cache do dashboard', e)
-      }
-    }
-
-    // Se não tinha cache, mostra loading. Se tinha cache, mantém UI e atualiza em background (loading=false)
-    if (!localStorage.getItem(CACHE_KEY) || forceRefresh) {
-       setLoading(true)
-    }
-
-    try {
-      const [items, calls] = await Promise.all([
-        fetchOportunidades({ orderDesc: true }),
-        fetchLigacoes()
-      ])
-      
-      setData(items)
-      setLigacoes(calls)
-      setLastUpdated(new Date())
-      
-      // Salva no cache
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        items,
-        calls,
-        date: new Date()
-      }))
-
-      logInfo('crm', 'visao-geral', { count: items.length, calls: calls.length })
-    } catch (err) {
-      logError('crm', 'visao-geral-load', err)
-      setError('Erro ao atualizar dados.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadData(false) // Load with cache strategy
-    // Auto-refresh a cada 5 minutos
-    const autoRefresh = setInterval(() => loadData(true), 5 * 60 * 1000)
-    return () => clearInterval(autoRefresh)
   }, [])
 
   /* ===========================
@@ -243,7 +195,7 @@ export default function VisaoGeral() {
           </div>
           
           <button 
-            onClick={() => loadData(true)}
+            onClick={() => invalidateCRM()}
             className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300"
             title="Atualizar Dados"
           >
@@ -251,12 +203,6 @@ export default function VisaoGeral() {
           </button>
         </div>
       </div>
-
-      {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
 
       {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -456,9 +402,6 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         if (!acc[stageId]) acc[stageId] = { count: 0, value: 0 }
         acc[stageId].count += 1
         acc[stageId].value += parseValorProposta(item.valor_proposta)
-      } else {
-         // Debug log para ajudar a identificar etapas não mapeadas
-         if (raw) console.log('Etapa não mapeada:', raw, 'Normalized:', normalized)
       }
       return acc
     }, {} as Record<string, { count: number, value: number }>)

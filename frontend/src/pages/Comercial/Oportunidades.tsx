@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { checkSupabaseConnectivity, checkTableAccess } from '@/services/diagnostics'
 import { logInfo } from '@/utils/logger'
-import { fetchOportunidades, CRM_Oportunidade } from '@/services/crm'
+import { CRM_Oportunidade } from '@/services/crm'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
+import { useOportunidades, useInvalidateCRM } from '@/hooks/useCRM'
 import {
   Search,
   RefreshCw,
   X,
   ChevronDown,
-  Filter,
   Calendar,
   User,
   Briefcase,
@@ -25,10 +25,21 @@ import {
 } from 'lucide-react'
 
 const Oportunidades: React.FC = () => {
-  const [loading, setLoading] = useState(true)
-  const [lista, setLista] = useState<CRM_Oportunidade[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  // React Query Hooks
+  const { 
+    data: oportunidadesData, 
+    isLoading: isLoadingOps, 
+    error: errorOps,
+    dataUpdatedAt 
+  } = useOportunidades()
+  
+  const invalidateCRM = useInvalidateCRM()
+
+  // Derived state
+  const lista = oportunidadesData || []
+  const loading = isLoadingOps
+  const error = errorOps ? 'Erro ao carregar oportunidades.' : null
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date()
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -47,7 +58,7 @@ const Oportunidades: React.FC = () => {
     void (async () => {
       await checkSupabaseConnectivity()
       await checkTableAccess('crm_oportunidades')
-      await fetchData()
+      // No need to fetch manually, React Query handles it
     })()
   }, [])
 
@@ -55,22 +66,6 @@ const Oportunidades: React.FC = () => {
     const t = setTimeout(() => setDebouncedSearch(search), 250)
     return () => clearTimeout(t)
   }, [search])
-
-  const fetchData = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const items = await fetchOportunidades({ orderDesc: true })
-      logInfo('crm', 'oportunidades carregadas', { count: items.length })
-      setLista(items)
-      setLastUpdated(new Date())
-    } catch {
-      setError('Erro ao carregar oportunidades.')
-      setLista([])
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const vendedores = useMemo(
     () => Array.from(new Set(lista.map(l => l.vendedor).filter(Boolean))),
@@ -120,21 +115,22 @@ const Oportunidades: React.FC = () => {
     if (!selected) return
     setSaving(true)
 
-    await (supabase
-      .from('crm_oportunidades') as any)
-      .update({ system_nota: nota })
-      .eq('id_oportunidade', selected.id_oportunidade)
+    try {
+      await (supabase
+        .from('crm_oportunidades') as any)
+        .update({ system_nota: nota })
+        .eq('id_oportunidade', selected.id_oportunidade)
 
-    setLista(l =>
-      l.map(o =>
-        o.id_oportunidade === selected.id_oportunidade
-          ? { ...o, system_nota: nota }
-          : o
-      )
-    )
-
-    setSelected(prev => prev ? { ...prev, system_nota: nota } : prev)
-    setSaving(false)
+      // Atualiza o cache globalmente após salvar
+      invalidateCRM()
+      
+      // Atualiza o selecionado localmente para feedback imediato
+      setSelected(prev => prev ? { ...prev, system_nota: nota } : prev)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
   }
 
   /* ===========================
@@ -168,7 +164,7 @@ const Oportunidades: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchData}
+          onClick={() => invalidateCRM()}
           className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300 self-start md:self-center"
           title="Atualizar Dados"
         >

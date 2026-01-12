@@ -26,9 +26,9 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { fetchOportunidades, CRM_Oportunidade, isVenda } from '@/services/crm';
+import { CRM_Oportunidade, isVenda } from '@/services/crm';
+import { useOportunidades } from '@/hooks/useCRM';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
-import { logInfo, logError } from '@/utils/logger';
 import { format, isSameMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -49,27 +49,13 @@ interface SellerStats {
 }
 
 const Vendedores: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [allOportunidades, setAllOportunidades] = useState<CRM_Oportunidade[]>([]);
+  // React Query Hook
+  const { data: oportunidadesData, isLoading: loading } = useOportunidades();
+  const allOportunidades = oportunidadesData || [];
+
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [sellers, setSellers] = useState<SellerStats[]>([]);
   const [selectedSeller, setSelectedSeller] = useState<SellerStats | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const ops = await fetchOportunidades();
-      setAllOportunidades(ops);
-    } catch (err) {
-      logError('crm', 'vendedores-error', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   // Process data when opportunities or month changes
   useEffect(() => {
@@ -149,7 +135,7 @@ const Vendedores: React.FC = () => {
     setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  if (loading) {
+  if (loading && allOportunidades.length === 0) {
     return (
       <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
         <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>

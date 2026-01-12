@@ -9,8 +9,7 @@ import {
   ChevronDown,
   X,
   LayoutDashboard,
-  Users,
-  Car
+  Users
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,15 +51,6 @@ const navItems: NavItem[] = [
       { label: 'Chat Interno', path: '/app/comunicacao/chat', submodulo: 'chat' },
       { label: 'FlowSmart', path: '/app/comunicacao/flowsmart', submodulo: 'flowsmart' },
       { label: 'Assistente IA', path: '/app/comunicacao/ia', submodulo: 'ia-flow' },
-    ],
-  },
-  {
-    label: 'FROTA',
-    icon: Car,
-    modulo: 'frota',
-    subItems: [
-      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
-      { label: 'Diário de Bordo', path: '/app/frota/diario', submodulo: 'diario' },
     ],
   },
 ];

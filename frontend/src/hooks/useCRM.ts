@@ -1,10 +1,11 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchOportunidades, fetchLigacoes } from '../services/crm'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { fetchOportunidades, fetchLigacoes, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
 
 export const CRM_KEYS = {
   all: ['crm'] as const,
   oportunidades: () => [...CRM_KEYS.all, 'oportunidades'] as const,
   ligacoes: () => [...CRM_KEYS.all, 'ligacoes'] as const,
+  meta: () => [...CRM_KEYS.all, 'meta'] as const,
 }
 
 export function useOportunidades() {
@@ -23,6 +24,38 @@ export function useLigacoes() {
     queryFn: fetchLigacoes,
     staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 5,
+  })
+}
+
+export function useMeta() {
+  return useQuery({
+    queryKey: CRM_KEYS.meta(),
+    queryFn: fetchMeta,
+    staleTime: 1000 * 60 * 30, // 30 min (Metas mudam pouco)
+  })
+}
+
+export function useUpdateMeta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, updates }: { id?: number; updates: Partial<CRM_Meta> }) => {
+      if (id) {
+        return updateMeta(id, updates)
+      } else {
+        // Create with defaults + updates
+        return createMeta({
+          meta_valor_financeiro: updates.meta_valor_financeiro || 0,
+          supermeta_valor_financeiro: updates.supermeta_valor_financeiro || 0,
+          meta_novas_oportunidades: updates.meta_novas_oportunidades || 0,
+          meta_ligacoes: updates.meta_ligacoes || 0,
+          tempo_ligacoes: updates.tempo_ligacoes || null,
+          meta_geral: updates.meta_geral || 0
+        })
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CRM_KEYS.meta() })
+    },
   })
 }
 

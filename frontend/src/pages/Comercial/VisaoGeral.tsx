@@ -9,6 +9,10 @@ import {
   ShoppingCart,
   FileText,
   Phone,
+  Settings,
+  Target,
+  Save,
+  Loader2,
 } from 'lucide-react'
 import {
   BarChart,
@@ -23,7 +27,7 @@ import {
 } from 'recharts'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
-import { useOportunidades, useLigacoes, useInvalidateCRM } from '@/hooks/useCRM'
+import { useOportunidades, useLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
 
 /* ===========================
    HELPERS
@@ -47,6 +51,9 @@ export default function VisaoGeral() {
     data: ligacoesData, 
     isLoading: isLoadingLig 
   } = useLigacoes()
+
+  const { data: meta } = useMeta()
+  const [isMetaModalOpen, setIsMetaModalOpen] = useState(false)
   
   const invalidateCRM = useInvalidateCRM()
   
@@ -195,6 +202,14 @@ export default function VisaoGeral() {
           </div>
           
           <button 
+            onClick={() => setIsMetaModalOpen(true)}
+            className="p-3 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300"
+            title="Configurar Metas"
+          >
+            <Settings size={20} />
+          </button>
+
+          <button 
             onClick={() => invalidateCRM()}
             className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300"
             title="Atualizar Dados"
@@ -273,6 +288,16 @@ export default function VisaoGeral() {
         />
       </div>
 
+      {/* META PROGRESS BAR */}
+      <div className="mb-6">
+        <MetaProgressBar 
+          current={stats.venda.value} 
+          target={meta?.meta_geral ? Number(meta.meta_geral) : 0} 
+          label="Meta Geral"
+          onClick={() => setIsMetaModalOpen(true)}
+        />
+      </div>
+
       {/* MAIN CHARTS SECTION */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
         {/* FUNIL - Takes 7 cols */}
@@ -285,6 +310,12 @@ export default function VisaoGeral() {
           <RankingSection data={data} />
         </div>
       </div>
+
+      <MetaModal 
+        isOpen={isMetaModalOpen} 
+        onClose={() => setIsMetaModalOpen(false)} 
+        meta={meta} 
+      />
     </div>
   )
 }
@@ -583,6 +614,236 @@ const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ===========================
+   META MODAL COMPONENT
+=========================== */
+const MetaModal = ({ 
+  isOpen, 
+  onClose, 
+  meta 
+}: { 
+  isOpen: boolean
+  onClose: () => void
+  meta: any 
+}) => {
+  const [formData, setFormData] = useState({
+    meta_comercial: '',
+    meta_valor_financeiro: 0,
+    supermeta_valor_financeiro: 0,
+    meta_novas_oportunidades: 0,
+    meta_ligacoes: 0
+  })
+
+  const updateMutation = useUpdateMeta()
+
+  useEffect(() => {
+    if (meta) {
+      // Fallback para meta_comercial caso a migração de renomeação não tenha sido aplicada ou cache
+      const nomeMeta = meta.meta_geral || (meta as any).meta_comercial || ''
+      
+      setFormData({
+        meta_geral: nomeMeta,
+        meta_valor_financeiro: meta.meta_valor_financeiro || 0,
+        supermeta_valor_financeiro: meta.supermeta_valor_financeiro || 0,
+        meta_novas_oportunidades: meta.meta_novas_oportunidades || 0,
+        meta_ligacoes: meta.meta_ligacoes || 0
+      })
+    }
+  }, [meta])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      await updateMutation.mutateAsync({
+        id: meta?.id, // Can be undefined, hook handles it
+        updates: formData
+      })
+      onClose()
+    } catch (error) {
+      console.error('Erro ao salvar meta:', error)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
+          <h3 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+            <Settings className="w-5 h-5 text-[var(--primary)]" />
+            Configurar Metas
+          </h3>
+          <button onClick={onClose} className="text-[var(--text-soft)] hover:text-[var(--text-main)]">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          
+          {/* Row 1: Financeiro & SuperMeta */}
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5">
+                Meta Financeira (R$)
+              </label>
+              <input 
+                type="number"
+                step="0.01"
+                value={formData.meta_valor_financeiro}
+                onChange={e => setFormData({...formData, meta_valor_financeiro: Number(e.target.value)})}
+                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5 text-amber-400">
+                SuperMeta (R$)
+              </label>
+              <input 
+                type="number"
+                step="0.01"
+                value={formData.supermeta_valor_financeiro}
+                onChange={e => setFormData({...formData, supermeta_valor_financeiro: Number(e.target.value)})}
+                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-main)] focus:ring-2 focus:ring-amber-500/50 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Oportunidades & Ligações */}
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5">
+                Meta Novas Oportunidades
+              </label>
+              <input 
+                type="number"
+                value={formData.meta_novas_oportunidades}
+                onChange={e => setFormData({...formData, meta_novas_oportunidades: Number(e.target.value)})}
+                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5">
+                Meta Ligações
+              </label>
+              <input 
+                type="number"
+                value={formData.meta_ligacoes}
+                onChange={e => setFormData({...formData, meta_ligacoes: Number(e.target.value)})}
+                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Nome da Meta */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5">
+              Meta Geral
+            </label>
+            <input 
+              type="text"
+              value={formData.meta_geral}
+              onChange={e => setFormData({...formData, meta_geral: e.target.value})}
+              className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all"
+              placeholder="Ex: Meta Q1 2026"
+            />
+          </div>
+
+          <div className="pt-6 flex justify-end gap-3 border-t border-[var(--border)] mt-2">
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--bg-body)] rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="px-4 py-2 text-sm font-medium bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors flex items-center gap-2"
+            >
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Salvar Alterações
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ===========================
+   PROGRESS BAR COMPONENT
+=========================== */
+const MetaProgressBar = ({ 
+  current, 
+  target, 
+  label,
+  onClick
+}: { 
+  current: number
+  target: number 
+  label: string
+  onClick?: () => void
+}) => {
+  const percent = target > 0 ? Math.min((current / target) * 100, 100) : 0
+  
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        card-panel p-8 relative overflow-hidden group 
+        ${onClick ? 'cursor-pointer' : ''}
+        transition-all duration-300 border border-[var(--border)] bg-[var(--bg-panel)]
+        hover:border-[var(--primary)]/30 hover:shadow-lg hover:shadow-[var(--primary)]/5
+      `}
+    >
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 relative z-10 gap-2">
+        <div>
+          <h3 className="text-sm font-bold text-[var(--text-soft)] uppercase tracking-widest flex items-center gap-2 mb-1">
+            <Target className="w-4 h-4 text-[var(--primary)]" />
+            META ATUAL
+          </h3>
+          <p className="text-xl font-bold text-[var(--text-main)] tracking-tight">
+            {label}
+          </p>
+        </div>
+        
+        <div className="text-left md:text-right">
+          <div className="flex items-baseline gap-2 justify-start md:justify-end">
+             <span className="text-2xl font-bold text-[var(--primary)] tabular-nums tracking-tight">
+               {formatCurrency(current)}
+             </span>
+             <span className="text-sm text-[var(--text-soft)] font-medium">
+               / {formatCurrency(target)}
+             </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5 font-medium uppercase tracking-wider">
+            {percent.toFixed(1)}% Concluído
+          </p>
+        </div>
+      </div>
+
+      <div className="h-4 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)] relative z-10">
+        <div 
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000 ease-out relative shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+          style={{ width: `${percent}%` }}
+        >
+          <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-30" />
+        </div>
+      </div>
+      
+      {/* Subtle Background Glow */}
+      <div 
+        className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[80px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"
+      />
     </div>
   )
 }

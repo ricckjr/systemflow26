@@ -67,3 +67,53 @@ export async function fetchLigacoes() {
   }
   return data as CRM_Ligacao[]
 }
+
+export interface CRM_Meta {
+  id: number
+  meta_valor_financeiro: number
+  supermeta_valor_financeiro: number
+  meta_novas_oportunidades: number
+  meta_ligacoes: number
+  tempo_ligacoes: number | null
+  meta_geral: number | null
+}
+
+export async function fetchMeta() {
+  const { data, error } = await supabase
+    .from('crm_meta_comercial')
+    .select('*')
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No rows returned
+      return null
+    }
+    console.error('Erro ao buscar metas:', error)
+    return null
+  }
+  return data as CRM_Meta
+}
+
+export async function createMeta(meta: Omit<CRM_Meta, 'id'>) {
+  const { data, error } = await supabase
+    .from('crm_meta_comercial')
+    .insert([meta])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as CRM_Meta
+}
+
+export async function updateMeta(id: number, updates: Partial<CRM_Meta>) {
+  const { data, error } = await supabase
+    .from('crm_meta_comercial')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as CRM_Meta
+}

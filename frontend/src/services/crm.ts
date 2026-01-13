@@ -53,6 +53,15 @@ export interface CRM_Ligacao {
   resultado: string | null
 }
 
+export interface CRM_PabxLigacao {
+  id_user: string
+  vendedor: string
+  id_data: string
+  ligacoes_feitas: number
+  ligacoes_nao_atendidas: number
+  updated_at: string
+}
+
 export async function fetchLigacoes() {
   const { data, error } = await supabase
     .from('crm_ligacoes')
@@ -66,6 +75,19 @@ export async function fetchLigacoes() {
     return []
   }
   return data as CRM_Ligacao[]
+}
+
+export async function fetchPabxLigacoes() {
+  const { data, error } = await supabase
+    .from('crm_pabx_ligacoes')
+    .select('*')
+  
+  if (error) {
+    if (error.code === '42P01') return [] // Table doesn't exist
+    console.error('Erro ao buscar ligações PABX:', error)
+    return []
+  }
+  return data as CRM_PabxLigacao[]
 }
 
 export interface CRM_Meta {

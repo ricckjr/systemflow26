@@ -27,7 +27,7 @@ import {
 } from 'recharts'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
-import { useOportunidades, useLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
+import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
 
 /* ===========================
    HELPERS
@@ -48,9 +48,9 @@ export default function VisaoGeral() {
   } = useOportunidades()
   
   const { 
-    data: ligacoesData, 
-    isLoading: isLoadingLig 
-  } = useLigacoes()
+    data: pabxLigacoesData, 
+    isLoading: isLoadingPabx 
+  } = usePabxLigacoes()
 
   const { data: meta } = useMeta()
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false)
@@ -59,8 +59,8 @@ export default function VisaoGeral() {
   
   // Derived state
   const data = oportunidadesData || []
-  const ligacoes = ligacoesData || []
-  const loading = isLoadingOps || isLoadingLig
+  const pabxLigacoes = pabxLigacoesData || []
+  const loading = isLoadingOps || isLoadingPabx
   const lastUpdated = opsUpdatedAt ? new Date(opsUpdatedAt) : new Date()
 
   // Relógio em tempo real para o dashboard
@@ -128,12 +128,15 @@ export default function VisaoGeral() {
     const propCurr = countProposals(currentM, currentY)
     const propLast = countProposals(lastM, lastY)
 
-    // Ligações
-    const countCalls = (m: string, y: string) => ligacoes.filter(l => {
-       const d = new Date(l.data_hora)
-       if (isNaN(d.getTime())) return false
-       return String(d.getFullYear()) === y && String(d.getMonth() + 1).padStart(2, '0') === m
-    }).length
+    // Ligações (PABX)
+    const countCalls = (m: string, y: string) => pabxLigacoes.reduce((acc, l) => {
+       const d = parseDate(l.id_data)
+       if (!d) return acc
+       if (String(d.getFullYear()) === y && String(d.getMonth() + 1).padStart(2, '0') === m) {
+         return acc + l.ligacoes_feitas
+       }
+       return acc
+    }, 0)
 
     const callsCurr = countCalls(currentM, currentY)
     const callsLast = countCalls(lastM, lastY)
@@ -165,7 +168,7 @@ export default function VisaoGeral() {
       propostasGeradas: { value: propCurr, trend: calcTrend(propCurr, propLast) },
       ligacoesFeitas: { value: callsCurr, trend: calcTrend(callsCurr, callsLast) }
     }
-  }, [data, ligacoes])
+  }, [data, pabxLigacoes])
 
   if (loading && data.length === 0) {
     return (

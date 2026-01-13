@@ -21,7 +21,9 @@ import {
   Thermometer,
   FileText,
   Hash,
-  Globe
+  Globe,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 
 const Oportunidades: React.FC = () => {
@@ -46,6 +48,10 @@ const Oportunidades: React.FC = () => {
   const [vendedor, setVendedor] = useState('all')
   const [month, setMonth] = useState('all')
   const [year, setYear] = useState('all')
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   const [selected, setSelected] = useState<CRM_Oportunidade | null>(null)
   const [nota, setNota] = useState('')
@@ -108,6 +114,38 @@ const Oportunidades: React.FC = () => {
     })
   }, [lista, debouncedSearch, vendedor, month, year])
 
+  const sortedList = useMemo(() => {
+    if (!sortColumn) return filtrados
+
+    return [...filtrados].sort((a, b) => {
+      let valA: any = a[sortColumn as keyof CRM_Oportunidade]
+      let valB: any = b[sortColumn as keyof CRM_Oportunidade]
+
+      // Handle numeric sorting for 'valor_proposta'
+      if (sortColumn === 'valor_proposta') {
+        valA = parseValorProposta(valA)
+        valB = parseValorProposta(valB)
+      } else {
+        // Case insensitive string sorting
+        valA = (valA || '').toString().toLowerCase()
+        valB = (valB || '').toString().toLowerCase()
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [filtrados, sortColumn, sortDirection])
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
   /* ===========================
      SAVE NOTA
   ============================ */
@@ -159,7 +197,7 @@ const Oportunidades: React.FC = () => {
           </h1>
           <p className="text-sm text-[var(--text-soft)] mt-1 flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            {filtrados.length} oportunidades encontradas • Atualizado em: {lastUpdated.toLocaleTimeString()}
+            {sortedList.length} oportunidades encontradas • Atualizado em: {lastUpdated.toLocaleTimeString()}
           </p>
         </div>
 
@@ -236,10 +274,10 @@ const Oportunidades: React.FC = () => {
           <table className="w-full text-sm text-left">
             <thead className="bg-[var(--bg-body)] text-[var(--text-muted)] text-xs uppercase tracking-wider sticky top-0 z-10 border-b border-[var(--border)]">
               <tr>
-                <th className="px-6 py-4 font-semibold">Cliente / Oportunidade</th>
-                <th className="px-6 py-4 font-semibold">Responsável</th>
-                <th className="px-6 py-4 font-semibold">Etapa / Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Valor Proposta</th>
+                <SortableHeader label="Cliente / Oportunidade" column="cliente" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Responsável" column="vendedor" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Etapa / Status" column="etapa" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Valor Proposta" column="valor_proposta" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} align="right" />
                 <th className="px-6 py-4 font-semibold text-center">Ações</th>
               </tr>
             </thead>
@@ -256,7 +294,7 @@ const Oportunidades: React.FC = () => {
                     <td className="px-6 py-4"><div className="h-8 bg-[var(--border)] rounded w-8 mx-auto"></div></td>
                   </tr>
                 ))
-              ) : filtrados.length === 0 ? (
+              ) : sortedList.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-soft)]">
@@ -267,7 +305,7 @@ const Oportunidades: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filtrados.map(op => (
+                sortedList.map(op => (
                   <tr
                     key={op.id_oportunidade}
                     onClick={() => {
@@ -333,7 +371,7 @@ const Oportunidades: React.FC = () => {
         
         {/* Footer info */}
         <div className="px-6 py-3 border-t border-[var(--border)] bg-[var(--bg-body)] text-xs text-[var(--text-soft)] flex justify-between items-center">
-           <span>Mostrando {filtrados.length} de {lista.length} registros</span>
+           <span>Mostrando {sortedList.length} de {lista.length} registros</span>
            <span>Pressione na linha para ver detalhes</span>
         </div>
       </div>
@@ -522,5 +560,47 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
     </div>
   </div>
 )
+
+/* ===========================
+   SORTABLE HEADER COMPONENT
+=========================== */
+const SortableHeader = ({ 
+  label, 
+  column, 
+  currentSort, 
+  direction, 
+  onSort, 
+  align = 'left' 
+}: {
+  label: string
+  column: string
+  currentSort: string | null
+  direction: 'asc' | 'desc'
+  onSort: (col: string) => void
+  align?: 'left' | 'center' | 'right'
+}) => {
+  const isActive = currentSort === column
+  
+  return (
+    <th 
+      className={`px-6 py-4 font-semibold cursor-pointer group hover:text-[var(--primary)] transition-colors select-none text-${align}`}
+      onClick={() => onSort(column)}
+    >
+      <div className={`flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'}`}>
+        {label}
+        <span className="flex flex-col">
+          {isActive ? (
+            direction === 'asc' ? <ArrowUp size={14} className="text-[var(--primary)]" /> : <ArrowDown size={14} className="text-[var(--primary)]" />
+          ) : (
+            <div className="flex flex-col opacity-0 group-hover:opacity-30 transition-opacity">
+               <ArrowUp size={10} className="-mb-1" />
+               <ArrowDown size={10} />
+            </div>
+          )}
+        </span>
+      </div>
+    </th>
+  )
+}
 
 export default Oportunidades

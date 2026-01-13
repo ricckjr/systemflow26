@@ -49,7 +49,7 @@ export function useUpdateMeta() {
           meta_novas_oportunidades: updates.meta_novas_oportunidades || 0,
           meta_ligacoes: updates.meta_ligacoes || 0,
           tempo_ligacoes: updates.tempo_ligacoes || null,
-          meta_geral: updates.meta_geral || 0
+          meta_geral: updates.meta_geral || null
         })
       }
     },

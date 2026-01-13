@@ -28,6 +28,7 @@ export interface Database {
           vendedor?: string | null
           resultado?: string | null
         }
+        Relationships: []
       }
       crm_meta_comercial: {
         Row: {
@@ -57,6 +58,7 @@ export interface Database {
           tempo_ligacoes?: number | null
           meta_geral?: string | null
         }
+        Relationships: []
       }
       taskflow_boards: {
         Row: {
@@ -80,6 +82,7 @@ export interface Database {
           created_by?: string
           company_id?: string | null
         }
+        Relationships: []
       }
       taskflow_columns: {
         Row: {
@@ -106,6 +109,15 @@ export interface Database {
           created_at?: string
           created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_columns_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_boards"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_tasks: {
         Row: {
@@ -144,6 +156,22 @@ export interface Database {
           updated_at?: string
           created_by?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_tasks_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_tasks_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_columns"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_task_users: {
         Row: {
@@ -167,6 +195,22 @@ export interface Database {
           role?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_task_users_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_task_users_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_comments: {
         Row: {
@@ -190,6 +234,22 @@ export interface Database {
           content?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_activity_log: {
         Row: {
@@ -216,6 +276,22 @@ export interface Database {
           details?: string | null
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_activity_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_activity_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       notifications: {
         Row: {
@@ -248,6 +324,15 @@ export interface Database {
           is_read?: boolean
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_calendar: {
         Row: {
@@ -274,6 +359,22 @@ export interface Database {
           created_at?: string
           task_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_calendar_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_calendar_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_tasks"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       taskflow_attachments: {
         Row: {
@@ -303,6 +404,22 @@ export interface Database {
           created_by?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "taskflow_attachments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "taskflow_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taskflow_attachments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       profiles: {
         Row: {
@@ -316,7 +433,7 @@ export interface Database {
           avatar_url: string | null
           created_at: string
           updated_at: string | null
-          cargo: string | null // Enum tratado como string no retorno JSON
+          cargo: string | null
         }
         Insert: {
           id: string
@@ -342,8 +459,69 @@ export interface Database {
           avatar_url?: string | null
           created_at?: string
           updated_at?: string | null
-          cargo?: string | null
+          cargo: string | null
         }
+        Relationships: []
+      }
+      permissoes: {
+        Row: {
+          id: string
+          modulo: string
+          submodulo: string
+          descricao: string | null
+        }
+        Insert: {
+          id?: string
+          modulo: string
+          submodulo: string
+          descricao?: string | null
+        }
+        Update: {
+          id?: string
+          modulo?: string
+          submodulo?: string
+          descricao?: string | null
+        }
+        Relationships: []
+      }
+      profile_permissoes: {
+        Row: {
+          profile_id: string
+          permissao_id: string
+          visualizar: boolean
+          editar: boolean
+          excluir: boolean
+        }
+        Insert: {
+          profile_id: string
+          permissao_id: string
+          visualizar?: boolean
+          editar?: boolean
+          excluir?: boolean
+        }
+        Update: {
+          profile_id?: string
+          permissao_id?: string
+          visualizar?: boolean
+          editar?: boolean
+          excluir?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_permissoes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_permissoes_permissao_id_fkey"
+            columns: ["permissao_id"]
+            isOneToOne: false
+            referencedRelation: "permissoes"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {

@@ -48,6 +48,10 @@ export async function ensureDefaultBoard(user: Profile): Promise<{ board: TFBoar
     board = created;
   }
 
+  if (!board) {
+    throw new Error('Falha ao obter ou criar o board padrão.');
+  }
+
   // 2. Get existing columns
   const { data: existingColumns } = await supabase
     .from('taskflow_columns')

@@ -9,6 +9,55 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      crm_ligacoes: {
+        Row: {
+          id: string
+          data_hora: string
+          vendedor: string | null
+          resultado: string | null
+        }
+        Insert: {
+          id?: string
+          data_hora: string
+          vendedor?: string | null
+          resultado?: string | null
+        }
+        Update: {
+          id?: string
+          data_hora?: string
+          vendedor?: string | null
+          resultado?: string | null
+        }
+      }
+      crm_meta_comercial: {
+        Row: {
+          id: number
+          meta_valor_financeiro: number
+          supermeta_valor_financeiro: number
+          meta_novas_oportunidades: number
+          meta_ligacoes: number
+          tempo_ligacoes: number | null
+          meta_geral: string | null
+        }
+        Insert: {
+          id?: number
+          meta_valor_financeiro?: number
+          supermeta_valor_financeiro?: number
+          meta_novas_oportunidades?: number
+          meta_ligacoes?: number
+          tempo_ligacoes?: number | null
+          meta_geral?: string | null
+        }
+        Update: {
+          id?: number
+          meta_valor_financeiro?: number
+          supermeta_valor_financeiro?: number
+          meta_novas_oportunidades?: number
+          meta_ligacoes?: number
+          tempo_ligacoes?: number | null
+          meta_geral?: string | null
+        }
+      }
       taskflow_boards: {
         Row: {
           id: string

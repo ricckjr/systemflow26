@@ -90,18 +90,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Race condition handling: Wait for existing promise if any
     if (loadProfilePromise.current) {
-        if (!silent) setLoading(true)
+        if (!silent && !profileRef.current) setLoading(true)
         try {
             await loadProfilePromise.current
         } catch (e) {
             // Ignore error from shared promise
         } finally {
-            if (mounted.current && !silent && abortControllerRef.current === controller) setLoading(false)
+            if (mounted.current && !silent && abortControllerRef.current === controller && !profileRef.current) setLoading(false)
         }
         return
     }
 
-    if (!silent) setLoading(true)
+    if (!silent && !profileRef.current) setLoading(true)
     setError(null)
 
     const task = async () => {
@@ -204,8 +204,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logWarn('auth', 'network/profile error, keeping cache', e)
         let cached = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
         cached = normalizeProfile(cached)
-        if (cached) setProfile(cached)
-        setError(new Error('Falha temporária ao sincronizar perfil'))
+        if (cached) {
+          setProfile(cached)
+          // Se temos cache, não bloqueamos o usuário com erro visual, apenas logamos
+          setError(null) 
+        } else {
+          setError(new Error('Falha temporária ao sincronizar perfil'))
+        }
       }
     } finally {
       // Clear the promise ref
@@ -309,7 +314,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        await loadProfile(newSession, false)
+        await loadProfile(newSession, true)
       }
 
       if (event === 'TOKEN_REFRESHED') {

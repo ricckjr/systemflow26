@@ -75,7 +75,7 @@ export interface CRM_Meta {
   meta_novas_oportunidades: number
   meta_ligacoes: number
   tempo_ligacoes: number | null
-  meta_geral: number | null
+  meta_geral: string | null
 }
 
 export async function fetchMeta() {

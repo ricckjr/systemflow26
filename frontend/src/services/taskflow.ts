@@ -97,7 +97,7 @@ export async function createTask(boardId: string, columnId: string, title: strin
     }])
     .select('*')
     .single();
-  return data;
+  return data as TFTask;
 }
 
 export async function moveTask(taskId: string, toColumnId: string) {

@@ -292,8 +292,8 @@ export default function VisaoGeral() {
       <div className="mb-6">
         <MetaProgressBar 
           current={stats.venda.value} 
-          target={meta?.meta_geral ? Number(meta.meta_geral) : 0} 
-          label="Meta Geral"
+          target={meta?.meta_valor_financeiro ? Number(meta.meta_valor_financeiro) : 0} 
+          label={meta?.meta_geral || 'Meta Geral'}
           onClick={() => setIsMetaModalOpen(true)}
         />
       </div>
@@ -632,6 +632,7 @@ const MetaModal = ({
 }) => {
   const [formData, setFormData] = useState({
     meta_comercial: '',
+    meta_geral: '',
     meta_valor_financeiro: 0,
     supermeta_valor_financeiro: 0,
     meta_novas_oportunidades: 0,

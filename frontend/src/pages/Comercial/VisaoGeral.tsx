@@ -803,51 +803,69 @@ const MetaProgressBar = ({
     <div 
       onClick={onClick}
       className={`
-        card-panel p-8 relative overflow-hidden group 
+        relative overflow-hidden rounded-2xl
         ${onClick ? 'cursor-pointer' : ''}
-        transition-all duration-300 border border-[var(--border)] bg-[var(--bg-panel)]
-        hover:border-[var(--primary)]/30 hover:shadow-lg hover:shadow-[var(--primary)]/5
+        bg-[var(--bg-panel)] border border-[var(--border)]
+        hover:border-[var(--primary)]/50 transition-all duration-300
+        group
       `}
     >
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 relative z-10 gap-2">
-        <div>
-          <h3 className="text-sm font-bold text-[var(--text-soft)] uppercase tracking-widest flex items-center gap-2 mb-1">
-            <Target className="w-4 h-4 text-[var(--primary)]" />
-            META ATUAL
-          </h3>
-          <p className="text-xl font-bold text-[var(--text-main)] tracking-tight">
-            {label}
-          </p>
+      {/* Background Gradient Mesh */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--primary)]/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none transition-opacity duration-500 group-hover:opacity-100 opacity-50" />
+
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between p-6 gap-6">
+        
+        {/* Info Section */}
+        <div className="flex items-center gap-5 w-full md:w-auto">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--bg-body)] border border-[var(--border)] flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-300">
+             <div className="relative">
+               <Target className="text-[var(--primary)]" size={24} />
+               <div className="absolute inset-0 bg-[var(--primary)] blur-md opacity-20" />
+             </div>
+          </div>
+          
+          <div className="flex flex-col">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] mb-0.5">
+              {label}
+            </h3>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-[var(--text-main)] tracking-tighter">
+                {percent.toFixed(1)}<span className="text-lg text-[var(--text-muted)] font-bold">%</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Section */}
+        <div className="flex-1 w-full md:max-w-xl">
+          <div className="flex justify-between items-end mb-2.5 px-1">
+             <div className="flex flex-col">
+               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Realizado</span>
+               <span className="text-lg font-bold text-[var(--text-main)] tabular-nums">
+                 {formatCurrency(current)}
+               </span>
+             </div>
+             <div className="flex flex-col items-end">
+               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Meta</span>
+               <span className="text-sm font-medium text-[var(--text-soft)] tabular-nums">
+                 {formatCurrency(target)}
+               </span>
+             </div>
+          </div>
+
+          <div className="h-3 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)] p-[2px] shadow-inner">
+            <div 
+              className="h-full rounded-full transition-all duration-1000 ease-out relative bg-gradient-to-r from-[var(--primary)] to-emerald-400"
+              style={{ width: `${percent}%` }}
+            >
+              <div className="absolute inset-0 bg-white/25 animate-[shimmer_2s_infinite]" />
+              {/* Glow at the tip */}
+              <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
+            </div>
+          </div>
         </div>
         
-        <div className="text-left md:text-right">
-          <div className="flex items-baseline gap-2 justify-start md:justify-end">
-             <span className="text-2xl font-bold text-[var(--primary)] tabular-nums tracking-tight">
-               {formatCurrency(current)}
-             </span>
-             <span className="text-sm text-[var(--text-soft)] font-medium">
-               / {formatCurrency(target)}
-             </span>
-          </div>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5 font-medium uppercase tracking-wider">
-            {percent.toFixed(1)}% Concluído
-          </p>
-        </div>
       </div>
-
-      <div className="h-4 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)] relative z-10">
-        <div 
-          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000 ease-out relative shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-          style={{ width: `${percent}%` }}
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] opacity-30" />
-        </div>
-      </div>
-      
-      {/* Subtle Background Glow */}
-      <div 
-        className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[80px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"
-      />
     </div>
   )
 }

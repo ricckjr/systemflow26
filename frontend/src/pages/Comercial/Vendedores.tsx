@@ -12,7 +12,9 @@ import {
   ChevronRight,
   X,
   PieChart,
-  BarChart2
+  BarChart2,
+  Phone,
+  PhoneMissed
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -27,9 +29,9 @@ import {
   Area
 } from 'recharts';
 import { CRM_Oportunidade, isVenda } from '@/services/crm';
-import { useOportunidades } from '@/hooks/useCRM';
+import { useOportunidades, usePabxLigacoes } from '@/hooks/useCRM';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
-import { format, isSameMonth, parseISO } from 'date-fns';
+import { format, isSameMonth, parseISO, parse, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // Configuration
@@ -46,38 +48,62 @@ interface SellerStats {
   ranking: number;
   vendasPorDia: { dia: string; valor: number }[];
   historico: CRM_Oportunidade[];
+  ligacoesFeitas: number;
+  ligacoesNaoAtendidas: number;
+  trendVendas: number; // New field for MoM trend
 }
 
 const Vendedores: React.FC = () => {
   // React Query Hook
-  const { data: oportunidadesData, isLoading: loading } = useOportunidades();
+  const { data: oportunidadesData, isLoading: loadingOps } = useOportunidades();
+  const { data: ligacoesData, isLoading: loadingLig } = usePabxLigacoes();
+  
   const allOportunidades = oportunidadesData || [];
+  const allLigacoes = ligacoesData || [];
 
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [sellers, setSellers] = useState<SellerStats[]>([]);
-  const [selectedSeller, setSelectedSeller] = useState<SellerStats | null>(null);
-
   // Process data when opportunities or month changes
-  useEffect(() => {
-    if (allOportunidades.length === 0) return;
+  const sellers = useMemo(() => {
+    // Format selectedMonth to "MM-yyyy" for PABX data matching
+    const currentMonthStr = format(selectedMonth, 'MM-yyyy');
+    const prevMonth = subMonths(selectedMonth, 1);
 
+    // Filter Current Month
     const filteredOps = allOportunidades.filter(op => {
       if (!op.data_inclusao) return false;
       return isSameMonth(parseISO(op.data_inclusao), selectedMonth);
     });
 
+    // Filter Previous Month (for trend calculation)
+    const prevFilteredOps = allOportunidades.filter(op => {
+      if (!op.data_inclusao) return false;
+      return isSameMonth(parseISO(op.data_inclusao), prevMonth);
+    });
+
     // Group by seller
     const sellerMap: Record<string, {
       totalVendas: number;
+      prevTotalVendas: number; // Store previous month sales
       countVendas: number;
       totalOps: number;
       ops: CRM_Oportunidade[];
+      ligacoesFeitas: number;
+      ligacoesNaoAtendidas: number;
     }> = {};
 
+    // 1. Process Current Month Opportunities
     filteredOps.forEach(op => {
       const sellerName = op.vendedor || 'Não Atribuído';
       if (!sellerMap[sellerName]) {
-        sellerMap[sellerName] = { totalVendas: 0, countVendas: 0, totalOps: 0, ops: [] };
+        sellerMap[sellerName] = { 
+          totalVendas: 0, 
+          prevTotalVendas: 0,
+          countVendas: 0, 
+          totalOps: 0, 
+          ops: [],
+          ligacoesFeitas: 0,
+          ligacoesNaoAtendidas: 0
+        };
       }
 
       sellerMap[sellerName].totalOps += 1;
@@ -90,13 +116,54 @@ const Vendedores: React.FC = () => {
       }
     });
 
+    // 1.1 Process Previous Month Opportunities (for Trend)
+    prevFilteredOps.forEach(op => {
+      if (isVenda(op.status)) {
+        const sellerName = op.vendedor || 'Não Atribuído';
+        
+        if (sellerMap[sellerName]) {
+           const valor = parseValorProposta(op.valor_proposta);
+           sellerMap[sellerName].prevTotalVendas += valor;
+        }
+      }
+    });
+
+    // 2. Process Calls (PABX)
+    allLigacoes.forEach(lig => {
+      if (lig.id_data === currentMonthStr) {
+        const sellerName = lig.vendedor || 'Não Atribuído';
+        if (!sellerMap[sellerName]) {
+          // Initialize if only has calls but no opportunities yet
+          sellerMap[sellerName] = { 
+            totalVendas: 0, 
+            prevTotalVendas: 0,
+            countVendas: 0, 
+            totalOps: 0, 
+            ops: [],
+            ligacoesFeitas: 0,
+            ligacoesNaoAtendidas: 0
+          };
+        }
+        sellerMap[sellerName].ligacoesFeitas += lig.ligacoes_feitas;
+        sellerMap[sellerName].ligacoesNaoAtendidas += lig.ligacoes_nao_atendidas;
+      }
+    });
+
     // Transform to array
     const sellerArray: SellerStats[] = Object.entries(sellerMap).map(([name, data]) => {
       const taxaConversao = data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0;
       const ticketMedio = data.countVendas > 0 ? data.totalVendas / data.countVendas : 0;
       const pctMeta = (data.totalVendas / META_INDIVIDUAL) * 100;
 
-      // Calculate sales over time (mocked slightly for visualization if needed, but here aggregated by day)
+      // Calculate Trend
+      let trendVendas = 0;
+      if (data.prevTotalVendas > 0) {
+        trendVendas = ((data.totalVendas - data.prevTotalVendas) / data.prevTotalVendas) * 100;
+      } else if (data.totalVendas > 0) {
+        trendVendas = 100; // New sales where previously 0
+      }
+
+      // Calculate sales over time
       const salesByDayMap: Record<string, number> = {};
       data.ops.filter(o => isVenda(o.status)).forEach(o => {
         const day = format(parseISO(o.data_inclusao!), 'dd/MM');
@@ -115,7 +182,10 @@ const Vendedores: React.FC = () => {
         pctMeta,
         ranking: 0, // Will sort next
         vendasPorDia,
-        historico: data.ops
+        historico: data.ops,
+        ligacoesFeitas: data.ligacoesFeitas,
+        ligacoesNaoAtendidas: data.ligacoesNaoAtendidas,
+        trendVendas
       };
     });
 
@@ -123,9 +193,11 @@ const Vendedores: React.FC = () => {
     sellerArray.sort((a, b) => b.totalVendas - a.totalVendas);
     sellerArray.forEach((s, i) => s.ranking = i + 1);
 
-    setSellers(sellerArray);
+    return sellerArray;
 
-  }, [allOportunidades, selectedMonth]);
+  }, [allOportunidades, allLigacoes, selectedMonth]);
+
+  const [selectedSeller, setSelectedSeller] = useState<SellerStats | null>(null);
 
   const handlePrevMonth = () => {
     setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -135,7 +207,7 @@ const Vendedores: React.FC = () => {
     setSelectedMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  if (loading && allOportunidades.length === 0) {
+  if ((loadingOps || loadingLig) && allOportunidades.length === 0) {
     return (
       <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
         <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -231,9 +303,9 @@ const Vendedores: React.FC = () => {
                   </span>
                 </div>
                 <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)] text-center">
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Conv.</span>
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Ligações</span>
                   <span className="text-sm font-bold text-cyan-400">
-                    {seller.taxaConversao.toFixed(1)}%
+                    {seller.ligacoesFeitas}
                   </span>
                 </div>
               </div>
@@ -282,9 +354,10 @@ const Vendedores: React.FC = () => {
                   </div>
                   <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Vendas Totais</p>
                   <p className="text-2xl font-black text-[var(--text-main)]">{formatCurrency(selectedSeller.totalVendas)}</p>
-                  <p className="text-[10px] text-emerald-400 mt-2 font-bold flex items-center gap-1">
-                    <TrendingUp size={10} /> +12% vs mês anterior
-                  </p>
+                  <div className={`text-[10px] mt-2 font-bold flex items-center gap-1 ${selectedSeller.trendVendas >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <TrendingUp size={10} className={selectedSeller.trendVendas < 0 ? 'rotate-180' : ''} /> 
+                    {selectedSeller.trendVendas >= 0 ? '+' : ''}{selectedSeller.trendVendas.toFixed(1)}% vs mês anterior
+                  </div>
                 </div>
 
                 <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
@@ -303,14 +376,15 @@ const Vendedores: React.FC = () => {
                   </div>
                 </div>
 
+                {/* KPI de Ligações */}
                 <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <PieChart size={40} />
+                    <Phone size={40} />
                   </div>
-                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Taxa de Conversão</p>
-                  <p className="text-2xl font-black text-cyan-400">{selectedSeller.taxaConversao.toFixed(1)}%</p>
-                  <p className="text-[10px] text-[var(--text-soft)] mt-2">
-                    {selectedSeller.totalOportunidades} oportunidades trabalhadas
+                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Ligações Realizadas</p>
+                  <p className="text-2xl font-black text-blue-400">{selectedSeller.ligacoesFeitas}</p>
+                  <p className="text-[10px] text-rose-400 mt-2 font-medium flex items-center gap-1">
+                     <PhoneMissed size={10} /> {selectedSeller.ligacoesNaoAtendidas} não atendidas
                   </p>
                 </div>
 
@@ -329,70 +403,140 @@ const Vendedores: React.FC = () => {
               {/* Charts & Details Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {/* Evolution Chart */}
-                <div className="lg:col-span-2 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                {/* Detailed Metrics List - FULL WIDTH */}
+                <div className="lg:col-span-3 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6 flex flex-col">
                   <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
-                    <TrendingUp size={16} className="text-cyan-400" />
-                    Evolução de Vendas (Diária)
+                    <Target size={16} className="text-amber-400" />
+                    Detalhamento de Performance
                   </h4>
-                  <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={selectedSeller.vendasPorDia}>
-                        <defs>
-                          <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                        <XAxis 
-                          dataKey="dia" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: 'var(--text-muted)', fontSize: 10 }} 
-                        />
-                        <YAxis 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-                          tickFormatter={(val) => `R$ ${val/1000}k`}
-                        />
-                        <Tooltip 
-                          contentStyle={{ background: 'var(--bg-panel)', borderColor: 'var(--border)', borderRadius: '8px' }}
-                          itemStyle={{ color: '#06b6d4' }}
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                        <Area type="monotone" dataKey="valor" stroke="#06b6d4" strokeWidth={3} fillOpacity={1} fill="url(#colorVendas)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Recent Sales List */}
-                <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6 flex flex-col">
-                  <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
-                    <Star size={16} className="text-amber-400" />
-                    Últimas Vendas
-                  </h4>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2 max-h-[300px]">
-                    {selectedSeller.historico.filter(op => isVenda(op.status)).slice(0, 10).map((op, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] hover:border-cyan-500/30 transition-colors">
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Column 1 */}
+                    <div className="space-y-6">
+                        {/* Meta Financeira */}
                         <div>
-                          <p className="text-xs font-bold text-[var(--text-main)] line-clamp-1">{op.cliente || 'Cliente'}</p>
-                          <p className="text-[10px] text-[var(--text-muted)]">{op.data_inclusao ? format(parseISO(op.data_inclusao), 'dd/MM') : '-'}</p>
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-xs font-medium text-[var(--text-soft)]">Meta Financeira</span>
+                            <span className="text-xs font-bold text-[var(--text-main)]">
+                            {selectedSeller.pctMeta.toFixed(1)}%
+                            </span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-bold text-emerald-400">{op.valor_proposta}</p>
+                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
+                            <div 
+                            className={`h-full rounded-full transition-all duration-1000 ${selectedSeller.pctMeta >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                            style={{ width: `${Math.min(selectedSeller.pctMeta, 100)}%` }}
+                            />
                         </div>
-                      </div>
-                    ))}
-                    {selectedSeller.historico.filter(op => isVenda(op.status)).length === 0 && (
-                      <div className="text-center py-10 text-[var(--text-muted)] text-xs italic">
-                        Nenhuma venda neste período.
-                      </div>
-                    )}
+                        <div className="flex justify-between mt-1">
+                            <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(selectedSeller.totalVendas)}</span>
+                            <span className="text-[10px] text-[var(--text-muted)]">Meta: {formatCurrency(selectedSeller.meta)}</span>
+                        </div>
+                        </div>
+
+                        {/* Conversão */}
+                        <div>
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-xs font-medium text-[var(--text-soft)]">Taxa de Conversão</span>
+                            <span className="text-xs font-bold text-[var(--text-main)]">
+                            {selectedSeller.taxaConversao.toFixed(1)}%
+                            </span>
+                        </div>
+                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
+                            <div 
+                            className="h-full rounded-full bg-cyan-500 transition-all duration-1000"
+                            style={{ width: `${Math.min(selectedSeller.taxaConversao * 2, 100)}%` }} // Scale factor for visualization
+                            />
+                        </div>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-1">Baseado em {selectedSeller.totalOportunidades} oportunidades</p>
+                        </div>
+                    </div>
+
+                    {/* Column 2 */}
+                    <div className="space-y-6">
+                        {/* Ligações Feitas */}
+                        <div>
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-xs font-medium text-[var(--text-soft)]">Ligações Realizadas</span>
+                            <span className="text-xs font-bold text-[var(--text-main)]">
+                            {selectedSeller.ligacoesFeitas} / 1000
+                            </span>
+                        </div>
+                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
+                            <div 
+                            className="h-full rounded-full bg-blue-500 transition-all duration-1000"
+                            style={{ width: `${Math.min((selectedSeller.ligacoesFeitas / 1000) * 100, 100)}%` }}
+                            />
+                        </div>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-1">Meta ref: 1.000 ligações/mês</p>
+                        </div>
+
+                        {/* Taxa de Atendimento (Invertida) */}
+                        <div>
+                        <div className="flex justify-between items-end mb-2">
+                            <span className="text-xs font-medium text-[var(--text-soft)]">Eficiência de Contato</span>
+                            <span className="text-xs font-bold text-[var(--text-main)]">
+                            {selectedSeller.ligacoesFeitas > 0 
+                                ? ((1 - (selectedSeller.ligacoesNaoAtendidas / selectedSeller.ligacoesFeitas)) * 100).toFixed(1) 
+                                : 0}%
+                            </span>
+                        </div>
+                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
+                            <div 
+                            className="h-full rounded-full bg-purple-500 transition-all duration-1000"
+                            style={{ width: `${selectedSeller.ligacoesFeitas > 0 ? (1 - (selectedSeller.ligacoesNaoAtendidas / selectedSeller.ligacoesFeitas)) * 100 : 0}%` }}
+                            />
+                        </div>
+                        <div className="flex justify-between mt-1">
+                            <span className="text-[10px] text-[var(--text-muted)]">Atendidas: {selectedSeller.ligacoesFeitas - selectedSeller.ligacoesNaoAtendidas}</span>
+                            <span className="text-[10px] text-rose-400">Perdidas: {selectedSeller.ligacoesNaoAtendidas}</span>
+                        </div>
+                        </div>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Recent Sales Table (Full Width) */}
+              <div className="mt-8 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                 <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
+                    <Star size={16} className="text-yellow-400" />
+                    Histórico de Vendas Recentes
+                 </h4>
+                 <div className="overflow-x-auto">
+                   <table className="w-full text-left border-collapse">
+                     <thead>
+                       <tr className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-muted)]">
+                         <th className="py-3 px-4 font-semibold">Cliente</th>
+                         <th className="py-3 px-4 font-semibold">Data</th>
+                         <th className="py-3 px-4 font-semibold">Produto/Solução</th>
+                         <th className="py-3 px-4 font-semibold text-right">Valor</th>
+                         <th className="py-3 px-4 font-semibold text-center">Status</th>
+                       </tr>
+                     </thead>
+                     <tbody className="text-sm">
+                       {selectedSeller.historico.filter(op => isVenda(op.status)).map((op, idx) => (
+                         <tr key={idx} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-panel)] transition-colors">
+                           <td className="py-3 px-4 text-[var(--text-main)] font-medium">{op.cliente || 'N/A'}</td>
+                           <td className="py-3 px-4 text-[var(--text-soft)]">{op.data_inclusao ? format(parseISO(op.data_inclusao), 'dd/MM/yyyy') : '-'}</td>
+                           <td className="py-3 px-4 text-[var(--text-soft)]">{op.solucao || '-'}</td>
+                           <td className="py-3 px-4 text-[var(--text-main)] font-bold text-right text-emerald-400">{op.valor_proposta}</td>
+                           <td className="py-3 px-4 text-center">
+                             <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                               VENDIDO
+                             </span>
+                           </td>
+                         </tr>
+                       ))}
+                       {selectedSeller.historico.filter(op => isVenda(op.status)).length === 0 && (
+                         <tr>
+                           <td colSpan={5} className="py-8 text-center text-[var(--text-muted)] italic">
+                             Nenhuma venda registrada neste período.
+                           </td>
+                         </tr>
+                       )}
+                     </tbody>
+                   </table>
+                 </div>
               </div>
 
             </div>

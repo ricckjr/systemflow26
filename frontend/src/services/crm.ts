@@ -81,6 +81,7 @@ export async function fetchPabxLigacoes() {
   const { data, error } = await supabase
     .from('crm_pabx_ligacoes')
     .select('*')
+    .order('id_data', { ascending: false })
   
   if (error) {
     if (error.code === '42P01') return [] // Table doesn't exist

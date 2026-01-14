@@ -16,6 +16,8 @@ export function useOportunidades() {
     staleTime: 1000 * 60 * 5, // 5 min (Mantém fresco por 5 min)
     gcTime: 1000 * 60 * 30,   // 30 min (Mantém na memória se não usado)
     refetchInterval: 1000 * 60 * 5, // Auto-refresh a cada 5 min
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Backoff: 1s, 2s, 4s... max 10s
   })
 }
 

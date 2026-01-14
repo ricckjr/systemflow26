@@ -32,7 +32,8 @@ const Oportunidades: React.FC = () => {
     data: oportunidadesData, 
     isLoading: isLoadingOps, 
     error: errorOps,
-    dataUpdatedAt 
+    dataUpdatedAt,
+    refetch // Get refetch directly from hook
   } = useOportunidades()
   
   const invalidateCRM = useInvalidateCRM()
@@ -43,9 +44,25 @@ const Oportunidades: React.FC = () => {
   const error = errorOps ? 'Erro ao carregar oportunidades.' : null
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date()
 
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+     if (isRefreshing) return
+     setIsRefreshing(true)
+     try {
+       // Force hard refetch bypassing cache check
+       await refetch() 
+       // Also invalidate others if needed
+       invalidateCRM() 
+     } finally {
+       setIsRefreshing(false)
+     }
+  }
+
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [vendedor, setVendedor] = useState('all')
+  const [status, setStatus] = useState('all')
   const [month, setMonth] = useState('all')
   const [year, setYear] = useState('all')
 
@@ -78,6 +95,11 @@ const Oportunidades: React.FC = () => {
     [lista]
   )
 
+  const statuses = useMemo(
+    () => Array.from(new Set(lista.map(l => l.status).filter(Boolean))),
+    [lista]
+  )
+
   /* ===========================
      FILTROS
   ============================ */
@@ -90,6 +112,8 @@ const Oportunidades: React.FC = () => {
         (op.solucao || '').toLowerCase().includes(s)
 
       const matchVendedor = vendedor === 'all' || op.vendedor === vendedor
+
+      const matchStatus = status === 'all' || op.status === status
 
       let matchDate = true
       if (month !== 'all' && year !== 'all') {
@@ -110,9 +134,9 @@ const Oportunidades: React.FC = () => {
          }
       }
 
-      return matchSearch && matchVendedor && matchDate
+      return matchSearch && matchVendedor && matchDate && matchStatus
     })
-  }, [lista, debouncedSearch, vendedor, month, year])
+  }, [lista, debouncedSearch, vendedor, month, year, status])
 
   const sortedList = useMemo(() => {
     if (!sortColumn) return filtrados
@@ -202,11 +226,12 @@ const Oportunidades: React.FC = () => {
         </div>
 
         <button
-          onClick={() => invalidateCRM()}
-          className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300 self-start md:self-center"
+          onClick={handleRefresh}
+          disabled={loading || isRefreshing}
+          className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300 self-start md:self-center disabled:opacity-50 disabled:cursor-not-allowed"
           title="Atualizar Dados"
         >
-          <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={20} className={loading || isRefreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
@@ -238,6 +263,13 @@ const Oportunidades: React.FC = () => {
              value={vendedor} 
              onChange={setVendedor} 
              options={[{ value: 'all', label: 'Todos Vendedores' }, ...vendedores.map(v => ({ value: v, label: v || 'N/A' }))]} 
+           />
+
+           <FilterSelect 
+             icon={Tag} 
+             value={status} 
+             onChange={setStatus} 
+             options={[{ value: 'all', label: 'Todos Status' }, ...statuses.map(s => ({ value: s, label: s || 'N/A' }))]} 
            />
            
            <FilterSelect 

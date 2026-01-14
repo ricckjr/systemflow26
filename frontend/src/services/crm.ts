@@ -30,12 +30,30 @@ export interface CRM_Oportunidade {
 
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
-  const { data, error } = await supabase
-    .from('crm_oportunidades')
-    .select('*')
-    .order('data_inclusao', { ascending: !orderDesc })
-  if (error) throw error
-  return data as CRM_Oportunidade[] || []
+  
+  try {
+    const { data, error } = await supabase
+      .from('crm_oportunidades')
+      .select('*')
+      .order('data_inclusao', { ascending: !orderDesc })
+      .abortSignal(AbortSignal.timeout(15000)) // Timeout de 15s para evitar hanging indefinido
+
+    if (error) {
+      // Ignorar erros de abortamento causados por navegação rápida ou refresh
+      if (error.code === '20' || error.message?.includes('AbortError')) {
+        return []
+      }
+      throw error
+    }
+    
+    return data as CRM_Oportunidade[] || []
+  } catch (err: any) {
+    if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+      console.warn('Requisição de oportunidades cancelada (timeout ou navegação).')
+      return []
+    }
+    throw err
+  }
 }
 
 export const isVenda = (s?: string | null) =>

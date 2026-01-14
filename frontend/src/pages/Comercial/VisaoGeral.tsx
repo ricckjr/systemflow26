@@ -13,6 +13,8 @@ import {
   Target,
   Save,
   Loader2,
+  Calendar,
+  Filter
 } from 'lucide-react'
 import {
   BarChart,
@@ -25,6 +27,8 @@ import {
   Cell,
   LabelList
 } from 'recharts'
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subMonths, subYears, isWithinInterval, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
@@ -65,6 +69,10 @@ export default function VisaoGeral() {
 
   // Relógio em tempo real para o dashboard
   const [currentTime, setCurrentTime] = useState(new Date())
+  
+  // Filter State
+  const [filterType, setFilterType] = useState<'day' | 'month' | 'year'>('month')
+  const [selectedDate, setSelectedDate] = useState(new Date())
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -75,25 +83,42 @@ export default function VisaoGeral() {
      STATS CALCULATION
   ============================ */
   const stats = useMemo(() => {
-    const now = new Date()
-    const currentM = String(now.getMonth() + 1).padStart(2, '0')
-    const currentY = String(now.getFullYear())
+    // Determine current and previous date ranges
+    let start, end, prevStart, prevEnd;
+    
+    if (filterType === 'day') {
+      start = startOfDay(selectedDate);
+      end = endOfDay(selectedDate);
+      prevStart = startOfDay(subDays(selectedDate, 1));
+      prevEnd = endOfDay(subDays(selectedDate, 1));
+    } else if (filterType === 'month') {
+      start = startOfMonth(selectedDate);
+      end = endOfMonth(selectedDate);
+      prevStart = startOfMonth(subMonths(selectedDate, 1));
+      prevEnd = endOfMonth(subMonths(selectedDate, 1));
+    } else {
+      start = startOfYear(selectedDate);
+      end = endOfYear(selectedDate);
+      prevStart = startOfYear(subYears(selectedDate, 1));
+      prevEnd = endOfYear(subYears(selectedDate, 1));
+    }
 
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const lastM = String(lastMonthDate.getMonth() + 1).padStart(2, '0')
-    const lastY = String(lastMonthDate.getFullYear())
-
-    const filterByMonth = (list: CRM_Oportunidade[], m: string, y: string) => {
+    // Helper to filter data by range
+    const filterData = (list: CRM_Oportunidade[], s: Date, e: Date) => {
       return list.filter(d => {
-        const ym = getYearMonth(d)
-        return ym ? ym[0] === y && ym[1] === m : false
+        const raw = d.data || d.data_inclusao
+        const dateObj = parseDate(raw)
+        return dateObj && isWithinInterval(dateObj, { start: s, end: e })
       })
     }
 
-    const currentData = filterByMonth(data, currentM, currentY)
-    const effective = currentData.length > 0 ? currentData : data
-    const lastData = filterByMonth(data, lastM, lastY)
-
+    const currentData = filterData(data, start, end)
+    const lastData = filterData(data, prevStart, prevEnd)
+    const effective = currentData.length > 0 ? currentData : (filterType === 'month' && isWithinInterval(new Date(), { start, end }) ? [] : []) 
+    // Note: original logic fell back to 'data' if currentData was empty, but with explicit filters usually we want 0 if empty.
+    // However, keeping original behavior for 'effective' might confuse the specific filter. 
+    // Let's strictly use currentData for values. If empty, values are 0.
+    
     const calculateMetrics = (dataset: CRM_Oportunidade[]) => {
       const vendaValue = dataset.reduce((a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta) : 0), 0)
       const vendaCount = dataset.reduce((a, o) => a + (isVenda(o.status) ? 1 : 0), 0)
@@ -114,32 +139,31 @@ export default function VisaoGeral() {
       }
     }
 
-    const curr = calculateMetrics(effective)
+    const curr = calculateMetrics(currentData)
     const last = calculateMetrics(lastData)
 
     // Propostas (data_inclusao)
-    const countProposals = (m: string, y: string) => data.filter(d => {
+    const countProposals = (s: Date, e: Date) => data.filter(d => {
        const raw = d.data_inclusao
        const dateObj = parseDate(raw)
-       if (!dateObj) return false
-       return String(dateObj.getFullYear()) === y && String(dateObj.getMonth() + 1).padStart(2, '0') === m
+       return dateObj && isWithinInterval(dateObj, { start: s, end: e })
     }).length
 
-    const propCurr = countProposals(currentM, currentY)
-    const propLast = countProposals(lastM, lastY)
+    const propCurr = countProposals(start, end)
+    const propLast = countProposals(prevStart, prevEnd)
 
     // Ligações (PABX)
-    const countCalls = (m: string, y: string) => pabxLigacoes.reduce((acc, l) => {
+    const countCalls = (s: Date, e: Date) => pabxLigacoes.reduce((acc, l) => {
        const d = parseDate(l.id_data)
        if (!d) return acc
-       if (String(d.getFullYear()) === y && String(d.getMonth() + 1).padStart(2, '0') === m) {
+       if (isWithinInterval(d, { start: s, end: e })) {
          return acc + l.ligacoes_feitas
        }
        return acc
     }, 0)
 
-    const callsCurr = countCalls(currentM, currentY)
-    const callsLast = countCalls(lastM, lastY)
+    const callsCurr = countCalls(start, end)
+    const callsLast = countCalls(prevStart, prevEnd)
 
     const calcTrend = (currVal: number, lastVal: number) => {
       if (lastVal === 0) return currVal > 0 ? 100 : 0
@@ -152,9 +176,9 @@ export default function VisaoGeral() {
       perdido: { value: curr.perdidoValue, count: curr.perdidoCount, trend: calcTrend(curr.perdidoValue, last.perdidoValue) },
       cancelado: { value: curr.canceladoValue, count: curr.canceladoCount, trend: calcTrend(curr.canceladoValue, last.canceladoValue) },
       conversion: {
-        value: effective.length ? (curr.vendaCount / effective.length) * 100 : 0,
+        value: currentData.length ? (curr.vendaCount / currentData.length) * 100 : 0,
         trend: calcTrend(
-          effective.length ? (curr.vendaCount / effective.length) * 100 : 0,
+          currentData.length ? (curr.vendaCount / currentData.length) * 100 : 0,
           lastData.length ? (last.vendaCount / lastData.length) * 100 : 0
         )
       },
@@ -168,7 +192,7 @@ export default function VisaoGeral() {
       propostasGeradas: { value: propCurr, trend: calcTrend(propCurr, propLast) },
       ligacoesFeitas: { value: callsCurr, trend: calcTrend(callsCurr, callsLast) }
     }
-  }, [data, pabxLigacoes])
+  }, [data, pabxLigacoes, filterType, selectedDate])
 
   if (loading && data.length === 0) {
     return (
@@ -222,6 +246,67 @@ export default function VisaoGeral() {
         </div>
       </div>
 
+      {/* FILTER SECTION */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4 bg-[var(--bg-panel)] p-2 rounded-xl border border-[var(--border)] shadow-sm">
+          <div className="flex items-center gap-2 px-2 text-[var(--primary)]">
+            <Filter size={18} />
+            <span className="text-xs font-bold uppercase tracking-wider">Filtro</span>
+          </div>
+          
+          <div className="h-6 w-px bg-[var(--border)]" />
+
+          <div className="flex bg-[var(--bg-body)] rounded-lg p-1 border border-[var(--border)]">
+            {(['day', 'month', 'year'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilterType(t)}
+                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
+                  filterType === t 
+                    ? 'bg-[var(--primary)] text-white shadow-sm' 
+                    : 'text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-panel)]'
+                }`}
+              >
+                {t === 'day' ? 'Dia' : t === 'month' ? 'Mês' : 'Ano'}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-6 w-px bg-[var(--border)]" />
+
+          <div className="flex items-center gap-2 pr-2">
+            <Calendar size={16} className="text-[var(--text-soft)]" />
+            {filterType === 'day' && (
+              <input 
+                type="date" 
+                value={format(selectedDate, 'yyyy-MM-dd')}
+                onChange={(e) => e.target.value && setSelectedDate(parseISO(e.target.value))}
+                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none color-scheme-dark"
+              />
+            )}
+            {filterType === 'month' && (
+              <input 
+                type="month" 
+                value={format(selectedDate, 'yyyy-MM')}
+                onChange={(e) => e.target.value && setSelectedDate(parseISO(e.target.value))}
+                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none color-scheme-dark"
+              />
+            )}
+            {filterType === 'year' && (
+              <select
+                value={selectedDate.getFullYear()}
+                onChange={(e) => setSelectedDate(new Date(Number(e.target.value), 0, 1))}
+                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none cursor-pointer [&>option]:text-black"
+              >
+                {[2024, 2025, 2026, 2027].map(y => (
+                  <option key={y} value={y} className="bg-[var(--bg-panel)] text-[var(--text-main)]">{y}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KPI 
@@ -248,15 +333,6 @@ export default function VisaoGeral() {
           isMain
         />
         <KPI 
-          title="Ticket Médio" 
-          value={formatCurrency(stats.avgTicket.value)} 
-          trend={stats.avgTicket.trend}
-          icon={ShoppingCart}
-          color="emerald"
-        />
-        
-        {/* Row 2 */}
-        <KPI 
           title="Pipeline Ativo" 
           value={formatCurrency(stats.ativo.value)} 
           count={stats.ativo.count}
@@ -264,12 +340,21 @@ export default function VisaoGeral() {
           icon={TrendingUp}
           color="sky"
         />
+        
+        {/* Row 2 */}
         <KPI 
           title="Taxa de Conversão" 
           value={`${stats.conversion.value.toFixed(1)}%`} 
           trend={stats.conversion.trend}
           icon={Percent}
           color="violet"
+        />
+        <KPI 
+          title="Ticket Médio" 
+          value={formatCurrency(stats.avgTicket.value)} 
+          trend={stats.avgTicket.trend}
+          icon={ShoppingCart}
+          color="emerald"
         />
         <KPI 
           title="Perdido" 
@@ -296,7 +381,7 @@ export default function VisaoGeral() {
         <MetaProgressBar 
           current={stats.venda.value} 
           target={meta?.meta_valor_financeiro ? Number(meta.meta_valor_financeiro) : 0} 
-          label={meta?.meta_geral || 'Meta Geral'}
+          label="Super Meta"
           onClick={() => setIsMetaModalOpen(true)}
         />
       </div>
@@ -838,22 +923,13 @@ const MetaProgressBar = ({
 
         {/* Progress Section */}
         <div className="flex-1 w-full md:max-w-xl">
-          <div className="flex justify-between items-end mb-2.5 px-1">
-             <div className="flex flex-col">
-               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Realizado</span>
-               <span className="text-lg font-bold text-[var(--text-main)] tabular-nums">
-                 {formatCurrency(current)}
-               </span>
-             </div>
-             <div className="flex flex-col items-end">
-               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Meta</span>
-               <span className="text-sm font-medium text-[var(--text-soft)] tabular-nums">
-                 {formatCurrency(target)}
-               </span>
-             </div>
+          <div className="flex justify-end items-end mb-2.5 px-1">
+             <span className="text-xl font-bold text-[var(--text-main)] tabular-nums">
+               {formatCurrency(current)}
+             </span>
           </div>
 
-          <div className="h-3 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)] p-[2px] shadow-inner">
+          <div className="h-4 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)] p-[2px] shadow-inner">
             <div 
               className="h-full rounded-full transition-all duration-1000 ease-out relative bg-gradient-to-r from-[var(--primary)] to-emerald-400"
               style={{ width: `${percent}%` }}

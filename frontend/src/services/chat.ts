@@ -1,6 +1,28 @@
 import { supabase } from './supabase';
-import { ChatRoom, ChatMessage, ChatRoomMember } from '@/types/chat';
-import { Profile } from '@/types/auth';
+import { ChatRoom, ChatMessage, ChatAttachment } from '@/types/chat';
+
+const normalizeAttachments = (attachments: unknown): ChatAttachment[] | undefined => {
+  if (!Array.isArray(attachments)) return undefined;
+
+  const normalized = attachments
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const obj = item as Record<string, unknown>;
+
+      const type = obj.type;
+      const url = obj.url;
+      const name = obj.name;
+      if (typeof type !== 'string' || typeof url !== 'string' || typeof name !== 'string') return null;
+
+      const size = typeof obj.size === 'number' ? obj.size : undefined;
+      const mime_type = typeof obj.mime_type === 'string' ? obj.mime_type : undefined;
+
+      return { type, url, name, size, mime_type } as ChatAttachment;
+    })
+    .filter((v): v is ChatAttachment => Boolean(v));
+
+  return normalized.length ? normalized : [];
+};
 
 export const chatService = {
   /**
@@ -59,6 +81,9 @@ export const chatService = {
         *,
         sender:profiles (
           id, nome, avatar_url
+        ),
+        notifications:chat_notifications!message_id (
+           user_id, is_read
         )
       `)
       .eq('room_id', roomId)
@@ -70,7 +95,10 @@ export const chatService = {
     // Process to ensure sender is correctly typed
     return data.map((msg: any) => ({
       ...msg,
-      sender: msg.sender
+      sender: msg.sender,
+      // Calculate 'read_by' based on notifications for DMs or Members list
+      // For now we can expose the raw notifications array to the UI if needed
+      read_status: msg.notifications // Array of { user_id, is_read }
     })) as ChatMessage[];
   },
 
@@ -98,7 +126,11 @@ export const chatService = {
       .single();
 
     if (error) throw error;
-    return data as ChatMessage;
+    return {
+      ...(data as unknown as ChatMessage),
+      attachments: normalizeAttachments((data as any).attachments),
+      sender: (data as any).sender
+    };
   },
 
   /**

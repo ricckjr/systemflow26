@@ -51,7 +51,21 @@ export function useChat() {
       try {
         const msgs = await chatService.getMessages(activeRoomId);
         setMessages(msgs);
+        
+        // Mark messages as read in chat_room_members
         chatService.markAsRead(activeRoomId);
+        
+        // Also mark notifications as read for this room
+        const { error: notifError } = await supabase
+          .from('chat_notifications')
+          .update({ is_read: true })
+          .eq('room_id', activeRoomId)
+          .eq('user_id', profile?.id);
+          
+        if (notifError && notifError.code !== '42P01') {
+           console.error('Error marking notifications as read:', notifError);
+        }
+
       } catch (error) {
         console.error('Error loading messages:', error);
       }

@@ -775,6 +775,68 @@ export interface Database {
           }
         ]
       }
+      chat_notifications: {
+        Row: {
+          id: string
+          user_id: string
+          room_id: string
+          message_id: string
+          sender_id: string
+          type: 'message' | 'mention' | 'reply'
+          is_read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          room_id: string
+          message_id: string
+          sender_id: string
+          type?: 'message' | 'mention' | 'reply'
+          is_read?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          room_id?: string
+          message_id?: string
+          sender_id?: string
+          type?: 'message' | 'mention' | 'reply'
+          is_read?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_notifications_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -785,6 +847,10 @@ export interface Database {
           other_user_id: string
         }
         Returns: string
+      }
+      get_unread_chat_notification_count: {
+        Args: Record<string, never>
+        Returns: number
       }
       update_user_status: {
         Args: {

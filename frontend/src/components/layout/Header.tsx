@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare } from 'lucide-react';
+import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, X, Check, Inbox } from 'lucide-react';
 import { Profile } from '@/types';
+import { supabase } from '@/services/supabase';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -11,6 +12,17 @@ interface HeaderProps {
   profile: Profile;
   supabaseConnected: boolean;
   errorMessage?: string;
+}
+
+interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string | null;
+  link: string | null;
+  type: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +36,59 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Notification State (System Alerts)
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  // Chat Notification State
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [isChatNotificationsOpen, setIsChatNotificationsOpen] = useState(false);
+  const [chatNotifications, setChatNotifications] = useState<any[]>([]);
+  const chatNotificationRef = useRef<HTMLDivElement>(null);
+
+  // ... (keep fetchUnreadChat and subscriptions)
+
+  // Fetch recent chat notifications for the list
+  useEffect(() => {
+    if (isChatNotificationsOpen && profile?.id) {
+       (async () => {
+         const { data } = await supabase
+           .from('chat_notifications')
+           .select(`
+             id, is_read, created_at,
+             sender:profiles(id, nome, avatar_url),
+             message:chat_messages(content)
+           `)
+           .eq('user_id', profile.id)
+           .order('created_at', { ascending: false })
+           .limit(10);
+         
+         if (data) setChatNotifications(data);
+       })();
+    }
+  }, [isChatNotificationsOpen, profile?.id]);
+
+  // Click outside for chat notifications
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (chatNotificationRef.current && !chatNotificationRef.current.contains(event.target as Node)) {
+        setIsChatNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleChatNotificationClick = async (notif: any) => {
+    // Navigate to chat
+    navigate('/app/comunicacao/chat');
+    setIsChatNotificationsOpen(false);
+    // Mark as read happens automatically in the chat page or we can do it here
+  };
+
 
   const getPageTitle = () => {
     const map: Record<string, string> = {
@@ -52,8 +117,155 @@ export const Header: React.FC<HeaderProps> = ({
     );
   };
 
+  // Fetch Notifications
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const fetchNotifications = async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      
+      if (data) {
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.is_read).length);
+      }
+    };
+
+    const fetchUnreadChat = async () => {
+        try {
+          if (!profile?.id) return;
+
+          const { data: rpcCount, error: rpcError } = await supabase.rpc('get_unread_chat_notification_count');
+          if (!rpcError && typeof rpcCount === 'number') {
+            setUnreadChatCount(rpcCount);
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from('chat_notifications')
+            .select('id')
+            .eq('user_id', profile.id)
+            .eq('is_read', false);
+
+          if (!error) {
+            setUnreadChatCount(data?.length || 0);
+          } else {
+            if (error.code !== 'PGRST116' && error.message !== 'FetchError: The user aborted a request.') {
+              console.warn('⚠️ Falha ao carregar notificações de chat:', error.message);
+            }
+          }
+        } catch (err) {
+          // Silencioso
+        }
+    };
+
+    fetchNotifications();
+    fetchUnreadChat();
+
+    // Subscribe to new notifications
+    const subscription = supabase
+      .channel('notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${profile.id}`
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          setNotifications(prev => [newNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to new chat notifications (only count update)
+    const chatSubscription = supabase
+      .channel('chat_notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_notifications',
+          filter: `user_id=eq.${profile.id}`
+        },
+        () => {
+           setUnreadChatCount(prev => prev + 1);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+           event: 'UPDATE',
+           schema: 'public',
+           table: 'chat_notifications',
+           filter: `user_id=eq.${profile.id}`
+        },
+        () => {
+           // Re-fetch to be accurate on read status change
+           fetchUnreadChat();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      chatSubscription.unsubscribe();
+    };
+  }, [profile?.id]);
+
+  // Click outside to close notifications
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read
+    if (!notification.is_read) {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notification.id);
+      
+      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+
+    setIsNotificationsOpen(false);
+
+    // Navigate
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', profile.id)
+      .eq('is_read', false);
+    
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
   return (
-    <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#0B0F14]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0B0F14]/60">
+    <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#0B0F14]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0B0F14]/60 relative z-50">
       {/* LEFT */}
       <div className="flex items-center gap-3">
         {/* Mobile menu */}
@@ -114,20 +326,150 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Notifications */}
-          <button className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors relative">
-            <Bell size={16} />
-            {/* Mock Notification Dot */}
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0B0F14]"></span>
-          </button>
+          <div className="relative" ref={notificationRef}>
+            <button 
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${isNotificationsOpen ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-[#0F172A] border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'}`}
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-[#0B0F14] flex items-center justify-center text-[9px] font-bold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
 
-          {/* Chat - Redirects to Chat Page */}
-          <button 
-            onClick={() => navigate('/app/comunicacao/chat')}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors relative"
-            title="Ir para o Chat"
-          >
-            <MessageSquare size={16} />
-          </button>
+            {/* Notification Dropdown */}
+            {isNotificationsOpen && (
+              <div className="absolute top-12 right-0 w-80 bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                <div className="p-3 border-b border-white/10 flex items-center justify-between bg-[#131B2C]">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Bell size={14} className="text-cyan-400" />
+                    Notificações
+                  </h3>
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={markAllAsRead}
+                      className="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1"
+                    >
+                      <Check size={12} /> Marcar lidas
+                    </button>
+                  )}
+                </div>
+                
+                <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-[#9CA3AF] flex flex-col items-center gap-3">
+                      <Inbox size={32} className="opacity-20" />
+                      <p className="text-xs">Nenhuma notificação.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/5">
+                      {notifications.map(notification => (
+                        <button
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`w-full p-3 text-left hover:bg-white/5 transition-colors flex gap-3 ${!notification.is_read ? 'bg-cyan-500/5' : ''}`}
+                        >
+                          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!notification.is_read ? 'bg-cyan-500' : 'bg-transparent'}`}></div>
+                          <div>
+                            <p className={`text-xs mb-1 ${!notification.is_read ? 'text-white font-semibold' : 'text-[#E5E7EB]'}`}>
+                              {notification.title}
+                            </p>
+                            {notification.content && (
+                              <p className="text-[11px] text-[#9CA3AF] line-clamp-2 leading-relaxed">
+                                {notification.content}
+                              </p>
+                            )}
+                            <p className="text-[9px] text-[#6B7280] mt-1.5 font-medium">
+                              {new Date(notification.created_at).toLocaleDateString()} • {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Chat Notifications */}
+          <div className="relative" ref={chatNotificationRef}>
+            <button 
+              onClick={() => setIsChatNotificationsOpen(!isChatNotificationsOpen)}
+              className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${isChatNotificationsOpen ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-[#0F172A] border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'}`}
+              title="Mensagens"
+            >
+              <MessageSquare size={16} />
+              {unreadChatCount > 0 && (
+                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-[#0B0F14] flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
+                   {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                 </span>
+              )}
+            </button>
+
+            {/* Chat Dropdown */}
+            {isChatNotificationsOpen && (
+              <div className="absolute top-12 right-0 w-80 bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                <div className="p-3 border-b border-white/10 flex items-center justify-between bg-[#131B2C]">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <MessageSquare size={14} className="text-cyan-400" />
+                    Mensagens
+                  </h3>
+                  <button 
+                    onClick={() => navigate('/app/comunicacao/chat')}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium hover:underline"
+                  >
+                    Ver todas
+                  </button>
+                </div>
+                
+                <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                  {chatNotifications.length === 0 ? (
+                    <div className="p-8 text-center text-[#9CA3AF] flex flex-col items-center gap-3">
+                      <Inbox size={32} className="opacity-20" />
+                      <p className="text-xs">Nenhuma mensagem recente.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-white/5">
+                      {chatNotifications.map(notif => (
+                        <button
+                          key={notif.id}
+                          onClick={() => handleChatNotificationClick(notif)}
+                          className={`w-full p-3 text-left hover:bg-white/5 transition-colors flex gap-3 ${!notif.is_read ? 'bg-cyan-500/5' : ''}`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[#1E293B] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
+                             {notif.sender?.avatar_url ? (
+                               <img src={notif.sender.avatar_url} className="w-full h-full object-cover" />
+                             ) : (
+                               <span className="text-[10px] font-bold text-white">{notif.sender?.nome?.substring(0, 2).toUpperCase()}</span>
+                             )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                               <p className={`text-xs truncate ${!notif.is_read ? 'text-white font-bold' : 'text-[#E5E7EB]'}`}>
+                                 {notif.sender?.nome}
+                               </p>
+                               <span className="text-[9px] text-[#6B7280]">
+                                 {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                               </span>
+                            </div>
+                            <p className="text-[11px] text-[#9CA3AF] line-clamp-1 truncate">
+                              {notif.message?.content || 'Nova mensagem'}
+                            </p>
+                          </div>
+                          {!notif.is_read && (
+                             <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2 shrink-0"></div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Profile */}

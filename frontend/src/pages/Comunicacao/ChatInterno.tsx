@@ -349,13 +349,23 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       // Prioritize realtime status, fallback to 'offline'
       const status = usersStatus[otherId] || 'offline';
       
+      // Calculate unread messages for this room
+      // We check if the last message in the room is newer than my last_read_at
+      const myMemberInfo = room.members?.find(m => m.user_id === currentUser?.id);
+      const lastReadAt = myMemberInfo?.last_read_at ? new Date(myMemberInfo.last_read_at).getTime() : 0;
+      const lastMessageAt = room.last_message_at ? new Date(room.last_message_at).getTime() : 0;
+      
+      // Simple unread check: if last message > last read AND last message is not mine
+      const hasUnread = lastMessageAt > lastReadAt && room.last_message?.sender_id !== currentUser?.id;
+
       return {
         id: room.id,
         name: otherMember?.profile?.nome || 'Usuário Desconhecido',
         avatar_url: otherMember?.profile?.avatar_url,
         status: status, 
         lastMessage: room.last_message,
-        role: otherMember?.profile?.cargo || 'Membro'
+        role: otherMember?.profile?.cargo || 'Membro',
+        hasUnread
       };
     } else {
       return {
@@ -364,7 +374,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         avatar_url: null,
         status: null, // Groups don't have single status
         lastMessage: room.last_message,
-        role: 'Grupo'
+        role: 'Grupo',
+        hasUnread: false // TODO: implement group unread logic
       };
     }
   };
@@ -514,8 +525,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 {filteredRooms.map(room => {
                   const info = getRoomInfo(room);
                   const isActive = activeRoomId === room.id;
-                  // If has unread messages (mock logic, ideally check last_read_at)
-                  const hasUnread = false; 
                   
                   return (
                     <button 
@@ -545,31 +554,36 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       
                       <div className="flex-1 min-w-0 text-left">
                         <div className="flex justify-between items-center mb-0.5">
-                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-cyan-400' : 'text-[var(--text-main)]'} ${hasUnread ? 'font-bold' : ''}`}>
+                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-cyan-400' : 'text-[var(--text-main)]'} ${info.hasUnread ? 'text-white font-bold' : ''}`}>
                             {info.name}
                           </p>
                           {info.lastMessage && (
-                            <span className={`text-[10px] ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'}`}>
+                            <span className={`text-[10px] ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'} ${info.hasUnread ? 'text-cyan-400 font-bold' : ''}`}>
                               {new Date(info.lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           )}
                         </div>
-                        <p className={`text-xs truncate flex items-center gap-1.5 ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-soft)]'} ${hasUnread ? 'font-semibold text-white' : ''}`}>
-                          {info.lastMessage ? (
-                            <>
-                              {info.lastMessage.sender_id === currentUser?.id && (
-                                <CheckCheck size={14} className={isActive ? 'text-cyan-500' : 'text-[var(--text-muted)]'} />
-                              )}
-                              <span className="truncate">
-                                {info.lastMessage.attachments?.length 
-                                  ? (info.lastMessage.attachments[0].type === 'audio' ? '🎵 Áudio' : '📎 Anexo') 
-                                  : info.lastMessage.content}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="italic opacity-50">Nova conversa</span>
-                          )}
-                        </p>
+                        <div className="flex justify-between items-center">
+                            <p className={`text-xs truncate flex items-center gap-1.5 ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-soft)]'} ${info.hasUnread ? 'font-semibold text-white' : ''}`}>
+                            {info.lastMessage ? (
+                                <>
+                                {info.lastMessage.sender_id === currentUser?.id && (
+                                    <CheckCheck size={14} className={isActive ? 'text-cyan-500' : 'text-[var(--text-muted)]'} />
+                                )}
+                                <span className="truncate">
+                                    {info.lastMessage.attachments?.length 
+                                    ? (info.lastMessage.attachments[0].type === 'audio' ? '🎵 Áudio' : '📎 Anexo') 
+                                    : info.lastMessage.content}
+                                </span>
+                                </>
+                            ) : (
+                                <span className="italic opacity-50">Nova conversa</span>
+                            )}
+                            </p>
+                            {info.hasUnread && (
+                                <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                            )}
+                        </div>
                       </div>
                     </button>
                   );

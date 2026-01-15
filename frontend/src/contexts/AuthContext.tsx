@@ -225,13 +225,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     mounted.current = true
 
-    // Safety timeout to prevent infinite loading loop (10s max)
+    // Safety timeout to prevent infinite loading loop (15s max)
     const safetyTimer = setTimeout(() => {
         if (loading && mounted.current) {
             console.warn('AuthContext: Force stopping loading state after timeout')
             setLoading(false)
         }
-    }, 10000)
+    }, 15000)
 
     // Pré-carrega cache
     let cachedProfile = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))

@@ -1,0 +1,129 @@
+import { supabase } from './supabase';
+import { ChatRoom, ChatMessage, ChatRoomMember } from '@/types/chat';
+import { Profile } from '@/types/auth';
+
+export const chatService = {
+  /**
+   * Fetch all chat rooms for the current user, ordered by last activity.
+   * Includes members to help identify direct chat partners.
+   */
+  async getRooms(): Promise<ChatRoom[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('chat_rooms')
+      .select(`
+        *,
+        chat_room_members!inner (
+          user_id,
+          last_read_at,
+          role
+        ),
+        members:chat_room_members (
+           user_id,
+           joined_at,
+           role,
+           profile:profiles (
+             id, nome, avatar_url, email_login
+           )
+        ),
+        last_message:chat_messages (
+          id, content, created_at, sender_id, is_edited
+        )
+      `)
+      .order('last_message_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Process the data to include the "last_message" properly (since the join returns an array)
+    // and ensuring types match.
+    return data.map((room: any) => ({
+      ...room,
+      last_message: room.last_message?.[0] || null, // Supabase often returns array for 1:N even with limit
+      // We manually attach the 'members' with their profiles
+      members: room.members.map((m: any) => ({
+        ...m,
+        profile: m.profile
+      }))
+    })) as ChatRoom[];
+  },
+
+  /**
+   * Fetch messages for a specific room.
+   */
+  async getMessages(roomId: string, limit = 50): Promise<ChatMessage[]> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(`
+        *,
+        sender:profiles (
+          id, nome, avatar_url
+        )
+      `)
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true }) // We might want descending for pagination, but for simple chat list ascending is easier initially
+      .limit(limit);
+
+    if (error) throw error;
+    
+    // Process to ensure sender is correctly typed
+    return data.map((msg: any) => ({
+      ...msg,
+      sender: msg.sender
+    })) as ChatMessage[];
+  },
+
+  /**
+   * Send a text message to a room.
+   */
+  async sendMessage(roomId: string, content: string, attachments: any[] = []): Promise<ChatMessage> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        sender_id: user.id,
+        content,
+        attachments
+      })
+      .select(`
+        *,
+        sender:profiles (
+          id, nome, avatar_url
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+    return data as ChatMessage;
+  },
+
+  /**
+   * Create or retrieve an existing 1:1 chat with another user.
+   * Uses a server-side RPC function to ensure atomicity and handle RLS.
+   */
+  async createDirectChat(otherUserId: string): Promise<string> {
+    const { data, error } = await supabase
+      .rpc('get_or_create_direct_chat', { other_user_id: otherUserId });
+
+    if (error) throw error;
+    return data as string;
+  },
+
+  /**
+   * Mark all messages in a room as read for the current user.
+   */
+  async markAsRead(roomId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('chat_room_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('room_id', roomId)
+      .eq('user_id', user.id);
+  }
+};

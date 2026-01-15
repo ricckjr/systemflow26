@@ -687,7 +687,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                       <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                                         <Mic size={14} />
                                       </div>
-                                      <audio controls src={att.url} className="h-8 w-full max-w-[200px]" />
+                                      <audio controls preload="none" src={att.url} className="h-8 w-full max-w-[200px]" />
                                    </div>
                                  )}
                                  {att.type === 'document' && (

@@ -81,14 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Load Profile
   // ============================
   const loadProfile = useCallback(async (currentSession: Session, silent = false) => {
-    // 1. Abort previous request if active
-    if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-    }
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
-    // Race condition handling: Wait for existing promise if any
+    // Race condition handling: Wait for existing promise if any (não aborta a request ativa)
     if (loadProfilePromise.current) {
         if (!silent && !profileRef.current) setLoading(true)
         try {
@@ -96,10 +89,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
             // Ignore error from shared promise
         } finally {
-            if (mounted.current && !silent && abortControllerRef.current === controller && !profileRef.current) setLoading(false)
+            if (mounted.current && !silent && !profileRef.current) setLoading(false)
         }
         return
     }
+
+    // 1. Abort previous request if active (apenas quando vamos iniciar uma nova)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
     if (!silent && !profileRef.current) setLoading(true)
     setError(null)

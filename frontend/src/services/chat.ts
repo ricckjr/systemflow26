@@ -102,6 +102,31 @@ export const chatService = {
   },
 
   /**
+   * Upload a file to chat attachments bucket.
+   */
+  async uploadAttachment(file: File): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    // Create a path like: userId/timestamp_filename to avoid collisions and organize slightly
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('chat-attachments')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('chat-attachments')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  },
+
+  /**
    * Create or retrieve an existing 1:1 chat with another user.
    * Uses a server-side RPC function to ensure atomicity and handle RLS.
    */

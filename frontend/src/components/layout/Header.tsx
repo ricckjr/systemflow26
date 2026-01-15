@@ -114,12 +114,18 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Notifications */}
-          <button className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors">
+          <button className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors relative">
             <Bell size={16} />
+            {/* Mock Notification Dot */}
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0B0F14]"></span>
           </button>
 
-          {/* Chat */}
-          <button className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors">
+          {/* Chat - Redirects to Chat Page */}
+          <button 
+            onClick={() => navigate('/app/comunicacao/chat')}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5 transition-colors relative"
+            title="Ir para o Chat"
+          >
             <MessageSquare size={16} />
           </button>
         </div>

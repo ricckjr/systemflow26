@@ -18,25 +18,27 @@ export function useChat() {
 
   // Initial load of rooms
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
+    
+    const loadRooms = async () => {
+        try {
+          // Don't set global loading true on refresh to avoid UI flicker if we already have rooms
+          if (rooms.length === 0) setLoading(true);
+          const data = await chatService.getRooms();
+          setRooms(data);
+        } catch (error) {
+          console.error('Error loading chat rooms:', error);
+        } finally {
+          setLoading(false);
+        }
+    };
+    
     loadRooms();
     
     // Subscribe to global room updates (e.g. new messages in any room to update list)
     // For now, we'll just reload rooms on new message event in the list view context
     // Ideally, we'd listen to 'chat_rooms' updates or 'chat_messages' inserts globally
-  }, [profile]);
-
-  const loadRooms = async () => {
-    try {
-      setLoading(true);
-      const data = await chatService.getRooms();
-      setRooms(data);
-    } catch (error) {
-      console.error('Error loading chat rooms:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [profile?.id]);
 
   // Load messages when active room changes
   useEffect(() => {
@@ -79,15 +81,26 @@ export function useChat() {
           
           // To get the sender info, we might need to fetch it or look it up from members
           // For simplicity/speed, we can try to find sender in the room members list
-          const room = rooms.find(r => r.id === activeRoomId);
-          const senderProfile = room?.members?.find(m => m.user_id === newMessage.sender_id)?.profile;
+          // Note: we use a ref or functional update to access latest rooms if needed, 
+          // but for sender lookup we might need to fetch profile if not in current list context.
+          // For now, let's just fetch sender profile if missing or rely on optimistic UI.
+          
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('id, nome, avatar_url')
+            .eq('id', newMessage.sender_id)
+            .single();
           
           const enrichedMessage: ChatMessage = {
             ...newMessage,
-            sender: senderProfile || undefined // Fallback if not found
+            sender: senderProfile || undefined 
           };
 
-          setMessages(prev => [...prev, enrichedMessage]);
+          setMessages(prev => {
+             // Avoid duplicates
+             if (prev.some(m => m.id === enrichedMessage.id)) return prev;
+             return [...prev, enrichedMessage];
+          });
           
           // Mark as read immediately if we are looking at it
           chatService.markAsRead(activeRoomId);
@@ -100,15 +113,28 @@ export function useChat() {
         activeRoomSubscription.current.unsubscribe();
       }
     };
-  }, [activeRoomId, rooms]);
+    // CRITICAL FIX: Removed 'rooms' dependency to prevent re-fetching messages/re-subscribing when room list updates
+  }, [activeRoomId]);
 
-  const sendMessage = async (content: string) => {
-    if (!activeRoomId || !content.trim()) return;
+  const loadRooms = async () => {
+    try {
+      setLoading(true);
+      const data = await chatService.getRooms();
+      setRooms(data);
+    } catch (error) {
+      console.error('Error loading chat rooms:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async (content: string, attachments: any[] = []) => {
+    if (!activeRoomId || (!content.trim() && attachments.length === 0)) return;
     
     try {
       setSending(true);
       // Optimistic update could happen here
-      const newMsg = await chatService.sendMessage(activeRoomId, content);
+      const newMsg = await chatService.sendMessage(activeRoomId, content, attachments);
       
       // We rely on the subscription to add the message usually, but to be snappy we can add it 
       // check if it's already added by subscription to avoid dupe?
@@ -154,6 +180,7 @@ export function useChat() {
     activeRoomId,
     setActiveRoomId,
     sendMessage,
+    uploadAttachment: chatService.uploadAttachment,
     startDirectChat,
     loading,
     sending,

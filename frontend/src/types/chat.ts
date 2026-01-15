@@ -2,6 +2,14 @@ import { Profile } from './auth';
 
 export type ChatRoomType = 'direct' | 'group' | 'crm_deal';
 
+export interface ChatAttachment {
+  type: 'image' | 'video' | 'audio' | 'document';
+  url: string;
+  name: string;
+  size?: number;
+  mime_type?: string;
+}
+
 export interface ChatRoom {
   id: string;
   created_at: string;
@@ -36,7 +44,7 @@ export interface ChatMessage {
   created_at: string;
   updated_at?: string;
   is_edited: boolean;
-  attachments?: any[]; // Define attachment type if needed
+  attachments?: ChatAttachment[];
   reply_to_id?: string;
   // Joined sender
   sender?: Profile;

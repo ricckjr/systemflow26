@@ -12,9 +12,7 @@ import {
   Settings,
   Target,
   Save,
-  Loader2,
-  Calendar,
-  Filter
+  Loader2
 } from 'lucide-react'
 import {
   BarChart,
@@ -27,8 +25,7 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, subMonths, subYears, isWithinInterval, parseISO } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
@@ -67,41 +64,38 @@ export default function VisaoGeral() {
   const loading = isLoadingOps || isLoadingPabx
   const lastUpdated = opsUpdatedAt ? new Date(opsUpdatedAt) : new Date()
 
-  // Relógio em tempo real para o dashboard
-  const [currentTime, setCurrentTime] = useState(new Date())
-  
-  // Filter State
-  const [filterType, setFilterType] = useState<'day' | 'month' | 'year'>('month')
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const handleRefresh = async () => {
+    try {
+      console.log('Botão Atualizar clicado!'); // Debug
+      // Force minimum loading time for UX (800ms) to ensure user sees the update action
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 800))
+      await Promise.all([invalidateCRM(), minLoadTime])
+    } catch (error) {
+      console.error("Failed to refresh CRM data", error)
+    }
+  }
 
+  // Auto-refresh every 5 minutes
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    const timer = setInterval(() => {
+      handleRefresh()
+    }, 5 * 60 * 1000)
     return () => clearInterval(timer)
-  }, [])
+  }, [invalidateCRM])
 
   /* ===========================
      STATS CALCULATION
   ============================ */
   const stats = useMemo(() => {
-    // Determine current and previous date ranges
-    let start, end, prevStart, prevEnd;
+    // Force "America/Sao_Paulo" timezone for current month calculation
+    // We get the current date, convert to SP time to find the correct month/year
+    const now = new Date()
+    const spDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
     
-    if (filterType === 'day') {
-      start = startOfDay(selectedDate);
-      end = endOfDay(selectedDate);
-      prevStart = startOfDay(subDays(selectedDate, 1));
-      prevEnd = endOfDay(subDays(selectedDate, 1));
-    } else if (filterType === 'month') {
-      start = startOfMonth(selectedDate);
-      end = endOfMonth(selectedDate);
-      prevStart = startOfMonth(subMonths(selectedDate, 1));
-      prevEnd = endOfMonth(subMonths(selectedDate, 1));
-    } else {
-      start = startOfYear(selectedDate);
-      end = endOfYear(selectedDate);
-      prevStart = startOfYear(subYears(selectedDate, 1));
-      prevEnd = endOfYear(subYears(selectedDate, 1));
-    }
+    const start = startOfMonth(spDate)
+    const end = endOfMonth(spDate)
+    const prevStart = startOfMonth(subMonths(spDate, 1))
+    const prevEnd = endOfMonth(subMonths(spDate, 1))
 
     // Helper to filter data by range
     const filterData = (list: CRM_Oportunidade[], s: Date, e: Date) => {
@@ -114,10 +108,6 @@ export default function VisaoGeral() {
 
     const currentData = filterData(data, start, end)
     const lastData = filterData(data, prevStart, prevEnd)
-    const effective = currentData.length > 0 ? currentData : (filterType === 'month' && isWithinInterval(new Date(), { start, end }) ? [] : []) 
-    // Note: original logic fell back to 'data' if currentData was empty, but with explicit filters usually we want 0 if empty.
-    // However, keeping original behavior for 'effective' might confuse the specific filter. 
-    // Let's strictly use currentData for values. If empty, values are 0.
     
     const calculateMetrics = (dataset: CRM_Oportunidade[]) => {
       const vendaValue = dataset.reduce((a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta) : 0), 0)
@@ -192,7 +182,7 @@ export default function VisaoGeral() {
       propostasGeradas: { value: propCurr, trend: calcTrend(propCurr, propLast) },
       ligacoesFeitas: { value: callsCurr, trend: calcTrend(callsCurr, callsLast) }
     }
-  }, [data, pabxLigacoes, filterType, selectedDate])
+  }, [data, pabxLigacoes])
 
   if (loading && data.length === 0) {
     return (
@@ -204,111 +194,66 @@ export default function VisaoGeral() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* HEADER DASHBOARD TV */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight flex items-center gap-3">
-            <span className="w-2 h-8 bg-[var(--primary)] rounded-full block"></span>
-            Monitoramento Comercial
-          </h1>
-          <p className="text-sm text-[var(--text-soft)] mt-1 flex items-center gap-2">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            Atualizado em: {lastUpdated.toLocaleTimeString()}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="text-right hidden md:block">
-            <p className="text-3xl font-bold text-[var(--text-main)] leading-none font-mono">
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-            <p className="text-xs text-[var(--text-soft)] uppercase tracking-widest mt-1">
-              {currentTime.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </p>
-          </div>
-          
+    <div className="space-y-6 animate-in fade-in duration-700">
+      {/* HEADER ACTIONS */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">Visão Geral</h1>
+        
+        <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsMetaModalOpen(true)}
-            className="p-3 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-all duration-300"
-            title="Configurar Metas"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-medium text-sm shadow-sm"
           >
-            <Settings size={20} />
+            <Target size={18} />
+            <span>Definir Meta</span>
           </button>
 
           <button 
-            onClick={() => invalidateCRM()}
-            className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-all duration-300"
-            title="Atualizar Dados"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleRefresh();
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
+            title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
+            disabled={loading}
+            style={{ position: 'relative', zIndex: 100 }}
           >
-            <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+            <span>{loading ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
         </div>
       </div>
 
-      {/* FILTER SECTION */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2">
-        <div className="flex items-center gap-4 bg-[var(--bg-panel)] p-2 rounded-xl border border-[var(--border)] shadow-sm">
-          <div className="flex items-center gap-2 px-2 text-[var(--primary)]">
-            <Filter size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">Filtro</span>
+      {/* CONTENT WRAPPER WITH OVERLAY */}
+      <div className="relative min-h-[500px]">
+        {loading && (
+          <div className="absolute inset-0 z-30 bg-[var(--bg-body)]/80 backdrop-blur-sm flex items-center justify-center rounded-3xl transition-all duration-500 animate-in fade-in">
+            <div className="flex flex-col items-center gap-6 p-8">
+              <div className="relative">
+                <div className="w-20 h-20 border-4 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <RefreshCw className="w-8 h-8 text-[var(--primary)] animate-pulse" />
+                </div>
+                {/* Orbital dots */}
+                <div className="absolute inset-0 animate-spin-slow-reverse opacity-60">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-3 h-3 bg-emerald-400 rounded-full blur-[2px]" />
+                </div>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xl font-bold text-[var(--text-main)] tracking-tight">Atualizando Dashboard</span>
+                <span className="text-sm text-[var(--text-soft)] font-medium bg-[var(--bg-panel)] px-3 py-1 rounded-full border border-[var(--border)]">
+                  Sincronizando dados em tempo real...
+                </span>
+              </div>
+            </div>
           </div>
-          
-          <div className="h-6 w-px bg-[var(--border)]" />
-
-          <div className="flex bg-[var(--bg-body)] rounded-lg p-1 border border-[var(--border)]">
-            {(['day', 'month', 'year'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setFilterType(t)}
-                className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
-                  filterType === t 
-                    ? 'bg-[var(--primary)] text-white shadow-sm' 
-                    : 'text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-panel)]'
-                }`}
-              >
-                {t === 'day' ? 'Dia' : t === 'month' ? 'Mês' : 'Ano'}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-6 w-px bg-[var(--border)]" />
-
-          <div className="flex items-center gap-2 pr-2">
-            <Calendar size={16} className="text-[var(--text-soft)]" />
-            {filterType === 'day' && (
-              <input 
-                type="date" 
-                value={format(selectedDate, 'yyyy-MM-dd')}
-                onChange={(e) => e.target.value && setSelectedDate(parseISO(e.target.value))}
-                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none color-scheme-dark"
-              />
-            )}
-            {filterType === 'month' && (
-              <input 
-                type="month" 
-                value={format(selectedDate, 'yyyy-MM')}
-                onChange={(e) => e.target.value && setSelectedDate(parseISO(e.target.value))}
-                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none color-scheme-dark"
-              />
-            )}
-            {filterType === 'year' && (
-              <select
-                value={selectedDate.getFullYear()}
-                onChange={(e) => setSelectedDate(new Date(Number(e.target.value), 0, 1))}
-                className="bg-transparent text-[var(--text-main)] text-sm font-medium focus:outline-none cursor-pointer [&>option]:text-black"
-              >
-                {[2024, 2025, 2026, 2027].map(y => (
-                  <option key={y} value={y} className="bg-[var(--bg-panel)] text-[var(--text-main)]">{y}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        )}
+        
+        <div className={`space-y-6 transition-all duration-500 ${loading ? 'opacity-40 scale-[0.99] grayscale-[0.5] blur-[1px]' : ''}`}>
+          {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KPI 
           title="Ligações Feitas" 
           value={String(stats.ligacoesFeitas.value)} 
@@ -398,6 +343,9 @@ export default function VisaoGeral() {
           <RankingSection data={data} />
         </div>
       </div>
+      
+      </div>
+    </div>
 
       <MetaModal 
         isOpen={isMetaModalOpen} 
@@ -735,6 +683,7 @@ const MetaModal = ({
       const nomeMeta = meta.meta_geral || (meta as any).meta_comercial || ''
       
       setFormData({
+        meta_comercial: meta.meta_comercial || '',
         meta_geral: nomeMeta,
         meta_valor_financeiro: meta.meta_valor_financeiro || 0,
         supermeta_valor_financeiro: meta.supermeta_valor_financeiro || 0,

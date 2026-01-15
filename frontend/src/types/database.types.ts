@@ -634,12 +634,164 @@ export interface Database {
           }
         ]
       }
+      chat_rooms: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string | null
+          type: string
+          name: string | null
+          description: string | null
+          created_by: string
+          metadata: Json | null
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string | null
+          type: string
+          name?: string | null
+          description?: string | null
+          created_by: string
+          metadata?: Json | null
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string | null
+          type?: string
+          name?: string | null
+          description?: string | null
+          created_by?: string
+          metadata?: Json | null
+          last_message_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      chat_room_members: {
+        Row: {
+          room_id: string
+          user_id: string
+          role: string
+          joined_at: string
+          last_read_at: string | null
+        }
+        Insert: {
+          room_id: string
+          user_id: string
+          role?: string
+          joined_at?: string
+          last_read_at?: string | null
+        }
+        Update: {
+          room_id?: string
+          user_id?: string
+          role?: string
+          joined_at?: string
+          last_read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_room_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          room_id: string
+          sender_id: string
+          content: string | null
+          created_at: string
+          updated_at: string | null
+          is_edited: boolean
+          attachments: Json[] | null
+          reply_to_id: string | null
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          sender_id: string
+          content?: string | null
+          created_at?: string
+          updated_at?: string | null
+          is_edited?: boolean
+          attachments?: Json[] | null
+          reply_to_id?: string | null
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          sender_id?: string
+          content?: string | null
+          created_at?: string
+          updated_at?: string | null
+          is_edited?: boolean
+          attachments?: Json[] | null
+          reply_to_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_or_create_direct_chat: {
+        Args: {
+          other_user_id: string
+        }
+        Returns: string
+      }
+      update_user_status: {
+        Args: {
+          new_status: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never

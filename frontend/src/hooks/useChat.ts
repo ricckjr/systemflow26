@@ -87,13 +87,13 @@ export function useChat() {
           
           const { data: senderProfile } = await supabase
             .from('profiles')
-            .select('id, nome, avatar_url')
+            .select('id, nome, avatar_url, email_login, ativo, created_at, cargo')
             .eq('id', newMessage.sender_id)
             .single();
           
           const enrichedMessage: ChatMessage = {
             ...newMessage,
-            sender: senderProfile || undefined 
+            sender: senderProfile as any
           };
 
           setMessages(prev => {

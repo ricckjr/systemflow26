@@ -150,5 +150,38 @@ export const chatService = {
       .update({ last_read_at: new Date().toISOString() })
       .eq('room_id', roomId)
       .eq('user_id', user.id);
+  },
+
+  /**
+   * Subscribe to new incoming messages.
+   */
+  subscribeToNewMessages(callback: (msg: ChatMessage) => void) {
+    return supabase
+      .channel('chat_messages_all')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        async (payload) => {
+          const newMessage = payload.new as any;
+
+          // Note: we use a ref or functional update to access latest rooms if needed, 
+          // but for sender lookup we might need to fetch profile if not in current list context.
+          // For now, let's just fetch sender profile if missing or rely on optimistic UI.
+          
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('id, nome, avatar_url, email_login, ativo, created_at, cargo')
+            .eq('id', newMessage.sender_id)
+            .single();
+          
+          const enrichedMessage: ChatMessage = {
+            ...newMessage,
+            sender: senderProfile as any // Cast to avoid strict type check if some fields are null
+          };
+
+          callback(enrichedMessage);
+        }
+      )
+      .subscribe();
   }
 };

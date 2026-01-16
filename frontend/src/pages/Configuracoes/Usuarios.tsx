@@ -34,7 +34,7 @@ interface UsuariosProps {
 }
 
 export default function Usuarios({ profile: propProfile }: UsuariosProps) {
-  const { profile: authProfile } = useAuth()
+  const { profile: authProfile, loading: authLoading } = useAuth()
   const profile = propProfile || authProfile
 
   const [usuarios, setUsuarios] = useState<Profile[]>([])
@@ -204,7 +204,30 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       }
   }
 
-  if (!profile) return <div className="p-8 text-center text-white">Carregando perfil...</div>;
+  if (authLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center h-64 text-industrial-text-secondary">
+            <Loader2 className="animate-spin mb-4 text-[#38BDF8]" size={48} />
+            <p>Carregando perfil de acesso...</p>
+        </div>
+    )
+  }
+
+  if (!profile) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 text-red-400">
+            <AlertTriangle className="mb-4" size={48} />
+            <p className="text-lg font-bold">Erro de Acesso</p>
+            <p className="text-sm opacity-80 mb-4">Não foi possível carregar seu perfil de usuário.</p>
+            <button 
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-industrial-surface border border-industrial-border rounded-lg text-white hover:bg-industrial-surface/80 transition-colors"
+            >
+                Tentar Novamente
+            </button>
+        </div>
+      )
+  }
 
   return (
     <div className="space-y-6">

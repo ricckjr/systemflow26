@@ -15,21 +15,35 @@ async function getHeaders() {
 async function request(endpoint: string, options: RequestInit = {}) {
   const headers = await getHeaders()
   
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      ...headers,
-      ...options.headers
+  // Timeout de 15s para requisições ao backend
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers
+      },
+      signal: controller.signal
+    })
+    clearTimeout(id)
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro na requisição')
     }
-  })
 
-  const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Erro na requisição')
+    return data
+  } catch (error: any) {
+    clearTimeout(id)
+    if (error.name === 'AbortError') {
+      throw new Error('O servidor demorou muito para responder. Tente novamente.')
+    }
+    throw error
   }
-
-  return data
 }
 
 export const api = {

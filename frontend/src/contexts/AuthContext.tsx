@@ -121,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle()
         
         const timeoutPromise = new Promise<any>((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout loading profile')), 5000)
+            setTimeout(() => reject(new Error('Timeout loading profile')), 10000)
         )
 
         try {

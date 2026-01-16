@@ -45,12 +45,14 @@ export default function VisaoGeral() {
   const { 
     data: oportunidadesData, 
     isLoading: isLoadingOps, 
+    error: errorOps,
     dataUpdatedAt: opsUpdatedAt 
   } = useOportunidades()
   
   const { 
     data: pabxLigacoesData, 
-    isLoading: isLoadingPabx 
+    isLoading: isLoadingPabx,
+    error: errorPabx
   } = usePabxLigacoes()
 
   const { data: meta } = useMeta()
@@ -63,6 +65,8 @@ export default function VisaoGeral() {
   const pabxLigacoes = pabxLigacoesData || []
   const loading = isLoadingOps || isLoadingPabx
   const lastUpdated = opsUpdatedAt ? new Date(opsUpdatedAt) : new Date()
+  const errorMessage =
+    errorOps || errorPabx ? 'Falha ao carregar dados do dashboard. Tente atualizar.' : null
 
   const handleRefresh = async () => {
     try {
@@ -225,6 +229,12 @@ export default function VisaoGeral() {
           </button>
         </div>
       </div>
+
+      {errorMessage ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {errorMessage}
+        </div>
+      ) : null}
 
       {/* CONTENT WRAPPER WITH OVERLAY */}
       <div className="relative min-h-[500px]">

@@ -14,10 +14,7 @@ export default defineConfig(({ mode }) => {
           'Pragma': 'no-cache',
           'Expires': '0',
         },
-        watch: {
-          usePolling: true,
-          interval: 150,
-        },
+        // Polling removed for performance on Windows/Local
         hmr: {
           overlay: true,
         },

@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase'
+import { traceQuery } from '@/utils/telemetry'
 
 export interface CRM_Oportunidade {
   id_oportunidade: string
@@ -31,29 +32,16 @@ export interface CRM_Oportunidade {
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
   
-  try {
-    const { data, error } = await supabase
+  const { data, error } = await traceQuery(
+    'fetchOportunidades',
+    supabase
       .from('crm_oportunidades')
-      .select('*')
+      .select('id_oportunidade, cod_oportunidade, cliente, nome_contato, telefone01_contato, email, vendedor, id_vendedor, solucao, origem, etapa, status, temperatura, valor_proposta, data_inclusao, data, dias_abertos, dias_parado')
       .order('data_inclusao', { ascending: !orderDesc })
-      .abortSignal(AbortSignal.timeout(15000)) // Timeout de 15s para evitar hanging indefinido
+  )
 
-    if (error) {
-      // Ignorar erros de abortamento causados por navegação rápida ou refresh
-      if (error.code === '20' || error.message?.includes('AbortError')) {
-        return []
-      }
-      throw error
-    }
-    
-    return data as CRM_Oportunidade[] || []
-  } catch (err: any) {
-    if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-      console.warn('Requisição de oportunidades cancelada (timeout ou navegação).')
-      return []
-    }
-    throw err
-  }
+  if (error) throw error
+  return (data as CRM_Oportunidade[]) || []
 }
 
 export const isVenda = (s?: string | null) =>
@@ -89,8 +77,7 @@ export async function fetchLigacoes() {
   if (error) {
     // Se a tabela não existir (ainda), retorna vazio silenciosamente para não quebrar o dashboard
     if (error.code === '42P01') return [] 
-    console.error('Erro ao buscar ligações:', error)
-    return []
+    throw error
   }
   return data as CRM_Ligacao[]
 }
@@ -103,8 +90,7 @@ export async function fetchPabxLigacoes() {
   
   if (error) {
     if (error.code === '42P01') return [] // Table doesn't exist
-    console.error('Erro ao buscar ligações PABX:', error)
-    return []
+    throw error
   }
   return data as CRM_PabxLigacao[]
 }
@@ -130,8 +116,7 @@ export async function fetchMeta() {
       // No rows returned
       return null
     }
-    console.error('Erro ao buscar metas:', error)
-    return null
+    throw error
   }
   return data as CRM_Meta
 }

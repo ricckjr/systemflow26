@@ -12,6 +12,7 @@ import { supabase } from '@/services/supabase'
 import type { Profile, ProfilePermissao } from '@/types'
 import { logInfo, logError, logWarn } from '@/utils/logger'
 import { decodeJwt, isJwtExpired } from '@/utils/jwt'
+import { traceQuery } from '@/utils/telemetry'
 
 interface AuthContextType {
   session: Session | null
@@ -19,6 +20,10 @@ interface AuthContextType {
   permissions: ProfilePermissao[]
   perms: ProfilePermissao[]
   loading: boolean
+  authReady: boolean
+  profileLoading: boolean
+  profileReady: boolean
+  systemReady: boolean
   error: Error | null
   signOut: () => Promise<void>
   isAdmin: boolean
@@ -64,6 +69,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null)
   const [permissions, setPermissions] = useState<ProfilePermissao[]>([])
   const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileReady, setProfileReady] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   const mounted = useRef(true)
@@ -84,12 +92,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Race condition handling: Wait for existing promise if any (não aborta a request ativa)
     if (loadProfilePromise.current) {
         if (!silent && !profileRef.current) setLoading(true)
+        setProfileLoading(true)
+        setProfileReady(false)
         try {
             await loadProfilePromise.current
         } catch (e) {
             // Ignore error from shared promise
         } finally {
             if (mounted.current && !silent && !profileRef.current) setLoading(false)
+            if (mounted.current) {
+              setProfileLoading(false)
+              setProfileReady(true)
+            }
         }
         return
     }
@@ -102,39 +116,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     abortControllerRef.current = controller
 
     if (!silent && !profileRef.current) setLoading(true)
+    setProfileLoading(true)
     setError(null)
+    setProfileReady(false)
 
     const task = async () => {
       // Retry x3 (proxy / cold start / kong)
-      let data: Profile | null = null
-      let err: any = null
+      let profileData: Profile | null = null
+      let profileErr: any = null
 
       for (let i = 0; i < 3; i++) {
         if (controller.signal.aborted) return // Early exit
 
-        // Add timeout to fetch to prevent hanging
-        const fetchPromise = supabase
-          .from('profiles')
-          .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, created_at, updated_at, cargo')
-          .eq('id', currentSession.user.id)
-          .abortSignal(controller.signal) // Supabase supports abortSignal
-          .maybeSingle()
+        // Parallel Requests: Profile + Permissions
+        const profilePromise = traceQuery(
+          'loadProfile:profiles',
+          supabase
+            .from('profiles')
+            .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, created_at, updated_at, cargo')
+            .eq('id', currentSession.user.id)
+            .abortSignal(controller.signal)
+            .maybeSingle()
+        )
         
-        const timeoutPromise = new Promise<any>((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout loading profile')), 10000)
+        const permsPromise = traceQuery(
+          'loadProfile:permissoes',
+          supabase
+            .from('profile_permissoes')
+            .select('*, permissoes(*)')
+            .eq('profile_id', currentSession.user.id)
+            .abortSignal(controller.signal)
         )
 
         try {
-            const res = await Promise.race([fetchPromise, timeoutPromise])
-            if (!res.error && res.data) {
-                data = res.data
-                err = null
-                break
+            const [resProfile, resPerms] = await Promise.all([profilePromise, permsPromise])
+
+            // Handle Profile Result
+            if (!resProfile.error && resProfile.data) {
+                profileData = resProfile.data
+                profileErr = null
+                
+                // Handle Perms Result (Fail-soft)
+                if (resPerms.data) {
+                     if (mounted.current && !controller.signal.aborted) {
+                        setPermissions(resPerms.data || [])
+                        localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(resPerms.data))
+                     }
+                }
+                
+                break // Success
             }
-            err = res.error
+            profileErr = resProfile.error
         } catch (e: any) {
             if (e.name === 'AbortError') return // Silent exit
-            err = e
+            profileErr = e
         }
         
         if (i < 2 && !controller.signal.aborted) await new Promise(r => setTimeout(r, 500 * (i + 1)))
@@ -142,16 +177,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (controller.signal.aborted) return
 
-      if (err) throw err
+      if (profileErr) throw profileErr
 
       if (!mounted.current) return
 
       // Se veio do banco → atualiza + cache
-      if (data) {
+      if (profileData) {
         // Ensure data is normalized before saving
-        data = normalizeProfile(data)!
-        setProfile(data)
-        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(data))
+        profileData = normalizeProfile(profileData)!
+        setProfile(profileData)
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profileData))
       } else {
         // Se não veio, tenta preservar cache/estado
         let cached = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
@@ -165,20 +200,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setProfile(null)
         }
-      }
-
-      // Permissões
-      if (!controller.signal.aborted) {
-          const { data: perms } = await supabase
-            .from('profile_permissoes')
-            .select('*, permissoes(*)')
-            .eq('profile_id', currentSession.user.id)
-            .abortSignal(controller.signal)
-
-          if (mounted.current && !controller.signal.aborted) {
-            setPermissions(perms || [])
-            if (perms) localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(perms))
-          }
       }
     }
 
@@ -216,6 +237,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear the promise ref
       loadProfilePromise.current = null
       if (mounted.current && !silent && abortControllerRef.current === controller) setLoading(false)
+      if (mounted.current && abortControllerRef.current === controller) setProfileLoading(false)
+      if (mounted.current && !controller.signal.aborted) setProfileReady(true)
     }
   }, [])
 
@@ -224,14 +247,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================
   useEffect(() => {
     mounted.current = true
-
-    // Safety timeout to prevent infinite loading loop (15s max)
-    const safetyTimer = setTimeout(() => {
-        if (loading && mounted.current) {
-            console.warn('AuthContext: Force stopping loading state after timeout')
-            setLoading(false)
-        }
-    }, 15000)
 
     // Pré-carrega cache
     let cachedProfile = safeParse<any>(localStorage.getItem(PROFILE_CACHE_KEY))
@@ -250,23 +265,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!data.session) {
           setLoading(false)
+          setAuthReady(true)
+          setProfileReady(true)
           initialized.current = true
           return
         }
 
         setSession(data.session)
+        setAuthReady(true)
 
         // Se temos cache → libera UI já
         if (cachedProfile) {
           setLoading(false)
+          setProfileReady(true)
           void loadProfile(data.session, true)
         } else {
           await loadProfile(data.session, false)
+          setProfileReady(true)
         }
 
         initialized.current = true
       } catch {
         if (mounted.current) setLoading(false)
+        if (mounted.current) setAuthReady(true)
         initialized.current = true
       }
     }
@@ -280,18 +301,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (initialized.current) return
         if (!newSession) {
           setLoading(false)
+          setAuthReady(true)
+          setProfileReady(true)
           initialized.current = true
           return
         }
 
         setSession(newSession)
+        setAuthReady(true)
         const cached = safeParse<Profile>(localStorage.getItem(PROFILE_CACHE_KEY))
         if (cached) {
           setProfile(cached)
           setLoading(false)
+          setProfileReady(true)
           void loadProfile(newSession, true)
         } else {
           await loadProfile(newSession, false)
+          setProfileReady(true)
         }
 
         initialized.current = true
@@ -303,6 +329,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null)
         setPermissions([])
         setLoading(false)
+        setAuthReady(true)
+        setProfileReady(true)
         localStorage.removeItem(PROFILE_CACHE_KEY)
         localStorage.removeItem(PERMS_CACHE_KEY)
         return
@@ -326,7 +354,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted.current = false
-      clearTimeout(safetyTimer)
       subscription.unsubscribe()
     }
   }, [loadProfile])
@@ -358,9 +385,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null)
 
     // 3. Logout SERVIDOR
-    // Omitimos a chamada de rede (supabase.auth.signOut) pois ela frequentemente
-    // causa erros "net::ERR_ABORTED" quando seguida imediatamente por um reload/navegação.
-    // Como removemos o token localmente, o usuário está efetivamente deslogado neste dispositivo.
+    try {
+        await supabase.auth.signOut()
+    } catch (e) {
+        console.warn('Supabase SignOut error (ignored):', e)
+    }
     
     setLoading(false)
     // Força recarregamento ou redirecionamento para garantir limpeza, apenas se não estiver no login
@@ -380,11 +409,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     permissions,
     perms: permissions,
     loading,
+    authReady,
+    profileLoading,
+    profileReady,
+    systemReady: authReady && !loading && !!session && !!profile && !error,
     error,
     signOut,
     isAdmin: profile?.cargo === 'ADMIN',
     refreshProfile
-  }), [session, profile, permissions, loading, error, signOut, refreshProfile])
+  }), [session, profile, permissions, loading, authReady, profileLoading, profileReady, error, signOut, refreshProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -233,7 +233,7 @@ export async function fetchUnifiedTasks(userBoardId: string, search?: string) {
   let q = supabase
     .from('taskflow_tasks')
     .select(`
-      *,
+      id, board_id, column_id, title, priority, due_date, created_at, created_by,
       column:taskflow_columns(name),
       owner:profiles!created_by(id, nome, avatar_url),
       assignees:taskflow_task_users(

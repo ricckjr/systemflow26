@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
     ensureDefaultBoard, 
     fetchBoards,
     fetchBoardData, 
-    fetchUnifiedTasks,
     createTask, 
     updateTask, 
     deleteTask,
@@ -27,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
     TFColumn, 
     TFTask 
 } from '@/services/taskflow';
+import { useUnifiedTasks } from '@/hooks/useTaskFlow'; // <--- Hook Added
 import { 
   Plus, 
   Calendar, 
@@ -102,6 +102,16 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const [hasMoreByColumn, setHasMoreByColumn] = useState<Record<string, boolean>>({});
   const [infinite, setInfinite] = useState(true);
   
+  // React Query Integration
+  const { data: queryTasks, refetch: refetchTasks } = useUnifiedTasks(board?.id);
+  
+  // Sync React Query data to local state (allowing optimistic updates)
+  useEffect(() => {
+    if (queryTasks) {
+      setTasks(queryTasks);
+    }
+  }, [queryTasks]);
+
   // Modal State
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -194,8 +204,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             setColumns(defaultCols);
 
             // 4. Fetch ALL accessible tasks (Unified View)
-            const allTasks = await fetchUnifiedTasks(defaultBoard.id);
-            setTasks(allTasks);
+            // Removed manual fetch: managed by useUnifiedTasks hook
+            // const allTasks = await fetchUnifiedTasks(defaultBoard.id);
+            // setTasks(allTasks);
         }
       } catch (err) {
         console.error('TaskFlow Critical Error: Failed to load/create board', err);

@@ -5,6 +5,7 @@ import { logInfo } from '@/utils/logger'
 import { CRM_Oportunidade } from '@/services/crm'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { useOportunidades, useInvalidateCRM } from '@/hooks/useCRM'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Search,
   RefreshCw,
@@ -27,6 +28,7 @@ import {
 } from 'lucide-react'
 
 const Oportunidades: React.FC = () => {
+  const { systemReady } = useAuth()
   // React Query Hooks
   const { 
     data: oportunidadesData, 
@@ -78,12 +80,12 @@ const Oportunidades: React.FC = () => {
      INIT
   ============================ */
   useEffect(() => {
+    if (!systemReady) return
     void (async () => {
       await checkSupabaseConnectivity()
       await checkTableAccess('crm_oportunidades')
-      // No need to fetch manually, React Query handles it
     })()
-  }, [])
+  }, [systemReady])
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250)

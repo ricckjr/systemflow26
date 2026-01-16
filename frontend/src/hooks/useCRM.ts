@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { fetchOportunidades, fetchLigacoes, fetchPabxLigacoes, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
+import { useAuth } from '@/contexts/AuthContext'
 
 export const CRM_KEYS = {
   all: ['crm'] as const,
@@ -10,11 +11,13 @@ export const CRM_KEYS = {
 }
 
 export function useOportunidades() {
+  const { systemReady } = useAuth()
   return useQuery({
     queryKey: CRM_KEYS.oportunidades(),
     queryFn: () => fetchOportunidades({ orderDesc: true }),
-    staleTime: 1000 * 60 * 5, // 5 min (Mantém fresco por 5 min)
-    gcTime: 1000 * 60 * 30,   // 30 min (Mantém na memória se não usado)
+    enabled: systemReady,
+    staleTime: 1000 * 60 * 1, // 1 min
+    gcTime: 1000 * 60 * 10,   // 10 min
     refetchInterval: 1000 * 60 * 5, // Auto-refresh a cada 5 min
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Backoff: 1s, 2s, 4s... max 10s
@@ -22,27 +25,33 @@ export function useOportunidades() {
 }
 
 export function useLigacoes() {
+  const { systemReady } = useAuth()
   return useQuery({
     queryKey: CRM_KEYS.ligacoes(),
     queryFn: fetchLigacoes,
-    staleTime: 1000 * 60 * 5,
+    enabled: systemReady,
+    staleTime: 1000 * 60 * 1,
     refetchInterval: 1000 * 60 * 5,
   })
 }
 
 export function usePabxLigacoes() {
+  const { systemReady } = useAuth()
   return useQuery({
     queryKey: CRM_KEYS.pabxLigacoes(),
     queryFn: fetchPabxLigacoes,
-    staleTime: 1000 * 60 * 5,
+    enabled: systemReady,
+    staleTime: 1000 * 60 * 1,
     refetchInterval: 1000 * 60 * 5,
   })
 }
 
 export function useMeta() {
+  const { systemReady } = useAuth()
   return useQuery({
     queryKey: CRM_KEYS.meta(),
     queryFn: fetchMeta,
+    enabled: systemReady,
     staleTime: 1000 * 60 * 30, // 30 min (Metas mudam pouco)
   })
 }

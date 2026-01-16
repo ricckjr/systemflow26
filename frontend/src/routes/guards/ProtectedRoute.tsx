@@ -5,10 +5,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Profile, ProfilePermissao } from '@/types'
 
 export default function ProtectedRoute({ children }: { children?: React.ReactNode }) {
-  const { session, profile, permissions, loading, error } = useAuth()
+  const { session, profile, permissions, loading, error, authReady, profileReady, refreshProfile, signOut } = useAuth()
   const location = useLocation()
 
-  if (loading) {
+  if (!authReady || loading || (session && !profileReady)) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-main)]">
         <div className="loader"></div>
@@ -23,10 +23,33 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
   // Force profile creation if missing
   const isProfilePage = location.pathname === '/app/configuracoes/perfil'
   // Adicionado check !error para evitar redirect em caso de falha de conexão/timeout
-  if (!profile && !loading && !error) {
+  if (!profile && !loading && !error && profileReady) {
      if (!isProfilePage) {
          return <Navigate to="/app/configuracoes/perfil" replace state={{ message: 'Complete seu perfil para continuar.' }} />
      }
+  }
+
+  if (!profile && error) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-main)] px-6 text-center">
+        <h1 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Falha ao carregar seu perfil</h1>
+        <p className="text-sm text-[var(--text-secondary)] mb-6">{error.message}</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => void refreshProfile()}
+            className="px-5 py-2 rounded-md bg-brand-600 hover:bg-brand-700 text-white font-medium"
+          >
+            Tentar novamente
+          </button>
+          <button
+            onClick={() => void signOut()}
+            className="px-5 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-medium"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (profile && !profile.ativo) {

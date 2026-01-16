@@ -30,6 +30,8 @@ const REQUIRED_COLUMNS = [
   { name: 'CONCLUÍDO', order_index: 5 },
 ];
 
+import { api } from '@/services/api';
+
 export async function ensureDefaultBoard(user: Profile): Promise<{ board: TFBoard; columns: TFColumn[] }> {
   // 1. Get or Create Board
   let { data: board } = await supabase
@@ -40,12 +42,44 @@ export async function ensureDefaultBoard(user: Profile): Promise<{ board: TFBoar
     .single();
 
   if (!board) {
-    const { data: created } = await supabase
-      .from('taskflow_boards')
-      .insert([{ name: 'Meu Board', created_by: user.id }])
-      .select('*')
-      .single();
-    board = created;
+    try {
+        // 1. Insert without returning
+        const { error: insertError } = await supabase
+          .from('taskflow_boards')
+          .insert([{ name: 'Meu Board', created_by: user.id }]);
+        
+        if (insertError) throw insertError;
+
+        // 2. Fetch separately (sometimes RLS allows insert but requires separate select call context)
+        const { data: created } = await supabase
+          .from('taskflow_boards')
+          .select('*')
+          .eq('created_by', user.id)
+          .limit(1)
+          .single();
+          
+        board = created;
+    } catch (e) {
+        // Fallback: Tenta criar via backend se falhar por RLS
+        try {
+            console.warn('Falha ao criar board localmente, tentando via backend...', e);
+            const res = await api.taskflow.fixBoard();
+            board = res.board;
+        } catch (backendErr) {
+            console.error('Falha crítica ao criar board via backend:', backendErr);
+        }
+    }
+  }
+
+  if (!board) {
+     // Última tentativa: Busca novamente caso o backend tenha criado mas não retornado corretamente (race condition)
+     const { data: retry } = await supabase
+        .from('taskflow_boards')
+        .select('*')
+        .eq('created_by', user.id)
+        .limit(1)
+        .single();
+     board = retry;
   }
 
   if (!board) {

@@ -76,13 +76,19 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const { profile: authProfile } = useAuth();
   const profile = propProfile || authProfile;
 
-  if (!profile) return (
-    <div className="flex items-center justify-center h-[50vh] text-[var(--text-soft)] animate-pulse gap-2">
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-    </div>
-  );
+  if (!profile) {
+    console.error('TaskFlow: Perfil não encontrado no contexto de autenticação.');
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] text-[var(--text-soft)] gap-4">
+        <div className="flex gap-2">
+          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        </div>
+        <p className="text-xs text-rose-400">Carregando perfil... Se demorar muito, recarregue a página.</p>
+      </div>
+    );
+  }
 
   const user = profile; // Alias for legacy code usage
 
@@ -180,15 +186,21 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       }
 
       // 3. Always use default board for structure
-      const { board: defaultBoard, columns: defaultCols } = await ensureDefaultBoard(user);
-      targetBoard = defaultBoard;
-      setBoard(defaultBoard);
-      setColumns(defaultCols);
+      try {
+        const { board: defaultBoard, columns: defaultCols } = await ensureDefaultBoard(user);
+        if (defaultBoard) {
+            targetBoard = defaultBoard;
+            setBoard(defaultBoard);
+            setColumns(defaultCols);
 
-      // 4. Fetch ALL accessible tasks (Unified View)
-      // This ignores board_id filter and brings everything the user can see
-      const allTasks = await fetchUnifiedTasks(defaultBoard.id);
-      setTasks(allTasks);
+            // 4. Fetch ALL accessible tasks (Unified View)
+            const allTasks = await fetchUnifiedTasks(defaultBoard.id);
+            setTasks(allTasks);
+        }
+      } catch (err) {
+        console.error('TaskFlow Critical Error: Failed to load/create board', err);
+        // Não travar a UI inteira, talvez mostrar um estado de erro
+      }
 
       const allUsers = await fetchUsers();
       setUsers(allUsers);

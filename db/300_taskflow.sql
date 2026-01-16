@@ -114,55 +114,71 @@ DROP POLICY IF EXISTS tf_activity_select ON public.taskflow_activity_log;
 DROP POLICY IF EXISTS tf_activity_insert ON public.taskflow_activity_log;
 
 -- Boards Policies
-CREATE OR REPLACE FUNCTION public.tf_is_board_owner(p_board_id uuid)
+CREATE OR REPLACE FUNCTION public.tf_has_board_access(p_board_id uuid)
 RETURNS boolean
-LANGUAGE sql
-STABLE
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-SET row_security = off
+STABLE
 AS $$
-  SELECT EXISTS(
-    SELECT 1
-    FROM public.taskflow_boards b
-    WHERE b.id = p_board_id
-      AND b.created_by = auth.uid()
+BEGIN
+  -- Direct ownership check (most common case for new users)
+  IF EXISTS (
+    SELECT 1 FROM public.taskflow_boards 
+    WHERE id = p_board_id AND created_by = auth.uid()
+  ) THEN
+    RETURN true;
+  END IF;
+
+  -- Shared access check (via tasks)
+  RETURN EXISTS (
+    SELECT 1 FROM public.taskflow_tasks t
+    JOIN public.taskflow_task_users tu ON t.id = tu.task_id
+    WHERE t.board_id = p_board_id 
+    AND tu.user_id = auth.uid()
   );
+END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.tf_can_access_board(p_board_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-SET row_security = off
-AS $$
-  SELECT
-    public.tf_is_board_owner(p_board_id)
-    OR EXISTS(
-      SELECT 1
-      FROM public.taskflow_tasks t
-      JOIN public.taskflow_task_users tu ON tu.task_id = t.id
-      WHERE t.board_id = p_board_id
-        AND tu.user_id = auth.uid()
-    );
-$$;
-
-CREATE POLICY tf_boards_select ON public.taskflow_boards FOR SELECT USING (public.tf_can_access_board(id));
+CREATE POLICY tf_boards_select ON public.taskflow_boards FOR SELECT USING (
+  created_by = auth.uid() OR public.tf_has_board_access(id)
+);
 CREATE POLICY tf_boards_insert ON public.taskflow_boards FOR INSERT WITH CHECK (created_by = auth.uid());
 
 -- Columns Policies
 CREATE POLICY tf_columns_select ON public.taskflow_columns FOR SELECT USING (
-  public.tf_can_access_board(board_id)
+  public.tf_has_board_access(board_id)
 );
 CREATE POLICY tf_columns_insert ON public.taskflow_columns FOR INSERT WITH CHECK (
-  public.tf_is_board_owner(board_id)
+  EXISTS (
+    SELECT 1 FROM public.taskflow_boards 
+    WHERE id = board_id AND created_by = auth.uid()
+  )
 );
 
 -- Tasks Policies
+CREATE OR REPLACE FUNCTION public.tf_has_task_access(p_task_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.taskflow_tasks t
+    WHERE t.id = p_task_id
+    AND (
+      t.created_by = auth.uid()
+      OR EXISTS (
+        SELECT 1 FROM public.taskflow_task_users tu 
+        WHERE tu.task_id = t.id AND tu.user_id = auth.uid()
+      )
+    )
+  );
+END;
+$$;
+
 CREATE POLICY tf_tasks_select ON public.taskflow_tasks FOR SELECT USING (
-  public.tf_can_access_task(id)
+  public.tf_has_task_access(id)
 );
 CREATE POLICY tf_tasks_insert ON public.taskflow_tasks FOR INSERT WITH CHECK (created_by = auth.uid());
 CREATE POLICY tf_tasks_update ON public.taskflow_tasks FOR UPDATE USING (
@@ -177,54 +193,15 @@ CREATE POLICY tf_tasks_delete ON public.taskflow_tasks FOR DELETE USING (
 );
 
 -- Task Users Policies
-CREATE OR REPLACE FUNCTION public.tf_is_task_owner(p_task_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-SET row_security = off
-AS $$
-  SELECT EXISTS(
-    SELECT 1
-    FROM public.taskflow_tasks t
-    WHERE t.id = p_task_id
-      AND t.created_by = auth.uid()
-  );
-$$;
-
-CREATE OR REPLACE FUNCTION public.tf_can_access_task(p_task_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-SET row_security = off
-AS $$
-  SELECT
-    EXISTS(
-      SELECT 1
-      FROM public.taskflow_tasks t
-      WHERE t.id = p_task_id
-        AND t.created_by = auth.uid()
-    )
-    OR EXISTS(
-      SELECT 1
-      FROM public.taskflow_task_users tu
-      WHERE tu.task_id = p_task_id
-        AND tu.user_id = auth.uid()
-    );
-$$;
-
 CREATE POLICY tf_task_users_select ON public.taskflow_task_users FOR SELECT USING (
-  public.tf_can_access_task(task_id)
+  public.tf_has_task_access(task_id)
 );
 CREATE POLICY tf_task_users_insert ON public.taskflow_task_users FOR INSERT WITH CHECK (
-  public.tf_is_task_owner(task_id)
+  EXISTS (SELECT 1 FROM public.taskflow_tasks t WHERE t.id = task_id AND t.created_by = auth.uid())
 );
 CREATE POLICY tf_task_users_delete ON public.taskflow_task_users FOR DELETE USING (
   user_id = auth.uid()
-  OR public.tf_is_task_owner(task_id)
+  OR EXISTS (SELECT 1 FROM public.taskflow_tasks t WHERE t.id = task_id AND t.created_by = auth.uid())
 );
 
 -- Comments Policies

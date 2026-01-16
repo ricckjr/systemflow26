@@ -86,5 +86,8 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ novaSenha })
       })
+  },
+  taskflow: {
+    fixBoard: () => request('/taskflow/fix-board', { method: 'POST' })
   }
 }

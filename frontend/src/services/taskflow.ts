@@ -65,7 +65,10 @@ export async function ensureDefaultBoard(user: Profile): Promise<{ board: TFBoar
   if (currentCols.length === 0) {
     // Create all
     const newCols = REQUIRED_COLUMNS.map(c => ({ ...c, board_id: board.id, created_by: user.id }));
-    const { data: cols } = await supabase.from('taskflow_columns').insert(newCols).select('*');
+    const { data: cols } = await supabase
+      .from('taskflow_columns')
+      .upsert(newCols, { onConflict: 'board_id, name', ignoreDuplicates: true })
+      .select('*');
     return { board, columns: cols || [] };
   } 
   
@@ -78,6 +81,19 @@ export async function ensureDefaultBoard(user: Profile): Promise<{ board: TFBoar
   return { board, columns: currentCols };
 }
 
+export async function fetchBoards(): Promise<TFBoard[]> {
+  const { data, error } = await supabase
+    .from('taskflow_boards')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) {
+    const details = error.details ? ` | ${error.details}` : '';
+    const hint = error.hint ? ` | ${error.hint}` : '';
+    throw new Error(`${error.message}${details}${hint}`);
+  }
+  return data || [];
+}
+
 export async function fetchBoardData(boardId: string) {
   const { data: columns } = await supabase
     .from('taskflow_columns')
@@ -88,7 +104,7 @@ export async function fetchBoardData(boardId: string) {
 }
 
 export async function createTask(boardId: string, columnId: string, title: string, description: string, userId: string, priority: string = 'medium', dueDate: string | null = null) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('taskflow_tasks')
     .insert([{ 
       board_id: boardId, 
@@ -101,6 +117,11 @@ export async function createTask(boardId: string, columnId: string, title: strin
     }])
     .select('*')
     .single();
+  if (error || !data) {
+    const details = error?.details ? ` | ${error.details}` : '';
+    const hint = error?.hint ? ` | ${error.hint}` : '';
+    throw new Error(`${error?.message || 'Falha ao criar tarefa'}${details}${hint}`);
+  }
   return data as TFTask;
 }
 
@@ -127,64 +148,95 @@ export async function assignUsers(taskId: string, userIds: string[], assignerNam
   const currentIds = new Set((currentAssignments || []).map(a => a.user_id));
   
   // Delete all (simple sync)
-  await supabase.from('taskflow_task_users').delete().eq('task_id', taskId);
+  const { error: deleteError } = await supabase.from('taskflow_task_users').delete().eq('task_id', taskId);
+  if (deleteError) {
+    const details = deleteError.details ? ` | ${deleteError.details}` : '';
+    const hint = deleteError.hint ? ` | ${deleteError.hint}` : '';
+    throw new Error(`${deleteError.message}${details}${hint}`);
+  }
   
   if (userIds.length === 0) return [];
 
   const rows = userIds.map(uid => ({ task_id: taskId, user_id: uid, role: 'assignee' }));
-  const { data } = await supabase.from('taskflow_task_users').insert(rows).select('*');
-
-  // Send notifications to NEW assignees
-  const newAssignees = userIds.filter(uid => !currentIds.has(uid));
-  
-  if (newAssignees.length > 0) {
-    const { data: task } = await supabase.from('taskflow_tasks').select('title, board_id').eq('id', taskId).single();
-    const taskTitle = task?.title || 'uma tarefa';
-    
-    const notifications = newAssignees.map(uid => ({
-      user_id: uid,
-      title: 'Nova Tarefa Compartilhada',
-      content: `${assignerName} compartilhou a tarefa "${taskTitle}" com você.`,
-      link: `/tasks?id=${taskId}`,
-      type: 'task_assigned',
-      is_read: false
-    }));
-    
-    await supabase.from('notifications').insert(notifications);
+  const { data, error: insertError } = await supabase.from('taskflow_task_users').insert(rows).select('*');
+  if (insertError) {
+    const details = insertError.details ? ` | ${insertError.details}` : '';
+    const hint = insertError.hint ? ` | ${insertError.hint}` : '';
+    throw new Error(`${insertError.message}${details}${hint}`);
   }
 
   return data || [];
 }
 
-export async function addComment(taskId: string, userId: string, content: string): Promise<TFComment | null> {
-  const { data, error } = await supabase.from('taskflow_comments').insert([{ task_id: taskId, user_id: userId, content }]).select('*').single();
-  if (error) return null;
+export async function deleteTask(taskId: string) {
+  const { error } = await supabase.from('taskflow_tasks').delete().eq('id', taskId);
+  if (error) {
+    const details = error.details ? ` | ${error.details}` : '';
+    const hint = error.hint ? ` | ${error.hint}` : '';
+    throw new Error(`${error.message}${details}${hint}`);
+  }
+  return true;
+}
+
+export async function addComment(taskId: string, userId: string, content: string): Promise<TFComment> {
+  const { data, error } = await supabase
+    .from('taskflow_comments')
+    .insert([{ task_id: taskId, user_id: userId, content }])
+    .select('*')
+    .single();
+  if (error || !data) {
+    const details = error?.details ? ` | ${error.details}` : '';
+    const hint = error?.hint ? ` | ${error.hint}` : '';
+    throw new Error(`${error?.message || 'Falha ao adicionar comentário'}${details}${hint}`);
+  }
   return data;
 }
 
-export async function fetchTasksPaged(boardId: string, columnId: string, page: number, pageSize: number, search?: string) {
-  const p = Math.max(1, page)
-  const size = Math.max(1, Math.min(100, pageSize))
-  const from = (p - 1) * size
-  const to = from + size - 1
+export async function fetchUnifiedTasks(userBoardId: string, search?: string) {
+  // 1. Busca todas as tarefas que o usuário tem acesso (RLS já filtra)
+  // Join com taskflow_columns para saber o nome da coluna original (status)
+  // Join com profiles para saber quem criou (dono)
   let q = supabase
     .from('taskflow_tasks')
-    .select('*', { count: 'exact' })
-    .eq('board_id', boardId)
-    .eq('column_id', columnId)
-    .order('created_at', { ascending: true })
-    .range(from, to)
+    .select(`
+      *,
+      column:taskflow_columns(name),
+      owner:profiles!created_by(id, nome, avatar_url),
+      assignees:taskflow_task_users(
+        user_id,
+        profiles:user_id(id, nome, avatar_url)
+      ),
+      comments:taskflow_comments(count)
+    `)
+    .order('created_at', { ascending: true });
+
   if (search && search.trim()) {
-    const term = `%${search.trim()}%`
-    q = q.or(`title.ilike.${term},description.ilike.${term}`)
+    const term = `%${search.trim()}%`;
+    q = q.or(`title.ilike.${term},description.ilike.${term}`);
   }
-  const { data, error, count } = await q
-  if (error) return { items: [], total: 0 }
-  return { items: data || [], total: count || 0 }
+
+  const { data, error } = await q;
+  if (error) {
+    console.error('Error fetching unified tasks:', error);
+    return [];
+  }
+
+  return (data || []).map((t: any) => ({
+    ...t,
+    original_column_name: t.column?.name,
+    owner_avatar: t.owner?.avatar_url,
+    owner_name: t.owner?.nome,
+    comments_count: t.comments?.[0]?.count || 0,
+    assignees_list: t.assignees?.map((a: any) => ({
+      id: a.profiles?.id,
+      nome: a.profiles?.nome,
+      avatar_url: a.profiles?.avatar_url
+    })) || []
+  }));
 }
 
 export async function fetchComments(taskId: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('taskflow_comments')
     .select(`
       *,
@@ -195,9 +247,14 @@ export async function fetchComments(taskId: string) {
     `)
     .eq('task_id', taskId)
     .order('created_at', { ascending: true });
+  
+  if (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
     
   // Map to include user info
-  return (data || []).map(c => ({
+  return (data || []).map((c: any) => ({
     ...c,
     user_nome: c.profiles?.nome || 'Usuário',
     user_avatar: c.profiles?.avatar_url
@@ -205,7 +262,33 @@ export async function fetchComments(taskId: string) {
 }
 
 export async function logActivity(taskId: string, userId: string, type: string, details?: string) {
-  await supabase.from('taskflow_activity_log').insert([{ task_id: taskId, user_id: userId, type, details }]);
+  const { error } = await supabase.from('taskflow_activity_log').insert([{ task_id: taskId, user_id: userId, type, details }]);
+  if (error) console.error('Error logging activity:', error);
+}
+
+export async function fetchActivityLog(taskId: string) {
+  const { data, error } = await supabase
+    .from('taskflow_activity_log')
+    .select(`
+      *,
+      profiles:user_id (
+        nome,
+        avatar_url
+      )
+    `)
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching activity log:', error);
+    return [];
+  }
+
+  return (data || []).map((log: any) => ({
+    ...log,
+    user_nome: log.profiles?.nome,
+    user_avatar: log.profiles?.avatar_url
+  }));
 }
 
 export async function fetchUsers() {
@@ -306,6 +389,36 @@ export async function fetchTaskAttachments(taskId: string) {
     .eq('task_id', taskId)
     .order('created_at', { ascending: false });
   return data || [];
+}
+
+export async function deleteTaskAttachment(attachmentId: string) {
+  const { error } = await supabase
+    .from('taskflow_attachments')
+    .delete()
+    .eq('id', attachmentId);
+
+  if (error) {
+    const details = error.details ? ` | ${error.details}` : '';
+    const hint = error.hint ? ` | ${error.hint}` : '';
+    throw new Error(`${error.message}${details}${hint}`);
+  }
+  return true;
+}
+
+export async function updateTask(taskId: string, updates: Partial<TFTask>) {
+  const { data, error } = await supabase
+    .from('taskflow_tasks')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .select('*')
+    .single();
+
+  if (error) {
+     const details = error.details ? ` | ${error.details}` : '';
+     const hint = error.hint ? ` | ${error.hint}` : '';
+     throw new Error(`${error.message}${details}${hint}`);
+  }
+  return data;
 }
 
 export async function fetchTaskAssignees(taskId: string) {

@@ -3,7 +3,6 @@ import { supabase } from '@/services/supabase';
 import { chatService } from '@/services/chat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { useAuth } from '@/contexts/AuthContext';
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useChat() {
   const { profile } = useAuth();
@@ -14,7 +13,7 @@ export function useChat() {
   const [sending, setSending] = useState(false);
   
   // Keep track of subscriptions to clean up
-  const activeRoomSubscription = useRef<RealtimeChannel | null>(null);
+  const activeRoomUnsubscribe = useRef<(() => void) | null>(null);
 
   // Initial load of rooms
   useEffect(() => {
@@ -53,7 +52,7 @@ export function useChat() {
         setMessages(msgs);
         
         // Mark messages as read in chat_room_members
-        chatService.markAsRead(activeRoomId);
+        await chatService.markAsRead(activeRoomId);
         
         // Also mark notifications as read for this room
         const { error: notifError } = await supabase
@@ -74,57 +73,33 @@ export function useChat() {
     loadMessages();
 
     // Setup Realtime Subscription for this room
-    if (activeRoomSubscription.current) {
-      activeRoomSubscription.current.unsubscribe();
+    if (activeRoomUnsubscribe.current) {
+      try {
+        activeRoomUnsubscribe.current()
+      } catch {}
+      activeRoomUnsubscribe.current = null
     }
 
-    activeRoomSubscription.current = supabase
-      .channel(`room:${activeRoomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `room_id=eq.${activeRoomId}`
-        },
-        async (payload) => {
-          // Fetch the full message to get sender details (or we could just optimistically add if we knew the sender)
-          // Payload only has the raw record.
-          const newMessage = payload.new as ChatMessage;
-          
-          // To get the sender info, we might need to fetch it or look it up from members
-          // For simplicity/speed, we can try to find sender in the room members list
-          // Note: we use a ref or functional update to access latest rooms if needed, 
-          // but for sender lookup we might need to fetch profile if not in current list context.
-          // For now, let's just fetch sender profile if missing or rely on optimistic UI.
-          
-          const { data: senderProfile } = await supabase
-            .from('profiles')
-            .select('id, nome, avatar_url, email_login, ativo, created_at, cargo')
-            .eq('id', newMessage.sender_id)
-            .single();
-          
-          const enrichedMessage: ChatMessage = {
-            ...newMessage,
-            sender: senderProfile as any
-          };
+    activeRoomUnsubscribe.current = chatService.subscribeToNewMessages(
+      activeRoomId,
+      async (enrichedMessage) => {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === enrichedMessage.id)) return prev
+          return [...prev, enrichedMessage]
+        })
 
-          setMessages(prev => {
-             // Avoid duplicates
-             if (prev.some(m => m.id === enrichedMessage.id)) return prev;
-             return [...prev, enrichedMessage];
-          });
-          
-          // Mark as read immediately if we are looking at it
-          chatService.markAsRead(activeRoomId);
-        }
-      )
-      .subscribe();
+        try {
+          await chatService.markAsRead(activeRoomId)
+        } catch {}
+      }
+    )
 
     return () => {
-      if (activeRoomSubscription.current) {
-        activeRoomSubscription.current.unsubscribe();
+      if (activeRoomUnsubscribe.current) {
+        try {
+          activeRoomUnsubscribe.current()
+        } catch {}
+        activeRoomUnsubscribe.current = null
       }
     };
     // CRITICAL FIX: Removed 'rooms' dependency to prevent re-fetching messages/re-subscribing when room list updates

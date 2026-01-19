@@ -1,33 +1,72 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
+import { logInfo, logWarn } from '@/utils/logger'
 
-import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/database.types';
-import { logInfo, logWarn } from '@/utils/logger';
+/* ------------------------------------------------------------------
+ * ENV VALIDATION
+ * ------------------------------------------------------------------ */
+const rawUrl = import.meta.env.VITE_SUPABASE_URL
+const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseUrl = rawUrl?.trim().replace(/\/+$/, '');
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
-
-// Singleton pattern for HMR safety
-// Evita que o cliente seja recriado a cada hot-reload, mantendo a conexão realtime e sessão estáveis.
-const globalSupabase = globalThis as unknown as { __systemflow_supabase: ReturnType<typeof createClient<Database>> };
-
-export const supabase = globalSupabase.__systemflow_supabase || createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false, // Desabilitado para evitar conflitos de hash na URL durante reload
-    storageKey: 'systemflow-auth-token', // Chave única para evitar colisão com outros projetos locais
-  }
-});
-
-if (process.env.NODE_ENV !== 'production') {
-  globalSupabase.__systemflow_supabase = supabase;
+if (!rawUrl || !rawAnonKey) {
+  throw new Error('[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY')
 }
 
-export const SUPABASE_URL = supabaseUrl;
+const supabaseUrl = rawUrl.trim().replace(/\/+$/, '')
+const supabaseAnonKey = rawAnonKey.trim()
 
-try {
-  const masked = supabaseAnonKey ? `${supabaseAnonKey.substring(0, 6)}...` : 'missing'
-  logInfo('supabase', 'client init', { url: supabaseUrl, anonKey: masked })
-  if (!supabaseUrl || !supabaseAnonKey) logWarn('supabase', 'missing env vars')
-} catch {}
+/* ------------------------------------------------------------------
+ * GLOBAL SINGLETON (HMR SAFE)
+ * ------------------------------------------------------------------ */
+declare global {
+  // eslint-disable-next-line no-var
+  var __systemflow_supabase: SupabaseClient<Database> | undefined
+}
+
+/* ------------------------------------------------------------------
+ * CLIENT FACTORY
+ * ------------------------------------------------------------------ */
+function createSupabaseClient() {
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: {
+      fetch: (...args) => fetch(...args),
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+      storageKey: 'systemflow-auth-token',
+      storage: localStorage,
+    },
+  })
+}
+
+/* ------------------------------------------------------------------
+ * SINGLETON INSTANCE
+ * ------------------------------------------------------------------ */
+export const supabase: SupabaseClient<Database> =
+  globalThis.__systemflow_supabase ?? createSupabaseClient()
+
+if (import.meta.env.DEV) {
+  globalThis.__systemflow_supabase = supabase
+}
+
+/* ------------------------------------------------------------------
+ * CONSTANTS
+ * ------------------------------------------------------------------ */
+export const SUPABASE_URL = supabaseUrl
+
+/* ------------------------------------------------------------------
+ * LOGGING (DEV ONLY)
+ * ------------------------------------------------------------------ */
+if (import.meta.env.DEV) {
+  try {
+    const maskedKey = `${supabaseAnonKey.slice(0, 6)}...`
+    logInfo('supabase', 'client initialized', {
+      url: supabaseUrl,
+      anonKey: maskedKey,
+    })
+  } catch {
+    logWarn('supabase', 'failed to log initialization')
+  }
+}

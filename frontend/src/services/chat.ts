@@ -4,18 +4,15 @@ import { ChatRoom, ChatMessage, ChatAttachment } from '@/types/chat'
 /* ======================================================
    HELPERS
 ====================================================== */
-function normalizeAttachments(input: unknown): ChatAttachment[] | undefined {
-  if (!Array.isArray(input)) return undefined
+function normalizeAttachments(input: unknown): ChatAttachment[] {
+  if (!Array.isArray(input)) return []
 
-  const out = input
-    .map((a) => {
-      if (!a || typeof a !== 'object') return null
-      const o = a as any
-
+  return input
+    .map((o: any) => {
       if (
-        typeof o.type !== 'string' ||
-        typeof o.url !== 'string' ||
-        typeof o.name !== 'string'
+        typeof o?.type !== 'string' ||
+        typeof o?.url !== 'string' ||
+        typeof o?.name !== 'string'
       ) return null
 
       return {
@@ -23,18 +20,10 @@ function normalizeAttachments(input: unknown): ChatAttachment[] | undefined {
         url: o.url,
         name: o.name,
         size: typeof o.size === 'number' ? o.size : undefined,
-        mime_type: typeof o.mime_type === 'string' ? o.mime_type : undefined
+        mime_type: typeof o.mime_type === 'string' ? o.mime_type : undefined,
       } as ChatAttachment
     })
-    .filter(Boolean) as ChatAttachment[]
-
-  return out.length ? out : undefined
-}
-
-async function getCurrentUserId(): Promise<string> {
-  const { data } = await supabase.auth.getUser()
-  if (!data.user) throw new Error('Not authenticated')
-  return data.user.id
+    .filter(Boolean)
 }
 
 /* ======================================================
@@ -42,11 +31,9 @@ async function getCurrentUserId(): Promise<string> {
 ====================================================== */
 export const chatService = {
   /* ==================================================
-     ROOMS (LEVE – SEM JOIN PESADO)
+     ROOMS (MEMBERSHIP DO USUÁRIO)
   =================================================== */
-  async getRooms(): Promise<ChatRoom[]> {
-    const userId = await getCurrentUserId()
-
+  async getRooms(userId: string): Promise<ChatRoom[]> {
     const { data, error } = await supabase
       .from('chat_rooms')
       .select(`
@@ -54,7 +41,7 @@ export const chatService = {
         type,
         name,
         last_message_at,
-        chat_room_members!inner (
+        chat_room_members (
           user_id,
           last_read_at,
           role
@@ -64,15 +51,18 @@ export const chatService = {
       .order('last_message_at', { ascending: false })
 
     if (error) {
-      console.error('Erro ao buscar salas:', error)
+      console.error('[chat] getRooms', error)
       return []
     }
 
-    return data as ChatRoom[]
+    return (data ?? []).map((room: any) => ({
+      ...room,
+      membership: room.chat_room_members?.[0] ?? null,
+    })) as ChatRoom[]
   },
 
   /* ==================================================
-     MESSAGES (SEM JOIN DE NOTIFICATION)
+     MESSAGES (ÚLTIMAS MENSAGENS)
   =================================================== */
   async getMessages(
     roomId: string,
@@ -91,18 +81,20 @@ export const chatService = {
         is_edited
       `)
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(limit)
 
     if (error) {
-      console.error('Erro ao buscar mensagens:', error)
+      console.error('[chat] getMessages', error)
       return []
     }
 
-    return data.map((m: any) => ({
-      ...m,
-      attachments: normalizeAttachments(m.attachments)
-    })) as ChatMessage[]
+    return (data ?? [])
+      .reverse()
+      .map((m: any) => ({
+        ...m,
+        attachments: normalizeAttachments(m.attachments),
+      })) as ChatMessage[]
   },
 
   /* ==================================================
@@ -110,11 +102,10 @@ export const chatService = {
   =================================================== */
   async sendMessage(
     roomId: string,
+    userId: string,
     content: string,
     attachments: ChatAttachment[] = []
   ): Promise<ChatMessage | null> {
-
-    const userId = await getCurrentUserId()
 
     const { data, error } = await supabase
       .from('chat_messages')
@@ -122,7 +113,7 @@ export const chatService = {
         room_id: roomId,
         sender_id: userId,
         content,
-        attachments
+        attachments,
       })
       .select(`
         id,
@@ -136,32 +127,47 @@ export const chatService = {
       .single()
 
     if (error || !data) {
-      console.error('Erro ao enviar mensagem:', error)
+      console.error('[chat] sendMessage', error)
       return null
     }
 
     return {
       ...(data as ChatMessage),
-      attachments: normalizeAttachments(data.attachments)
+      attachments: normalizeAttachments(data.attachments),
     }
   },
 
   /* ==================================================
-     UPLOAD DE ANEXO (SIMPLES)
+     UPLOAD DE ANEXO (SEGURO)
   =================================================== */
-  async uploadAttachment(file: File): Promise<string | null> {
-    const userId = await getCurrentUserId()
+  async uploadAttachment(
+    userId: string,
+    file: File
+  ): Promise<string | null> {
 
-    const ext = file.name.split('.').pop()
+    if (!['image/png', 'image/jpeg', 'application/pdf'].includes(file.type)) {
+      throw new Error('Tipo de arquivo não permitido')
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Arquivo excede 5MB')
+    }
+
+    const ext = file.type === 'image/png'
+      ? 'png'
+      : file.type === 'image/jpeg'
+      ? 'jpg'
+      : 'pdf'
+
     const path = `${userId}/${crypto.randomUUID()}.${ext}`
 
     const { error } = await supabase
       .storage
       .from('chat-attachments')
-      .upload(path, file)
+      .upload(path, file, { upsert: false })
 
     if (error) {
-      console.error('Erro upload chat:', error)
+      console.error('[chat] uploadAttachment', error)
       return null
     }
 
@@ -174,24 +180,9 @@ export const chatService = {
   },
 
   /* ==================================================
-     DIRECT CHAT (RPC)
-  =================================================== */
-  async createDirectChat(otherUserId: string): Promise<string> {
-    const { data, error } = await supabase
-      .rpc('get_or_create_direct_chat', {
-        other_user_id: otherUserId
-      })
-
-    if (error) throw error
-    return data as string
-  },
-
-  /* ==================================================
      MARK AS READ
   =================================================== */
-  async markAsRead(roomId: string) {
-    const userId = await getCurrentUserId()
-
+  async markAsRead(roomId: string, userId: string) {
     await supabase
       .from('chat_room_members')
       .update({ last_read_at: new Date().toISOString() })
@@ -200,13 +191,13 @@ export const chatService = {
   },
 
   /* ==================================================
-     REALTIME (SEM QUERY EXTRA)
+     REALTIME (COM CLEANUP)
   =================================================== */
   subscribeToNewMessages(
     roomId: string,
     callback: (msg: ChatMessage) => void
   ) {
-    return supabase
+    const channel = supabase
       .channel(`chat_room_${roomId}`)
       .on(
         'postgres_changes',
@@ -214,17 +205,20 @@ export const chatService = {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_messages',
-          filter: `room_id=eq.${roomId}`
+          filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
           const msg = payload.new as any
-
           callback({
             ...msg,
-            attachments: normalizeAttachments(msg.attachments)
+            attachments: normalizeAttachments(msg.attachments),
           } as ChatMessage)
         }
       )
       .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }
 }

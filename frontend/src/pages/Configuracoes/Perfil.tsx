@@ -1,6 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/services/supabase'
+import React from 'react'
 import {
   Upload,
   ShieldCheck,
@@ -9,14 +7,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react'
-
-type FormState = {
-  nome: string
-  email_corporativo: string
-  telefone: string
-  ramal: string
-  avatar_url: string
-}
+import { useProfileForm } from '@/hooks/useProfileForm'
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="block text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mb-1">
@@ -25,75 +16,35 @@ const Label = ({ children }: { children: React.ReactNode }) => (
 )
 
 export default function Perfil() {
-  const { profile: contextProfile, refreshProfile, session, loading } = useAuth()
+  const {
+    form,
+    profile,
+    authLoading,
+    isDirty,
+    avatarPreview,
+    saving,
+    uploadingAvatar,
+    success,
+    error,
+    newPassword,
+    confirmPassword,
+    showPassword,
+    changingPassword,
+    passwordSuccess,
+    passwordError,
+    setForm,
+    setNewPassword,
+    setConfirmPassword,
+    setShowPassword,
+    handleAvatarChange,
+    saveProfile,
+    changePassword
+  } = useProfileForm()
 
   /* ===========================
-     PROFILE FALLBACK
+     LOADING STATE
   ============================ */
-  const profile = contextProfile
-
-  /* ===========================
-     STATE
-  ============================ */
-  const [form, setForm] = useState<FormState>({
-    nome: '',
-    email_corporativo: '',
-    telefone: '',
-    ramal: '',
-    avatar_url: '',
-  })
-
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string>('')
-
-  const [saving, setSaving] = useState(false)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [changingPassword, setChangingPassword] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [passwordSuccess, setPasswordSuccess] = useState(false)
-  const [passwordError, setPasswordError] = useState<string | null>(null)
-
-  /* ===========================
-     SYNC PROFILE
-  ============================ */
-  useEffect(() => {
-    if (!profile) return
-    setForm({
-      nome: profile.nome || '',
-      email_corporativo: profile.email_corporativo || '',
-      telefone: profile.telefone || '',
-      ramal: profile.ramal || '',
-      avatar_url: profile.avatar_url || '',
-    })
-    setAvatarPreview(profile.avatar_url || '')
-  }, [profile])
-
-  useEffect(() => {
-    return () => {
-      if (avatarPreview?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview)
-    }
-  }, [avatarPreview])
-
-  const isDirty = useMemo(() => {
-    if (!profile) return false
-    return (
-      form.nome !== (profile.nome || '') ||
-      form.email_corporativo !== (profile.email_corporativo || '') ||
-      form.telefone !== (profile.telefone || '') ||
-      form.ramal !== (profile.ramal || '') ||
-      avatarFile !== null
-    )
-  }, [form, profile, avatarFile])
-
-  /* ===========================
-     LOAD STATE
-  ============================ */
-  if (loading && !profile) {
+  if (authLoading && !profile) {
     return (
       <div className="min-h-[300px] flex flex-col items-center justify-center text-[var(--text-soft)]">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)] mb-2" />
@@ -103,150 +54,24 @@ export default function Perfil() {
   }
 
   if (!profile) {
-      return (
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
-               <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4">
-                   <ShieldCheck size={32} />
-               </div>
-               <h2 className="text-xl font-semibold mb-2">Não foi possível carregar seu perfil</h2>
-               <p className="text-[var(--text-soft)] mb-6 max-w-md">
-                   Isso pode ter ocorrido por uma falha de conexão. Tente recarregar para restaurar seus dados.
-               </p>
-               <button onClick={() => refreshProfile()} className="btn-primary flex items-center gap-2">
-                   <Loader2 size={16} className={loading ? 'animate-spin' : 'hidden'} />
-                   Tentar Novamente
-               </button>
-           </div>
-      )
-  }
-
-  /* ===========================
-     HELPERS (INALTERADOS)
-  ============================ */
-  const isValidEmail = (v: string) =>
-    !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-
-  const isValidImage = async (file: File) => {
-    if (!['image/png', 'image/jpeg'].includes(file.type)) return false
-    if (file.size > 3 * 1024 * 1024) return false
-    const buffer = new Uint8Array(await file.slice(0, 4).arrayBuffer())
     return (
-      (buffer[0] === 0x89 && buffer[1] === 0x50) ||
-      (buffer[0] === 0xff && buffer[1] === 0xd8)
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4">
+          <ShieldCheck size={32} />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Não foi possível carregar seu perfil</h2>
+        <p className="text-[var(--text-soft)] mb-6 max-w-md">
+          Isso pode ter ocorrido por uma falha de conexão. Tente recarregar a página.
+        </p>
+      </div>
     )
   }
 
-  const getStoragePathFromUrl = (url?: string | null) =>
-    url ? url.split('/').pop() || null : null
-
   /* ===========================
-     ACTIONS (INALTERADAS)
-  ============================ */
-  const uploadAvatar = async (file: File) => {
-    setUploadingAvatar(true)
-    try {
-      const valid = await isValidImage(file)
-      if (!valid) throw new Error('Imagem inválida. Use JPG ou PNG até 3MB.')
-
-      if (profile.avatar_url) {
-        const old = getStoragePathFromUrl(profile.avatar_url)
-        if (old) await supabase.storage.from('avatars').remove([old])
-      }
-
-      const ext = file.type === 'image/png' ? 'png' : 'jpg'
-      const path = `avatars/${profile.id}-${Date.now()}.${ext}`
-
-      const { error } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true })
-
-      if (error) throw error
-
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-      return data.publicUrl
-    } finally {
-      setUploadingAvatar(false)
-    }
-  }
-
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (saving || !isDirty) return
-
-    setError(null)
-    setSuccess(false)
-
-    if (!form.nome.trim()) return setError('O nome é obrigatório.')
-    if (!isValidEmail(form.email_corporativo))
-      return setError('E-mail corporativo inválido.')
-
-    setSaving(true)
-
-    try {
-      let avatarUrl = form.avatar_url
-      if (avatarFile) avatarUrl = await uploadAvatar(avatarFile)
-
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: profile.id,
-          nome: form.nome.trim(),
-          email_corporativo: form.email_corporativo || null,
-          telefone: form.telefone || null,
-          ramal: form.ramal || null,
-          avatar_url: avatarUrl || null,
-          email_login: profile.email_login,
-          updated_at: new Date().toISOString(),
-        } as any)
-
-      if (error) throw error
-
-      await refreshProfile()
-      setAvatarFile(null)
-      setAvatarPreview(avatarUrl || '')
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || 'Erro ao salvar alterações.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleChangePassword = async () => {
-    if (changingPassword) return
-
-    setPasswordError(null)
-    setPasswordSuccess(false)
-
-    if (newPassword.length < 6)
-      return setPasswordError('A senha deve ter no mínimo 6 caracteres.')
-    if (newPassword !== confirmPassword)
-      return setPasswordError('As senhas não coincidem.')
-
-    setChangingPassword(true)
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-      if (error) throw error
-
-      setNewPassword('')
-      setConfirmPassword('')
-      setPasswordSuccess(true)
-      setTimeout(() => setPasswordSuccess(false), 3000)
-    } catch (err: any) {
-      setPasswordError(err.message || 'Erro ao atualizar senha.')
-    } finally {
-      setChangingPassword(false)
-    }
-  }
-
-  /* ===========================
-     UI
+     UI RENDER
   ============================ */
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
       {/* HEADER */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center">
@@ -271,7 +96,7 @@ export default function Perfil() {
           )}
         </div>
 
-        <form onSubmit={handleProfileUpdate} className="space-y-6">
+        <form onSubmit={saveProfile} className="space-y-6">
           {/* AVATAR */}
           <div className="flex items-center gap-6 pb-6 border-b border-[var(--border)]">
             <div className="relative">
@@ -295,7 +120,7 @@ export default function Perfil() {
               )}
             </div>
 
-            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-white/5 cursor-pointer text-sm">
+            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-white/5 cursor-pointer text-sm transition-colors">
               <Upload size={16} />
               Alterar foto
               <input
@@ -305,9 +130,7 @@ export default function Perfil() {
                 disabled={uploadingAvatar || saving}
                 onChange={e => {
                   const f = e.target.files?.[0]
-                  if (!f) return
-                  setAvatarFile(f)
-                  setAvatarPreview(URL.createObjectURL(f))
+                  if (f) handleAvatarChange(f)
                 }}
               />
             </label>
@@ -333,13 +156,14 @@ export default function Perfil() {
                 onChange={e => setForm({ ...form, nome: e.target.value })}
                 className="input-primary"
                 disabled={saving}
+                placeholder="Seu nome"
               />
             </div>
 
             <div>
               <Label>E-mail de login</Label>
               <input
-                value={profile.email_login}
+                value={profile.email_login || ''}
                 readOnly
                 className="input-primary opacity-50 cursor-not-allowed"
               />
@@ -354,6 +178,7 @@ export default function Perfil() {
                   setForm({ ...form, email_corporativo: e.target.value })
                 }
                 className="input-primary"
+                placeholder="nome@empresa.com"
               />
             </div>
 
@@ -363,6 +188,7 @@ export default function Perfil() {
                 value={form.telefone}
                 onChange={e => setForm({ ...form, telefone: e.target.value })}
                 className="input-primary"
+                placeholder="(00) 00000-0000"
               />
             </div>
 
@@ -372,12 +198,13 @@ export default function Perfil() {
                 value={form.ramal}
                 onChange={e => setForm({ ...form, ramal: e.target.value })}
                 className="input-primary"
+                placeholder="0000"
               />
             </div>
 
             <div>
               <Label>Cargo</Label>
-              <div className="input-primary opacity-50 cursor-not-allowed flex items-center">
+              <div className="input-primary opacity-50 cursor-not-allowed flex items-center h-[42px]">
                   {profile.cargo || 'Sem Cargo Definido'}
               </div>
             </div>
@@ -417,11 +244,12 @@ export default function Perfil() {
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 className="input-primary pr-10"
+                placeholder="Mínimo 6 caracteres"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-[var(--text-main)]"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -435,13 +263,14 @@ export default function Perfil() {
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               className="input-primary"
+              placeholder="Confirme a nova senha"
             />
           </div>
         </div>
 
         <div className="pt-4 flex justify-end">
           <button
-            onClick={handleChangePassword}
+            onClick={changePassword}
             disabled={changingPassword || !newPassword || !confirmPassword}
             className="btn-primary"
           >

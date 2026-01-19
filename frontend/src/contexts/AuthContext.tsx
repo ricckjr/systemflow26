@@ -11,6 +11,16 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
 import type { Profile, ProfilePermissao } from '@/types'
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs)
+  })
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId)
+  }) as Promise<T>
+}
+
 /* ================================
    Types
 ================================ */
@@ -18,10 +28,14 @@ interface AuthContextType {
   session: Session | null
   profile: Profile | null
   permissions: ProfilePermissao[] | null
-  loadingSession: boolean
+
+  authReady: boolean
+  profileReady: boolean
+
   refreshProfile: () => Promise<void>
   loadPermissions: () => Promise<void>
   signOut: () => void
+
   isAdmin: boolean
 }
 
@@ -65,47 +79,65 @@ function normalizeProfile(p: any): Profile | null {
    Provider
 ================================ */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const mounted = useRef(true)
+
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [permissions, setPermissions] = useState<ProfilePermissao[] | null>(null)
-  const [loadingSession, setLoadingSession] = useState(true)
 
-  const mounted = useRef(true)
+  const [authReady, setAuthReady] = useState(false)
+  const [profileReady, setProfileReady] = useState(false)
 
   /* ================================
-     Init (BOOT RÁPIDO)
+     Init (BOOT)
   ================================ */
   useEffect(() => {
     mounted.current = true
 
-    // 1️⃣ Cache IMEDIATO (não bloqueia UI)
+    // Cache rápido (não define ready)
     const cachedProfile = normalizeProfile(
       safeParse<Profile>(localStorage.getItem(PROFILE_CACHE_KEY))
     )
     if (cachedProfile) setProfile(cachedProfile)
 
-    // 2️⃣ Session (rápido)
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted.current) return
-      setSession(data.session ?? null)
-      setLoadingSession(false)
+    // Session
+    withTimeout(supabase.auth.getSession(), 8000)
+      .then(({ data }) => {
+        if (!mounted.current) return
 
-      // 3️⃣ Sync em background
-      if (data.session) {
-        refreshProfile()
-      }
-    })
+        const currentSession = data.session ?? null
+        setSession(currentSession)
+        setAuthReady(true)
 
-    // 4️⃣ Listener de auth
+        if (currentSession) {
+          refreshProfile(currentSession)
+        } else {
+          setProfileReady(true)
+        }
+      })
+      .catch(err => {
+        if (!mounted.current) return
+        console.error('[AUTH] getSession failed', err)
+        setSession(null)
+        setAuthReady(true)
+        setProfile(null)
+        setPermissions(null)
+        setProfileReady(true)
+      })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_, newSession) => {
         if (!mounted.current) return
+
         setSession(newSession)
+        setProfileReady(false)
+
         if (newSession) {
-          refreshProfile()
+          refreshProfile(newSession)
         } else {
           setProfile(null)
           setPermissions(null)
+          setProfileReady(true)
           localStorage.removeItem(PROFILE_CACHE_KEY)
           localStorage.removeItem(PERMS_CACHE_KEY)
         }
@@ -119,40 +151,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   /* ================================
-     Profile (BACKGROUND)
+     Profile
   ================================ */
-  const refreshProfile = useCallback(async () => {
-    if (!session) return
+  const refreshProfile = useCallback(async (sessionOverride?: Session | null) => {
+    const activeSession = sessionOverride ?? session
+    if (!activeSession) {
+      setProfileReady(true)
+      return
+    }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
-      .eq('id', session.user.id)
-      .maybeSingle()
+    try {
+      const { data, error } = await withTimeout(supabase
+        .from('profiles')
+        .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
+        .eq('id', activeSession.user.id)
+        .maybeSingle(), 8000)
 
-    if (error || !data || !mounted.current) return
+      if (error) throw error
 
-    const normalized = normalizeProfile(data)
-    setProfile(normalized)
-    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(normalized))
+      const normalized = normalizeProfile(data)
+      setProfile(normalized)
+
+      if (normalized) {
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(normalized))
+      }
+    } catch (err) {
+      console.error('[AUTH] profile load failed', err)
+      setProfile(null)
+    } finally {
+      if (mounted.current) setProfileReady(true) // 🔥 NUNCA trava
+    }
   }, [session])
 
   /* ================================
-     Permissions (LAZY)
+     Permissions (lazy)
   ================================ */
   const loadPermissions = useCallback(async () => {
     if (!session) return
 
-    // Cache primeiro
     const cached = safeParse<ProfilePermissao[]>(
       localStorage.getItem(PERMS_CACHE_KEY)
     )
     if (cached) setPermissions(cached)
 
-    const { data } = await supabase
+    const { data } = await withTimeout(supabase
       .from('profile_permissoes')
       .select('*, permissoes(*)')
-      .eq('profile_id', session.user.id)
+      .eq('profile_id', session.user.id), 8000)
 
     if (!mounted.current) return
 
@@ -163,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [session])
 
   /* ================================
-     SignOut (INSTANT)
+     SignOut
   ================================ */
   const signOut = useCallback(() => {
     localStorage.removeItem(PROFILE_CACHE_KEY)
@@ -176,6 +221,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null)
     setProfile(null)
     setPermissions(null)
+    setAuthReady(false)
+    setProfileReady(false)
 
     supabase.auth.signOut().finally(() => {
       window.location.href = '/login'
@@ -189,12 +236,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     profile,
     permissions,
-    loadingSession,
+
+    authReady,
+    profileReady,
+
     refreshProfile,
     loadPermissions,
     signOut,
+
     isAdmin: profile?.cargo === 'ADMIN'
-  }), [session, profile, permissions, loadingSession, refreshProfile, loadPermissions, signOut])
+  }), [
+    session,
+    profile,
+    permissions,
+    authReady,
+    profileReady,
+    refreshProfile,
+    loadPermissions,
+    signOut
+  ])
 
   return (
     <AuthContext.Provider value={value}>

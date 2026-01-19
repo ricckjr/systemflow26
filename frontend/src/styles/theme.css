@@ -147,3 +147,69 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary-600);
 }
+
+.taskflow-kanban-scroll {
+  overflow-x: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-600) transparent;
+}
+
+.taskflow-kanban-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.taskflow-kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.taskflow-kanban-scroll::-webkit-scrollbar-thumb {
+  background: var(--primary-600);
+  border-radius: 999px;
+}
+
+.taskflow-kanban-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-600);
+}
+
+@keyframes taskflowPulseGreen {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+
+.taskflow-unseen-marker {
+  position: relative;
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(46, 204, 113, 0.18),
+    0 0 14px rgba(46, 204, 113, 0.28);
+  animation: taskflowPulseGreen 0.5s ease-in-out 8;
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.taskflow-unseen-marker::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 1px solid rgba(46, 204, 113, 0.28);
+  opacity: 0;
+  transform: scale(0.9);
+  animation: taskflowUnseenRing 1.6s ease-out 3;
+}
+
+@keyframes taskflowUnseenRing {
+  0% { opacity: 0; transform: scale(0.9); }
+  15% { opacity: 0.55; }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+
+.taskflow-unseen-marker--fading {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskflow-unseen-marker { animation: none; transition: none; }
+  .taskflow-unseen-marker::after { animation: none; }
+}

@@ -38,8 +38,7 @@ router.post('/fix-board', async (req, res) => {
       { name: 'EM ANÁLISE', order_index: 1 },
       { name: 'PENDENTE', order_index: 2 },
       { name: 'EM ANDAMENTO', order_index: 3 },
-      { name: 'EM REVISÃO', order_index: 4 },
-      { name: 'CONCLUÍDO', order_index: 5 },
+      { name: 'CONCLUÍDO', order_index: 4 },
     ];
 
     const newCols = REQUIRED_COLUMNS.map(c => ({

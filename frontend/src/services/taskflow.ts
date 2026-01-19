@@ -16,7 +16,17 @@ export type TFTask = {
   created_by: string;
   // Added for compatibility with new features
   files?: { name: string; url: string; type: string }[];
+  // Enriched fields from unified views/joins (UI-only)
+  original_column_name?: string;
+  owner_avatar?: string;
+  owner_name?: string;
+  comments_count?: number;
+  assignees_list?: { id: string; nome: string; avatar_url?: string }[];
+  last_activity_at?: string;
+  last_seen_at?: string;
 };
+
+export type TFTaskSeen = { task_id: string; user_id: string; last_seen_at: string };
 export type TFTaskUser = { id: string; task_id: string; user_id: string; role: 'assignee' | 'viewer'; created_at: string };
 export type TFComment = { id: string; task_id: string; user_id: string; content: string; created_at: string };
 export type TFActivity = { id: string; task_id: string; type: string; details?: string; user_id: string; created_at: string };
@@ -26,8 +36,7 @@ const REQUIRED_COLUMNS = [
   { name: 'EM ANÁLISE', order_index: 1 },
   { name: 'PENDENTE', order_index: 2 },
   { name: 'EM ANDAMENTO', order_index: 3 },
-  { name: 'EM REVISÃO', order_index: 4 },
-  { name: 'CONCLUÍDO', order_index: 5 },
+  { name: 'CONCLUÍDO', order_index: 4 },
 ];
 
 import { api } from '@/services/api';
@@ -169,18 +178,7 @@ export async function moveTask(taskId: string, toColumnId: string) {
   return data;
 }
 
-export async function assignUsers(taskId: string, userIds: string[], assignerName: string) {
-  // Clear existing first for simple "set" logic
-  // Note: In a real app, we might want to diff to avoid re-notifying, but here we'll just notify new adds
-  // For simplicity in this "set" logic, we'll just notify everyone newly added
-  
-  const { data: currentAssignments } = await supabase
-    .from('taskflow_task_users')
-    .select('user_id')
-    .eq('task_id', taskId);
-    
-  const currentIds = new Set((currentAssignments || []).map(a => a.user_id));
-  
+export async function assignUsers(taskId: string, userIds: string[]) {
   // Delete all (simple sync)
   const { error: deleteError } = await supabase.from('taskflow_task_users').delete().eq('task_id', taskId);
   if (deleteError) {
@@ -226,7 +224,7 @@ export async function addComment(taskId: string, userId: string, content: string
   return data;
 }
 
-export async function fetchUnifiedTasks(userBoardId: string, search?: string) {
+export async function fetchUnifiedTasks(search?: string) {
   // 1. Busca todas as tarefas que o usuário tem acesso (RLS já filtra)
   // Join com taskflow_columns para saber o nome da coluna original (status)
   // Join com profiles para saber quem criou (dono)
@@ -255,18 +253,60 @@ export async function fetchUnifiedTasks(userBoardId: string, search?: string) {
     return [];
   }
 
-  return (data || []).map((t: any) => ({
-    ...t,
-    original_column_name: t.column?.name,
-    owner_avatar: t.owner?.avatar_url,
-    owner_name: t.owner?.nome,
-    comments_count: t.comments?.[0]?.count || 0,
-    assignees_list: t.assignees?.map((a: any) => ({
-      id: a.profiles?.id,
-      nome: a.profiles?.nome,
-      avatar_url: a.profiles?.avatar_url
-    })) || []
-  }));
+  return (data || []).map((t: any) => {
+    const owner = Array.isArray(t.owner) ? t.owner[0] : t.owner;
+    const column = Array.isArray(t.column) ? t.column[0] : t.column;
+    return {
+      ...t,
+      original_column_name: column?.name,
+      owner_avatar: owner?.avatar_url,
+      owner_name: owner?.nome,
+      comments_count: t.comments?.[0]?.count || 0,
+      assignees_list:
+        t.assignees?.map((a: any) => ({
+          id: a.profiles?.id,
+          nome: a.profiles?.nome,
+          avatar_url: a.profiles?.avatar_url
+        })) || [],
+      last_activity_at: t.last_activity_at || t.updated_at || t.created_at
+    };
+  });
+}
+
+export async function fetchTaskSeen(userId: string, taskIds: string[]) {
+  if (!userId || taskIds.length === 0) return new Map<string, string>();
+  try {
+    const { data, error } = await (supabase as any)
+      .from('taskflow_task_seen')
+      .select('task_id,last_seen_at')
+      .eq('user_id', userId)
+      .in('task_id', taskIds);
+    if (error) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const row of data || []) map.set((row as any).task_id, (row as any).last_seen_at);
+    return map;
+  } catch {
+    return new Map<string, string>();
+  }
+}
+
+export async function markTaskSeen(taskId: string) {
+  if (!taskId) return;
+  try {
+    const { error } = await (supabase as any).rpc('tf_mark_task_seen', { p_task_id: taskId });
+    if (error) throw error;
+  } catch {
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      const userId = user?.id;
+      if (!userId) return;
+      await (supabase as any)
+        .from('taskflow_task_seen')
+        .upsert([{ task_id: taskId, user_id: userId, last_seen_at: new Date().toISOString() }], { onConflict: 'task_id,user_id' });
+    } catch {
+      return;
+    }
+  }
 }
 
 export async function fetchComments(taskId: string) {
@@ -339,7 +379,10 @@ export async function fetchNotifications(userId: string): Promise<Notification[]
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(50);
-  return data || [];
+  return (data || []).map((n: any) => ({
+    ...n,
+    type: n.type as Notification['type']
+  }));
 }
 
 export async function markNotificationAsRead(notificationId: string) {

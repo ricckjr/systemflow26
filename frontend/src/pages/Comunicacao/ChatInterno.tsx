@@ -7,6 +7,7 @@ import { supabase } from '@/services/supabase';
 import { useChat } from '@/hooks/useChat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
+import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { 
   Search, 
   Send, 
@@ -128,9 +129,17 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     currentUser
   } = useChat();
 
+  const {
+    unreadByRoomId,
+    setActiveRoomId: setActiveUnreadRoomId,
+    markRoomAsRead,
+  } = useChatNotifications()
+
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [allUsers, setAllUsers] = useState<Profile[]>([]);
+  const [pendingScrollMessageId, setPendingScrollMessageId] = useState<string | null>(null)
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
   
   const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
@@ -146,11 +155,38 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   useEffect(() => {
     const roomFromUrl = new URLSearchParams(window.location.search).get('room')
+    const messageFromUrl = new URLSearchParams(window.location.search).get('message')
     if (roomFromUrl) {
       setActiveRoomId(roomFromUrl)
       setShowMobileList(false)
     }
+    if (messageFromUrl) setPendingScrollMessageId(messageFromUrl)
   }, [setActiveRoomId])
+
+  useEffect(() => {
+    if (!activeRoomId) return
+    if (!pendingScrollMessageId) return
+    const exists = messages.some((m) => m.id === pendingScrollMessageId)
+    if (!exists) return
+
+    const el = document.getElementById(`chat-message-${pendingScrollMessageId}`)
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightMessageId(pendingScrollMessageId)
+      window.setTimeout(() => setHighlightMessageId(null), 2500)
+      setPendingScrollMessageId(null)
+    }
+  }, [activeRoomId, messages, pendingScrollMessageId])
+
+  useEffect(() => {
+    setActiveUnreadRoomId(activeRoomId)
+  }, [activeRoomId, setActiveUnreadRoomId])
+
+  useEffect(() => {
+    return () => {
+      setActiveUnreadRoomId(null)
+    }
+  }, [setActiveUnreadRoomId])
 
   // Attachments & Audio & Emoji State
   const [showAttachmentsMenu, setShowAttachmentsMenu] = useState(false);
@@ -279,7 +315,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   // ... (Keep existing helpers like handleRoomSelect, etc.)
   const handleRoomSelect = (roomId: string) => {
+    void markRoomAsRead(roomId)
     setActiveRoomId(roomId);
+    setActiveUnreadRoomId(roomId)
     setShowMobileList(false);
   };
 
@@ -378,21 +416,15 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   };
 
   const getRoomInfo = (room: ChatRoom) => {
+    const unreadCount = unreadByRoomId[room.id] ?? 0
+    const hasUnread = unreadCount > 0
+
     if (room.type === 'direct') {
       const otherMember = room.members?.find(m => m.user_id !== currentUser?.id);
       const otherId = otherMember?.user_id || '';
       // Prioritize realtime status, fallback to 'offline'
       const status = usersPresence[otherId]?.status || 'offline';
       const statusText = usersPresence[otherId]?.statusText;
-      
-      // Calculate unread messages for this room
-      // We check if the last message in the room is newer than my last_read_at
-      const myMemberInfo = room.members?.find(m => m.user_id === currentUser?.id);
-      const lastReadAt = myMemberInfo?.last_read_at ? new Date(myMemberInfo.last_read_at).getTime() : 0;
-      const lastMessageAt = room.last_message_at ? new Date(room.last_message_at).getTime() : 0;
-      
-      // Simple unread check: if last message > last read AND last message is not mine
-      const hasUnread = lastMessageAt > lastReadAt && room.last_message?.sender_id !== currentUser?.id;
 
       return {
         id: room.id,
@@ -414,7 +446,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         status: null, // Groups don't have single status
         lastMessage: room.last_message,
         role: 'Grupo',
-        hasUnread: false // TODO: implement group unread logic
+        hasUnread
       };
     }
   };
@@ -840,7 +872,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 const ticks = getTicksForMessage(msg)
 
                 return (
-                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
+                  <div id={`chat-message-${msg.id}`} key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
                     <div className={`max-w-[75%] md:max-w-[60%] group relative flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && activeRoom?.type === 'group' && !isSequence && (
                         <span className="text-[10px] text-[var(--text-soft)] ml-1 mb-1 font-bold">{msg.sender?.nome}</span>
@@ -852,6 +884,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           ? 'bg-[#0284C7] text-white rounded-2xl rounded-tr-none' 
                           : 'bg-[#1E293B] border border-[var(--border)] text-gray-200 rounded-2xl rounded-tl-none'}
                         ${isSequence ? (isMe ? 'mt-1 rounded-tr-2xl' : 'mt-1 rounded-tl-2xl') : ''}
+                        ${msg.id === highlightMessageId ? 'ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-[#0B0F14]' : ''}
                       `}>
                         {hasAttachments ? (
                            <div className="flex flex-col gap-2">

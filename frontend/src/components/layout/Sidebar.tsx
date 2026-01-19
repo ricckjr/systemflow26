@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { LogoutModal } from '../ui/LogoutModal';
 
 interface NavItem {
@@ -73,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasAnyUnread } = useChatNotifications();
 
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     'COMERCIAL',
@@ -157,11 +159,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 `}
               >
                 <div className={`flex items-center ${showText ? 'gap-3' : 'gap-0'}`}>
-                  <item.icon 
-                    size={showText ? 18 : 20} 
-                    strokeWidth={1.5}
-                    className={isActive ? 'text-cyan-500' : 'text-slate-500 group-hover:text-slate-300'}
-                  />
+                  <div className="relative">
+                    <item.icon 
+                      size={showText ? 18 : 20} 
+                      strokeWidth={1.5}
+                      className={isActive ? 'text-cyan-500' : 'text-slate-500 group-hover:text-slate-300'}
+                    />
+                    {item.modulo === 'comunicacao' && hasAnyUnread && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
+                    )}
+                  </div>
                   {showText && (
                     <span className="text-[11px] font-bold tracking-widest uppercase">
                       {item.label}
@@ -199,7 +206,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                           }`}
                       >
-                        {sub.label}
+                        <div className="flex items-center justify-between">
+                          <span>{sub.label}</span>
+                          {sub.path === '/app/comunicacao/chat' && hasAnyUnread && (
+                            <span className="w-2 h-2 bg-cyan-500 rounded-full" />
+                          )}
+                        </div>
                       </Link>
                     );
                   })}

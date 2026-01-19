@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, X, Check, Inbox } from 'lucide-react';
 import { Profile } from '@/types';
 import { supabase } from '@/services/supabase';
+import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -25,94 +26,28 @@ interface Notification {
   created_at: string;
 }
 
-interface ChatToastItem {
-  id: string;
-  roomId: string;
-  senderName: string;
-  senderAvatarUrl?: string | null;
-  preview: string;
-  createdAt: string;
+type ChatNotifMessage = {
+  id: string
+  content: string | null
+  attachments?: any[] | null
 }
 
-const CHAT_TOAST_DURATION_MS = 6000;
+type ChatNotifSender = {
+  id: string
+  nome: string | null
+  avatar_url: string | null
+}
 
-const ChatToast: React.FC<{
-  toast: ChatToastItem;
-  durationMs: number;
-  onClick: () => void;
-  onClose: () => void;
-}> = ({ toast, durationMs, onClick, onClose }) => {
-  const [running, setRunning] = useState(false);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setRunning(true), 20);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="w-[320px] bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onClick()
-          }
-        }}
-        className="w-full text-left p-3 hover:bg-white/5 transition-colors"
-      >
-        <div className="flex gap-3 items-start">
-          <div className="w-10 h-10 rounded-xl bg-[#1E293B] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
-            {toast.senderAvatarUrl ? (
-              <img src={toast.senderAvatarUrl} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-[10px] font-bold text-white">
-                {toast.senderName.substring(0, 2).toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold text-white truncate">
-                {toast.senderName} mandou mensagem
-              </p>
-              <span className="text-[9px] text-[#6B7280] shrink-0">
-                {new Date(toast.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-            <p className="text-[11px] text-[#9CA3AF] mt-1 line-clamp-2 break-words">
-              {toast.preview}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-[#9CA3AF] hover:text-white shrink-0"
-            title="Fechar"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-      <div className="h-1 bg-white/10">
-        <div
-          className="h-full bg-cyan-500"
-          style={{
-            width: running ? '0%' : '100%',
-            transitionProperty: 'width',
-            transitionDuration: `${durationMs}ms`,
-            transitionTimingFunction: 'linear',
-          }}
-        />
-      </div>
-    </div>
-  );
-};
+type ChatNotifItem = {
+  id: string
+  room_id: string
+  message_id: string
+  sender_id: string
+  is_read: boolean
+  created_at: string
+  sender?: ChatNotifSender | null
+  message?: ChatNotifMessage | null
+}
 
 export const Header: React.FC<HeaderProps> = ({
   isMobileMenuOpen,
@@ -125,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasAnyUnread, totalUnread } = useChatNotifications();
   
   // Notification State (System Alerts)
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -133,34 +69,132 @@ export const Header: React.FC<HeaderProps> = ({
   const notificationRef = useRef<HTMLDivElement>(null);
 
   // Chat Notification State
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [isChatNotificationsOpen, setIsChatNotificationsOpen] = useState(false);
-  const [chatNotifications, setChatNotifications] = useState<any[]>([]);
+  const [chatNotifications, setChatNotifications] = useState<ChatNotifItem[]>([]);
   const chatNotificationRef = useRef<HTMLDivElement>(null);
-  const [chatToasts, setChatToasts] = useState<ChatToastItem[]>([]);
-  const toastTimersRef = useRef<Record<string, number>>({});
 
   // ... (keep fetchUnreadChat and subscriptions)
 
   // Fetch recent chat notifications for the list
   useEffect(() => {
     if (isChatNotificationsOpen && profile?.id) {
-       (async () => {
-         const { data } = await supabase
-           .from('chat_notifications')
-           .select(`
-             id, is_read, created_at,
-             sender:profiles(id, nome, avatar_url),
-             message:chat_messages(content, attachments)
-           `)
-           .eq('user_id', profile.id)
-           .order('created_at', { ascending: false })
-           .limit(10);
-         
-         if (data) setChatNotifications(data);
-       })();
+      ;(async () => {
+        const { data: notifRows } = await supabase
+          .from('chat_notifications')
+          .select('id, room_id, message_id, sender_id, is_read, created_at')
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        const base = (notifRows ?? []) as any[]
+        if (base.length === 0) {
+          setChatNotifications([])
+          return
+        }
+
+        const senderIds = Array.from(
+          new Set(base.map((r) => r?.sender_id).filter(Boolean))
+        ) as string[]
+        const messageIds = Array.from(
+          new Set(base.map((r) => r?.message_id).filter(Boolean))
+        ) as string[]
+
+        const [{ data: senders }, { data: messages }] = await Promise.all([
+          supabase.from('profiles').select('id, nome, avatar_url').in('id', senderIds),
+          supabase.from('chat_messages').select('id, content, attachments').in('id', messageIds),
+        ])
+
+        const senderById = new Map<string, ChatNotifSender>()
+        for (const s of (senders ?? []) as any[]) {
+          if (!s?.id) continue
+          senderById.set(s.id, {
+            id: s.id,
+            nome: s.nome ?? null,
+            avatar_url: s.avatar_url ?? null,
+          })
+        }
+
+        const messageById = new Map<string, ChatNotifMessage>()
+        for (const m of (messages ?? []) as any[]) {
+          if (!m?.id) continue
+          messageById.set(m.id, {
+            id: m.id,
+            content: typeof m.content === 'string' ? m.content : null,
+            attachments: m.attachments ?? null,
+          })
+        }
+
+        const items: ChatNotifItem[] = base
+          .filter((r) => r?.id && r?.room_id && r?.message_id && r?.sender_id)
+          .map((r) => ({
+            id: r.id,
+            room_id: r.room_id,
+            message_id: r.message_id,
+            sender_id: r.sender_id,
+            is_read: Boolean(r.is_read),
+            created_at: r.created_at,
+            sender: senderById.get(r.sender_id) ?? null,
+            message: messageById.get(r.message_id) ?? null,
+          }))
+
+        setChatNotifications(items)
+      })()
     }
-  }, [isChatNotificationsOpen, profile?.id]);
+  }, [isChatNotificationsOpen, profile?.id, totalUnread]);
+
+  useEffect(() => {
+    if (!isChatNotificationsOpen || !profile?.id) return
+
+    const channel = supabase
+      .channel(`chat_notifications_dropdown_${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_notifications',
+          filter: `user_id=eq.${profile.id}`,
+        },
+        async (payload) => {
+          const row = payload.new as any
+          const id = row?.id as string | undefined
+          const roomId = row?.room_id as string | undefined
+          const messageId = row?.message_id as string | undefined
+          const senderId = row?.sender_id as string | undefined
+          if (!id || !roomId || !messageId || !senderId) return
+
+          const [{ data: sender }, { data: message }] = await Promise.all([
+            supabase.from('profiles').select('id, nome, avatar_url').eq('id', senderId).single(),
+            supabase.from('chat_messages').select('id, content, attachments').eq('id', messageId).single(),
+          ])
+
+          const nextItem: ChatNotifItem = {
+            id,
+            room_id: roomId,
+            message_id: messageId,
+            sender_id: senderId,
+            is_read: Boolean(row?.is_read),
+            created_at: row?.created_at,
+            sender: sender
+              ? { id: sender.id, nome: sender.nome ?? null, avatar_url: sender.avatar_url ?? null }
+              : null,
+            message: message
+              ? { id: message.id, content: typeof message.content === 'string' ? message.content : null, attachments: message.attachments ?? null }
+              : null,
+          }
+
+          setChatNotifications((prev) => {
+            const filtered = prev.filter((x) => x.id !== id)
+            return [nextItem, ...filtered].slice(0, 10)
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [isChatNotificationsOpen, profile?.id])
 
   // Click outside for chat notifications
   useEffect(() => {
@@ -174,8 +208,14 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   const handleChatNotificationClick = async (notif: any) => {
-    // Navigate to chat
-    navigate('/app/comunicacao/chat');
+    const roomId = notif?.room_id as string | undefined
+    const messageId = notif?.message_id as string | undefined
+    const qs = roomId
+      ? messageId
+        ? `?room=${encodeURIComponent(roomId)}&message=${encodeURIComponent(messageId)}`
+        : `?room=${encodeURIComponent(roomId)}`
+      : ''
+    navigate(`/app/comunicacao/chat${qs}`)
     setIsChatNotificationsOpen(false);
     // Mark as read happens automatically in the chat page or we can do it here
   };
@@ -226,36 +266,7 @@ export const Header: React.FC<HeaderProps> = ({
       }
     };
 
-    const fetchUnreadChat = async () => {
-        try {
-          if (!profile?.id) return;
-
-          const { data: rpcCount, error: rpcError } = await supabase.rpc('get_unread_chat_notification_count');
-          if (!rpcError && typeof rpcCount === 'number') {
-            setUnreadChatCount(rpcCount);
-            return;
-          }
-
-          const { data, error } = await supabase
-            .from('chat_notifications')
-            .select('id')
-            .eq('user_id', profile.id)
-            .eq('is_read', false);
-
-          if (!error) {
-            setUnreadChatCount(data?.length || 0);
-          } else {
-            if (error.code !== 'PGRST116' && error.message !== 'FetchError: The user aborted a request.') {
-              console.warn('⚠️ Falha ao carregar notificações de chat:', error.message);
-            }
-          }
-        } catch (err) {
-          // Silencioso
-        }
-    };
-
     fetchNotifications();
-    fetchUnreadChat();
 
     // Subscribe to new notifications
     const subscription = supabase
@@ -276,111 +287,10 @@ export const Header: React.FC<HeaderProps> = ({
       )
       .subscribe();
 
-    // Subscribe to new chat notifications (only count update)
-    const chatSubscription = supabase
-      .channel(`chat_notifications_header_${profile.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `user_id=eq.${profile.id}`
-        },
-        (payload) => {
-           setUnreadChatCount(prev => prev + 1);
-           const row = payload.new as any;
-           const notifId = row?.id as string | undefined;
-           if (!notifId) return;
-
-           (async () => {
-             const { data } = await supabase
-               .from('chat_notifications')
-               .select(`
-                 id, room_id, created_at,
-                 sender:profiles(id, nome, avatar_url),
-                 message:chat_messages(content, attachments)
-               `)
-               .eq('id', notifId)
-               .single();
-
-             if (!data) return;
-
-             const content =
-               typeof (data as any)?.message?.content === 'string'
-                 ? (data as any).message.content.trim()
-                 : '';
-             const attachments = (data as any)?.message?.attachments;
-             const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
-             const firstType = hasAttachments ? attachments[0]?.type : undefined;
-             const attachmentPreview =
-               firstType === 'audio'
-                 ? '🎵 Áudio'
-                 : firstType === 'image'
-                   ? '🖼️ Imagem'
-                   : firstType === 'video'
-                     ? '🎬 Vídeo'
-                     : firstType === 'document'
-                       ? '📄 Documento'
-                       : hasAttachments
-                         ? '📎 Anexo'
-                         : '';
-             const preview = content || attachmentPreview || 'Nova mensagem';
-
-             const senderName = (data as any)?.sender?.nome || 'Alguém';
-
-             setChatToasts(prev => {
-               const next: ChatToastItem[] = [
-                 {
-                   id: data.id,
-                   roomId: (data as any).room_id,
-                   senderName,
-                   senderAvatarUrl: (data as any)?.sender?.avatar_url ?? null,
-                   preview,
-                   createdAt: (data as any).created_at,
-                 },
-                 ...prev.filter(t => t.id !== data.id),
-               ].slice(0, 3);
-               return next;
-             });
-
-             if (toastTimersRef.current[notifId]) {
-               window.clearTimeout(toastTimersRef.current[notifId]);
-             }
-             toastTimersRef.current[notifId] = window.setTimeout(() => {
-               setChatToasts(prev => prev.filter(t => t.id !== notifId));
-               delete toastTimersRef.current[notifId];
-             }, CHAT_TOAST_DURATION_MS);
-           })();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-           event: 'UPDATE',
-           schema: 'public',
-           table: 'chat_notifications',
-           filter: `user_id=eq.${profile.id}`
-        },
-        () => {
-           // Re-fetch to be accurate on read status change
-           fetchUnreadChat();
-        }
-      )
-      .subscribe();
-
     return () => {
       subscription.unsubscribe();
-      chatSubscription.unsubscribe();
     };
   }, [profile?.id]);
-
-  useEffect(() => {
-    return () => {
-      Object.values(toastTimersRef.current).forEach((t) => window.clearTimeout(t));
-      toastTimersRef.current = {};
-    };
-  }, []);
 
   // Click outside to close notifications
   useEffect(() => {
@@ -563,10 +473,8 @@ export const Header: React.FC<HeaderProps> = ({
               title="Mensagens"
             >
               <MessageSquare size={16} />
-              {unreadChatCount > 0 && (
-                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-[#0B0F14] flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
-                   {unreadChatCount > 9 ? '9+' : unreadChatCount}
-                 </span>
+              {hasAnyUnread && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-cyan-500 rounded-full border-2 border-[#0B0F14] animate-pulse" />
               )}
             </button>
 
@@ -599,7 +507,7 @@ export const Header: React.FC<HeaderProps> = ({
                           const content = typeof notif?.message?.content === 'string' ? notif.message.content.trim() : ''
                           const attachments = notif?.message?.attachments
                           const hasAttachments = Array.isArray(attachments) && attachments.length > 0
-                          const firstType = hasAttachments ? attachments[0]?.type : undefined
+                          const firstType = hasAttachments ? (attachments as any[])[0]?.type : undefined
                           const attachmentPreview =
                             firstType === 'audio'
                               ? '🎵 Áudio'
@@ -613,6 +521,7 @@ export const Header: React.FC<HeaderProps> = ({
                                       ? '📎 Anexo'
                                       : ''
                           const preview = content || attachmentPreview || 'Nova mensagem'
+                          const senderName = (notif?.sender?.nome || 'Alguém').trim?.() ? (notif.sender.nome as any) : 'Alguém'
 
                           return (
                         <button
@@ -624,13 +533,13 @@ export const Header: React.FC<HeaderProps> = ({
                              {notif.sender?.avatar_url ? (
                                <img src={notif.sender.avatar_url} className="w-full h-full object-cover" />
                              ) : (
-                               <span className="text-[10px] font-bold text-white">{notif.sender?.nome?.substring(0, 2).toUpperCase()}</span>
+                               <span className="text-[10px] font-bold text-white">{senderName.substring(0, 2).toUpperCase()}</span>
                              )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-baseline mb-0.5">
                                <p className={`text-xs truncate ${!notif.is_read ? 'text-white font-bold' : 'text-[#E5E7EB]'}`}>
-                                 {notif.sender?.nome}
+                                 {senderName} mandou mensagem
                                </p>
                                <span className="text-[9px] text-[#6B7280]">
                                  {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -654,34 +563,6 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         </div>
-
-        {chatToasts.length > 0 && (
-          <div className="fixed bottom-4 left-4 z-[200] flex flex-col gap-2">
-            {chatToasts.map((t) => (
-              <ChatToast
-                key={t.id}
-                toast={t}
-                durationMs={CHAT_TOAST_DURATION_MS}
-                onClick={() => {
-                  navigate(`/app/comunicacao/chat?room=${t.roomId}`);
-                  setChatToasts(prev => prev.filter(x => x.id !== t.id));
-                  if (toastTimersRef.current[t.id]) {
-                    window.clearTimeout(toastTimersRef.current[t.id]);
-                    delete toastTimersRef.current[t.id];
-                  }
-                  void supabase.from('chat_notifications').update({ is_read: true }).eq('id', t.id);
-                }}
-                onClose={() => {
-                  setChatToasts(prev => prev.filter(x => x.id !== t.id));
-                  if (toastTimersRef.current[t.id]) {
-                    window.clearTimeout(toastTimersRef.current[t.id]);
-                    delete toastTimersRef.current[t.id];
-                  }
-                }}
-              />
-            ))}
-          </div>
-        )}
 
         {/* Profile */}
         <button 

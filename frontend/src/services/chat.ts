@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase'
 import { ChatRoom, ChatMessage, ChatAttachment, ChatMessageReceipt } from '@/types/chat'
+import type { Json } from '@/types/database.types'
 
 function normalizeAttachments(input: unknown): ChatAttachment[] {
   if (!Array.isArray(input)) return []
@@ -20,7 +21,7 @@ function normalizeAttachments(input: unknown): ChatAttachment[] {
         mime_type: typeof o.mime_type === 'string' ? o.mime_type : undefined,
       } as ChatAttachment
     })
-    .filter(Boolean)
+    .filter((a): a is ChatAttachment => a !== null)
 }
 
 const PROFILE_SELECT =
@@ -196,7 +197,7 @@ export const chatService = {
         room_id: roomId,
         sender_id: userId,
         content: content?.trim() ? content : null,
-        attachments: attachments.length > 0 ? attachments : null,
+        attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
       })
       .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .single()
@@ -209,7 +210,7 @@ export const chatService = {
             room_id: roomId,
             sender_id: userId,
             content: content?.trim() ? content : null,
-            attachments: attachments.length > 0 ? attachments : null,
+            attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
           })
           .select(MESSAGE_SELECT_BASE)
           .single()

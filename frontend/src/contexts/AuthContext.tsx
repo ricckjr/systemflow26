@@ -11,7 +11,8 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
 import type { Profile, ProfilePermissao } from '@/types'
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
+function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number) {
+  const promise = Promise.resolve(promiseLike)
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error('timeout')), timeoutMs)
@@ -210,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /* ================================
      SignOut
   ================================ */
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
     localStorage.removeItem(PROFILE_CACHE_KEY)
     localStorage.removeItem(PERMS_CACHE_KEY)
 
@@ -224,14 +225,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthReady(false)
     setProfileReady(false)
 
-    supabase
-      .rpc('update_user_status', { new_status: 'offline' })
-      .catch(() => {})
-      .finally(() => {
-        supabase.auth.signOut().finally(() => {
-          window.location.href = '/login'
-        })
-      })
+    try {
+      const { error } = await supabase.rpc('update_user_status', { new_status: 'offline' })
+      if (error) throw error
+    } catch {
+    } finally {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    }
   }, [])
 
   /* ================================

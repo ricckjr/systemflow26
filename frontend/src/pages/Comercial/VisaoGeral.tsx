@@ -29,6 +29,7 @@ import { startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
+import { APP_TIME_ZONE } from '@/constants/timezone'
 
 /* ===========================
    HELPERS
@@ -90,7 +91,7 @@ export default function VisaoGeral() {
     // Force "America/Sao_Paulo" timezone for current month calculation
     // We get the current date, convert to SP time to find the correct month/year
     const now = new Date()
-    const spDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+    const spDate = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
     
     const start = startOfMonth(spDate)
     const end = endOfMonth(spDate)

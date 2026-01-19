@@ -852,6 +852,22 @@ export interface Database {
         Args: Record<string, never>
         Returns: number
       }
+      mark_all_delivered: {
+        Args: Record<string, never>
+        Returns: void
+      }
+      mark_message_delivered: {
+        Args: {
+          message_id: string
+        }
+        Returns: void
+      }
+      mark_room_read: {
+        Args: {
+          room_id: string
+        }
+        Returns: void
+      }
       update_user_status: {
         Args: {
           new_status: string

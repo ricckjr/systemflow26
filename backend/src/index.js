@@ -7,6 +7,8 @@ const dotenv = require('dotenv');
 // Carrega variáveis de ambiente
 dotenv.config();
 
+process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
+
 // Importa rotas e middleware
 const adminRoutes = require('./routes/admin');
 const taskflowRoutes = require('./routes/taskflow');

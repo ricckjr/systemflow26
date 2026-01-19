@@ -3,13 +3,16 @@ import { RouterProvider } from 'react-router-dom';
 
 import { ThemeProvider } from '@/hooks/useTheme';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { PresenceProvider } from '@/contexts/PresenceContext';
 import router from '@/routes';
 
 const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <PresenceProvider>
+          <RouterProvider router={router} />
+        </PresenceProvider>
       </AuthProvider>
     </ThemeProvider>
   );

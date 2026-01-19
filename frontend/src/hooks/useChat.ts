@@ -14,6 +14,7 @@ export function useChat() {
   
   // Keep track of subscriptions to clean up
   const activeRoomUnsubscribe = useRef<(() => void) | null>(null);
+  const activeRoomReceiptUnsubscribe = useRef<(() => void) | null>(null);
 
   // Initial load of rooms
   useEffect(() => {
@@ -79,6 +80,12 @@ export function useChat() {
       } catch {}
       activeRoomUnsubscribe.current = null
     }
+    if (activeRoomReceiptUnsubscribe.current) {
+      try {
+        activeRoomReceiptUnsubscribe.current()
+      } catch {}
+      activeRoomReceiptUnsubscribe.current = null
+    }
 
     activeRoomUnsubscribe.current = chatService.subscribeToNewMessages(
       activeRoomId,
@@ -94,12 +101,60 @@ export function useChat() {
       }
     )
 
+    activeRoomReceiptUnsubscribe.current = chatService.subscribeToReceiptUpdates(
+      activeRoomId,
+      (receipt) => {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== receipt.message_id) return m
+            const nextReceipts = Array.isArray(m.receipts) ? [...m.receipts] : []
+            const idx = nextReceipts.findIndex((r) => r.user_id === receipt.user_id)
+            const merged = {
+              user_id: receipt.user_id,
+              delivered_at: receipt.delivered_at,
+              read_at: receipt.read_at,
+            }
+            if (idx >= 0) nextReceipts[idx] = { ...nextReceipts[idx], ...merged }
+            else nextReceipts.push(merged)
+            return { ...m, receipts: nextReceipts }
+          })
+        )
+
+        setRooms((prev) =>
+          prev.map((r) => {
+            if (r.last_message?.id !== receipt.message_id) return r
+            const nextReceipts = Array.isArray(r.last_message.receipts)
+              ? [...r.last_message.receipts]
+              : []
+            const idx = nextReceipts.findIndex((x) => x.user_id === receipt.user_id)
+            const merged = {
+              user_id: receipt.user_id,
+              delivered_at: receipt.delivered_at,
+              read_at: receipt.read_at,
+            }
+            if (idx >= 0) nextReceipts[idx] = { ...nextReceipts[idx], ...merged }
+            else nextReceipts.push(merged)
+            return {
+              ...r,
+              last_message: { ...r.last_message, receipts: nextReceipts },
+            }
+          })
+        )
+      }
+    )
+
     return () => {
       if (activeRoomUnsubscribe.current) {
         try {
           activeRoomUnsubscribe.current()
         } catch {}
         activeRoomUnsubscribe.current = null
+      }
+      if (activeRoomReceiptUnsubscribe.current) {
+        try {
+          activeRoomReceiptUnsubscribe.current()
+        } catch {}
+        activeRoomReceiptUnsubscribe.current = null
       }
     };
     // CRITICAL FIX: Removed 'rooms' dependency to prevent re-fetching messages/re-subscribing when room list updates

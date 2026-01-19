@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { ChatRoom, ChatMessage, ChatAttachment } from '@/types/chat'
+import { ChatRoom, ChatMessage, ChatAttachment, ChatMessageReceipt } from '@/types/chat'
 
 function normalizeAttachments(input: unknown): ChatAttachment[] {
   if (!Array.isArray(input)) return []
@@ -26,6 +26,24 @@ function normalizeAttachments(input: unknown): ChatAttachment[] {
 const PROFILE_SELECT =
   'id,nome,avatar_url,email_login,ativo,created_at,cargo' as const
 
+const MESSAGE_SELECT_BASE = `
+  id,
+  room_id,
+  sender_id,
+  content,
+  attachments,
+  created_at,
+  updated_at,
+  is_edited,
+  reply_to_id,
+  sender:profiles(${PROFILE_SELECT})
+` as const
+
+const MESSAGE_SELECT_WITH_RECEIPTS = `
+  ${MESSAGE_SELECT_BASE},
+  receipts:chat_message_receipts(user_id,delivered_at,read_at)
+` as const
+
 async function getCurrentUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser()
   if (error) throw error
@@ -35,10 +53,19 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 function normalizeMessage(input: any): ChatMessage {
+  const receipts = Array.isArray(input?.receipts)
+    ? (input.receipts as any[]).map((r) => ({
+        user_id: r?.user_id,
+        delivered_at: r?.delivered_at ?? null,
+        read_at: r?.read_at ?? null,
+      })) as ChatMessageReceipt[]
+    : undefined
+
   return {
     ...(input as ChatMessage),
     content: typeof input?.content === 'string' ? input.content : '',
     attachments: normalizeAttachments(input?.attachments),
+    receipts,
   }
 }
 
@@ -90,25 +117,33 @@ export const chatService = {
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('chat_messages')
-      .select(
-        `
-          id,
-          room_id,
-          sender_id,
-          content,
-          attachments,
-          created_at,
-          updated_at,
-          is_edited,
-          reply_to_id,
-          sender:profiles(${PROFILE_SELECT})
-        `
-      )
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .in('room_id', roomIds)
       .order('created_at', { ascending: false })
       .limit(Math.min(roomIds.length * 10, 200))
 
-    if (messagesError) return rooms
+    if (messagesError) {
+      if (messagesError.code === '42P01') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('chat_messages')
+          .select(MESSAGE_SELECT_BASE)
+          .in('room_id', roomIds)
+          .order('created_at', { ascending: false })
+          .limit(Math.min(roomIds.length * 10, 200))
+        if (fallbackError) return rooms
+        const lastMessageByRoom = new Map<string, ChatMessage>()
+        for (const row of fallbackData ?? []) {
+          const roomId = row?.room_id
+          if (!roomId || lastMessageByRoom.has(roomId)) continue
+          lastMessageByRoom.set(roomId, normalizeMessage(row))
+        }
+        return rooms.map((room) => ({
+          ...room,
+          last_message: lastMessageByRoom.get(room.id),
+        }))
+      }
+      return rooms
+    }
 
     const lastMessageByRoom = new Map<string, ChatMessage>()
     for (const row of messagesData ?? []) {
@@ -126,25 +161,24 @@ export const chatService = {
   async getMessages(roomId: string, limit = 50): Promise<ChatMessage[]> {
     const { data, error } = await supabase
       .from('chat_messages')
-      .select(
-        `
-          id,
-          room_id,
-          sender_id,
-          content,
-          attachments,
-          created_at,
-          updated_at,
-          is_edited,
-          reply_to_id,
-          sender:profiles(${PROFILE_SELECT})
-        `
-      )
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .eq('room_id', roomId)
       .order('created_at', { ascending: true })
       .limit(limit)
 
-    if (error) throw error
+    if (error) {
+      if (error.code === '42P01') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('chat_messages')
+          .select(MESSAGE_SELECT_BASE)
+          .eq('room_id', roomId)
+          .order('created_at', { ascending: true })
+          .limit(limit)
+        if (fallbackError) throw fallbackError
+        return (fallbackData ?? []).map(normalizeMessage)
+      }
+      throw error
+    }
 
     return (data ?? []).map(normalizeMessage)
   },
@@ -164,23 +198,27 @@ export const chatService = {
         content: content?.trim() ? content : null,
         attachments: attachments.length > 0 ? attachments : null,
       })
-      .select(
-        `
-          id,
-          room_id,
-          sender_id,
-          content,
-          attachments,
-          created_at,
-          updated_at,
-          is_edited,
-          reply_to_id,
-          sender:profiles(${PROFILE_SELECT})
-        `
-      )
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.code === '42P01') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('chat_messages')
+          .insert({
+            room_id: roomId,
+            sender_id: userId,
+            content: content?.trim() ? content : null,
+            attachments: attachments.length > 0 ? attachments : null,
+          })
+          .select(MESSAGE_SELECT_BASE)
+          .single()
+        if (fallbackError) throw fallbackError
+        if (!fallbackData) throw new Error('Falha ao enviar mensagem')
+        return normalizeMessage(fallbackData)
+      }
+      throw error
+    }
     if (!data) throw new Error('Falha ao enviar mensagem')
 
     return normalizeMessage(data)
@@ -234,6 +272,23 @@ export const chatService = {
       .eq('room_id', roomId)
       .eq('user_id', userId)
     if (error) throw error
+
+    const { error: readError } = await supabase.rpc('mark_room_read', {
+      room_id: roomId,
+    })
+    if (readError && readError.code !== '42883') throw readError
+  },
+
+  async markAllDelivered() {
+    const { error } = await supabase.rpc('mark_all_delivered')
+    if (error && error.code !== '42883') throw error
+  },
+
+  async markMessageDelivered(messageId: string) {
+    const { error } = await supabase.rpc('mark_message_delivered', {
+      message_id: messageId,
+    })
+    if (error && error.code !== '42883') throw error
   },
 
   async createDirectChat(otherUserId: string): Promise<string> {
@@ -260,6 +315,13 @@ export const chatService = {
           const msg = payload.new as any
           const base = normalizeMessage(msg)
 
+          try {
+            const userId = await getCurrentUserId()
+            if (base.sender_id !== userId) {
+              await chatService.markMessageDelivered(base.id)
+            }
+          } catch {}
+
           const { data: senderProfile } = await supabase
             .from('profiles')
             .select(PROFILE_SELECT)
@@ -269,6 +331,42 @@ export const chatService = {
           callback({
             ...base,
             sender: (senderProfile as any) ?? undefined,
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  },
+
+  subscribeToReceiptUpdates(
+    roomId: string,
+    callback: (receipt: {
+      message_id: string
+      user_id: string
+      delivered_at: string | null
+      read_at: string | null
+    }) => void
+  ) {
+    const channel = supabase
+      .channel(`chat_receipts_${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_message_receipts',
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const row = payload.new as any
+          callback({
+            message_id: row.message_id,
+            user_id: row.user_id,
+            delivered_at: row.delivered_at ?? null,
+            read_at: row.read_at ?? null,
           })
         }
       )

@@ -224,9 +224,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthReady(false)
     setProfileReady(false)
 
-    supabase.auth.signOut().finally(() => {
-      window.location.href = '/login'
-    })
+    supabase
+      .rpc('update_user_status', { new_status: 'offline' })
+      .catch(() => {})
+      .finally(() => {
+        supabase.auth.signOut().finally(() => {
+          window.location.href = '/login'
+        })
+      })
   }, [])
 
   /* ================================

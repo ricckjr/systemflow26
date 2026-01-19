@@ -36,6 +36,12 @@ export interface ChatRoomMember {
   profile?: Profile;
 }
 
+export interface ChatMessageReceipt {
+  user_id: string;
+  delivered_at?: string | null;
+  read_at?: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   room_id: string;
@@ -48,4 +54,5 @@ export interface ChatMessage {
   reply_to_id?: string;
   // Joined sender
   sender?: Profile;
+  receipts?: ChatMessageReceipt[];
 }

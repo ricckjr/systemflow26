@@ -3,8 +3,10 @@ import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles } from '@/services/profiles';
+import { supabase } from '@/services/supabase';
 import { useChat } from '@/hooks/useChat';
-import { ChatRoom } from '@/types/chat';
+import { ChatRoom, ChatMessage } from '@/types/chat';
+import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
 import { 
   Search, 
   Send, 
@@ -12,6 +14,11 @@ import {
   Phone, 
   Video, 
   MessageSquare,
+  Check,
+  Download,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
   MoreVertical,
   Smile,
   CheckCheck,
@@ -25,10 +32,6 @@ import {
   StopCircle,
   Circle
 } from 'lucide-react';
-import { supabase } from '@/services/supabase';
-
-// Status Types
-type UserStatus = 'online' | 'busy' | 'away' | 'offline';
 
 const STATUS_COLORS = {
   online: 'bg-emerald-500',
@@ -129,10 +132,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const [search, setSearch] = useState('');
   const [allUsers, setAllUsers] = useState<Profile[]>([]);
   
-  // Status State
-  const [myStatus, setMyStatus] = useState<UserStatus>('online');
-  const [usersStatus, setUsersStatus] = useState<Record<string, UserStatus>>({});
+  const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [statusTextDraft, setStatusTextDraft] = useState('');
+  const statusTextTimerRef = useRef<number | null>(null);
 
   // New Chat Modal State
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
@@ -151,10 +154,90 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name?: string } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
 
   // Hidden File Inputs
   const imageInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!previewImage) return
+    setPreviewZoom(1)
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewImage(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [previewImage])
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || Number.isNaN(bytes)) return ''
+    const units = ['B', 'KB', 'MB', 'GB']
+    let value = bytes
+    let i = 0
+    while (value >= 1024 && i < units.length - 1) {
+      value /= 1024
+      i++
+    }
+    return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+  }
+
+  const downloadFromUrl = async (url: string, filename?: string) => {
+    const safeName = (filename?.trim() || 'arquivo').replace(/[/\\?%*:|"<>]/g, '-')
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = safeName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileModalUser, setProfileModalUser] = useState<Profile | null>(null);
+  const [profileModalLoading, setProfileModalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isProfileModalOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsProfileModalOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isProfileModalOpen])
+
+  const openProfileModal = async (userId: string) => {
+    setIsProfileModalOpen(true)
+    setProfileModalLoading(true)
+
+    const cached =
+      allUsers.find((u) => u.id === userId) ??
+      (profile?.id === userId ? profile : null)
+    if (cached) setProfileModalUser(cached)
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+      if (error) throw error
+      if (data) setProfileModalUser(data as any)
+    } catch {
+    } finally {
+      setProfileModalLoading(false)
+    }
+  }
 
   // Fetch all users
   useEffect(() => {
@@ -168,79 +251,23 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     })();
   }, [currentUser]);
 
-  // Presence & Status Logic
-  useEffect(() => {
-    if (!currentUser?.id) return;
-
-    // 1. Subscribe to presence channel
-    const presenceChannel = supabase.channel('global_presence')
-      .on('presence', { event: 'sync' }, () => {
-        const newState = presenceChannel.presenceState();
-        const statusMap: Record<string, UserStatus> = {};
-        
-        Object.values(newState).forEach((presences: any) => {
-          presences.forEach((p: any) => {
-            if (p.user_id) {
-              statusMap[p.user_id] = p.status || 'online';
-            }
-          });
-        });
-        setUsersStatus(prev => ({ ...prev, ...statusMap }));
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await presenceChannel.track({ 
-            user_id: currentUser.id, 
-            online_at: new Date().toISOString(),
-            status: myStatus 
-          });
-        }
-      });
-
-    // 2. Idle Timer logic (Auto-Away after 5 min)
-    let idleTimer: NodeJS.Timeout;
-    const resetIdleTimer = () => {
-        if (myStatus === 'busy') return; // Don't override busy
-        
-        if (myStatus === 'away') {
-           setMyStatus('online'); // Auto-back
-           presenceChannel.track({ user_id: currentUser.id, status: 'online' });
-        }
-        
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-           if (myStatus === 'online') {
-             setMyStatus('away');
-             presenceChannel.track({ user_id: currentUser.id, status: 'away' });
-           }
-        }, 5 * 60 * 1000); // 5 minutes
-    };
-
-    window.addEventListener('mousemove', resetIdleTimer);
-    window.addEventListener('keydown', resetIdleTimer);
-
-    return () => {
-      presenceChannel.unsubscribe();
-      window.removeEventListener('mousemove', resetIdleTimer);
-      window.removeEventListener('keydown', resetIdleTimer);
-      clearTimeout(idleTimer);
-    };
-  }, [currentUser, myStatus]);
-
   // Update status manually
   const handleStatusChange = async (status: UserStatus) => {
-    setMyStatus(status);
     setIsStatusMenuOpen(false);
-    await supabase.channel('global_presence').track({ 
-        user_id: currentUser?.id, 
-        status 
-    });
-    
-    // Also update in DB for persistence if needed
-    if (currentUser?.id) {
-      await supabase.rpc('update_user_status', { new_status: status });
-    }
+    await setStatus(status);
   };
+
+  useEffect(() => {
+    setStatusTextDraft(myStatusText || '')
+  }, [myStatusText])
+
+  const scheduleStatusTextUpdate = (next: string) => {
+    setStatusTextDraft(next)
+    if (statusTextTimerRef.current) window.clearTimeout(statusTextTimerRef.current)
+    statusTextTimerRef.current = window.setTimeout(() => {
+      void setStatusText(next.trim())
+    }, 600)
+  }
 
   // ... (Keep existing helpers like handleRoomSelect, etc.)
   const handleRoomSelect = (roomId: string) => {
@@ -347,7 +374,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       const otherMember = room.members?.find(m => m.user_id !== currentUser?.id);
       const otherId = otherMember?.user_id || '';
       // Prioritize realtime status, fallback to 'offline'
-      const status = usersStatus[otherId] || 'offline';
+      const status = usersPresence[otherId]?.status || 'offline';
+      const statusText = usersPresence[otherId]?.statusText;
       
       // Calculate unread messages for this room
       // We check if the last message in the room is newer than my last_read_at
@@ -360,9 +388,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
       return {
         id: room.id,
+        userId: otherId,
         name: otherMember?.profile?.nome || 'Usuário Desconhecido',
         avatar_url: otherMember?.profile?.avatar_url,
         status: status, 
+        statusText,
         lastMessage: room.last_message,
         role: otherMember?.profile?.cargo || 'Membro',
         hasUnread
@@ -370,6 +400,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     } else {
       return {
         id: room.id,
+        userId: null,
         name: room.name || 'Grupo sem nome',
         avatar_url: null,
         status: null, // Groups don't have single status
@@ -382,6 +413,58 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   const activeRoom = rooms.find(r => r.id === activeRoomId);
   const activeRoomInfo = activeRoom ? getRoomInfo(activeRoom) : null;
+
+  const getTicksForMessage = (msg: ChatMessage) => {
+    if (!currentUser?.id) return { kind: 'none' as const }
+    if (msg.sender_id !== currentUser.id) return { kind: 'none' as const }
+
+    const room = activeRoom
+    if (!room?.members || room.members.length === 0) return { kind: 'sent' as const }
+    const recipients = room.members.map((m) => m.user_id).filter((id) => id && id !== currentUser.id)
+    if (recipients.length === 0) return { kind: 'sent' as const }
+
+    const receipts = Array.isArray(msg.receipts) ? msg.receipts : []
+    const relevant = receipts.filter((r) => recipients.includes(r.user_id))
+    if (room.type === 'direct') {
+      const r = relevant[0]
+      if (r?.read_at) return { kind: 'read' as const }
+      if (r?.delivered_at) return { kind: 'delivered' as const }
+      return { kind: 'sent' as const }
+    }
+
+    const deliveredCount = relevant.filter((r) => !!r.delivered_at).length
+    const readCount = relevant.filter((r) => !!r.read_at).length
+    if (relevant.length > 0 && readCount === recipients.length) return { kind: 'read' as const }
+    if (relevant.length > 0 && deliveredCount === recipients.length) return { kind: 'delivered' as const }
+    return { kind: 'sent' as const }
+  }
+
+  const getTicksForRoomLastMessage = (room: ChatRoom) => {
+    const last = room.last_message
+    if (!last) return { kind: 'none' as const }
+    if (!currentUser?.id) return { kind: 'none' as const }
+    if (last.sender_id !== currentUser.id) return { kind: 'none' as const }
+    if (!room.members || room.members.length === 0) return { kind: 'sent' as const }
+
+    const recipients = room.members.map((m) => m.user_id).filter((id) => id && id !== currentUser.id)
+    if (recipients.length === 0) return { kind: 'sent' as const }
+
+    const receipts = Array.isArray(last.receipts) ? last.receipts : []
+    const relevant = receipts.filter((r) => recipients.includes(r.user_id))
+
+    if (room.type === 'direct') {
+      const r = relevant[0]
+      if (r?.read_at) return { kind: 'read' as const }
+      if (r?.delivered_at) return { kind: 'delivered' as const }
+      return { kind: 'sent' as const }
+    }
+
+    const deliveredCount = relevant.filter((r) => !!r.delivered_at).length
+    const readCount = relevant.filter((r) => !!r.read_at).length
+    if (relevant.length > 0 && readCount === recipients.length) return { kind: 'read' as const }
+    if (relevant.length > 0 && deliveredCount === recipients.length) return { kind: 'delivered' as const }
+    return { kind: 'sent' as const }
+  }
 
   const filteredRooms = rooms.filter(room => {
     const info = getRoomInfo(room);
@@ -446,13 +529,20 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] shadow-sm flex items-center justify-between">
            <div className="flex items-center gap-3">
               <div className="relative">
-                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-[#1e293b] border border-[var(--border)]`}>
+                 <button
+                   type="button"
+                   onClick={() => {
+                     if (profile?.id) void openProfileModal(profile.id)
+                   }}
+                   className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-[#1e293b] border border-[var(--border)] overflow-hidden`}
+                   title="Meu perfil"
+                 >
                     {profile.avatar_url ? (
                         <img src={profile.avatar_url} alt="Me" className="w-full h-full rounded-full object-cover" />
                     ) : (
                         profile.nome?.substring(0, 2).toUpperCase()
                     )}
-                 </div>
+                 </button>
                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[myStatus]}`}></div>
               </div>
               <div className="flex flex-col">
@@ -464,19 +554,46 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     >
                        {STATUS_LABELS[myStatus]} <MoreVertical size={12} />
                     </button>
+                    {statusTextDraft?.trim() ? (
+                      <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[200px]">
+                        {statusTextDraft.trim()}
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[200px]">
+                        Defina uma mensagem de status
+                      </div>
+                    )}
                     
                     {isStatusMenuOpen && (
-                        <div className="absolute top-6 left-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-1 z-50 w-32 animate-in zoom-in-95 duration-200">
-                           {(Object.keys(STATUS_LABELS) as UserStatus[]).map(status => (
-                              <button
-                                key={status}
-                                onClick={() => handleStatusChange(status)}
-                                className={`flex items-center gap-2 w-full p-2 text-xs rounded-lg hover:bg-[var(--bg-main)] transition-colors ${myStatus === status ? 'text-cyan-400 bg-cyan-500/10' : 'text-[var(--text-main)]'}`}
-                              >
-                                 <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`}></div>
-                                 {STATUS_LABELS[status]}
-                              </button>
-                           ))}
+                        <div className="absolute top-6 left-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2 z-50 w-72 animate-in zoom-in-95 duration-200">
+                          <div className="space-y-1">
+                            {(Object.keys(STATUS_LABELS) as UserStatus[]).map(status => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleStatusChange(status)}
+                                  className={`flex items-center gap-2 w-full p-2 text-xs rounded-lg hover:bg-[var(--bg-main)] transition-colors ${myStatus === status ? 'text-cyan-400 bg-cyan-500/10' : 'text-[var(--text-main)]'}`}
+                                >
+                                   <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`}></div>
+                                   {STATUS_LABELS[status]}
+                                </button>
+                            ))}
+                          </div>
+
+                          <div className="h-px bg-[var(--border)] my-2" />
+                          <div className="px-1 pb-1">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-2">
+                              Mensagem de Status
+                            </div>
+                            <input
+                              value={statusTextDraft}
+                              onChange={(e) => scheduleStatusTextUpdate(e.target.value)}
+                              onBlur={() => void setStatusText(statusTextDraft.trim())}
+                              maxLength={80}
+                              placeholder="Ex.: Em reunião • Volto 14h"
+                              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/40 transition-all"
+                              autoFocus
+                            />
+                          </div>
                         </div>
                     )}
                  </div>
@@ -525,6 +642,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 {filteredRooms.map(room => {
                   const info = getRoomInfo(room);
                   const isActive = activeRoomId === room.id;
+                  const ticks = getTicksForRoomLastMessage(room);
                   
                   return (
                     <button 
@@ -537,19 +655,36 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       }`}
                     >
                       <div className="relative shrink-0">
-                        {info.avatar_url ? (
-                          <img src={info.avatar_url} alt={info.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--bg-panel)] shadow-sm" />
-                        ) : (
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-[var(--text-main)] font-bold uppercase border-2 border-[var(--bg-panel)] shadow-sm transition-colors ${
-                            isActive ? 'bg-cyan-600 text-white' : 'bg-[#1e293b] text-gray-400'
-                          }`}>
-                            {info.name.substring(0, 2)}
-                          </div>
-                        )}
-                        {/* Status Indicator */}
-                        {info.status && (
-                          <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[info.status]} shadow-sm`}></div>
-                        )}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (info.userId) void openProfileModal(info.userId)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              if (info.userId) void openProfileModal(info.userId)
+                            }
+                          }}
+                          className="relative rounded-full"
+                          title="Ver perfil"
+                        >
+                          {info.avatar_url ? (
+                            <img src={info.avatar_url} alt={info.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--bg-panel)] shadow-sm" />
+                          ) : (
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-[var(--text-main)] font-bold uppercase border-2 border-[var(--bg-panel)] shadow-sm transition-colors ${
+                              isActive ? 'bg-cyan-600 text-white' : 'bg-[#1e293b] text-gray-400'
+                            }`}>
+                              {info.name.substring(0, 2)}
+                            </div>
+                          )}
+                          {info.status && (
+                            <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[info.status]} shadow-sm`}></div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="flex-1 min-w-0 text-left">
@@ -567,8 +702,21 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             <p className={`text-xs truncate flex items-center gap-1.5 ${isActive ? 'text-[var(--text-main)]' : 'text-[var(--text-soft)]'} ${info.hasUnread ? 'font-semibold text-white' : ''}`}>
                             {info.lastMessage ? (
                                 <>
-                                {info.lastMessage.sender_id === currentUser?.id && (
-                                    <CheckCheck size={14} className={isActive ? 'text-cyan-500' : 'text-[var(--text-muted)]'} />
+                                {ticks.kind !== 'none' && (
+                                  ticks.kind === 'sent' ? (
+                                    <Check size={14} className={isActive ? 'text-cyan-500' : 'text-[var(--text-muted)]'} />
+                                  ) : (
+                                    <CheckCheck
+                                      size={14}
+                                      className={
+                                        ticks.kind === 'read'
+                                          ? 'text-cyan-400'
+                                          : isActive
+                                            ? 'text-cyan-500'
+                                            : 'text-[var(--text-muted)]'
+                                      }
+                                    />
+                                  )
                                 )}
                                 <span className="truncate">
                                     {info.lastMessage.attachments?.length 
@@ -608,26 +756,47 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <ArrowLeft size={20} />
                 </button>
 
-                <div className="relative">
-                   {activeRoomInfo.avatar_url ? (
-                      <img src={activeRoomInfo.avatar_url} alt={activeRoomInfo.name} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">
-                        {activeRoomInfo.name.substring(0, 2)}
-                      </div>
-                    )}
-                   {activeRoomInfo.status && (
-                     <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[activeRoomInfo.status]}`}></div>
-                   )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeRoomInfo.userId) void openProfileModal(activeRoomInfo.userId)
+                  }}
+                  className="relative"
+                  title="Ver perfil"
+                >
+                  {activeRoomInfo.avatar_url ? (
+                    <img src={activeRoomInfo.avatar_url} alt={activeRoomInfo.name} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">
+                      {activeRoomInfo.name.substring(0, 2)}
+                    </div>
+                  )}
+                  {activeRoomInfo.status && (
+                    <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[activeRoomInfo.status]}`}></div>
+                  )}
+                </button>
                 <div>
-                  <h3 className="text-base font-bold text-[var(--text-main)] leading-none">{activeRoomInfo.name}</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeRoomInfo.userId) void openProfileModal(activeRoomInfo.userId)
+                    }}
+                    className="text-left"
+                    title="Ver perfil"
+                  >
+                    <h3 className="text-base font-bold text-[var(--text-main)] leading-none">{activeRoomInfo.name}</h3>
+                  </button>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${activeRoomInfo.status ? STATUS_COLORS[activeRoomInfo.status] : 'bg-gray-500'}`}></span>
                     <span className="text-[11px] text-[var(--text-muted)] font-medium">
-                        {activeRoomInfo.status ? STATUS_LABELS[activeRoomInfo.status] : 'Offline'}
+                      {activeRoomInfo.status ? STATUS_LABELS[activeRoomInfo.status] : 'Offline'}
                     </span>
                   </div>
+                  {activeRoomInfo.statusText ? (
+                    <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[50vw]">
+                      {activeRoomInfo.statusText}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               
@@ -660,6 +829,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 const isMe = msg.sender_id === currentUser?.id;
                 const isSequence = index > 0 && messages[index - 1].sender_id === msg.sender_id;
                 const hasAttachments = msg.attachments && msg.attachments.length > 0;
+                const ticks = getTicksForMessage(msg)
 
                 return (
                   <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
@@ -680,22 +850,160 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                              {msg.attachments?.map((att, idx) => (
                                <div key={idx} className="bg-black/20 p-2 rounded-lg">
                                  {att.type === 'image' && (
-                                   <img src={att.url} alt="Attachment" className="max-w-full rounded-lg max-h-60 object-cover" />
+                                   <div className="flex flex-col gap-2">
+                                     <button
+                                       type="button"
+                                       onClick={() => setPreviewImage({ url: att.url, name: att.name })}
+                                       className="block overflow-hidden rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                                       title="Abrir imagem"
+                                     >
+                                       <img
+                                         src={att.url}
+                                         alt={att.name || 'Imagem'}
+                                         className="max-w-full max-h-60 object-cover"
+                                         loading="lazy"
+                                         decoding="async"
+                                       />
+                                     </button>
+                                     <div className="flex items-center justify-between gap-2">
+                                       <div className="text-xs text-white/70 truncate">
+                                         {att.name || 'Imagem'} {att.size ? `• ${formatBytes(att.size)}` : ''}
+                                       </div>
+                                       <div className="flex items-center gap-1 shrink-0">
+                                         <button
+                                           type="button"
+                                           onClick={() => setPreviewImage({ url: att.url, name: att.name })}
+                                           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                           title="Visualizar"
+                                         >
+                                           <ExternalLink size={14} />
+                                         </button>
+                                         <button
+                                           type="button"
+                                           onClick={() => downloadFromUrl(att.url, att.name)}
+                                           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                           title="Baixar"
+                                         >
+                                           <Download size={14} />
+                                         </button>
+                                       </div>
+                                     </div>
+                                   </div>
                                  )}
                                  {att.type === 'audio' && (
-                                   <div className="flex items-center gap-2 min-w-[200px]">
-                                      <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                                        <Mic size={14} />
-                                      </div>
-                                      <audio controls preload="none" src={att.url} className="h-8 w-full max-w-[200px]" />
+                                   <div className="flex flex-col gap-2">
+                                     <div className="flex items-center gap-2 min-w-[200px]">
+                                       <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                                         <Mic size={14} />
+                                       </div>
+                                       <audio
+                                         controls
+                                         preload="none"
+                                         src={att.url}
+                                         className="h-8 w-full max-w-[220px]"
+                                       />
+                                       <button
+                                         type="button"
+                                         onClick={() => downloadFromUrl(att.url, att.name || 'audio')}
+                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                         title="Baixar"
+                                       >
+                                         <Download size={14} />
+                                       </button>
+                                     </div>
+                                     <div className="text-[11px] text-white/70 truncate">
+                                       {att.name || 'Áudio'} {att.size ? `• ${formatBytes(att.size)}` : ''}
+                                     </div>
                                    </div>
                                  )}
                                  {att.type === 'document' && (
-                                    <a href={att.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm hover:underline">
-                                      <FileText size={16} />
-                                      {att.name || 'Documento'}
-                                    </a>
+                                   <div className="flex items-center justify-between gap-2">
+                                     <a
+                                       href={att.url}
+                                       target="_blank"
+                                       rel="noreferrer"
+                                       className="flex items-center gap-2 text-sm hover:underline min-w-0"
+                                       title="Abrir documento"
+                                     >
+                                       <FileText size={16} />
+                                       <span className="truncate">{att.name || 'Documento'}</span>
+                                       {att.size ? (
+                                         <span className="text-xs text-white/60 shrink-0">
+                                           {formatBytes(att.size)}
+                                         </span>
+                                       ) : null}
+                                     </a>
+                                     <div className="flex items-center gap-1 shrink-0">
+                                       <a
+                                         href={att.url}
+                                         target="_blank"
+                                         rel="noreferrer"
+                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                         title="Abrir"
+                                       >
+                                         <ExternalLink size={14} />
+                                       </a>
+                                       <button
+                                         type="button"
+                                         onClick={() => downloadFromUrl(att.url, att.name)}
+                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                         title="Baixar"
+                                       >
+                                         <Download size={14} />
+                                       </button>
+                                     </div>
+                                   </div>
                                  )}
+                                 {att.type === 'video' && (
+                                   <div className="flex flex-col gap-2">
+                                     <video
+                                       controls
+                                       preload="metadata"
+                                       src={att.url}
+                                       className="w-full max-h-72 rounded-lg border border-white/10"
+                                     />
+                                     <div className="flex items-center justify-between gap-2">
+                                       <div className="text-xs text-white/70 truncate">
+                                         {att.name || 'Vídeo'} {att.size ? `• ${formatBytes(att.size)}` : ''}
+                                       </div>
+                                       <div className="flex items-center gap-1 shrink-0">
+                                         <a
+                                           href={att.url}
+                                           target="_blank"
+                                           rel="noreferrer"
+                                           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                           title="Abrir"
+                                         >
+                                           <ExternalLink size={14} />
+                                         </a>
+                                         <button
+                                           type="button"
+                                           onClick={() => downloadFromUrl(att.url, att.name)}
+                                           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                           title="Baixar"
+                                         >
+                                           <Download size={14} />
+                                         </button>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 )}
+                                 {att.type !== 'image' &&
+                                   att.type !== 'audio' &&
+                                   att.type !== 'document' &&
+                                   att.type !== 'video' && (
+                                     <div className="flex items-center justify-between gap-2">
+                                       <div className="text-sm truncate">{att.name || 'Arquivo'}</div>
+                                       <button
+                                         type="button"
+                                         onClick={() => downloadFromUrl(att.url, att.name)}
+                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                         title="Baixar"
+                                       >
+                                         <Download size={14} />
+                                       </button>
+                                     </div>
+                                   )}
                                </div>
                              ))}
                              {msg.content && <p>{msg.content}</p>}
@@ -709,8 +1017,15 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         <span className="text-[10px] text-[var(--text-muted)] font-medium">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {isMe && (
-                          <CheckCheck size={12} className="text-cyan-400" />
+                        {isMe && ticks.kind !== 'none' && (
+                          ticks.kind === 'sent' ? (
+                            <Check size={12} className="text-[var(--text-muted)]" />
+                          ) : (
+                            <CheckCheck
+                              size={12}
+                              className={ticks.kind === 'read' ? 'text-cyan-400' : 'text-[var(--text-muted)]'}
+                            />
+                          )
                         )}
                       </div>
                     </div>
@@ -821,6 +1136,181 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         )}
       </div>
 
+      {isProfileModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setIsProfileModalOpen(false)}
+        >
+          <div
+            className="bg-[var(--bg-panel)] w-full max-w-lg rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  {profileModalUser?.avatar_url ? (
+                    <img
+                      src={profileModalUser.avatar_url}
+                      alt={profileModalUser.nome}
+                      className="w-12 h-12 rounded-full object-cover border border-[var(--border)]"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">
+                      {(profileModalUser?.nome || 'U').substring(0, 2)}
+                    </div>
+                  )}
+                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}`}></div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-bold text-[var(--text-main)] truncate">
+                    {profileModalUser?.nome || (profileModalLoading ? 'Carregando...' : 'Usuário')}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)] truncate">
+                    {profileModalUser?.cargo || 'Membro da equipe'} • {STATUS_LABELS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}
+                  </div>
+                  {usersPresence[profileModalUser?.id || '']?.statusText ? (
+                    <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate">
+                      {usersPresence[profileModalUser?.id || '']?.statusText}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(false)}
+                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-colors"
+                title="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto custom-scrollbar">
+              {profileModalLoading && !profileModalUser ? (
+                <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
+                  <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+                  <span className="text-sm">Carregando perfil...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email</div>
+                    <div className="text-[var(--text-main)] break-all">{profileModalUser?.email_login || '-'}</div>
+                  </div>
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email Corporativo</div>
+                    <div className="text-[var(--text-main)] break-all">{profileModalUser?.email_corporativo || '-'}</div>
+                  </div>
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Telefone</div>
+                    <div className="text-[var(--text-main)] break-all">{profileModalUser?.telefone || '-'}</div>
+                  </div>
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ramal</div>
+                    <div className="text-[var(--text-main)] break-all">{profileModalUser?.ramal || '-'}</div>
+                  </div>
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ativo</div>
+                    <div className="text-[var(--text-main)]">{profileModalUser?.ativo ? 'Sim' : 'Não'}</div>
+                  </div>
+                  <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Criado Em</div>
+                    <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? new Date(profileModalUser.created_at).toLocaleString() : '-'}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="bg-[var(--bg-panel)] w-full max-w-5xl rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between gap-3 bg-[var(--bg-panel)]">
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-[var(--text-main)] truncate">
+                  {previewImage.name || 'Imagem'}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)]">
+                  Clique fora para fechar • ESC
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
+                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                  title="Zoom -"
+                >
+                  <ZoomOut size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100))}
+                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                  title="Zoom +"
+                >
+                  <ZoomIn size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadFromUrl(previewImage.url, previewImage.name)}
+                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                  title="Baixar"
+                >
+                  <Download size={18} />
+                </button>
+                <a
+                  href={previewImage.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                  title="Abrir em nova aba"
+                >
+                  <ExternalLink size={18} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div
+              className="flex-1 bg-black/20 overflow-auto"
+              onWheel={(e) => {
+                if (!e.ctrlKey) return
+                e.preventDefault()
+                const delta = e.deltaY > 0 ? -0.15 : 0.15
+                setPreviewZoom((z) => Math.min(4, Math.max(1, Math.round((z + delta) * 100) / 100)))
+              }}
+            >
+              <div className="min-h-full w-full flex items-center justify-center p-4">
+                <img
+                  src={previewImage.url}
+                  alt={previewImage.name || 'Imagem'}
+                  className="max-w-full max-h-[78vh] object-contain select-none"
+                  style={{ transform: `scale(${previewZoom})` }}
+                  draggable={false}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* New Chat Modal */}
       {isNewChatModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -842,15 +1332,30 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 <div className="space-y-1">
                   {filteredNewChatUsers.map(user => (
                     <button key={user.id} onClick={() => handleStartNewChat(user.id)} className="w-full p-3 flex items-center gap-4 rounded-xl hover:bg-[var(--bg-main)] border border-transparent hover:border-[var(--border)] transition-all duration-200 text-left group">
-                      <div className="relative shrink-0">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void openProfileModal(user.id)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            void openProfileModal(user.id)
+                          }
+                        }}
+                        className="relative shrink-0"
+                        title="Ver perfil"
+                      >
                         {user.avatar_url ? (
                           <img src={user.avatar_url} alt={user.nome} className="w-12 h-12 rounded-full object-cover border border-[var(--border)]" />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">{user.nome.substring(0, 2)}</div>
                         )}
-                         {/* Status dot in user list */}
-                         {usersStatus[user.id] && (
-                             <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersStatus[user.id]]}`}></div>
+                         {usersPresence[user.id]?.status && (
+                             <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[user.id].status]}`}></div>
                          )}
                       </div>
                       <div className="flex-1 min-w-0">

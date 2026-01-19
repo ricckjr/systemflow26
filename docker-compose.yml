@@ -1,18 +1,4 @@
 services:
-  nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx-proxy-manager
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "81:81"     # Interface Web
-      - "443:443"
-    volumes:
-      - ./npm/data:/data
-      - ./npm/letsencrypt:/etc/letsencrypt
-    networks:
-      - systemflow-network
-
   backend:
     build: ./backend
     container_name: systemflow-backend
@@ -24,7 +10,7 @@ services:
     expose:
       - "7005"
     networks:
-      - systemflow-network
+      - proxy
 
   frontend:
     build:
@@ -38,9 +24,8 @@ services:
     expose:
       - "80"
     networks:
-      - systemflow-network
+      - proxy
 
 networks:
-  systemflow-network:
-    name: systemflow-network
-    driver: bridge
+  proxy:
+    external: true

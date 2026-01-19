@@ -144,6 +144,14 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   // Mobile view state
   const [showMobileList, setShowMobileList] = useState(true);
 
+  useEffect(() => {
+    const roomFromUrl = new URLSearchParams(window.location.search).get('room')
+    if (roomFromUrl) {
+      setActiveRoomId(roomFromUrl)
+      setShowMobileList(false)
+    }
+  }, [setActiveRoomId])
+
   // Attachments & Audio & Emoji State
   const [showAttachmentsMenu, setShowAttachmentsMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);

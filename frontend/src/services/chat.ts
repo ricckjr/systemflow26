@@ -190,13 +190,18 @@ export const chatService = {
     attachments: ChatAttachment[] = []
   ): Promise<ChatMessage> {
     const userId = await getCurrentUserId()
+    const trimmedContent = (content ?? '').trim()
+    if (!trimmedContent && attachments.length === 0) {
+      throw new Error('Mensagem vazia')
+    }
+    const contentToInsert = trimmedContent
 
     const { data, error } = await supabase
       .from('chat_messages')
       .insert({
         room_id: roomId,
         sender_id: userId,
-        content: content?.trim() ? content : null,
+        content: contentToInsert,
         attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
       })
       .select(MESSAGE_SELECT_WITH_RECEIPTS)
@@ -209,7 +214,7 @@ export const chatService = {
           .insert({
             room_id: roomId,
             sender_id: userId,
-            content: content?.trim() ? content : null,
+            content: contentToInsert,
             attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
           })
           .select(MESSAGE_SELECT_BASE)

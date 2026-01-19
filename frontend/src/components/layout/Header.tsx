@@ -25,6 +25,95 @@ interface Notification {
   created_at: string;
 }
 
+interface ChatToastItem {
+  id: string;
+  roomId: string;
+  senderName: string;
+  senderAvatarUrl?: string | null;
+  preview: string;
+  createdAt: string;
+}
+
+const CHAT_TOAST_DURATION_MS = 6000;
+
+const ChatToast: React.FC<{
+  toast: ChatToastItem;
+  durationMs: number;
+  onClick: () => void;
+  onClose: () => void;
+}> = ({ toast, durationMs, onClick, onClose }) => {
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setRunning(true), 20);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="w-[320px] bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+          }
+        }}
+        className="w-full text-left p-3 hover:bg-white/5 transition-colors"
+      >
+        <div className="flex gap-3 items-start">
+          <div className="w-10 h-10 rounded-xl bg-[#1E293B] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
+            {toast.senderAvatarUrl ? (
+              <img src={toast.senderAvatarUrl} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[10px] font-bold text-white">
+                {toast.senderName.substring(0, 2).toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-white truncate">
+                {toast.senderName} mandou mensagem
+              </p>
+              <span className="text-[9px] text-[#6B7280] shrink-0">
+                {new Date(toast.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9CA3AF] mt-1 line-clamp-2 break-words">
+              {toast.preview}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-[#9CA3AF] hover:text-white shrink-0"
+            title="Fechar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="h-1 bg-white/10">
+        <div
+          className="h-full bg-cyan-500"
+          style={{
+            width: running ? '0%' : '100%',
+            transitionProperty: 'width',
+            transitionDuration: `${durationMs}ms`,
+            transitionTimingFunction: 'linear',
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const Header: React.FC<HeaderProps> = ({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
@@ -48,6 +137,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [isChatNotificationsOpen, setIsChatNotificationsOpen] = useState(false);
   const [chatNotifications, setChatNotifications] = useState<any[]>([]);
   const chatNotificationRef = useRef<HTMLDivElement>(null);
+  const [chatToasts, setChatToasts] = useState<ChatToastItem[]>([]);
+  const toastTimersRef = useRef<Record<string, number>>({});
 
   // ... (keep fetchUnreadChat and subscriptions)
 
@@ -60,7 +151,7 @@ export const Header: React.FC<HeaderProps> = ({
            .select(`
              id, is_read, created_at,
              sender:profiles(id, nome, avatar_url),
-             message:chat_messages(content)
+             message:chat_messages(content, attachments)
            `)
            .eq('user_id', profile.id)
            .order('created_at', { ascending: false })
@@ -187,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Subscribe to new chat notifications (only count update)
     const chatSubscription = supabase
-      .channel('chat_notifications')
+      .channel(`chat_notifications_header_${profile.id}`)
       .on(
         'postgres_changes',
         {
@@ -196,8 +287,71 @@ export const Header: React.FC<HeaderProps> = ({
           table: 'chat_notifications',
           filter: `user_id=eq.${profile.id}`
         },
-        () => {
+        (payload) => {
            setUnreadChatCount(prev => prev + 1);
+           const row = payload.new as any;
+           const notifId = row?.id as string | undefined;
+           if (!notifId) return;
+
+           (async () => {
+             const { data } = await supabase
+               .from('chat_notifications')
+               .select(`
+                 id, room_id, created_at,
+                 sender:profiles(id, nome, avatar_url),
+                 message:chat_messages(content, attachments)
+               `)
+               .eq('id', notifId)
+               .single();
+
+             if (!data) return;
+
+             const content =
+               typeof (data as any)?.message?.content === 'string'
+                 ? (data as any).message.content.trim()
+                 : '';
+             const attachments = (data as any)?.message?.attachments;
+             const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+             const firstType = hasAttachments ? attachments[0]?.type : undefined;
+             const attachmentPreview =
+               firstType === 'audio'
+                 ? '🎵 Áudio'
+                 : firstType === 'image'
+                   ? '🖼️ Imagem'
+                   : firstType === 'video'
+                     ? '🎬 Vídeo'
+                     : firstType === 'document'
+                       ? '📄 Documento'
+                       : hasAttachments
+                         ? '📎 Anexo'
+                         : '';
+             const preview = content || attachmentPreview || 'Nova mensagem';
+
+             const senderName = (data as any)?.sender?.nome || 'Alguém';
+
+             setChatToasts(prev => {
+               const next: ChatToastItem[] = [
+                 {
+                   id: data.id,
+                   roomId: (data as any).room_id,
+                   senderName,
+                   senderAvatarUrl: (data as any)?.sender?.avatar_url ?? null,
+                   preview,
+                   createdAt: (data as any).created_at,
+                 },
+                 ...prev.filter(t => t.id !== data.id),
+               ].slice(0, 3);
+               return next;
+             });
+
+             if (toastTimersRef.current[notifId]) {
+               window.clearTimeout(toastTimersRef.current[notifId]);
+             }
+             toastTimersRef.current[notifId] = window.setTimeout(() => {
+               setChatToasts(prev => prev.filter(t => t.id !== notifId));
+               delete toastTimersRef.current[notifId];
+             }, CHAT_TOAST_DURATION_MS);
+           })();
         }
       )
       .on(
@@ -220,6 +374,13 @@ export const Header: React.FC<HeaderProps> = ({
       chatSubscription.unsubscribe();
     };
   }, [profile?.id]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(toastTimersRef.current).forEach((t) => window.clearTimeout(t));
+      toastTimersRef.current = {};
+    };
+  }, []);
 
   // Click outside to close notifications
   useEffect(() => {
@@ -434,6 +595,26 @@ export const Header: React.FC<HeaderProps> = ({
                   ) : (
                     <div className="divide-y divide-white/5">
                       {chatNotifications.map(notif => (
+                        (() => {
+                          const content = typeof notif?.message?.content === 'string' ? notif.message.content.trim() : ''
+                          const attachments = notif?.message?.attachments
+                          const hasAttachments = Array.isArray(attachments) && attachments.length > 0
+                          const firstType = hasAttachments ? attachments[0]?.type : undefined
+                          const attachmentPreview =
+                            firstType === 'audio'
+                              ? '🎵 Áudio'
+                              : firstType === 'image'
+                                ? '🖼️ Imagem'
+                                : firstType === 'video'
+                                  ? '🎬 Vídeo'
+                                  : firstType === 'document'
+                                    ? '📄 Documento'
+                                    : hasAttachments
+                                      ? '📎 Anexo'
+                                      : ''
+                          const preview = content || attachmentPreview || 'Nova mensagem'
+
+                          return (
                         <button
                           key={notif.id}
                           onClick={() => handleChatNotificationClick(notif)}
@@ -456,13 +637,15 @@ export const Header: React.FC<HeaderProps> = ({
                                </span>
                             </div>
                             <p className="text-[11px] text-[#9CA3AF] line-clamp-1 truncate">
-                              {notif.message?.content || 'Nova mensagem'}
+                              {preview}
                             </p>
                           </div>
                           {!notif.is_read && (
                              <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2 shrink-0"></div>
                           )}
                         </button>
+                          )
+                        })()
                       ))}
                     </div>
                   )}
@@ -471,6 +654,34 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         </div>
+
+        {chatToasts.length > 0 && (
+          <div className="fixed bottom-4 left-4 z-[200] flex flex-col gap-2">
+            {chatToasts.map((t) => (
+              <ChatToast
+                key={t.id}
+                toast={t}
+                durationMs={CHAT_TOAST_DURATION_MS}
+                onClick={() => {
+                  navigate(`/app/comunicacao/chat?room=${t.roomId}`);
+                  setChatToasts(prev => prev.filter(x => x.id !== t.id));
+                  if (toastTimersRef.current[t.id]) {
+                    window.clearTimeout(toastTimersRef.current[t.id]);
+                    delete toastTimersRef.current[t.id];
+                  }
+                  void supabase.from('chat_notifications').update({ is_read: true }).eq('id', t.id);
+                }}
+                onClose={() => {
+                  setChatToasts(prev => prev.filter(x => x.id !== t.id));
+                  if (toastTimersRef.current[t.id]) {
+                    window.clearTimeout(toastTimersRef.current[t.id]);
+                    delete toastTimersRef.current[t.id];
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Profile */}
         <button 

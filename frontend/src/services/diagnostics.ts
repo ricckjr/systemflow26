@@ -1,9 +1,9 @@
 import { supabase, SUPABASE_URL } from '@/services/supabase'
 import { logInfo, logWarn, logError, withTiming } from '@/utils/logger'
-import { pingSupabase } from './net'
+import { checkSupabaseReachable } from './net'
 
 export const checkSupabaseConnectivity = async () => {
-  const online = await pingSupabase(SUPABASE_URL)
+  const online = await checkSupabaseReachable(SUPABASE_URL)
   logInfo('diagnostics', `connectivity ${online ? 'online' : 'offline'}`, { url: SUPABASE_URL })
   const session = await supabase.auth.getSession()
   const uid = session?.data?.session?.user?.id || null

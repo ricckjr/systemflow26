@@ -1,16 +1,28 @@
-version: '3.8'
-
 services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"     # Interface Web
+      - "443:443"
+    volumes:
+      - ./npm/data:/data
+      - ./npm/letsencrypt:/etc/letsencrypt
+    networks:
+      - systemflow-network
+
   backend:
     build: ./backend
     container_name: systemflow-backend
-    restart: always
-    ports:
-      - "7005:7005"
+    restart: unless-stopped
     environment:
-      - PORT=7005
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      PORT: 7005
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    expose:
+      - "7005"
     networks:
       - systemflow-network
 
@@ -18,16 +30,17 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-        - VITE_API_URL=${VITE_API_URL}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_API_URL: ${VITE_API_URL}
     container_name: systemflow-frontend
-    restart: always
-    ports:
-      - "7001:80"
+    restart: unless-stopped
+    expose:
+      - "80"
     networks:
       - systemflow-network
 
 networks:
   systemflow-network:
+    name: systemflow-network
     driver: bridge

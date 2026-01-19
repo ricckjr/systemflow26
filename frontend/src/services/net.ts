@@ -1,34 +1,63 @@
-const TIMEOUT_MS = 5000
-let lastCheck = 0
-let lastOk = false
+/**
+ * net.ts
+ * Health util LEVE – não bloqueia boot nem reload
+ */
 
-export const pingSupabase = async (url: string) => {
+let lastStatus: boolean | null = null
+let lastCheckAt = 0
+
+const CACHE_MS = 30_000
+
+/**
+ * Verifica conectividade real com Supabase
+ * ⚠️ NÃO usar no boot / reload
+ * ✔️ Usar apenas para UX (badge, aviso, retry)
+ */
+export async function checkSupabaseReachable(
+  supabaseUrl: string
+): Promise<boolean> {
   const now = Date.now()
-  if (now - lastCheck < 15000) return lastOk
-  lastCheck = now
+
+  // Cache simples (UX only)
+  if (lastStatus !== null && now - lastCheckAt < CACHE_MS) {
+    return lastStatus
+  }
+
+  lastCheckAt = now
+
+  // Se navegador offline → falhou
+  if (!navigator.onLine) {
+    lastStatus = false
+    return false
+  }
+
+  if (!supabaseUrl) {
+    lastStatus = false
+    return false
+  }
+
   try {
-    if (!url) {
-      lastOk = navigator.onLine
-      return lastOk
-    }
-    let host = ''
-    try { host = new URL(url).host } catch {}
-    const isSupabaseHost = host.includes('supabase.co')
-    if (!isSupabaseHost) {
-      lastOk = navigator.onLine
-      return lastOk
-    }
-    const timeout = new Promise<{ __timeout: true }>(resolve => setTimeout(() => resolve({ __timeout: true }), TIMEOUT_MS))
-    const req = fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' })
-    const winner = await Promise.race([req, timeout]) as any
-    if (winner?.__timeout) {
-      lastOk = navigator.onLine
-      return lastOk
-    }
-    lastOk = true
-    return true
+    // Usa endpoint LEVE e rápido
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=none`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: 'public-anon-check'
+      },
+      body: '{}',
+      signal: controller.signal
+    })
+
+    clearTimeout(timeout)
+
+    // Mesmo 401/400 significa que respondeu
+    lastStatus = res.ok || res.status === 400 || res.status === 401
+    return lastStatus
   } catch {
-    lastOk = navigator.onLine
-    return lastOk
+    lastStatus = false
+    return false
   }
 }

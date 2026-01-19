@@ -6,6 +6,7 @@ export interface Post {
   image_url?: string;
   likes: number;
   comments_count: number;
+  liked_by_me?: boolean;
   created_at: string;
 }
 

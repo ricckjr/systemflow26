@@ -1,31 +1,22 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/services/supabase'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, loadingSession } = useAuth()
 
   useEffect(() => {
-    // Processar callback de OAuth ou Magic Link
-    const handleCallback = async () => {
-      const { error } = await supabase.auth.getSession()
-      if (error) {
-        console.error('Erro no callback de auth:', error)
-        navigate('/login?error=callback_failed')
-      } else {
-        navigate('/app')
-      }
-    }
+    // Aguarda AuthContext resolver a sessão
+    if (loadingSession) return
 
     if (session) {
-      navigate('/app')
+      navigate('/app', { replace: true })
     } else {
-      handleCallback()
+      navigate('/login?error=auth_failed', { replace: true })
     }
-  }, [navigate, session])
+  }, [session, loadingSession, navigate])
 
   return (
     <div className="min-h-screen bg-[#081522] flex items-center justify-center">

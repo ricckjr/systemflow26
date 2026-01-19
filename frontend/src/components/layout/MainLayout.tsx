@@ -38,7 +38,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
     // User requirement: "Ao clicar fora: → Sidebar volta a recolher".
     // Usually navigation implies clicking a link, which might be "inside" or might close it.
     // Let's keep it expanded if user is navigating deep, or close it?
-    // "Linear, Vercel" usually close on selection.
+    // "Linear" usually close on selection.
     // Let's close it on route change.
     setIsSidebarExpanded(false);
   }, [location.pathname]);

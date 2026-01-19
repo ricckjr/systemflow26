@@ -336,16 +336,13 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   );
 };
 
-const LikeButton: React.FC<{ postId: string; userId: string; initialCount: number }> = ({ postId, userId, initialCount }) => {
-  const [liked, setLiked] = useState(false);
+const LikeButton: React.FC<{ postId: string; userId: string; initialCount: number; initialLiked: boolean }> = ({ postId, userId, initialCount, initialLiked }) => {
+  const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   
   useEffect(() => {
-    (async () => {
-      const has = await hasUserLiked(postId, userId);
-      setLiked(has);
-    })();
-  }, [postId, userId]);
+    setLiked(initialLiked);
+  }, [initialLiked]);
 
   const toggleLike = async () => {
     if (liked) {

@@ -2,12 +2,27 @@ export interface Post {
   id: string;
   usuario_id: string;
   usuario_nome: string;
+  usuario_avatar_url?: string | null;
   content: string;
   image_url?: string;
+  media?: string[];
+  reactions?: Record<string, number>;
+  my_reaction?: string | null;
   likes: number;
   comments_count: number;
   liked_by_me?: boolean;
   created_at: string;
+}
+
+export interface InstaFlowComment {
+  id: string;
+  content: string;
+  created_at: string;
+  created_by: string;
+  parent_id?: string | null;
+  mention_user_ids?: string[];
+  usuario_nome: string;
+  usuario_avatar_url?: string | null;
 }
 
 export interface Opportunity {
@@ -41,7 +56,7 @@ export interface CalendarEvent {
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'instaflow' | 'taskflow' | 'system';
+  type: string;
   entity_type?: 'post' | 'task' | 'comment';
   entity_id?: string;
   title: string;

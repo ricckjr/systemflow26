@@ -165,11 +165,14 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const [soundEnabled, setSoundEnabled] = useState(() => isNotificationSoundEnabled())
   const [pinnedItems, setPinnedItems] = useState<Array<{ messageId: string; pinnedAt: string; pinnedBy: string | null; message?: ChatMessage | null }>>([])
   const pinsUnsubscribeRef = useRef<(() => void) | null>(null)
+  const [pinBusyByMessageId, setPinBusyByMessageId] = useState<Record<string, boolean>>({})
+  const pinnedItemsRef = useRef(pinnedItems)
   const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
   const [messageSearchQuery, setMessageSearchQuery] = useState('')
   const [messageSearchActiveIndex, setMessageSearchActiveIndex] = useState(0)
   const [reactionsByMessageId, setReactionsByMessageId] = useState<Record<string, Array<{ emoji: string; count: number; me: boolean }>>>({})
   const [openReactionPickerId, setOpenReactionPickerId] = useState<string | null>(null)
+  const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
   const reactionsUnsubscribeRef = useRef<(() => void) | null>(null)
   
   const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
@@ -319,6 +322,44 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   }, [messages])
 
   useEffect(() => {
+    pinnedItemsRef.current = pinnedItems
+  }, [pinnedItems])
+
+  const togglePinMessage = async (msg: ChatMessage) => {
+    if (!activeRoomId) return
+    const messageId = msg.id
+    if (!messageId) return
+    if (pinBusyByMessageId[messageId]) return
+
+    const before = pinnedItemsRef.current
+    const wasPinned = before.some((p) => p.messageId === messageId)
+
+    setPinBusyByMessageId((prev) => ({ ...prev, [messageId]: true }))
+    setPinnedItems(() => {
+      if (wasPinned) return before.filter((p) => p.messageId !== messageId)
+      const now = new Date().toISOString()
+      const existing = msg ?? messageById.get(messageId) ?? null
+      const next = [{ messageId, pinnedAt: now, pinnedBy: currentUser?.id ?? null, message: existing }, ...before]
+      next.sort((a, b) => new Date(b.pinnedAt).getTime() - new Date(a.pinnedAt).getTime())
+      return next
+    })
+
+    try {
+      if (wasPinned) await chatService.unpinMessage(activeRoomId, messageId)
+      else await chatService.pinMessage(activeRoomId, messageId)
+    } catch (error: any) {
+      setPinnedItems(before)
+      alert(error?.message || 'Não foi possível atualizar o pin.')
+    } finally {
+      setPinBusyByMessageId((prev) => {
+        const next = { ...prev }
+        delete next[messageId]
+        return next
+      })
+    }
+  }
+
+  useEffect(() => {
     setPinnedItems((prev) =>
       prev.map((p) => {
         if (p.message) return p
@@ -404,6 +445,26 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     }
     window.addEventListener('pointerdown', onPointerDown)
     return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest?.('[data-message-menu]')) return
+      if (target.closest?.('[data-message-menu-button]')) return
+      setOpenMessageMenuId(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMessageMenuId(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   useEffect(() => {
@@ -1478,21 +1539,46 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <div className="mt-2 flex gap-2 overflow-x-auto custom-scrollbar pb-1">
                     {pinnedItems.slice(0, 3).map((p) => {
                       const msg = p.message ?? messageById.get(p.messageId)
+                      const isBusy = Boolean(pinBusyByMessageId[p.messageId])
                       return (
-                        <button
+                        <div
                           key={p.messageId}
-                          type="button"
-                          onClick={() => setPendingScrollMessageId(p.messageId)}
-                          className="min-w-[220px] max-w-[280px] text-left rounded-xl border border-white/10 hover:border-white/20 bg-black/20 px-3 py-2 transition-colors"
-                          title="Ir para mensagem fixada"
+                          className="min-w-[220px] max-w-[280px] rounded-xl border border-white/10 hover:border-white/20 bg-black/20 transition-colors flex items-center gap-2 px-3 py-2"
                         >
-                          <div className="text-[11px] font-bold text-white/85 truncate">
-                            {msg?.sender?.nome || 'Mensagem'}
-                          </div>
-                          <div className="text-[11px] text-white/60 truncate">
-                            {getMessagePreviewText(msg) || 'Mensagem fixada'}
-                          </div>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setPendingScrollMessageId(p.messageId)}
+                            className="flex-1 text-left min-w-0"
+                            title="Ir para mensagem fixada"
+                          >
+                            <div className="text-[11px] font-bold text-white/85 truncate">
+                              {msg?.sender?.nome || 'Mensagem'}
+                            </div>
+                            <div className="text-[11px] text-white/60 truncate">
+                              {getMessagePreviewText(msg) || 'Mensagem fixada'}
+                            </div>
+                          </button>
+                          {msg && activeRoomId && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                void togglePinMessage(msg)
+                              }}
+                              className={[
+                                'w-8 h-8 grid place-items-center rounded-lg',
+                                'border border-white/10 bg-black/20 hover:bg-black/30',
+                                'text-white/65 hover:text-white/90',
+                                'transition-colors',
+                                isBusy ? 'opacity-60 pointer-events-none' : '',
+                              ].join(' ')}
+                              title="Desafixar"
+                            >
+                              {isBusy ? <Circle size={14} className="animate-spin" /> : <PinOff size={14} />}
+                            </button>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
@@ -1517,6 +1603,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 const replyTo = msg.reply_to_id ? messageById.get(msg.reply_to_id) : undefined
                 const isPinned = pinnedItems.some((p) => p.messageId === msg.id)
                 const reactions = reactionsByMessageId[msg.id] ?? []
+                const isMessageMenuOpen = openMessageMenuId === msg.id
+                const canReactToMessage = !isDeleted
+                const isPinBusy = Boolean(pinBusyByMessageId[msg.id])
 
                 return (
                   <React.Fragment key={msg.id}>
@@ -1536,71 +1625,131 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       )}
 
                       <div
-                        className={`absolute ${isMe ? '-left-2' : '-right-2'} top-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1`}
+                        className={[
+                          'absolute top-2 flex items-center',
+                          isMe ? '-left-2' : '-right-2',
+                          isMessageMenuOpen ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none translate-y-1 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0',
+                          'transition-all duration-150',
+                        ].join(' ')}
                       >
-                        <button
-                          type="button"
-                          onClick={() => startReply(msg)}
-                          className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-cyan-400 hover:text-cyan-300 shadow-sm"
-                          title="Responder"
-                        >
-                          <CornerUpLeft size={14} />
-                        </button>
-                        {canEditMessage(msg) && (
+                        <div className="relative">
                           <button
                             type="button"
-                            onClick={() => startEdit(msg)}
-                            className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-amber-400 hover:text-amber-300 shadow-sm"
-                            title="Editar"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          data-reaction-button
-                          onClick={() => setOpenReactionPickerId((prev) => (prev === msg.id ? null : msg.id))}
-                          className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-300 shadow-sm"
-                          title="Reagir"
-                        >
-                          <Smile size={14} />
-                        </button>
-                        {activeRoomId && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                if (isPinned) await chatService.unpinMessage(activeRoomId, msg.id)
-                                else await chatService.pinMessage(activeRoomId, msg.id)
-                              } catch (error: any) {
-                                alert(error?.message || 'Não foi possível atualizar o pin.')
-                              }
+                            data-message-menu-button
+                            onClick={() => {
+                              setOpenReactionPickerId(null)
+                              setOpenMessageMenuId((prev) => (prev === msg.id ? null : msg.id))
                             }}
-                            className={`p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm ${isPinned ? 'text-cyan-300 hover:text-cyan-200' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
-                            title={isPinned ? 'Desafixar' : 'Fixar'}
+                            className={[
+                              'w-8 h-8 grid place-items-center rounded-full',
+                              'border border-white/10 shadow-sm shadow-black/20 backdrop-blur',
+                              'bg-black/35 hover:bg-black/45',
+                              'text-white/70 hover:text-white/90',
+                              'transition-all duration-150',
+                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0F14]',
+                              isMessageMenuOpen ? 'border-white/20 bg-black/55 text-white/95' : '',
+                            ].join(' ')}
+                            title="Opções"
                           >
-                            {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                            <MoreVertical size={16} strokeWidth={1.75} />
                           </button>
-                        )}
-                        {canDeleteMessage(msg) && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!confirm('Excluir esta mensagem?')) return
-                              try {
-                                await deleteMessage(msg.id, msg.attachments ?? [])
-                                if (editingMessage?.id === msg.id) cancelComposerMode()
-                                if (replyingTo?.id === msg.id) setReplyingTo(null)
-                              } catch (error: any) {
-                                alert(error?.message || 'Não foi possível excluir a mensagem.')
-                              }
-                            }}
-                            className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-red-300 hover:text-red-200 shadow-sm"
-                            title="Excluir"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+
+                          {isMessageMenuOpen && (
+                            <div
+                              data-message-menu
+                              className={[
+                                'absolute top-0 z-30 min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1',
+                                isMe ? 'right-full mr-2' : 'left-full ml-2',
+                                'animate-in fade-in zoom-in-95',
+                              ].join(' ')}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  startReply(msg)
+                                  setOpenMessageMenuId(null)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                              >
+                                <CornerUpLeft size={16} className="text-cyan-400" />
+                                Responder
+                              </button>
+
+                              {canReactToMessage && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMessageMenuId(null)
+                                    setOpenReactionPickerId((prev) => (prev === msg.id ? null : msg.id))
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                                >
+                                  <Smile size={16} className="text-amber-300" />
+                                  Reagir
+                                </button>
+                              )}
+
+                              {canEditMessage(msg) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    startEdit(msg)
+                                    setOpenMessageMenuId(null)
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                                >
+                                  <Pencil size={16} className="text-amber-400" />
+                                  Editar
+                                </button>
+                              )}
+
+                              {activeRoomId && (
+                                <button
+                                  type="button"
+                                  disabled={isPinBusy}
+                                  onClick={async () => {
+                                    setOpenMessageMenuId(null)
+                                    await togglePinMessage(msg)
+                                  }}
+                                  className={[
+                                    'w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3',
+                                    isPinBusy ? 'opacity-70 pointer-events-none' : '',
+                                  ].join(' ')}
+                                >
+                                  {isPinBusy ? (
+                                    <Circle size={16} className="animate-spin text-cyan-300" />
+                                  ) : isPinned ? (
+                                    <PinOff size={16} className="text-cyan-300" />
+                                  ) : (
+                                    <Pin size={16} className="text-cyan-400" />
+                                  )}
+                                  {isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
+                                </button>
+                              )}
+
+                              {canDeleteMessage(msg) && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm('Excluir esta mensagem?')) return
+                                    try {
+                                      await deleteMessage(msg.id, msg.attachments ?? [])
+                                      if (editingMessage?.id === msg.id) cancelComposerMode()
+                                      if (replyingTo?.id === msg.id) setReplyingTo(null)
+                                      setOpenMessageMenuId(null)
+                                    } catch (error: any) {
+                                      alert(error?.message || 'Não foi possível excluir a mensagem.')
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-3"
+                                >
+                                  <Trash2 size={16} />
+                                  Excluir
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {openReactionPickerId === msg.id && (
@@ -2311,25 +2460,25 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             {actionSheetMessage && activeRoomId && (
               <button
                 type="button"
+                disabled={Boolean(actionSheetMessage && pinBusyByMessageId[actionSheetMessage.id])}
                 onClick={async () => {
                   if (!actionSheetMessage) return
-                  try {
-                    const isPinned = pinnedItems.some((p) => p.messageId === actionSheetMessage.id)
-                    if (isPinned) await chatService.unpinMessage(activeRoomId, actionSheetMessage.id)
-                    else await chatService.pinMessage(activeRoomId, actionSheetMessage.id)
-                    setActionSheetMessage(null)
-                  } catch (error: any) {
-                    alert(error?.message || 'Não foi possível atualizar o pin.')
-                  }
+                  await togglePinMessage(actionSheetMessage)
+                  setActionSheetMessage(null)
                 }}
-                className="w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                className={[
+                  'w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3',
+                  Boolean(actionSheetMessage && pinBusyByMessageId[actionSheetMessage.id]) ? 'opacity-70 pointer-events-none' : '',
+                ].join(' ')}
               >
-                {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? (
+                {Boolean(actionSheetMessage && pinBusyByMessageId[actionSheetMessage.id]) ? (
+                  <Circle size={18} className="animate-spin text-cyan-300" />
+                ) : pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? (
                   <PinOff size={18} className="text-cyan-300" />
                 ) : (
                   <Pin size={18} className="text-cyan-400" />
                 )}
-                {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? 'Desafixar' : 'Fixar'}
+                {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? 'Desafixar mensagem' : 'Fixar mensagem'}
               </button>
             )}
             {actionSheetMessage && canDeleteMessage(actionSheetMessage) && (

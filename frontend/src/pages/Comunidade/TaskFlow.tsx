@@ -1409,6 +1409,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       <Modal
         isOpen={isNewTaskModalOpen && isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
+        zIndex={120}
         title={
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
@@ -1491,6 +1492,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       <Modal
         isOpen={!!activeTaskId && isTaskShareModalOpen}
         onClose={() => setIsTaskShareModalOpen(false)}
+        zIndex={120}
         title={
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">

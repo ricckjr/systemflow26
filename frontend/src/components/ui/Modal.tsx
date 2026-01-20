@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
+let openModalCount = 0;
+
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,6 +13,7 @@ export interface ModalProps {
   className?: string;
   noPadding?: boolean; // Para casos como Kanban onde o padding atrapalha
   scrollableContent?: boolean; // Se false, o container do conteúdo será overflow-hidden (útil para layouts complexos com scroll interno)
+  zIndex?: number;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -23,27 +26,29 @@ export const Modal: React.FC<ModalProps> = ({
   className = '',
   noPadding = false,
   scrollableContent = true,
+  zIndex = 100,
 }) => {
   // Prevenir scroll no body quando modal estiver aberto
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return;
+
+    openModalCount += 1;
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) document.body.style.overflow = '';
     };
   }, [isOpen]);
 
   // Fechar com ESC
   useEffect(() => {
+    if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -59,7 +64,10 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center sm:p-4 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center sm:p-4 animate-in fade-in duration-200"
+      style={{ zIndex }}
+    >
       {/* Overlay */}
       <div 
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 

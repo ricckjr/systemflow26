@@ -30,6 +30,7 @@ import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
 import { APP_TIME_ZONE } from '@/constants/timezone'
+import { Modal } from '@/components/ui'
 
 /* ===========================
    HELPERS
@@ -711,19 +712,37 @@ const MetaModal = ({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border)]">
-          <h3 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-[var(--primary)]" />
             Configurar Metas
-          </h3>
-          <button onClick={onClose} className="text-[var(--text-soft)] hover:text-[var(--text-main)]">
-            <X size={20} />
-          </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+      }
+      size="md"
+      footer={
+          <>
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--bg-body)] rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={(e) => handleSubmit(e as any)}
+              disabled={updateMutation.isPending}
+              className="px-4 py-2 text-sm font-medium bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors flex items-center gap-2"
+            >
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Salvar Alterações
+            </button>
+          </>
+      }
+    >
+        <form onSubmit={handleSubmit} className="space-y-5">
           
           {/* Row 1: Financeiro & SuperMeta */}
           <div className="grid grid-cols-2 gap-5">
@@ -795,26 +814,8 @@ const MetaModal = ({
             />
           </div>
 
-          <div className="pt-6 flex justify-end gap-3 border-t border-[var(--border)] mt-2">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--bg-body)] rounded-lg transition-colors"
-            >
-              Cancelar
-            </button>
-            <button 
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="px-4 py-2 text-sm font-medium bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors flex items-center gap-2"
-            >
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Salvar Alterações
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

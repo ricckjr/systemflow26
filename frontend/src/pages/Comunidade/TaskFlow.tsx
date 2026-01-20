@@ -53,7 +53,7 @@ import {
 } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useScrollLock } from '@/hooks/useScrollLock';
+import { Modal } from '@/components/ui';
 
 const priorities = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
 
@@ -495,7 +495,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     setIsShareModalOpen(true);
   }, [profileId, newTaskAssignments]);
 
-  useScrollLock(isNewTaskModalOpen || !!activeTaskId);
+  // useScrollLock removido em favor do componente Modal
+  // useScrollLock(isNewTaskModalOpen || !!activeTaskId);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1154,23 +1155,38 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       )}
 
       {/* New Task Modal */}
-      {isNewTaskModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setIsNewTaskModalOpen(false)} />
-          <div className="relative w-full max-w-2xl bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]">
-              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-lg">
-                <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
-                  <Zap size={18} />
-                </div>
-                Nova Tarefa
-              </h3>
-              <button onClick={() => setIsNewTaskModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-2 hover:bg-[var(--bg-panel)] rounded-full">
-                <X size={20} />
-              </button>
+      <Modal
+        isOpen={isNewTaskModalOpen}
+        onClose={() => setIsNewTaskModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+              <Zap size={18} />
             </div>
-            
-            <div className="p-8 space-y-6">
+            Nova Tarefa
+          </div>
+        }
+        size="2xl"
+        footer={
+          <>
+            <button 
+              onClick={() => setIsNewTaskModalOpen(false)}
+              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={handleCreateTask}
+              disabled={!newTaskTitle.trim() || !newTaskDueDate.trim() || !board || columns.length === 0}
+              className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Criar Tarefa
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Título</label>
@@ -1306,45 +1322,48 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="p-6 border-t border-[var(--border)] flex justify-end gap-3 bg-[var(--bg-body)]/50 backdrop-blur-md">
-              <button 
-                onClick={() => setIsNewTaskModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleCreateTask}
-                disabled={!newTaskTitle.trim() || !newTaskDueDate.trim() || !board || columns.length === 0}
-                className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Criar Tarefa
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
-      {isNewTaskModalOpen && isShareModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsShareModalOpen(false)} />
-          <div className="relative w-full max-w-xl bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]">
-              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-base">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
-                  <Users size={18} />
-                </div>
-                Compartilhar com usuários
-              </h3>
-              <button onClick={() => setIsShareModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-2 hover:bg-[var(--bg-panel)] rounded-full">
-                <X size={18} />
-              </button>
+      {/* Modal: Compartilhar Nova Tarefa */}
+      <Modal
+        isOpen={isNewTaskModalOpen && isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+              <Users size={18} />
             </div>
-
-            <div className="p-6 space-y-4">
+            Compartilhar com usuários
+          </div>
+        }
+        size="md"
+        footer={
+          <>
+            <div className="flex-1 text-left text-xs text-[var(--text-muted)] font-medium self-center">
+              Selecionados: <span className="text-[var(--text-main)] font-bold">{shareDraft.length}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsShareModalOpen(false)}
+              className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNewTaskAssignments(Array.from(new Set([profileId, ...shareDraft])));
+                setIsShareModalOpen(false);
+              }}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+            >
+              Confirmar
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
@@ -1385,53 +1404,50 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                     );
                   })}
               </div>
-            </div>
-
-            <div className="p-5 border-t border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]/50">
-              <div className="text-xs text-[var(--text-muted)] font-medium">
-                Selecionados: <span className="text-[var(--text-main)] font-bold">{shareDraft.length}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsShareModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewTaskAssignments(Array.from(new Set([profileId, ...shareDraft])));
-                    setIsShareModalOpen(false);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-                >
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
-      {activeTaskId && isTaskShareModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsTaskShareModalOpen(false)} />
-          <div className="relative w-full max-w-xl bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]">
-              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-base">
-                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
-                  <UserPlus size={18} />
-                </div>
-                Compartilhar tarefa
-              </h3>
-              <button onClick={() => setIsTaskShareModalOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-2 hover:bg-[var(--bg-panel)] rounded-full">
-                <X size={18} />
-              </button>
+      {/* Modal: Compartilhar Tarefa Existente */}
+      <Modal
+        isOpen={!!activeTaskId && isTaskShareModalOpen}
+        onClose={() => setIsTaskShareModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+              <UserPlus size={18} />
             </div>
-
-            <div className="p-6 space-y-4">
+            Compartilhar tarefa
+          </div>
+        }
+        size="md"
+        footer={
+          <>
+            <div className="flex-1 text-left text-xs text-[var(--text-muted)] font-medium self-center">
+              Selecionados: <span className="text-[var(--text-main)] font-bold">{taskShareDraft.length}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsTaskShareModalOpen(false)}
+              className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!canShareActiveTask) return;
+                const ok = await handleAssign(taskShareDraft);
+                if (ok) setIsTaskShareModalOpen(false);
+              }}
+              disabled={!canShareActiveTask}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+            >
+              Confirmar
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
               {!canShareActiveTask && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
                   Apenas o criador da tarefa pode compartilhar/remover responsáveis.
@@ -1487,66 +1503,43 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                     );
                   })}
               </div>
-            </div>
-
-            <div className="p-5 border-t border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]/50">
-              <div className="text-xs text-[var(--text-muted)] font-medium">
-                Selecionados: <span className="text-[var(--text-main)] font-bold">{taskShareDraft.length}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsTaskShareModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!canShareActiveTask) return;
-                    const ok = await handleAssign(taskShareDraft);
-                    if (ok) setIsTaskShareModalOpen(false);
-                  }}
-                  disabled={!canShareActiveTask}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
-                >
-                  Confirmar
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* Task Details Modal */}
-      {activeTaskId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setActiveTaskId(null)} />
-          <div className="relative w-full max-w-6xl h-[85vh] bg-[var(--bg-panel)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+      <Modal
+        isOpen={!!activeTaskId}
+        onClose={() => setActiveTaskId(null)}
+        size="4xl"
+        noPadding
+        scrollableContent={false}
+        title={
+          <div className="flex items-center gap-3 w-full pr-8">
+             <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-500/20 whitespace-nowrap">
+               {activeTaskShortId}
+             </span>
+             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${
+                activeTaskPriorityLabel === 'Alta' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
+                'bg-slate-500/10 text-slate-400 border-slate-500/20'
+             }`}>
+               {activeTaskPriorityLabel}
+             </span>
+          </div>
+        }
+      >
+        <div className="flex flex-col md:flex-row min-h-full">
             
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-body)]/30">
-              <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+            <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-body)]/30 border-b md:border-b-0 md:border-r border-[var(--border)]">
+              <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
                  {/* Header */}
-                 <div className="flex items-start justify-between mb-8">
-                    <div className="space-y-4 flex-1 mr-8">
-                       <div className="flex items-center gap-3">
-                         <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-500/20">
-                           {activeTaskShortId}
-                         </span>
-                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                            activeTaskPriorityLabel === 'Alta' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
-                            'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                         }`}>
-                           {activeTaskPriorityLabel}
-                         </span>
-                       </div>
-                       <h2 className="text-3xl font-black text-[var(--text-main)] leading-tight">
+                 <div className="flex items-start justify-between mb-6">
+                    <div className="flex-1 mr-4">
+                       <h2 className="text-2xl md:text-3xl font-black text-[var(--text-main)] leading-tight">
                          {activeTask?.title}
                        </h2>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={openTaskShareModal}
@@ -1566,9 +1559,6 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                           <Trash2 size={20} />
                         </button>
                       )}
-                      <button onClick={() => setActiveTaskId(null)} className="p-2 rounded-xl hover:bg-[var(--bg-body)] text-[var(--text-muted)] transition-colors hover:text-rose-400">
-                        <X size={24} />
-                      </button>
                     </div>
                  </div>
 
@@ -1863,26 +1853,41 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                </div>
             </div>
           </div>
-        </div>
-      )}
+      </Modal>
 
-      {activeTaskId && isDeleteConfirmOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDeleteConfirmOpen(false)} />
-          <div className="relative w-full max-w-md bg-[var(--bg-panel)] rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-body)]">
-              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-base">
-                <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
-                  <Trash2 size={18} />
-                </div>
-                Deletar tarefa
-              </h3>
-              <button onClick={() => setIsDeleteConfirmOpen(false)} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors p-2 hover:bg-[var(--bg-panel)] rounded-full">
-                <X size={18} />
-              </button>
+      {/* Modal: Confirmar Deleção */}
+      <Modal
+        isOpen={!!activeTaskId && isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
+              <Trash2 size={18} />
             </div>
-
-            <div className="p-6 space-y-4">
+            Deletar tarefa
+          </div>
+        }
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteTask}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+            >
+              Deletar
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
               <p className="text-sm text-[var(--text-soft)]">
                 Essa ação não pode ser desfeita. A tarefa e seus dados relacionados serão removidos.
               </p>
@@ -1891,27 +1896,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   {deleteError}
                 </div>
               )}
-            </div>
-
-            <div className="p-5 border-t border-[var(--border)] flex items-center justify-end gap-3 bg-[var(--bg-body)]/50">
-              <button
-                type="button"
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                className="px-5 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteTask}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 transition-all active:scale-95"
-              >
-                Deletar
-              </button>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

@@ -31,6 +31,7 @@ import {
 import { CRM_Oportunidade, isVenda } from '@/services/crm';
 import { useOportunidades, usePabxLigacoes } from '@/hooks/useCRM';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
+import { Modal } from '@/components/ui';
 import { format, isSameMonth, parseISO, parse, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -318,33 +319,27 @@ const Vendedores: React.FC = () => {
       </div>
 
       {/* DETAILED MODAL */}
-      {selectedSeller && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setSelectedSeller(null)} />
-          <div className="relative w-full max-w-5xl bg-[var(--bg-panel)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="p-6 border-b border-[var(--border)] bg-[var(--bg-body)]/50 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-lg font-bold uppercase shadow-lg shadow-cyan-500/20">
-                    {selectedSeller.name.substring(0, 2)}
-                 </div>
-                 <div>
-                   <h3 className="text-2xl font-black text-[var(--text-main)]">{selectedSeller.name}</h3>
-                   <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
-                      <span>•</span>
-                      <span>{format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
-                   </div>
-                 </div>
-              </div>
-              <button onClick={() => setSelectedSeller(null)} className="p-2 hover:bg-[var(--bg-body)] rounded-full text-[var(--text-muted)] transition-colors">
-                <X size={24} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+      <Modal
+        isOpen={!!selectedSeller}
+        onClose={() => setSelectedSeller(null)}
+        size="4xl"
+        title={
+          <div className="flex items-center gap-4">
+             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-bold uppercase shadow-lg shadow-cyan-500/20">
+                {selectedSeller?.name.substring(0, 2)}
+             </div>
+             <div>
+               <h3 className="text-lg font-black text-[var(--text-main)]">{selectedSeller?.name}</h3>
+               <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
+                  <span>•</span>
+                  <span>{selectedMonth && format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
+               </div>
+             </div>
+          </div>
+        }
+      >
+        <div className="space-y-8">
               
               {/* Top KPIs */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -538,11 +533,8 @@ const Vendedores: React.FC = () => {
                    </table>
                  </div>
               </div>
-
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };

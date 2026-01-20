@@ -8,6 +8,7 @@ import { useChat } from '@/hooks/useChat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
+import { Modal } from '@/components/ui';
 import { 
   Search, 
   Send, 
@@ -1177,58 +1178,45 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         )}
       </div>
 
-      {isProfileModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setIsProfileModalOpen(false)}
-        >
-          <div
-            className="bg-[var(--bg-panel)] w-full max-w-lg rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
+      <Modal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        size="md"
+        title={
+          <div className="flex items-center gap-3 min-w-0">
                 <div className="relative shrink-0">
                   {profileModalUser?.avatar_url ? (
                     <img
                       src={profileModalUser.avatar_url}
                       alt={profileModalUser.nome}
-                      className="w-12 h-12 rounded-full object-cover border border-[var(--border)]"
+                      className="w-10 h-10 rounded-full object-cover border border-[var(--border)]"
                       loading="lazy"
                       decoding="async"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">
                       {(profileModalUser?.nome || 'U').substring(0, 2)}
                     </div>
                   )}
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}`}></div>
+                  <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}`}></div>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-base font-bold text-[var(--text-main)] truncate">
+                  <div className="text-sm font-bold text-[var(--text-main)] truncate">
                     {profileModalUser?.nome || (profileModalLoading ? 'Carregando...' : 'Usuário')}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)] truncate">
+                  <div className="text-[10px] text-[var(--text-muted)] truncate">
                     {profileModalUser?.cargo || 'Membro da equipe'} • {STATUS_LABELS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}
                   </div>
                   {usersPresence[profileModalUser?.id || '']?.statusText ? (
-                    <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate">
+                    <div className="text-[10px] text-[var(--text-soft)] mt-0.5 truncate">
                       {usersPresence[profileModalUser?.id || '']?.statusText}
                     </div>
                   ) : null}
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsProfileModalOpen(false)}
-                className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-colors"
-                title="Fechar"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto custom-scrollbar">
+          </div>
+        }
+      >
+        <div className="space-y-4">
               {profileModalLoading && !profileModalUser ? (
                 <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
                   <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
@@ -1263,74 +1251,64 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="bg-[var(--bg-panel)] w-full max-w-5xl rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between gap-3 bg-[var(--bg-panel)]">
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-[var(--text-main)] truncate">
-                  {previewImage.name || 'Imagem'}
+      <Modal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        size="4xl"
+        noPadding
+        title={
+            <div className="flex items-center justify-between w-full pr-8">
+                <div className="min-w-0">
+                    <div className="text-sm font-bold text-[var(--text-main)] truncate">
+                      {previewImage?.name || 'Imagem'}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] hidden sm:block">
+                      Clique fora para fechar • ESC
+                    </div>
                 </div>
-                <div className="text-[11px] text-[var(--text-muted)]">
-                  Clique fora para fechar • ESC
+                
+                <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
+                      className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                      title="Zoom -"
+                    >
+                      <ZoomOut size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100))}
+                      className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                      title="Zoom +"
+                    >
+                      <ZoomIn size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadFromUrl(previewImage?.url || '', previewImage?.name || '')}
+                      className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                      title="Baixar"
+                    >
+                      <Download size={18} />
+                    </button>
+                    <a
+                      href={previewImage?.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                      title="Abrir em nova aba"
+                    >
+                      <ExternalLink size={18} />
+                    </a>
                 </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
-                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
-                  title="Zoom -"
-                >
-                  <ZoomOut size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100))}
-                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
-                  title="Zoom +"
-                >
-                  <ZoomIn size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadFromUrl(previewImage.url, previewImage.name)}
-                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
-                  title="Baixar"
-                >
-                  <Download size={18} />
-                </button>
-                <a
-                  href={previewImage.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
-                  title="Abrir em nova aba"
-                >
-                  <ExternalLink size={18} />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewImage(null)}
-                  className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
-                  title="Fechar"
-                >
-                  <X size={18} />
-                </button>
-              </div>
             </div>
-            <div
-              className="flex-1 bg-black/20 overflow-auto"
+        }
+      >
+        <div
+              className="flex-1 bg-black/20 overflow-auto min-h-[400px]"
               onWheel={(e) => {
                 if (!e.ctrlKey) return
                 e.preventDefault()
@@ -1340,26 +1318,30 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             >
               <div className="min-h-full w-full flex items-center justify-center p-4">
                 <img
-                  src={previewImage.url}
-                  alt={previewImage.name || 'Imagem'}
-                  className="max-w-full max-h-[78vh] object-contain select-none"
+                  src={previewImage?.url}
+                  alt={previewImage?.name || 'Imagem'}
+                  className="max-w-full max-h-[75vh] object-contain select-none"
                   style={{ transform: `scale(${previewZoom})` }}
                   draggable={false}
                 />
               </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* New Chat Modal */}
-      {isNewChatModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-panel)] w-full max-w-md rounded-2xl shadow-2xl border border-[var(--border)] overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <h3 className="font-bold text-[var(--text-main)] flex items-center gap-2 text-lg"><UserPlus size={20} className="text-cyan-500" /> Nova Conversa</h3>
-              <button onClick={() => setIsNewChatModalOpen(false)} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] rounded-lg transition-colors"><X size={20} /></button>
+      <Modal
+        isOpen={isNewChatModalOpen}
+        onClose={() => setIsNewChatModalOpen(false)}
+        size="sm"
+        noPadding
+        title={
+            <div className="flex items-center gap-2">
+                <UserPlus size={20} className="text-cyan-500" /> 
+                Nova Conversa
             </div>
+        }
+      >
+        <div className="flex flex-col h-[60vh] max-h-[500px]">
             <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-main)]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={18} />
@@ -1391,12 +1373,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         title="Ver perfil"
                       >
                         {user.avatar_url ? (
-                          <img src={user.avatar_url} alt={user.nome} className="w-12 h-12 rounded-full object-cover border border-[var(--border)]" />
+                          <img src={user.avatar_url} alt={user.nome} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">{user.nome.substring(0, 2)}</div>
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">{user.nome.substring(0, 2)}</div>
                         )}
                          {usersPresence[user.id]?.status && (
-                             <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[user.id].status]}`}></div>
+                             <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[user.id].status]}`}></div>
                          )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1409,9 +1391,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 </div>
               )}
             </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

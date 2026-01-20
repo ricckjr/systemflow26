@@ -51,6 +51,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const PROFILE_CACHE_KEY = 'systemflow:profile'
 const PERMS_CACHE_KEY   = 'systemflow:permissions'
 
+declare global {
+  var __systemflow_auth_sub: { unsubscribe: () => void } | undefined
+}
+
 /* ================================
    Helpers
 ================================ */
@@ -81,6 +85,7 @@ function normalizeProfile(p: any): Profile | null {
 ================================ */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const mounted = useRef(true)
+  const sessionRef = useRef<Session | null>(null)
 
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -108,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const currentSession = data.session ?? null
         setSession(currentSession)
+        sessionRef.current = currentSession
         setAuthReady(true)
 
         if (currentSession) {
@@ -120,33 +126,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!mounted.current) return
         console.error('[AUTH] getSession failed', err)
         setSession(null)
+        sessionRef.current = null
         setAuthReady(true)
         setProfile(null)
         setPermissions(null)
         setProfileReady(true)
       })
 
+    globalThis.__systemflow_auth_sub?.unsubscribe()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_, newSession) => {
         if (!mounted.current) return
 
-        setSession(newSession)
-        setProfileReady(false)
+        const prevSession = sessionRef.current
+        const prevUserId = prevSession?.user?.id
+        const nextUserId = newSession?.user?.id
+        const sessionIdentityChanged = prevUserId !== nextUserId
 
-        if (newSession) {
-          refreshProfile(newSession)
-        } else {
-          setProfile(null)
-          setPermissions(null)
-          setProfileReady(true)
-          localStorage.removeItem(PROFILE_CACHE_KEY)
-          localStorage.removeItem(PERMS_CACHE_KEY)
+        if (!newSession && prevSession) {
+          withTimeout(supabase.auth.getSession(), 2000)
+            .then(({ data }) => {
+              if (!mounted.current) return
+              const verifiedSession = data.session ?? null
+              if (verifiedSession) {
+                setSession(verifiedSession)
+                sessionRef.current = verifiedSession
+                return
+              }
+
+              setSession(null)
+              sessionRef.current = null
+              setProfile(null)
+              setPermissions(null)
+              setProfileReady(true)
+              localStorage.removeItem(PROFILE_CACHE_KEY)
+              localStorage.removeItem(PERMS_CACHE_KEY)
+            })
+            .catch(() => {
+              if (!mounted.current) return
+              setSession(null)
+              sessionRef.current = null
+              setProfile(null)
+              setPermissions(null)
+              setProfileReady(true)
+              localStorage.removeItem(PROFILE_CACHE_KEY)
+              localStorage.removeItem(PERMS_CACHE_KEY)
+            })
+
+          return
+        }
+
+        setSession(newSession)
+        sessionRef.current = newSession
+
+        if (sessionIdentityChanged) {
+          setProfileReady(false)
+
+          if (newSession) {
+            refreshProfile(newSession)
+          } else {
+            setProfile(null)
+            setPermissions(null)
+            setProfileReady(true)
+            localStorage.removeItem(PROFILE_CACHE_KEY)
+            localStorage.removeItem(PERMS_CACHE_KEY)
+          }
         }
       }
     )
 
+    globalThis.__systemflow_auth_sub = subscription
+
+    if (import.meta.hot) {
+      import.meta.hot.dispose(() => {
+        if (globalThis.__systemflow_auth_sub === subscription) {
+          globalThis.__systemflow_auth_sub = undefined
+        }
+        subscription.unsubscribe()
+      })
+    }
+
     return () => {
       mounted.current = false
+      if (globalThis.__systemflow_auth_sub === subscription) {
+        globalThis.__systemflow_auth_sub = undefined
+      }
       subscription.unsubscribe()
     }
   }, [])
@@ -220,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })
 
     setSession(null)
+    sessionRef.current = null
     setProfile(null)
     setPermissions(null)
     setAuthReady(false)

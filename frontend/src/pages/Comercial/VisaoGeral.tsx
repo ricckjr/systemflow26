@@ -49,13 +49,13 @@ export default function VisaoGeral() {
   // React Query Hooks
   const { 
     data: oportunidadesData, 
-    isLoading: isLoadingOps, 
+    isLoading: isLoadingOps,
     dataUpdatedAt: opsUpdatedAt 
   } = useOportunidades()
   
   const { 
     data: pabxLigacoesData, 
-    isLoading: isLoadingPabx 
+    isLoading: isLoadingPabx
   } = usePabxLigacoes()
 
   const { data: meta } = useMeta()
@@ -64,33 +64,28 @@ export default function VisaoGeral() {
   const invalidateCRM = useInvalidateCRM()
   const dashboardRef = useRef<HTMLDivElement | null>(null)
   const { isTvMode, isRequestingFullscreen, toggleTvMode, exitTvMode } = useTvMode()
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   
   // Derived state
   const data = oportunidadesData || []
   const pabxLigacoes = pabxLigacoesData || []
-  const loading = isLoadingOps || isLoadingPabx
   const lastUpdated = opsUpdatedAt ? new Date(opsUpdatedAt) : new Date()
 
   const handleRefresh = async () => {
     try {
+      setIsManualRefreshing(true)
       const minLoadTime = new Promise(resolve => setTimeout(resolve, 800))
       await Promise.all([invalidateCRM(), minLoadTime])
     } catch (error) {
       console.error("Failed to refresh CRM data", error)
+    } finally {
+      setIsManualRefreshing(false)
     }
   }
 
   useEffect(() => {
     if (isTvMode) setIsMetaModalOpen(false)
   }, [isTvMode])
-
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    const timer = setInterval(() => {
-      handleRefresh()
-    }, 5 * 60 * 1000)
-    return () => clearInterval(timer)
-  }, [invalidateCRM])
 
   /* ===========================
      STATS CALCULATION
@@ -193,7 +188,7 @@ export default function VisaoGeral() {
     }
   }, [data, pabxLigacoes])
 
-  if (loading && data.length === 0) {
+  if ((isLoadingOps || isLoadingPabx) && data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-[var(--primary)] animate-pulse">
         <RefreshCw className="w-12 h-12 mb-4 animate-spin" />
@@ -228,18 +223,18 @@ export default function VisaoGeral() {
                 e.stopPropagation();
                 handleRefresh();
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
-              title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
-              disabled={loading}
-              style={{ position: 'relative', zIndex: 100 }}
-            >
-              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-              <span>{loading ? 'Atualizando...' : 'Atualizar'}</span>
-            </button>
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
+            title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
+            disabled={isManualRefreshing}
+            style={{ position: 'relative', zIndex: 100 }}
+          >
+            <RefreshCw size={18} className={isManualRefreshing ? "animate-spin" : ""} />
+            <span>{isManualRefreshing ? 'Atualizando...' : 'Atualizar'}</span>
+          </button>
 
             <button
               type="button"
-              onClick={() => toggleTvMode({ element: dashboardRef.current })}
+              onClick={() => toggleTvMode()}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-medium text-sm shadow-sm"
               disabled={isRequestingFullscreen}
             >
@@ -265,30 +260,7 @@ export default function VisaoGeral() {
 
       {/* CONTENT WRAPPER WITH OVERLAY */}
       <div className={`relative ${isTvMode ? 'h-full' : 'min-h-[500px]'}`}>
-        {loading && (
-          <div className={`absolute inset-0 z-30 bg-[var(--bg-body)]/80 backdrop-blur-sm flex items-center justify-center transition-all duration-500 animate-in fade-in ${isTvMode ? '' : 'rounded-3xl'}`}>
-            <div className="flex flex-col items-center gap-6 p-8">
-              <div className="relative">
-                <div className="w-20 h-20 border-4 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <RefreshCw className="w-8 h-8 text-[var(--primary)] animate-pulse" />
-                </div>
-                {/* Orbital dots */}
-                <div className="absolute inset-0 animate-spin-slow-reverse opacity-60">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 w-3 h-3 bg-emerald-400 rounded-full blur-[2px]" />
-                </div>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xl font-bold text-[var(--text-main)] tracking-tight">Atualizando Dashboard</span>
-                <span className="text-sm text-[var(--text-soft)] font-medium bg-[var(--bg-panel)] px-3 py-1 rounded-full border border-[var(--border)]">
-                  Sincronizando dados em tempo real...
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div className={`space-y-6 transition-all duration-500 ${loading ? 'opacity-40 scale-[0.99] grayscale-[0.5] blur-[1px]' : ''}`}>
+        <div className="space-y-6">
           {/* KPIS GRID - 2 Rows of 4 Cards for TV Readability */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KPI 

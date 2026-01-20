@@ -32,18 +32,27 @@ export function useTvMode(options: UseTvModeOptions = {}) {
 
   const enterTvMode = useCallback(
     async ({ element }: EnterTvModeOptions = {}) => {
-      setTvQueryParam(true);
+      const target = element ?? document.documentElement;
+      let fullscreenPromise: Promise<void> | null = null;
 
-      if (!element) return;
-      if (!document.fullscreenEnabled) return;
+      if (target && document.fullscreenEnabled) {
+        try {
+          setIsRequestingFullscreen(true);
+          fullscreenPromise = target.requestFullscreen();
+          setTvQueryParam(true);
+          await fullscreenPromise;
+          wasInFullscreenRef.current = true;
+          return;
+        } catch {
+        } finally {
+          setIsRequestingFullscreen(false);
+        }
+      }
 
       try {
-        setIsRequestingFullscreen(true);
-        await element.requestFullscreen();
-        wasInFullscreenRef.current = true;
+        setTvQueryParam(true);
       } catch {
       } finally {
-        setIsRequestingFullscreen(false);
       }
     },
     [setTvQueryParam]
@@ -106,4 +115,3 @@ export function useTvMode(options: UseTvModeOptions = {}) {
     toggleTvMode,
   };
 }
-

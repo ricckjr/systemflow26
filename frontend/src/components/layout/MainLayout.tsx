@@ -71,7 +71,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-[#0B0F14] text-[#E5E7EB] font-sans selection:bg-[#38BDF8]/30">
+    <div className="flex h-screen overflow-hidden bg-[#0B0F14] text-[#E5E7EB] font-sans selection:bg-[#38BDF8]/30">
       {/* BACKDROP FOR DESKTOP EXPANSION */}
       <div 
         className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 hidden lg:block
@@ -120,7 +120,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
 
       {/* MAIN CONTENT */}
       {/* Added ml-20 to push content to the right of the dock */}
-      <div className="flex-1 flex flex-col overflow-hidden relative lg:ml-20 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative lg:ml-20 transition-all duration-300 pt-16">
         <Header
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
@@ -131,7 +131,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
           errorMessage={errorMessage}
         />
 
-        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar">
+        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar">
           <div
             className="min-h-full rounded-2xl bg-[#111827] border border-white/5
                        p-4 sm:p-6 shadow-sm"

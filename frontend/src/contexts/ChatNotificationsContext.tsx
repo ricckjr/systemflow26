@@ -25,6 +25,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
   const [unreadByRoomId, setUnreadByRoomId] = useState<UnreadByRoomId>({})
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const activeRoomIdRef = useRef<string | null>(null)
+  const realtimeSubscribedRef = useRef(false)
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
@@ -32,6 +33,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
 
   useEffect(() => {
     if (!profile?.id) {
+      realtimeSubscribedRef.current = false
       setUnreadByRoomId({})
       setActiveRoomId(null)
       return
@@ -137,10 +139,29 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
           }
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        realtimeSubscribedRef.current = status === 'SUBSCRIBED'
+      })
+
+    const pollMs = 45000
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      if (realtimeSubscribedRef.current) return
+      void loadUnread()
+    }, pollMs)
+
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return
+      if (realtimeSubscribedRef.current) return
+      void loadUnread()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       cancelled = true
+      realtimeSubscribedRef.current = false
+      window.clearInterval(pollId)
+      document.removeEventListener('visibilitychange', onVisibility)
       channel.unsubscribe()
     }
   }, [profile?.id])

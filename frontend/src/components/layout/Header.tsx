@@ -4,6 +4,7 @@ import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, X, Check, Inbox }
 import { Profile } from '@/types';
 import { supabase } from '@/services/supabase';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
+import { useSystemNotifications } from '@/contexts/SystemNotificationsContext';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -13,17 +14,6 @@ interface HeaderProps {
   profile: Profile;
   supabaseConnected: boolean;
   errorMessage?: string;
-}
-
-interface Notification {
-  id: string;
-  user_id: string;
-  title: string;
-  content: string | null;
-  link: string | null;
-  type: string;
-  is_read: boolean;
-  created_at: string;
 }
 
 type ChatNotifMessage = {
@@ -60,11 +50,10 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasAnyUnread, totalUnread } = useChatNotifications();
+  const { totalUnread } = useChatNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useSystemNotifications()
   
-  // Notification State (System Alerts)
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Notification UI State (System Alerts)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -248,50 +237,6 @@ export const Header: React.FC<HeaderProps> = ({
     );
   };
 
-  // Fetch Notifications
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      if (data) {
-        setNotifications(data);
-        setUnreadCount(data.filter(n => !n.is_read).length);
-      }
-    };
-
-    fetchNotifications();
-
-    // Subscribe to new notifications
-    const subscription = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${profile.id}`
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [profile?.id]);
-
   // Click outside to close notifications
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -304,18 +249,10 @@ export const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read
-    if (!notification.is_read) {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notification.id);
-      
-      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }
-
+  const handleNotificationClick = async (notification: any) => {
+    const id = notification?.id as string | undefined
+    if (!id) return
+    if (!notification.is_read) await markAsRead(id)
     setIsNotificationsOpen(false);
 
     // Navigate
@@ -324,19 +261,8 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const markAllAsRead = async () => {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', profile.id)
-      .eq('is_read', false);
-    
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    setUnreadCount(0);
-  };
-
   return (
-    <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#0B0F14]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0B0F14]/60 relative z-50">
+    <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#0B0F14]/80 backdrop-blur supports-[backdrop-filter]:bg-[#0B0F14]/60 fixed top-0 left-0 right-0 lg:left-20 z-50">
       {/* LEFT */}
       <div className="flex items-center gap-3">
         {/* Mobile menu */}
@@ -473,8 +399,10 @@ export const Header: React.FC<HeaderProps> = ({
               title="Mensagens"
             >
               <MessageSquare size={16} />
-              {hasAnyUnread && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-cyan-500 rounded-full border-2 border-[#0B0F14] animate-pulse" />
+              {totalUnread > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-[#0B0F14] flex items-center justify-center text-[9px] font-bold text-[#0B0F14]">
+                  {totalUnread > 9 ? '9+' : totalUnread}
+                </span>
               )}
             </button>
 

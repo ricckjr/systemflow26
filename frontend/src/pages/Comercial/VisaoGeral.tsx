@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   TrendingUp,
   Award,
@@ -12,7 +12,9 @@ import {
   Settings,
   Target,
   Save,
-  Loader2
+  Loader2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react'
 import {
   BarChart,
@@ -31,6 +33,7 @@ import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
 import { APP_TIME_ZONE } from '@/constants/timezone'
 import { Modal } from '@/components/ui'
+import { useTvMode } from '@/hooks/useTvMode'
 
 /* ===========================
    HELPERS
@@ -59,6 +62,8 @@ export default function VisaoGeral() {
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false)
   
   const invalidateCRM = useInvalidateCRM()
+  const dashboardRef = useRef<HTMLDivElement | null>(null)
+  const { isTvMode, isRequestingFullscreen, toggleTvMode, exitTvMode } = useTvMode()
   
   // Derived state
   const data = oportunidadesData || []
@@ -68,14 +73,16 @@ export default function VisaoGeral() {
 
   const handleRefresh = async () => {
     try {
-      console.log('Botão Atualizar clicado!'); // Debug
-      // Force minimum loading time for UX (800ms) to ensure user sees the update action
       const minLoadTime = new Promise(resolve => setTimeout(resolve, 800))
       await Promise.all([invalidateCRM(), minLoadTime])
     } catch (error) {
       console.error("Failed to refresh CRM data", error)
     }
   }
+
+  useEffect(() => {
+    if (isTvMode) setIsMetaModalOpen(false)
+  }, [isTvMode])
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -196,42 +203,70 @@ export default function VisaoGeral() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div
+      ref={dashboardRef}
+      className={`relative animate-in fade-in duration-700 ${isTvMode ? 'h-full w-full overflow-auto p-6 space-y-6' : 'space-y-6'}`}
+    >
       {/* HEADER ACTIONS */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">Visão Geral</h1>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsMetaModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-medium text-sm shadow-sm"
-          >
-            <Target size={18} />
-            <span>Definir Meta</span>
-          </button>
+      {!isTvMode && (
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">Visão Geral</h1>
+          
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMetaModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-medium text-sm shadow-sm"
+            >
+              <Target size={18} />
+              <span>Definir Meta</span>
+            </button>
 
-          <button 
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleRefresh();
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
+              title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
+              disabled={loading}
+              style={{ position: 'relative', zIndex: 100 }}
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+              <span>{loading ? 'Atualizando...' : 'Atualizar'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => toggleTvMode({ element: dashboardRef.current })}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-medium text-sm shadow-sm"
+              disabled={isRequestingFullscreen}
+            >
+              <Maximize2 size={18} />
+              <span>Modo TV</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isTvMode && (
+        <div className="fixed top-4 right-4 z-[300] flex items-center gap-3">
+          <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleRefresh();
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
-            title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
-            disabled={loading}
-            style={{ position: 'relative', zIndex: 100 }}
+            onClick={() => exitTvMode()}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-panel)]/90 backdrop-blur border border-[var(--border)] text-[var(--text-main)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all duration-300 font-semibold text-sm shadow-lg"
           >
-            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-            <span>{loading ? 'Atualizando...' : 'Atualizar'}</span>
+            <Minimize2 size={18} />
+            <span>Sair da Tela Cheia</span>
           </button>
         </div>
-      </div>
+      )}
 
       {/* CONTENT WRAPPER WITH OVERLAY */}
-      <div className="relative min-h-[500px]">
+      <div className={`relative ${isTvMode ? 'h-full' : 'min-h-[500px]'}`}>
         {loading && (
-          <div className="absolute inset-0 z-30 bg-[var(--bg-body)]/80 backdrop-blur-sm flex items-center justify-center rounded-3xl transition-all duration-500 animate-in fade-in">
+          <div className={`absolute inset-0 z-30 bg-[var(--bg-body)]/80 backdrop-blur-sm flex items-center justify-center transition-all duration-500 animate-in fade-in ${isTvMode ? '' : 'rounded-3xl'}`}>
             <div className="flex flex-col items-center gap-6 p-8">
               <div className="relative">
                 <div className="w-20 h-20 border-4 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />

@@ -17,6 +17,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [supabaseConnected, setSupabaseConnected] = useState(true);
   const location = useLocation();
+  const isTvMode = useMemo(() => new URLSearchParams(location.search).get('tv') === '1', [location.search]);
 
   // Safe default profile (visual only – não altera lógica)
   const safeProfile: Profile = profile || {
@@ -70,35 +71,51 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    const el = document.documentElement;
+    const body = document.body;
+    if (isTvMode) {
+      el.classList.add('tv-mode');
+      body.classList.add('tv-mode');
+    } else {
+      el.classList.remove('tv-mode');
+      body.classList.remove('tv-mode');
+    }
+  }, [isTvMode]);
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#0B0F14] text-[#E5E7EB] font-sans selection:bg-[#38BDF8]/30">
       {/* BACKDROP FOR DESKTOP EXPANSION */}
-      <div 
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 hidden lg:block
-          ${isSidebarExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsSidebarExpanded(false)}
-        aria-hidden="true"
-      />
+      {!isTvMode && (
+        <div 
+          className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 hidden lg:block
+            ${isSidebarExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setIsSidebarExpanded(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* DESKTOP SIDEBAR (DOCK + OVERLAY) */}
-      <aside
-        className={`fixed left-0 top-0 h-full hidden lg:flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
-          ${isSidebarExpanded ? 'w-64 shadow-2xl shadow-black/50' : 'w-20'}
-          bg-[#0F172A] border-r border-white/5`}
-        role="navigation"
-        aria-label="Navegação principal"
-      >
-        <Sidebar
-          isCollapsed={!isSidebarExpanded}
-          isMobileMenuOpen={false}
-          setIsMobileMenuOpen={setIsMobileMenuOpen}
-          setIsExpanded={setIsSidebarExpanded}
-          profile={profileView}
-        />
-      </aside>
+      {!isTvMode && (
+        <aside
+          className={`fixed left-0 top-0 h-full hidden lg:flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
+            ${isSidebarExpanded ? 'w-64 shadow-2xl shadow-black/50' : 'w-20'}
+            bg-[#0F172A] border-r border-white/5`}
+          role="navigation"
+          aria-label="Navegação principal"
+        >
+          <Sidebar
+            isCollapsed={!isSidebarExpanded}
+            isMobileMenuOpen={false}
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+            setIsExpanded={setIsSidebarExpanded}
+            profile={profileView}
+          />
+        </aside>
+      )}
 
       {/* MOBILE OVERLAY */}
-      {isMobileMenuOpen && (
+      {!isTvMode && isMobileMenuOpen && (
         <div
           className="lg:hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
@@ -120,24 +137,30 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
 
       {/* MAIN CONTENT */}
       {/* Added ml-20 to push content to the right of the dock */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative lg:ml-20 transition-all duration-300 pt-16">
-        <Header
-          isMobileMenuOpen={isMobileMenuOpen}
-          setIsMobileMenuOpen={setIsMobileMenuOpen}
-          isCollapsed={!isSidebarExpanded}
-          setIsCollapsed={(collapsed) => setIsSidebarExpanded(!collapsed)}
-          profile={profileView}
-          supabaseConnected={supabaseConnected}
-          errorMessage={errorMessage}
-        />
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden relative transition-all duration-300 ${isTvMode ? '' : 'lg:ml-20 pt-16'}`}>
+        {!isTvMode && (
+          <Header
+            isMobileMenuOpen={isMobileMenuOpen}
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+            isCollapsed={!isSidebarExpanded}
+            setIsCollapsed={(collapsed) => setIsSidebarExpanded(!collapsed)}
+            profile={profileView}
+            supabaseConnected={supabaseConnected}
+            errorMessage={errorMessage}
+          />
+        )}
 
-        <main className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar">
-          <div
-            className="min-h-full rounded-2xl bg-[#111827] border border-white/5
-                       p-4 sm:p-6 shadow-sm"
-          >
-            {children || <Outlet />}
-          </div>
+        <main className={`flex-1 min-h-0 ${isTvMode ? 'overflow-hidden' : 'overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar'}`}>
+          {isTvMode ? (
+            children || <Outlet />
+          ) : (
+            <div
+              className="min-h-full rounded-2xl bg-[#111827] border border-white/5
+                         p-4 sm:p-6 shadow-sm"
+            >
+              {children || <Outlet />}
+            </div>
+          )}
         </main>
       </div>
     </div>

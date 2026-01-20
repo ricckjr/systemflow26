@@ -218,6 +218,20 @@ html, body {
   color: var(--text-main);
 }
 
+html.tv-mode, body.tv-mode {
+  overflow: hidden;
+  height: 100%;
+}
+
+html.tv-mode {
+  font-size: 18px;
+}
+
+html.tv-mode ::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
 .alert-error {
   background: rgba(239,68,68,0.10);
   border-color: rgba(239,68,68,0.20);

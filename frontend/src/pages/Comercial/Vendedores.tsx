@@ -319,27 +319,28 @@ const Vendedores: React.FC = () => {
       </div>
 
       {/* DETAILED MODAL */}
-      <Modal
-        isOpen={!!selectedSeller}
-        onClose={() => setSelectedSeller(null)}
-        size="4xl"
-        title={
-          <div className="flex items-center gap-4">
-             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-bold uppercase shadow-lg shadow-cyan-500/20">
-                {selectedSeller?.name.substring(0, 2)}
-             </div>
-             <div>
-               <h3 className="text-lg font-black text-[var(--text-main)]">{selectedSeller?.name}</h3>
-               <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
+      {selectedSeller && (
+        <Modal
+          isOpen
+          onClose={() => setSelectedSeller(null)}
+          size="4xl"
+          title={
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-bold uppercase shadow-lg shadow-cyan-500/20">
+                {selectedSeller.name.substring(0, 2)}
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-[var(--text-main)]">{selectedSeller.name}</h3>
+                <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
                   <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
                   <span>•</span>
-                  <span>{selectedMonth && format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
-               </div>
-             </div>
-          </div>
-        }
-      >
-        <div className="space-y-8">
+                  <span>{format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-8">
               
               {/* Top KPIs */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -534,7 +535,8 @@ const Vendedores: React.FC = () => {
                  </div>
               </div>
             </div>
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 };

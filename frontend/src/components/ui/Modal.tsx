@@ -74,6 +74,7 @@ export const Modal: React.FC<ModalProps> = ({
           bg-[var(--bg-panel)] 
           rounded-t-2xl md:rounded-2xl 
           shadow-2xl border border-[var(--border)] 
+          overflow-hidden
           flex flex-col 
           max-h-[90vh] h-auto
           animate-in slide-in-from-bottom-10 md:zoom-in-95 md:slide-in-from-bottom-0
@@ -83,8 +84,8 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 md:p-6 border-b border-[var(--border)] shrink-0 bg-[var(--bg-panel)] rounded-t-2xl">
-          <div className="text-lg font-bold text-[var(--text-main)] truncate pr-8 w-full">
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-[var(--border)] shrink-0 bg-[var(--bg-panel)]">
+          <div className="text-lg font-bold text-[var(--text-main)] pr-10 w-full min-w-0">
             {title}
           </div>
           <button 
@@ -103,7 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Footer - Fixed */}
         {footer && (
-          <div className="p-4 md:p-6 border-t border-[var(--border)] bg-[var(--bg-panel)] rounded-b-2xl shrink-0 flex flex-col sm:flex-row justify-end gap-3">
+          <div className="p-4 md:p-6 border-t border-[var(--border)] bg-[var(--bg-panel)] shrink-0 flex flex-col sm:flex-row justify-end gap-3">
             {footer}
           </div>
         )}

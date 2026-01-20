@@ -30,8 +30,8 @@ const navItems: NavItem[] = [
     icon: Users,
     modulo: 'comunidade',
     subItems: [
-      { label: 'Feed', path: '/app/comunidade', submodulo: 'instaflow' },
-      { label: 'Tarefas', path: '/app/comunidade/taskflow', submodulo: 'taskflow' },
+      { label: 'InstaFlow', path: '/app/comunidade', submodulo: 'instaflow' },
+      { label: 'TaskFlow', path: '/app/comunidade/taskflow', submodulo: 'taskflow' },
     ],
   },
   {
@@ -49,9 +49,9 @@ const navItems: NavItem[] = [
     icon: MessageSquare,
     modulo: 'comunicacao',
     subItems: [
-      { label: 'Chat Interno', path: '/app/comunicacao/chat', submodulo: 'chat' },
+      { label: 'Chat', path: '/app/comunicacao/chat', submodulo: 'chat' },
       { label: 'FlowSmart', path: '/app/comunicacao/flowsmart', submodulo: 'flowsmart' },
-      { label: 'Assistente IA', path: '/app/comunicacao/ia', submodulo: 'ia-flow' },
+      { label: 'Assistente Flow', path: '/app/comunicacao/ia', submodulo: 'ia-flow' },
     ],
   },
 ];

@@ -159,6 +159,11 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const [editDescContent, setEditDescContent] = useState('');
   const [isUpdatingDesc, setIsUpdatingDesc] = useState(false);
 
+  // Due Date Edit State
+  const [taskDueDateDraft, setTaskDueDateDraft] = useState('');
+  const [isUpdatingDueDate, setIsUpdatingDueDate] = useState(false);
+  const [dueDateError, setDueDateError] = useState<string | null>(null);
+
   // Computed
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -255,6 +260,18 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const canShareActiveTask = useMemo(() => {
     return !!activeTaskOwnerId && activeTaskOwnerId === profileId;
   }, [activeTaskOwnerId, profileId]);
+
+  // Regra explícita: a data de entrega só pode ser alterada pelo criador (created_by === user.id).
+  const canEditActiveTaskDueDate = useMemo(() => {
+    return !!activeTaskOwnerId && activeTaskOwnerId === profileId;
+  }, [activeTaskOwnerId, profileId]);
+
+  const activeTaskDueDateInputValue = useMemo(() => {
+    if (!activeTask?.due_date) return '';
+    const d = new Date(activeTask.due_date);
+    if (Number.isNaN(d.getTime())) return '';
+    return format(d, 'yyyy-MM-dd');
+  }, [activeTask?.due_date]);
 
   const timelineItems = useMemo(() => {
     if (!activeTaskId) return [];
@@ -582,6 +599,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       await moveTask(taskId, destinationColumnId);
       const details = fromColumnName ? `de ${fromColumnName} para ${targetColumnName}` : targetColumnName;
       await logActivity(taskId, profileId, 'status_changed', details);
+      await markTaskSeen(taskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Falha ao mover tarefa';
       setTasks(prev => {
@@ -745,6 +764,13 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
   useEffect(() => {
     if (!activeTaskId) return;
+    setTaskDueDateDraft(activeTaskDueDateInputValue);
+    setDueDateError(null);
+    setIsUpdatingDueDate(false);
+  }, [activeTaskId, activeTaskDueDateInputValue]);
+
+  useEffect(() => {
+    if (!activeTaskId) return;
 
     let cancelled = false;
     const taskId = activeTaskId;
@@ -805,11 +831,42 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       setTasks(prev => prev.map(t => t.id === activeTaskId ? { ...t, description: updated.description } : t));
       setIsEditingDesc(false);
       await logActivity(activeTaskId, profileId, 'description_updated');
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
     } catch (e) {
       console.error(e);
       // Optional: show error toast
     } finally {
       setIsUpdatingDesc(false);
+    }
+  };
+
+  const handleUpdateDueDate = async () => {
+    if (!activeTaskId) return;
+    if (!canEditActiveTaskDueDate) return;
+
+    setDueDateError(null);
+
+    const trimmed = taskDueDateDraft.trim();
+    const dueDateISO = trimmed ? parseLocalDateToEndOfDayISO(trimmed) : null;
+    if (trimmed && !dueDateISO) {
+      setDueDateError('Data inválida.');
+      return;
+    }
+
+    setIsUpdatingDueDate(true);
+    try {
+      const updated = await updateTask(activeTaskId, { due_date: dueDateISO });
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, due_date: updated.due_date } : t)));
+      const details = trimmed ? `para ${trimmed}` : 'removida';
+      await logActivity(activeTaskId, profileId, 'due_date_updated', details);
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
+    } catch (e) {
+      console.error(e);
+      setDueDateError('Não foi possível atualizar a data de entrega.');
+    } finally {
+      setIsUpdatingDueDate(false);
     }
   };
 
@@ -820,6 +877,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       const att = await uploadTaskAttachment(activeTaskId, file, profileId);
       setTaskAttachments(prev => [att, ...prev]);
       await logActivity(activeTaskId, profileId, 'attachment_added', `adicionou arquivo: ${file.name}`);
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
     } catch (err) {
       console.error(err);
       // Optional: show toast error
@@ -840,6 +899,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       
       // Registra a atividade conforme solicitado
       await logActivity(activeTaskId, profileId, 'attachment_deleted', `removeu arquivo: ${fileName}`);
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
     } catch (error) {
       console.error('Failed to delete attachment', error);
       // Opcional: Adicionar notificação de erro aqui
@@ -855,6 +916,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       const finalIds = Array.from(new Set([...(ownerId ? [ownerId] : []), ...userIds]));
       await assignUsers(activeTaskId, finalIds);
       setAssignedUsers(finalIds);
+      await logActivity(activeTaskId, profileId, 'assignees_updated', 'responsáveis atualizados');
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
       return true;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Falha ao atualizar compartilhamento';
@@ -890,6 +954,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       setComments(prev => ({ ...prev, [activeTaskId]: [...(prev[activeTaskId] || []), optimisticComment] }));
       setNewComment('');
       await logActivity(activeTaskId, profileId, 'comment_added');
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Falha ao adicionar comentário';
       console.error('Failed to add comment:', e);
@@ -1056,23 +1122,37 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                     ${getDeadlineBorderClass(getDeadlineStatus(task.due_date, nowMs))}
                                   `}
                                 >
-                                {isUnseenActivity(task.last_activity_at || task.updated_at || task.created_at, task.last_seen_at) && (
-                                  <span
-                                    title="Nova atividade disponível"
-                                    className={`absolute top-2 right-2 z-40 w-3 h-3 rounded-full border-2 border-white taskflow-unseen-marker ${
-                                      fadingUnseenByTaskId[task.id] ? 'taskflow-unseen-marker--fading' : ''
-                                    }`}
-                                    style={{ backgroundColor: '#2ECC71' }}
-                                  />
-                                )}
                                 <div className="flex items-start justify-between mb-3">
-                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                                    task.priority === 'high' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
-                                    task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
-                                    'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  }`}>
-                                    {priorities[task.priority as keyof typeof priorities] || task.priority}
-                                  </span>
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                      task.priority === 'high' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
+                                      task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
+                                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    }`}>
+                                      {priorities[task.priority as keyof typeof priorities] || task.priority}
+                                    </span>
+
+                                    {(() => {
+                                      const isUnseen = isUnseenActivity(
+                                        task.last_activity_at || task.updated_at || task.created_at,
+                                        task.last_seen_at
+                                      );
+                                      const isSharedTask =
+                                        task.created_by !== profileId ||
+                                        (task.assignees_list || []).some(a => a?.id && a.id !== task.created_by);
+
+                                      if (!isUnseen || !isSharedTask) return null;
+
+                                      return (
+                                        <span
+                                          title="Nova atividade disponível"
+                                          className={`w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-panel)] bg-emerald-400 taskflow-unseen-marker ${
+                                            fadingUnseenByTaskId[task.id] ? 'taskflow-unseen-marker--fading' : ''
+                                          }`}
+                                        />
+                                      );
+                                    })()}
+                                  </div>
                                   
                                   {/* Owner Avatar if shared */}
                                   {task.owner_avatar && task.created_by !== profileId && (
@@ -1512,347 +1592,416 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         onClose={() => setActiveTaskId(null)}
         size="4xl"
         noPadding
-        scrollableContent={false}
+        scrollableContent
+        className="h-[100vh] max-h-[100vh] rounded-none md:h-auto md:max-h-[90vh] md:rounded-2xl md:max-w-[90vw] lg:max-w-6xl xl:max-w-7xl"
         title={
-          <div className="flex items-center gap-3 w-full pr-8">
-             <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-500/20 whitespace-nowrap">
-               {activeTaskShortId}
-             </span>
-             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${
-                activeTaskPriorityLabel === 'Alta' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 
-                'bg-slate-500/10 text-slate-400 border-slate-500/20'
-             }`}>
-               {activeTaskPriorityLabel}
-             </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider border border-cyan-500/20 whitespace-nowrap">
+                {activeTaskShortId}
+              </span>
+              <span
+                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${
+                  activeTaskPriorityLabel === 'Alta'
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                    : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                }`}
+              >
+                {activeTaskPriorityLabel}
+              </span>
+            </div>
+            <div className="mt-2 text-base md:text-lg font-black text-[var(--text-main)] truncate">
+              {activeTask?.title}
+            </div>
           </div>
         }
       >
-        <div className="flex flex-col md:flex-row min-h-full">
-            
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-body)]/30 border-b md:border-b-0 md:border-r border-[var(--border)]">
-              <div className="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
-                 {/* Header */}
-                 <div className="flex items-start justify-between mb-6">
-                    <div className="flex-1 mr-4">
-                       <h2 className="text-2xl md:text-3xl font-black text-[var(--text-main)] leading-tight">
-                         {activeTask?.title}
-                       </h2>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={openTaskShareModal}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-blue-500/10 text-blue-400 transition-colors"
-                        title={canShareActiveTask ? 'Compartilhar tarefa' : 'Apenas o criador pode compartilhar'}
-                      >
-                        <UserPlus size={18} />
-                        <span className="hidden sm:inline text-xs font-bold">Compartilhar</span>
-                      </button>
-                      {activeTask?.created_by === profileId && (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] min-h-full">
+          <div className="bg-[var(--bg-body)]/30 border-b lg:border-b-0 lg:border-r border-[var(--border)]">
+            <div className="px-5 py-6 md:px-8 md:py-8">
+              <div className="flex items-center justify-end gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={openTaskShareModal}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-blue-500/10 text-blue-400 transition-colors"
+                  title={canShareActiveTask ? 'Compartilhar tarefa' : 'Apenas o criador pode compartilhar'}
+                >
+                  <UserPlus size={18} />
+                  <span className="hidden sm:inline text-xs font-bold">Compartilhar</span>
+                </button>
+                {activeTask?.created_by === profileId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setIsDeleteConfirmOpen(true);
+                    }}
+                    className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-400 transition-colors"
+                    title="Deletar tarefa"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 space-y-8">
+                  <div className="group">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] group-hover:text-cyan-400 transition-colors">
+                        <AlertTriangle size={14} /> Descrição
+                      </h4>
+                      {!isEditingDesc && (
                         <button
-                          type="button"
-                          onClick={() => { setDeleteError(null); setIsDeleteConfirmOpen(true); }}
-                          className="p-2 rounded-xl hover:bg-rose-500/10 text-rose-400 transition-colors"
-                          title="Deletar tarefa"
+                          onClick={() => setIsEditingDesc(true)}
+                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                          title="Editar descrição"
                         >
-                          <Trash2 size={20} />
+                          <Pencil size={14} />
                         </button>
                       )}
                     </div>
-                 </div>
 
-                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                   {/* Left Column: Description & Checklist */}
-                   <div className="lg:col-span-2 space-y-8">
-                      <div className="group">
-                         <div className="flex items-center justify-between mb-4">
-                           <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] group-hover:text-cyan-400 transition-colors">
-                             <AlertTriangle size={14} /> Descrição
-                           </h4>
-                           {!isEditingDesc && (
-                             <button 
-                               onClick={() => setIsEditingDesc(true)} 
-                               className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
-                               title="Editar descrição"
-                             >
-                               <Pencil size={14} />
-                             </button>
-                           )}
-                         </div>
-                         
-                         {isEditingDesc ? (
-                           <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-cyan-500/50 shadow-sm space-y-3">
-                              <textarea
-                                 value={editDescContent}
-                                 onChange={e => setEditDescContent(e.target.value)}
-                                 className="w-full min-h-[120px] bg-transparent border-none outline-none text-sm text-[var(--text-main)] resize-none placeholder:text-[var(--text-muted)] custom-scrollbar"
-                                 placeholder="Adicione uma descrição detalhada..."
-                                 autoFocus
-                              />
-                              <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
-                                 <button 
-                                   onClick={() => { 
-                                     setIsEditingDesc(false); 
-                                     setEditDescContent(activeTask?.description || ''); 
-                                   }} 
-                                   className="px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--text-muted)] hover:bg-[var(--bg-body)] transition-colors"
-                                 >
-                                   Cancelar
-                                 </button>
-                                 <button 
-                                   onClick={handleUpdateDescription} 
-                                   disabled={isUpdatingDesc}
-                                   className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors disabled:opacity-50"
-                                 >
-                                   {isUpdatingDesc ? 'Salvando...' : 'Salvar'}
-                                 </button>
-                              </div>
-                           </div>
-                         ) : (
-                           <div 
-                             className="bg-[var(--bg-panel)] p-6 rounded-2xl border border-[var(--border)] min-h-[120px] shadow-sm cursor-pointer hover:border-cyan-500/30 transition-colors"
-                             onClick={() => setIsEditingDesc(true)}
-                           >
-                             <p className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
-                               {activeTask?.description || <span className="text-[var(--text-muted)] italic">Sem descrição fornecida.</span>}
-                             </p>
-                           </div>
-                         )}
-                      </div>
-                   </div>
-
-                   {/* Right Column: Meta Info */}
-                   <div className="space-y-6">
-                      <div className="bg-[var(--bg-panel)] p-5 rounded-2xl border border-[var(--border)] space-y-5">
-                        <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Status</label>
-                          <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)]">
-                            {activeTaskVisualStatus}
-                            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
-                          </div>
-                          <div className="mt-2">
-                            <TaskStatusPicker
-                              columns={columns}
-                              currentColumnId={activeTaskVisualColumnId}
-                              onSelect={columnId => {
-                                if (!activeTaskId) return;
-                                moveTaskToColumn(activeTaskId, columnId);
-                              }}
-                              disabled={!activeTaskId || !activeTaskVisualColumnId || columns.length === 0}
-                              isLoading={isMovingStatus}
-                              label="Mover para"
-                            />
-                            {moveStatusError && (
-                              <div className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
-                                {moveStatusError}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="relative">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2 flex items-center justify-between">
-                            Responsáveis
-                            <button
-                              type="button"
-                              onClick={openTaskShareModal}
-                              className="text-cyan-400 hover:text-cyan-300 transition-colors"
-                              title={canShareActiveTask ? 'Compartilhar/Remover' : 'Apenas o criador pode compartilhar'}
-                            >
-                              <Users size={14} />
-                            </button>
-                          </label>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            {assignedUsers.length === 0 ? (
-                               <span className="text-sm text-[var(--text-muted)] italic">Nenhum responsável</span>
-                            ) : (
-                              assignedUsers.map(uid => {
-                                const u = users.find(u => u.id === uid);
-                                if (!u) return null;
-                                const ownerId = activeTask?.created_by;
-                                const canRemove = (ownerId ? uid !== ownerId : true) && (ownerId === profileId || uid === profileId);
-                                return (
-                                  <div key={uid} className="flex items-center gap-2 bg-[var(--bg-body)] px-3 py-1.5 rounded-xl border border-[var(--border)]">
-                                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-[8px] font-bold uppercase shadow-sm">
-                                      {u.nome.substring(0, 2)}
-                                    </div>
-                                    <span className="text-xs font-bold text-[var(--text-main)]">{u.nome.split(' ')[0]}</span>
-                                    {canRemove && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAssign(assignedUsers.filter(id => id !== uid))}
-                                        className="p-1 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                                        title="Remover"
-                                      >
-                                        <X size={14} />
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                          {assignError && (
-                            <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
-                              {assignError}
-                            </div>
-                          )}
-
-                        </div>
-
-                        <div>
-                           <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Anexos</label>
-                           
-                           {/* Attachments List */}
-                           <div className="space-y-2 mb-3">
-                              {taskAttachments.map(att => (
-                                <div key={att.id} className="group flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-body)] border border-[var(--border)] hover:border-cyan-500/30 transition-colors">
-                                   <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 flex-1 min-w-0">
-                                      <div className="p-1.5 rounded bg-[var(--bg-panel)] text-cyan-400">
-                                        <Paperclip size={12} />
-                                      </div>
-                                      <span className="text-xs font-medium truncate">{att.file_name}</span>
-                                   </a>
-                                   
-                                   <a href={att.file_url} download target="_blank" rel="noopener noreferrer" className="text-[var(--text-muted)] hover:text-cyan-400 p-1 transition-colors" title="Baixar">
-                                      <Download size={12} />
-                                   </a>
-                                  
-                                   {/* Botão de Excluir: Mostra apenas se for o criador do anexo ou dono da tarefa (respeitando a lógica visual do RLS) */}
-                                   {(att.created_by === profileId || activeTask?.created_by === profileId) && (
-                                     <button
-                                       onClick={() => handleDeleteAttachment(att.id, att.file_name)}
-                                       className="text-[var(--text-muted)] hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-all"
-                                       title="Excluir anexo"
-                                     >
-                                       <Trash2 size={12} />
-                                     </button>
-                                   )}
-                                </div>
-                              ))}
-                           </div>
-
-                           <div className="relative">
-                             <input
-                               type="file"
-                               id="task-detail-upload"
-                               className="hidden"
-                               onChange={handleUploadAttachment}
-                             />
-                             <label 
-                               htmlFor="task-detail-upload"
-                               className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
-                             >
-                               <Paperclip size={14} />
-                               Adicionar
-                             </label>
-                           </div>
+                    {isEditingDesc ? (
+                      <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-cyan-500/50 shadow-sm space-y-3">
+                        <textarea
+                          value={editDescContent}
+                          onChange={e => setEditDescContent(e.target.value)}
+                          className="w-full min-h-[120px] bg-transparent border-none outline-none text-sm text-[var(--text-main)] resize-none placeholder:text-[var(--text-muted)] custom-scrollbar"
+                          placeholder="Adicione uma descrição detalhada..."
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+                          <button
+                            onClick={() => {
+                              setIsEditingDesc(false);
+                              setEditDescContent(activeTask?.description || '');
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--text-muted)] hover:bg-[var(--bg-body)] transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={handleUpdateDescription}
+                            disabled={isUpdatingDesc}
+                            className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                          >
+                            {isUpdatingDesc ? 'Salvando...' : 'Salvar'}
+                          </button>
                         </div>
                       </div>
-                   </div>
-                 </div>
-              </div>
-            </div>
-
-            {/* Sidebar (Comments) */}
-            <div className="w-full md:w-[400px] bg-[var(--bg-panel)] border-l border-[var(--border)] flex flex-col h-full">
-               <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-body)]/50">
-                  <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
-                    <MessageCircle size={14} /> Comentários
-                  </h4>
-               </div>
-
-               <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-6">
-                  {/* Activity Log (Mixed with comments) */}
-                  {timelineItems.map((item: any) => {
-                    if (item.kind === 'activity') {
-                      return (
-                         <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 opacity-60 hover:opacity-100 transition-opacity">
-                            <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                               <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></div>
-                            </div>
-                            <div className="space-y-0.5 pt-1.5">
-                               <div className="text-[11px] text-[var(--text-muted)]">
-                                 <span className="font-bold text-[var(--text-soft)]">{item.user_nome}</span>
-                                 {' '}
-                                 {item.type === 'status_changed' &&
-                                   (String(item.details || '').trim().toLowerCase().startsWith('de ') ? 'moveu' : 'moveu para')}
-                                 {item.type === 'task_created' && 'criou a tarefa'}
-                                 {item.type === 'attachment_added' && ''}
-                                 {item.type === 'attachment_deleted' && ''}
-                                 {item.type === 'description_updated' && 'atualizou a descrição'}
-                                 {' '}
-                                 <span className="italic">{item.details}</span>
-                               </div>
-                               <div className="text-[9px] text-[var(--text-muted)] opacity-70">
-                                 {isValid(new Date(item.created_at)) ? format(new Date(item.created_at), "d MMM, HH:mm", { locale: ptBR }) : ''}
-                               </div>
-                            </div>
-                         </div>
-                      );
-                    }
-
-                    return (
-                    <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-[10px] font-black shrink-0 border border-cyan-500/20 mt-1">
-                        {item.user_nome ? item.user_nome.substring(0, 2).toUpperCase() : 'U'}
-                      </div>
-                      <div className="space-y-1.5 max-w-[85%]">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--text-main)]">{item.user_nome}</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">
-                            {(() => {
-                              const d = new Date(item.created_at);
-                              return isValid(d) ? format(d, "d MMM, HH:mm", { locale: ptBR }) : '';
-                            })()}
-                          </span>
-                        </div>
-                        <div className="text-xs text-[var(--text-main)] bg-[var(--bg-body)] border border-[var(--border)] p-3 rounded-2xl rounded-tl-none shadow-sm leading-relaxed whitespace-pre-wrap">
-                          {item.content}
-                        </div>
-                      </div>
-                    </div>
-                  )})}
-                  
-                  {timelineItems.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-[var(--text-muted)] opacity-50 gap-3">
-                       <div className="w-16 h-16 rounded-full bg-[var(--bg-body)] flex items-center justify-center border border-[var(--border)]">
-                         <MessageCircle size={24} />
-                       </div>
-                       <p className="text-xs">Nenhum comentário ou atividade.</p>
-                    </div>
-                  )}
-               </div>
-
-               <div className="p-4 bg-[var(--bg-body)] border-t border-[var(--border)]">
-                  <div className="space-y-2">
-                    {commentError && (
-                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[11px] text-rose-200">
-                        {commentError}
+                    ) : (
+                      <div
+                        className="bg-[var(--bg-panel)] p-6 rounded-2xl border border-[var(--border)] min-h-[120px] shadow-sm cursor-pointer hover:border-cyan-500/30 transition-colors"
+                        onClick={() => setIsEditingDesc(true)}
+                      >
+                        <p className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
+                          {activeTask?.description || <span className="text-[var(--text-muted)] italic">Sem descrição fornecida.</span>}
+                        </p>
                       </div>
                     )}
-                  <div className="relative">
-                    <input
-                      value={newComment}
-                      onChange={e => { setNewComment(e.target.value); if (commentError) setCommentError(null); }}
-                      onKeyDown={e => e.key === 'Enter' && handleAddComment()}
-                      placeholder="Escreva um comentário..."
-                      className="w-full pl-4 pr-12 py-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-xs focus:ring-2 focus:ring-cyan-500/30 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none shadow-inner"
-                    />
-                    <button 
-                      onClick={handleAddComment}
-                      disabled={!newComment.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-cyan-500 text-white disabled:opacity-50 disabled:bg-[var(--text-muted)] hover:bg-cyan-400 transition-colors shadow-sm"
-                    >
-                      <Send size={14} />
-                    </button>
                   </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="bg-[var(--bg-panel)] p-5 rounded-2xl border border-[var(--border)] space-y-5">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Status</label>
+                      <div className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)]">
+                        {activeTaskVisualStatus}
+                        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+                      </div>
+                      <div className="mt-2">
+                        <TaskStatusPicker
+                          columns={columns}
+                          currentColumnId={activeTaskVisualColumnId}
+                          onSelect={columnId => {
+                            if (!activeTaskId) return;
+                            moveTaskToColumn(activeTaskId, columnId);
+                          }}
+                          disabled={!activeTaskId || !activeTaskVisualColumnId || columns.length === 0}
+                          isLoading={isMovingStatus}
+                          label="Mover para"
+                        />
+                        {moveStatusError && (
+                          <div className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                            {moveStatusError}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">
+                        Data de entrega
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={taskDueDateDraft}
+                          onChange={e => {
+                            setTaskDueDateDraft(e.target.value);
+                            if (dueDateError) setDueDateError(null);
+                          }}
+                          disabled={!canEditActiveTaskDueDate || isUpdatingDueDate}
+                          className="flex-1 px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleUpdateDueDate}
+                          disabled={
+                            !canEditActiveTaskDueDate ||
+                            isUpdatingDueDate ||
+                            taskDueDateDraft === activeTaskDueDateInputValue
+                          }
+                          className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={canEditActiveTaskDueDate ? 'Salvar data' : 'Apenas o criador pode alterar'}
+                        >
+                          {isUpdatingDueDate ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                      {!canEditActiveTaskDueDate && (
+                        <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+                          Apenas o criador da tarefa pode alterar.
+                        </div>
+                      )}
+                      {dueDateError && (
+                        <div className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                          {dueDateError}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2 flex items-center justify-between">
+                        Responsáveis
+                        <button
+                          type="button"
+                          onClick={openTaskShareModal}
+                          className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                          title={canShareActiveTask ? 'Compartilhar/Remover' : 'Apenas o criador pode compartilhar'}
+                        >
+                          <Users size={14} />
+                        </button>
+                      </label>
+
+                      <div className="flex flex-wrap gap-2">
+                        {assignedUsers.length === 0 ? (
+                          <span className="text-sm text-[var(--text-muted)] italic">Nenhum responsável</span>
+                        ) : (
+                          assignedUsers.map(uid => {
+                            const u = users.find(u => u.id === uid);
+                            if (!u) return null;
+                            const ownerId = activeTask?.created_by;
+                            const canRemove =
+                              (ownerId ? uid !== ownerId : true) && (ownerId === profileId || uid === profileId);
+                            return (
+                              <div
+                                key={uid}
+                                className="flex items-center gap-2 bg-[var(--bg-body)] px-3 py-1.5 rounded-xl border border-[var(--border)]"
+                              >
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-[8px] font-bold uppercase shadow-sm">
+                                  {u.nome.substring(0, 2)}
+                                </div>
+                                <span className="text-xs font-bold text-[var(--text-main)]">{u.nome.split(' ')[0]}</span>
+                                {canRemove && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAssign(assignedUsers.filter(id => id !== uid))}
+                                    className="p-1 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                    title="Remover"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                      {assignError && (
+                        <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                          {assignError}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] block mb-2">Anexos</label>
+
+                      <div className="space-y-2 mb-3">
+                        {taskAttachments.map(att => (
+                          <div
+                            key={att.id}
+                            className="group flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-body)] border border-[var(--border)] hover:border-cyan-500/30 transition-colors"
+                          >
+                            <a
+                              href={att.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 flex-1 min-w-0"
+                            >
+                              <div className="p-1.5 rounded bg-[var(--bg-panel)] text-cyan-400">
+                                <Paperclip size={12} />
+                              </div>
+                              <span className="text-xs font-medium truncate">{att.file_name}</span>
+                            </a>
+
+                            <a
+                              href={att.file_url}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--text-muted)] hover:text-cyan-400 p-1 transition-colors"
+                              title="Baixar"
+                            >
+                              <Download size={12} />
+                            </a>
+
+                            {(att.created_by === profileId || activeTask?.created_by === profileId) && (
+                              <button
+                                onClick={() => handleDeleteAttachment(att.id, att.file_name)}
+                                className="text-[var(--text-muted)] hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                title="Excluir anexo"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="file"
+                          id="task-detail-upload"
+                          className="hidden"
+                          onChange={handleUploadAttachment}
+                        />
+                        <label
+                          htmlFor="task-detail-upload"
+                          className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Paperclip size={14} />
+                          Adicionar
+                        </label>
+                      </div>
+                    </div>
                   </div>
-               </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          <div className="bg-[var(--bg-panel)] lg:border-l border-[var(--border)]">
+            <div className="px-5 py-4 md:px-6 md:py-5 border-b border-[var(--border)] bg-[var(--bg-body)]/50">
+              <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
+                <MessageCircle size={14} /> Comentários
+              </h4>
+            </div>
+
+            <div className="px-5 py-5 md:px-6 md:py-6 space-y-6 pb-28">
+              {timelineItems.map((item: any) => {
+                if (item.kind === 'activity') {
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 opacity-60 hover:opacity-100 transition-opacity"
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></div>
+                      </div>
+                      <div className="space-y-0.5 pt-1.5">
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          <span className="font-bold text-[var(--text-soft)]">{item.user_nome}</span>{' '}
+                          {item.type === 'status_changed' &&
+                            (String(item.details || '')
+                              .trim()
+                              .toLowerCase()
+                              .startsWith('de ')
+                              ? 'moveu'
+                              : 'moveu para')}
+                          {item.type === 'task_created' && 'criou a tarefa'}
+                          {item.type === 'attachment_added' && ''}
+                          {item.type === 'attachment_deleted' && ''}
+                          {item.type === 'description_updated' && 'atualizou a descrição'}{' '}
+                          {item.type === 'assignees_updated' && 'atualizou responsáveis'}{' '}
+                          {item.type === 'due_date_updated' && 'atualizou a data de entrega'}{' '}
+                          <span className="italic">{item.details}</span>
+                        </div>
+                        <div className="text-[9px] text-[var(--text-muted)] opacity-70">
+                          {isValid(new Date(item.created_at))
+                            ? format(new Date(item.created_at), 'd MMM, HH:mm', { locale: ptBR })
+                            : ''}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-[10px] font-black shrink-0 border border-cyan-500/20 mt-1">
+                      {item.user_nome ? item.user_nome.substring(0, 2).toUpperCase() : 'U'}
+                    </div>
+                    <div className="space-y-1.5 max-w-[85%]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[var(--text-main)]">{item.user_nome}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          {(() => {
+                            const d = new Date(item.created_at);
+                            return isValid(d) ? format(d, 'd MMM, HH:mm', { locale: ptBR }) : '';
+                          })()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[var(--text-main)] bg-[var(--bg-body)] border border-[var(--border)] p-3 rounded-2xl rounded-tl-none shadow-sm leading-relaxed whitespace-pre-wrap">
+                        {item.content}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {timelineItems.length === 0 && (
+                <div className="flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50 gap-3 py-10">
+                  <div className="w-16 h-16 rounded-full bg-[var(--bg-body)] flex items-center justify-center border border-[var(--border)]">
+                    <MessageCircle size={24} />
+                  </div>
+                  <p className="text-xs">Nenhum comentário ou atividade.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 px-5 py-4 md:px-6 bg-[var(--bg-body)]/95 backdrop-blur border-t border-[var(--border)]">
+              <div className="space-y-2">
+                {commentError && (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-[11px] text-rose-200">
+                    {commentError}
+                  </div>
+                )}
+                <div className="relative">
+                  <input
+                    value={newComment}
+                    onChange={e => {
+                      setNewComment(e.target.value);
+                      if (commentError) setCommentError(null);
+                    }}
+                    onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                    placeholder="Escreva um comentário..."
+                    className="w-full pl-4 pr-12 py-3.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-xs focus:ring-2 focus:ring-cyan-500/30 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none shadow-inner"
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-cyan-500 text-white disabled:opacity-50 disabled:bg-[var(--text-muted)] hover:bg-cyan-400 transition-colors shadow-sm"
+                  >
+                    <Send size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       {/* Modal: Confirmar Deleção */}

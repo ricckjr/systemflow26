@@ -5,6 +5,7 @@ export type ChatRoomType = 'direct' | 'group' | 'crm_deal';
 export interface ChatAttachment {
   type: 'image' | 'video' | 'audio' | 'document';
   url: string;
+  path?: string;
   name: string;
   size?: number;
   mime_type?: string;
@@ -49,9 +50,11 @@ export interface ChatMessage {
   content: string;
   created_at: string;
   updated_at?: string;
+  edited_at?: string | null;
+  deleted_at?: string | null;
   is_edited: boolean;
   attachments?: ChatAttachment[];
-  reply_to_id?: string;
+  reply_to_id?: string | null;
   // Joined sender
   sender?: Profile;
   receipts?: ChatMessageReceipt[];

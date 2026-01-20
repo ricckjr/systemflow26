@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { playNotificationSound } from '@/utils/notificationSound'
 
 type UnreadByRoomId = Record<string, number>
 
@@ -107,6 +108,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
           const row = payload.new as any
           const roomId = row?.room_id as string | undefined
           const id = row?.id as string | undefined
+          const senderId = row?.sender_id as string | undefined
           if (!roomId || !id) return
 
           if (activeRoomIdRef.current && activeRoomIdRef.current === roomId) {
@@ -115,6 +117,9 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
           }
 
           adjustRoom(roomId, +1)
+          if (senderId && senderId !== profile.id) {
+            void playNotificationSound()
+          }
         }
       )
       .on(

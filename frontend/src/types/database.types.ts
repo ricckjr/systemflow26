@@ -725,6 +725,8 @@ export interface Database {
           content: string | null
           created_at: string
           updated_at: string | null
+          edited_at: string | null
+          deleted_at: string | null
           is_edited: boolean
           attachments: Json[] | null
           reply_to_id: string | null
@@ -736,6 +738,8 @@ export interface Database {
           content?: string | null
           created_at?: string
           updated_at?: string | null
+          edited_at?: string | null
+          deleted_at?: string | null
           is_edited?: boolean
           attachments?: Json[] | null
           reply_to_id?: string | null
@@ -747,6 +751,8 @@ export interface Database {
           content?: string | null
           created_at?: string
           updated_at?: string | null
+          edited_at?: string | null
+          deleted_at?: string | null
           is_edited?: boolean
           attachments?: Json[] | null
           reply_to_id?: string | null
@@ -771,6 +777,98 @@ export interface Database {
             columns: ["reply_to_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      chat_message_pins: {
+        Row: {
+          id: string
+          room_id: string
+          message_id: string
+          pinned_by: string | null
+          pinned_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          message_id: string
+          pinned_by?: string | null
+          pinned_at?: string
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          message_id?: string
+          pinned_by?: string | null
+          pinned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_pins_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_pins_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_pins_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      chat_message_reactions: {
+        Row: {
+          room_id: string
+          message_id: string
+          user_id: string
+          emoji: string
+          created_at: string
+        }
+        Insert: {
+          room_id: string
+          message_id: string
+          user_id: string
+          emoji: string
+          created_at?: string
+        }
+        Update: {
+          room_id?: string
+          message_id?: string
+          user_id?: string
+          emoji?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_reactions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           }
         ]

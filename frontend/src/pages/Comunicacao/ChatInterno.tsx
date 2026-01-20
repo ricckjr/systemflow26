@@ -4,11 +4,14 @@ import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProfiles } from '@/services/profiles';
 import { supabase } from '@/services/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { chatService } from '@/services/chat';
 import { useChat } from '@/hooks/useChat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { Modal } from '@/components/ui';
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from '@/utils/notificationSound';
 import { 
   Search, 
   Send, 
@@ -22,6 +25,12 @@ import {
   ZoomIn,
   ZoomOut,
   MoreVertical,
+  CornerUpLeft,
+  Pencil,
+  Pin,
+  PinOff,
+  Volume2,
+  VolumeX,
   Smile,
   CheckCheck,
   X,
@@ -124,6 +133,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     activeRoomId, 
     setActiveRoomId, 
     sendMessage, 
+    editMessage,
+    deleteMessage,
+    markActiveRoomAsRead,
+    loadOlderMessages,
     startDirectChat,
     uploadAttachment,
     loading,
@@ -141,6 +154,23 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const [allUsers, setAllUsers] = useState<Profile[]>([]);
   const [pendingScrollMessageId, setPendingScrollMessageId] = useState<string | null>(null)
   const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null)
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null)
+  const [actionSheetMessage, setActionSheetMessage] = useState<ChatMessage | null>(null)
+  const messageLongPressTimerRef = useRef<number | null>(null)
+  const [typingByUserId, setTypingByUserId] = useState<Record<string, number>>({})
+  const typingChannelRef = useRef<RealtimeChannel | null>(null)
+  const typingSendTimerRef = useRef<number | null>(null)
+  const lastTypingSentAtRef = useRef<number>(0)
+  const [soundEnabled, setSoundEnabled] = useState(() => isNotificationSoundEnabled())
+  const [pinnedItems, setPinnedItems] = useState<Array<{ messageId: string; pinnedAt: string; pinnedBy: string | null; message?: ChatMessage | null }>>([])
+  const pinsUnsubscribeRef = useRef<(() => void) | null>(null)
+  const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
+  const [messageSearchQuery, setMessageSearchQuery] = useState('')
+  const [messageSearchActiveIndex, setMessageSearchActiveIndex] = useState(0)
+  const [reactionsByMessageId, setReactionsByMessageId] = useState<Record<string, Array<{ emoji: string; count: number; me: boolean }>>>({})
+  const [openReactionPickerId, setOpenReactionPickerId] = useState<string | null>(null)
+  const reactionsUnsubscribeRef = useRef<(() => void) | null>(null)
   
   const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
@@ -189,6 +219,80 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     }
   }, [setActiveUnreadRoomId])
 
+  useEffect(() => {
+    const onCustom = (e: Event) => {
+      const enabled = Boolean((e as any)?.detail)
+      setSoundEnabled(enabled)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'systemflow:notificationSound:enabled') return
+      setSoundEnabled(isNotificationSoundEnabled())
+    }
+    window.addEventListener('systemflow:notificationSound', onCustom as any)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('systemflow:notificationSound', onCustom as any)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+
+  useEffect(() => {
+    setTypingByUserId({})
+    if (!activeRoomId || !currentUser?.id) return
+
+    const channel = supabase
+      .channel(`chat_typing_${activeRoomId}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const data = (payload as any)?.payload as any
+        const userId = data?.user_id as string | undefined
+        const isTyping = Boolean(data?.is_typing)
+        if (!userId) return
+        if (userId === currentUser.id) return
+
+        if (isTyping) {
+          setTypingByUserId((prev) => ({ ...prev, [userId]: Date.now() + 3000 }))
+          return
+        }
+
+        setTypingByUserId((prev) => {
+          if (!(userId in prev)) return prev
+          const { [userId]: _removed, ...rest } = prev
+          return rest
+        })
+      })
+      .subscribe()
+
+    typingChannelRef.current = channel
+
+    return () => {
+      if (typingSendTimerRef.current) window.clearTimeout(typingSendTimerRef.current)
+      typingSendTimerRef.current = null
+      typingChannelRef.current = null
+      channel.unsubscribe()
+      setTypingByUserId({})
+    }
+  }, [activeRoomId, currentUser?.id])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const now = Date.now()
+      setTypingByUserId((prev) => {
+        const entries = Object.entries(prev)
+        if (entries.length === 0) return prev
+        let changed = false
+        const next: Record<string, number> = { ...prev }
+        for (const [userId, exp] of entries) {
+          if (!exp || exp <= now) {
+            delete next[userId]
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [])
+
   // Attachments & Audio & Emoji State
   const [showAttachmentsMenu, setShowAttachmentsMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -200,11 +304,177 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const audioChunksRef = useRef<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; name?: string } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name?: string } | null>(null);
   const [previewZoom, setPreviewZoom] = useState(1);
 
   // Hidden File Inputs
   const imageInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null)
+
+  const messageById = useMemo(() => {
+    const map = new Map<string, ChatMessage>()
+    for (const m of messages) map.set(m.id, m)
+    return map
+  }, [messages])
+
+  useEffect(() => {
+    setPinnedItems((prev) =>
+      prev.map((p) => {
+        if (p.message) return p
+        const msg = messageById.get(p.messageId)
+        return msg ? { ...p, message: msg } : p
+      })
+    )
+  }, [messageById])
+
+  useEffect(() => {
+    if (pinsUnsubscribeRef.current) {
+      try {
+        pinsUnsubscribeRef.current()
+      } catch {}
+      pinsUnsubscribeRef.current = null
+    }
+    setPinnedItems([])
+
+    if (!activeRoomId) return
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const pins = await chatService.getPinnedMessages(activeRoomId)
+        if (cancelled) return
+        const items = await Promise.all(
+          pins.map(async (p) => {
+            const msg = messageById.get(p.message_id) ?? (await chatService.getMessageById(p.message_id))
+            return {
+              messageId: p.message_id,
+              pinnedAt: p.pinned_at,
+              pinnedBy: p.pinned_by,
+              message: msg,
+            }
+          })
+        )
+        if (!cancelled) setPinnedItems(items)
+      } catch {}
+    }
+
+    void load()
+
+    pinsUnsubscribeRef.current = chatService.subscribeToPins(activeRoomId, async (evt) => {
+      if (evt.event === 'DELETE') {
+        setPinnedItems((prev) => prev.filter((p) => p.messageId !== evt.message_id))
+        return
+      }
+      const msg = messageById.get(evt.message_id) ?? (await chatService.getMessageById(evt.message_id))
+      setPinnedItems((prev) => {
+        if (prev.some((p) => p.messageId === evt.message_id)) return prev
+        const next = [
+          {
+            messageId: evt.message_id,
+            pinnedAt: evt.pinned_at || new Date().toISOString(),
+            pinnedBy: evt.pinned_by ?? null,
+            message: msg,
+          },
+          ...prev,
+        ]
+        next.sort((a, b) => new Date(b.pinnedAt).getTime() - new Date(a.pinnedAt).getTime())
+        return next
+      })
+    })
+
+    return () => {
+      cancelled = true
+      if (pinsUnsubscribeRef.current) {
+        try {
+          pinsUnsubscribeRef.current()
+        } catch {}
+        pinsUnsubscribeRef.current = null
+      }
+    }
+  }, [activeRoomId, messageById])
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest?.('[data-reaction-picker]')) return
+      if (target.closest?.('[data-reaction-button]')) return
+      setOpenReactionPickerId(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
+  useEffect(() => {
+    if (reactionsUnsubscribeRef.current) {
+      try {
+        reactionsUnsubscribeRef.current()
+      } catch {}
+      reactionsUnsubscribeRef.current = null
+    }
+    setReactionsByMessageId({})
+    setOpenReactionPickerId(null)
+
+    if (!activeRoomId) return
+    if (!currentUser?.id) return
+
+    const buildSummary = (rows: Array<{ message_id: string; user_id: string; emoji: string }>) => {
+      const map: Record<string, Record<string, { count: number; me: boolean }>> = {}
+      for (const r of rows) {
+        if (!r?.message_id || !r?.emoji || !r?.user_id) continue
+        map[r.message_id] ??= {}
+        const entry = map[r.message_id][r.emoji] ?? { count: 0, me: false }
+        entry.count += 1
+        if (r.user_id === currentUser.id) entry.me = true
+        map[r.message_id][r.emoji] = entry
+      }
+      const out: Record<string, Array<{ emoji: string; count: number; me: boolean }>> = {}
+      for (const [messageId, emojis] of Object.entries(map)) {
+        out[messageId] = Object.entries(emojis)
+          .map(([emoji, v]) => ({ emoji, count: v.count, me: v.me }))
+          .sort((a, b) => b.count - a.count)
+      }
+      return out
+    }
+
+    const refreshAll = async () => {
+      try {
+        const ids = messages.map((m) => m.id).filter(Boolean)
+        const rows = await chatService.getReactions(activeRoomId, ids)
+        setReactionsByMessageId(buildSummary(rows as any))
+      } catch {}
+    }
+
+    const refreshOne = async (messageId: string) => {
+      try {
+        const rows = await chatService.getReactions(activeRoomId, [messageId])
+        const next = buildSummary(rows as any)
+        setReactionsByMessageId((prev) => {
+          const merged = { ...prev }
+          if (next[messageId]) merged[messageId] = next[messageId]
+          else delete merged[messageId]
+          return merged
+        })
+      } catch {}
+    }
+
+    void refreshAll()
+
+    reactionsUnsubscribeRef.current = chatService.subscribeToReactions(activeRoomId, (evt) => {
+      if (!evt?.message_id) return
+      void refreshOne(evt.message_id)
+    })
+
+    return () => {
+      if (reactionsUnsubscribeRef.current) {
+        try {
+          reactionsUnsubscribeRef.current()
+        } catch {}
+        reactionsUnsubscribeRef.current = null
+      }
+    }
+  }, [activeRoomId, currentUser?.id, messages])
 
   useEffect(() => {
     if (!previewImage) return
@@ -352,15 +622,30 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.onstop = async () => {
+        if (editingMessage) {
+          alert('Finalize ou cancele a edição antes de enviar anexos.')
+          if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            setAudioStream(null);
+          }
+          audioChunksRef.current = [];
+          return
+        }
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const ext = mimeType.split('/')[1].split(';')[0];
         const audioFile = new File([audioBlob], `voice_message_${Date.now()}.${ext}`, { type: mimeType });
         try {
-          const url = await uploadAttachment(audioFile);
+          const uploaded = await uploadAttachment(audioFile);
           await sendMessage('', [{ 
-            type: 'audio', url, name: 'Mensagem de Voz', mime_type: mimeType, size: audioFile.size
-          }]);
+            type: 'audio',
+            url: uploaded.publicUrl,
+            path: uploaded.path,
+            name: 'Mensagem de Voz',
+            mime_type: mimeType,
+            size: audioFile.size
+          }], replyingTo?.id ?? null);
+          setReplyingTo(null)
         } catch (error: any) {
           console.error("Error sending audio:", error);
           alert(`Erro ao enviar áudio: ${error.message}`);
@@ -393,10 +678,21 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const url = await uploadAttachment(file);
+      if (editingMessage) {
+        alert('Finalize ou cancele a edição antes de enviar anexos.')
+        e.target.value = '';
+        return
+      }
+      const uploaded = await uploadAttachment(file);
       await sendMessage('', [{ 
-        type, url, name: file.name, mime_type: file.type, size: file.size
-      }]);
+        type,
+        url: uploaded.publicUrl,
+        path: uploaded.path,
+        name: file.name,
+        mime_type: file.type,
+        size: file.size
+      }], replyingTo?.id ?? null);
+      setReplyingTo(null)
       e.target.value = '';
       setShowAttachmentsMenu(false);
     } catch (error) {
@@ -429,6 +725,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
       return {
         id: room.id,
+        type: room.type,
         userId: otherId,
         name: otherMember?.profile?.nome || 'Usuário Desconhecido',
         avatar_url: otherMember?.profile?.avatar_url,
@@ -436,24 +733,67 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         statusText,
         lastMessage: room.last_message,
         role: otherMember?.profile?.cargo || 'Membro',
-        hasUnread
+        hasUnread,
+        unreadCount,
+        membersCount: room.members?.length ?? 0,
       };
     } else {
       return {
         id: room.id,
+        type: room.type,
         userId: null,
         name: room.name || 'Grupo sem nome',
         avatar_url: null,
         status: null, // Groups don't have single status
         lastMessage: room.last_message,
         role: 'Grupo',
-        hasUnread
+        hasUnread,
+        unreadCount,
+        membersCount: room.members?.length ?? 0,
       };
     }
   };
 
   const activeRoom = rooms.find(r => r.id === activeRoomId);
   const activeRoomInfo = activeRoom ? getRoomInfo(activeRoom) : null;
+  const activeUnreadCount = activeRoomId ? (unreadByRoomId[activeRoomId] ?? 0) : 0
+
+  const typingStatusText = useMemo(() => {
+    const now = Date.now()
+    const ids = Object.entries(typingByUserId)
+      .filter(([, exp]) => !!exp && exp > now)
+      .map(([id]) => id)
+    if (ids.length === 0) return ''
+
+    const resolveName = (id: string) => {
+      const fromRoom = activeRoom?.members?.find((m) => m.user_id === id)?.profile?.nome
+      if (fromRoom) return fromRoom
+      const fromAll = allUsers.find((u) => u.id === id)?.nome
+      return fromAll || 'Usuário'
+    }
+
+    const names = ids.slice(0, 2).map(resolveName)
+    const rest = ids.length - names.length
+    const label = rest > 0 ? `${names.join(', ')} e +${rest}` : names.join(' e ')
+    return ids.length === 1 ? `${label} está digitando...` : `${label} estão digitando...`
+  }, [activeRoom?.members, allUsers, typingByUserId])
+
+  const firstUnreadIndex = useMemo(() => {
+    if (!activeRoomId) return -1
+    if (!activeRoom?.members || !currentUser?.id) return -1
+    if (activeUnreadCount <= 0) return -1
+    const me = activeRoom.members.find((m) => m.user_id === currentUser.id)
+    const lastReadAt = me?.last_read_at
+    if (!lastReadAt) return -1
+    const lastReadMs = new Date(lastReadAt).getTime()
+    if (Number.isNaN(lastReadMs)) return -1
+    return messages.findIndex((m) => {
+      if (!m?.created_at) return false
+      if (m.sender_id === currentUser.id) return false
+      const ms = new Date(m.created_at).getTime()
+      return Number.isFinite(ms) && ms > lastReadMs
+    })
+  }, [activeRoom, activeRoomId, activeUnreadCount, currentUser?.id, messages])
 
   const getTicksForMessage = (msg: ChatMessage) => {
     if (!currentUser?.id) return { kind: 'none' as const }
@@ -519,13 +859,166 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     );
   }, [newChatSearch, allUsers]);
 
+  const getMessagePreviewText = (msg: ChatMessage | null | undefined) => {
+    if (!msg) return ''
+    if (msg.deleted_at) return 'Mensagem excluída'
+    const text = (msg.content ?? '').trim()
+    if (text) return text.length > 80 ? `${text.slice(0, 80)}…` : text
+    const first = msg.attachments?.[0]
+    if (!first) return ''
+    const name = first.name?.trim() || 'Anexo'
+    if (first.type === 'image') return `Imagem: ${name}`
+    if (first.type === 'video') return `Vídeo: ${name}`
+    if (first.type === 'audio') return `Áudio: ${name}`
+    return `Documento: ${name}`
+  }
+
+  const messageSearchResults = useMemo(() => {
+    const q = messageSearchQuery.trim().toLowerCase()
+    if (q.length < 2) return [] as ChatMessage[]
+    return messages.filter((m) => {
+      if (!m) return false
+      const content = (m.content ?? '').toLowerCase()
+      const sender = (m.sender?.nome ?? '').toLowerCase()
+      const date = m.created_at ? new Date(m.created_at).toLocaleDateString('pt-BR') : ''
+      return content.includes(q) || sender.includes(q) || date.includes(q)
+    })
+  }, [messageSearchQuery, messages])
+
+  useEffect(() => {
+    setMessageSearchActiveIndex(0)
+  }, [messageSearchQuery, isMessageSearchOpen])
+
+  const renderHighlightedText = (text: string) => {
+    const q = messageSearchQuery.trim()
+    if (q.length < 2) return text
+    const lower = text.toLowerCase()
+    const qLower = q.toLowerCase()
+    const parts: React.ReactNode[] = []
+    let from = 0
+    while (from < text.length) {
+      const idx = lower.indexOf(qLower, from)
+      if (idx < 0) {
+        parts.push(text.slice(from))
+        break
+      }
+      if (idx > from) parts.push(text.slice(from, idx))
+      parts.push(
+        <span key={`${idx}-${from}`} className="bg-amber-400/25 text-white px-0.5 rounded">
+          {text.slice(idx, idx + q.length)}
+        </span>
+      )
+      from = idx + q.length
+    }
+    return <>{parts}</>
+  }
+
+  const canEditMessage = (msg: ChatMessage) => {
+    if (!currentUser?.id) return false
+    if (msg.sender_id !== currentUser.id) return false
+    if (msg.deleted_at) return false
+    const createdAt = new Date(msg.created_at).getTime()
+    if (Number.isNaN(createdAt)) return false
+    return Date.now() - createdAt <= 15 * 60 * 1000
+  }
+
+  const canDeleteMessage = (msg: ChatMessage) => {
+    if (!currentUser?.id) return false
+    if (msg.sender_id !== currentUser.id) return false
+    if (msg.deleted_at) return false
+    return true
+  }
+
+  const toggleReaction = async (msg: ChatMessage, emoji: string) => {
+    if (!activeRoomId) return
+    if (!currentUser?.id) return
+    try {
+      const summary = reactionsByMessageId[msg.id] ?? []
+      const hasMine = summary.some((r) => r.emoji === emoji && r.me)
+      if (hasMine) await chatService.removeReaction(activeRoomId, msg.id, emoji)
+      else await chatService.addReaction(activeRoomId, msg.id, emoji)
+    } catch (error: any) {
+      alert(error?.message || 'Não foi possível reagir à mensagem.')
+    }
+  }
+
+  const startReply = (msg: ChatMessage) => {
+    setEditingMessage(null)
+    setReplyingTo(msg)
+    messageInputRef.current?.focus()
+  }
+
+  const startEdit = (msg: ChatMessage) => {
+    setReplyingTo(null)
+    setEditingMessage(msg)
+    setMessage(msg.content ?? '')
+    messageInputRef.current?.focus()
+  }
+
+  const cancelComposerMode = () => {
+    setReplyingTo(null)
+    setEditingMessage(null)
+    setMessage('')
+  }
+
+  const sendTypingBroadcast = (isTyping: boolean) => {
+    const channel = typingChannelRef.current
+    if (!channel) return
+    if (!activeRoomId) return
+    if (!currentUser?.id) return
+    void channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        room_id: activeRoomId,
+        user_id: currentUser.id,
+        is_typing: isTyping,
+        at: Date.now(),
+      },
+    } as any)
+  }
+
+  const stopTyping = () => {
+    if (typingSendTimerRef.current) window.clearTimeout(typingSendTimerRef.current)
+    typingSendTimerRef.current = null
+    sendTypingBroadcast(false)
+  }
+
+  const pingTyping = () => {
+    if (!activeRoomId) return
+    if (!currentUser?.id) return
+    const now = Date.now()
+    if (now - lastTypingSentAtRef.current < 650) {
+      if (typingSendTimerRef.current) window.clearTimeout(typingSendTimerRef.current)
+      typingSendTimerRef.current = window.setTimeout(() => stopTyping(), 2500)
+      return
+    }
+    lastTypingSentAtRef.current = now
+    sendTypingBroadcast(true)
+    if (typingSendTimerRef.current) window.clearTimeout(typingSendTimerRef.current)
+    typingSendTimerRef.current = window.setTimeout(() => stopTyping(), 2500)
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !activeRoomId) return;
-    const text = message;
+    if (!activeRoomId) return;
+    const text = message.trim()
+    if (!text) return
     setMessage('');
-    setShowEmojiPicker(false); // Close picker on send
-    await sendMessage(text);
+    setShowEmojiPicker(false);
+    stopTyping()
+    if (editingMessage) {
+      try {
+        await editMessage(editingMessage.id, text)
+      } catch (error: any) {
+        alert(error?.message || 'Não foi possível editar a mensagem.')
+      } finally {
+        setEditingMessage(null)
+      }
+      return
+    }
+    await sendMessage(text, [], replyingTo?.id ?? null);
+    setReplyingTo(null)
   };
 
   const handleStartNewChat = async (userId: string) => {
@@ -541,10 +1034,93 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     }
   };
 
+  const messagesScrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSeenMarkAtRef = useRef<number>(0)
+  const [isAtBottom, setIsAtBottom] = useState(true)
+  const isAtBottomRef = useRef(true)
+  const [pendingNewCount, setPendingNewCount] = useState(0)
+  const prevMessagesLenRef = useRef(0)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const isPrependingHistoryRef = useRef(false)
+
   useEffect(() => {
+    const root = messagesScrollRef.current
+    if (!root) return
+
+    const onScroll = async () => {
+      const el = root
+      const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+      const atBottom = distanceToBottom < 80
+      isAtBottomRef.current = atBottom
+      setIsAtBottom(atBottom)
+      if (atBottom) setPendingNewCount(0)
+
+      if (!activeRoomId) return
+      if (loadingOlder) return
+      if (el.scrollTop > 60) return
+      if (messages.length === 0) return
+
+      setLoadingOlder(true)
+      isPrependingHistoryRef.current = true
+      const prevTop = el.scrollTop
+      const prevHeight = el.scrollHeight
+      const added = await loadOlderMessages(30)
+      requestAnimationFrame(() => {
+        const newHeight = el.scrollHeight
+        el.scrollTop = prevTop + (newHeight - prevHeight)
+        setLoadingOlder(false)
+        isPrependingHistoryRef.current = false
+      })
+      if (added === 0) {
+        setLoadingOlder(false)
+        isPrependingHistoryRef.current = false
+      }
+    }
+
+    root.addEventListener('scroll', onScroll, { passive: true } as any)
+    return () => root.removeEventListener('scroll', onScroll as any)
+  }, [activeRoomId, loadOlderMessages, loadingOlder, messages.length])
+
+  useEffect(() => {
+    const prevLen = prevMessagesLenRef.current
+    const nextLen = messages.length
+    prevMessagesLenRef.current = nextLen
+    if (nextLen === 0) return
+    if (isPrependingHistoryRef.current) return
+
+    const last = messages[nextLen - 1]
+    const lastIsMine = !!currentUser?.id && last?.sender_id === currentUser.id
+    if (!isAtBottomRef.current && nextLen > prevLen && !lastIsMine) {
+      setPendingNewCount((c) => c + (nextLen - prevLen))
+      return
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!activeRoomId) return
+    if (activeUnreadCount <= 0) return
+    const root = messagesScrollRef.current
+    const target = messagesEndRef.current
+    if (!root || !target) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting) return
+        const now = Date.now()
+        if (now - lastSeenMarkAtRef.current < 800) return
+        lastSeenMarkAtRef.current = now
+        void markRoomAsRead(activeRoomId)
+        void markActiveRoomAsRead()
+      },
+      { root, threshold: 0.95 }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [activeRoomId, activeUnreadCount, markActiveRoomAsRead, markRoomAsRead])
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
@@ -770,7 +1346,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             )}
                             </p>
                             {info.hasUnread && (
-                                <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                              <div className="min-w-[22px] h-[18px] px-1.5 rounded-full bg-cyan-500 text-black text-[10px] font-black flex items-center justify-center">
+                                {info.unreadCount > 99 ? '99+' : info.unreadCount}
+                              </div>
                             )}
                         </div>
                       </div>
@@ -828,12 +1406,26 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     <h3 className="text-base font-bold text-[var(--text-main)] leading-none">{activeRoomInfo.name}</h3>
                   </button>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${activeRoomInfo.status ? STATUS_COLORS[activeRoomInfo.status] : 'bg-gray-500'}`}></span>
-                    <span className="text-[11px] text-[var(--text-muted)] font-medium">
-                      {activeRoomInfo.status ? STATUS_LABELS[activeRoomInfo.status] : 'Offline'}
-                    </span>
+                    {activeRoomInfo.type === 'direct' ? (
+                      <>
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeRoomInfo.status ? STATUS_COLORS[activeRoomInfo.status] : 'bg-gray-500'}`}></span>
+                        <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                          {activeRoomInfo.status ? STATUS_LABELS[activeRoomInfo.status] : 'Offline'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                        {activeRoomInfo.type === 'group'
+                          ? `${activeRoomInfo.membersCount} membro${activeRoomInfo.membersCount === 1 ? '' : 's'}`
+                          : 'Conversa'}
+                      </span>
+                    )}
                   </div>
-                  {activeRoomInfo.statusText ? (
+                  {typingStatusText ? (
+                    <div className="text-[11px] text-cyan-300 mt-0.5 truncate max-w-[50vw]">
+                      {typingStatusText}
+                    </div>
+                  ) : activeRoomInfo.type === 'direct' && activeRoomInfo.statusText ? (
                     <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[50vw]">
                       {activeRoomInfo.statusText}
                     </div>
@@ -842,6 +1434,26 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               </div>
               
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsMessageSearchOpen(true)}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-all"
+                  title="Buscar nesta conversa"
+                >
+                  <Search size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !soundEnabled
+                    setNotificationSoundEnabled(next)
+                    setSoundEnabled(next)
+                  }}
+                  className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-all"
+                  title={soundEnabled ? 'Som de notificações: ligado' : 'Som de notificações: desligado'}
+                >
+                  {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                </button>
                 <button 
                   onClick={handleClearChat}
                   className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all text-xs font-medium" 
@@ -854,8 +1466,38 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             </header>
 
             {/* Messages Area */}
-            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0F14] relative">
+            <div ref={messagesScrollRef} className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0F14] relative">
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')] [mask-image:linear-gradient(to_bottom,transparent,black)]"></div>
+
+              {pinnedItems.length > 0 && (
+                <div className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-[#0B0F14]/85 backdrop-blur border-b border-white/10">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                    <Pin size={14} className="text-cyan-400" />
+                    Fixadas
+                  </div>
+                  <div className="mt-2 flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+                    {pinnedItems.slice(0, 3).map((p) => {
+                      const msg = p.message ?? messageById.get(p.messageId)
+                      return (
+                        <button
+                          key={p.messageId}
+                          type="button"
+                          onClick={() => setPendingScrollMessageId(p.messageId)}
+                          className="min-w-[220px] max-w-[280px] text-left rounded-xl border border-white/10 hover:border-white/20 bg-black/20 px-3 py-2 transition-colors"
+                          title="Ir para mensagem fixada"
+                        >
+                          <div className="text-[11px] font-bold text-white/85 truncate">
+                            {msg?.sender?.nome || 'Mensagem'}
+                          </div>
+                          <div className="text-[11px] text-white/60 truncate">
+                            {getMessagePreviewText(msg) || 'Mensagem fixada'}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               
               {messages.length === 0 && (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-40 text-sm gap-4">
@@ -869,14 +1511,118 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               {messages.map((msg, index) => {
                 const isMe = msg.sender_id === currentUser?.id;
                 const isSequence = index > 0 && messages[index - 1].sender_id === msg.sender_id;
-                const hasAttachments = msg.attachments && msg.attachments.length > 0;
+                const isDeleted = !!msg.deleted_at
+                const hasAttachments = !isDeleted && msg.attachments && msg.attachments.length > 0;
                 const ticks = getTicksForMessage(msg)
+                const replyTo = msg.reply_to_id ? messageById.get(msg.reply_to_id) : undefined
+                const isPinned = pinnedItems.some((p) => p.messageId === msg.id)
+                const reactions = reactionsByMessageId[msg.id] ?? []
 
                 return (
-                  <div id={`chat-message-${msg.id}`} key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
+                  <React.Fragment key={msg.id}>
+                  {index === firstUnreadIndex && (
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="h-px flex-1 bg-white/10" />
+                      <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300/90">
+                        Não lidas
+                      </div>
+                      <div className="h-px flex-1 bg-white/10" />
+                    </div>
+                  )}
+                  <div id={`chat-message-${msg.id}`} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
                     <div className={`max-w-[75%] md:max-w-[60%] group relative flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && activeRoom?.type === 'group' && !isSequence && (
                         <span className="text-[10px] text-[var(--text-soft)] ml-1 mb-1 font-bold">{msg.sender?.nome}</span>
+                      )}
+
+                      <div
+                        className={`absolute ${isMe ? '-left-2' : '-right-2'} top-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => startReply(msg)}
+                          className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-cyan-400 hover:text-cyan-300 shadow-sm"
+                          title="Responder"
+                        >
+                          <CornerUpLeft size={14} />
+                        </button>
+                        {canEditMessage(msg) && (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(msg)}
+                            className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-amber-400 hover:text-amber-300 shadow-sm"
+                            title="Editar"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          data-reaction-button
+                          onClick={() => setOpenReactionPickerId((prev) => (prev === msg.id ? null : msg.id))}
+                          className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-muted)] hover:text-amber-300 shadow-sm"
+                          title="Reagir"
+                        >
+                          <Smile size={14} />
+                        </button>
+                        {activeRoomId && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                if (isPinned) await chatService.unpinMessage(activeRoomId, msg.id)
+                                else await chatService.pinMessage(activeRoomId, msg.id)
+                              } catch (error: any) {
+                                alert(error?.message || 'Não foi possível atualizar o pin.')
+                              }
+                            }}
+                            className={`p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm ${isPinned ? 'text-cyan-300 hover:text-cyan-200' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                            title={isPinned ? 'Desafixar' : 'Fixar'}
+                          >
+                            {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                          </button>
+                        )}
+                        {canDeleteMessage(msg) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!confirm('Excluir esta mensagem?')) return
+                              try {
+                                await deleteMessage(msg.id, msg.attachments ?? [])
+                                if (editingMessage?.id === msg.id) cancelComposerMode()
+                                if (replyingTo?.id === msg.id) setReplyingTo(null)
+                              } catch (error: any) {
+                                alert(error?.message || 'Não foi possível excluir a mensagem.')
+                              }
+                            }}
+                            className="p-1.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] text-red-300 hover:text-red-200 shadow-sm"
+                            title="Excluir"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {openReactionPickerId === msg.id && (
+                        <div
+                          data-reaction-picker
+                          className={`absolute ${isMe ? 'right-full mr-2' : 'left-full ml-2'} top-8 rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl px-2 py-2 flex items-center gap-1`}
+                        >
+                          {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={async () => {
+                                await toggleReaction(msg, emoji)
+                                setOpenReactionPickerId(null)
+                              }}
+                              className="w-9 h-9 rounded-xl hover:bg-[var(--bg-main)] transition-colors text-lg flex items-center justify-center"
+                              title={`Reagir com ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       )}
                       
                       <div className={`
@@ -886,8 +1632,51 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           : 'bg-[#1E293B] border border-[var(--border)] text-gray-200 rounded-2xl rounded-tl-none'}
                         ${isSequence ? (isMe ? 'mt-1 rounded-tr-2xl' : 'mt-1 rounded-tl-2xl') : ''}
                         ${msg.id === highlightMessageId ? 'ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-[#0B0F14]' : ''}
-                      `}>
-                        {hasAttachments ? (
+                      `}
+                      onPointerDown={(e) => {
+                        if (e.pointerType !== 'touch') return
+                        if (messageLongPressTimerRef.current) window.clearTimeout(messageLongPressTimerRef.current)
+                        messageLongPressTimerRef.current = window.setTimeout(() => {
+                          setActionSheetMessage(msg)
+                        }, 450)
+                      }}
+                      onPointerUp={() => {
+                        if (!messageLongPressTimerRef.current) return
+                        window.clearTimeout(messageLongPressTimerRef.current)
+                        messageLongPressTimerRef.current = null
+                      }}
+                      onPointerCancel={() => {
+                        if (!messageLongPressTimerRef.current) return
+                        window.clearTimeout(messageLongPressTimerRef.current)
+                        messageLongPressTimerRef.current = null
+                      }}
+                      onPointerMove={() => {
+                        if (!messageLongPressTimerRef.current) return
+                        window.clearTimeout(messageLongPressTimerRef.current)
+                        messageLongPressTimerRef.current = null
+                      }}
+                      >
+                        {msg.reply_to_id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (msg.reply_to_id) setPendingScrollMessageId(msg.reply_to_id)
+                            }}
+                            className={`w-full text-left mb-2 rounded-xl px-3 py-2 border border-white/10 hover:border-white/20 transition-colors ${isMe ? 'bg-black/20' : 'bg-black/10'}`}
+                            title="Ir para mensagem original"
+                          >
+                            <div className={`text-[11px] font-bold ${isMe ? 'text-white/90' : 'text-white/80'}`}>
+                              Respondendo a {replyTo?.sender?.nome || 'mensagem'}
+                            </div>
+                            <div className={`text-[11px] truncate ${isMe ? 'text-white/70' : 'text-white/60'}`}>
+                              {getMessagePreviewText(replyTo) || 'Mensagem original'}
+                            </div>
+                          </button>
+                        )}
+
+                        {isDeleted ? (
+                          <em className={isMe ? 'text-white/80' : 'text-white/70'}>Mensagem excluída</em>
+                        ) : hasAttachments ? (
                            <div className="flex flex-col gap-2">
                              {msg.attachments?.map((att, idx) => (
                                <div key={idx} className="bg-black/20 p-2 rounded-lg">
@@ -974,28 +1763,38 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                            {formatBytes(att.size)}
                                          </span>
                                        ) : null}
-                                     </a>
-                                     <div className="flex items-center gap-1 shrink-0">
-                                       <a
-                                         href={att.url}
-                                         target="_blank"
-                                         rel="noreferrer"
-                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                         title="Abrir"
-                                       >
-                                         <ExternalLink size={14} />
-                                       </a>
-                                       <button
-                                         type="button"
-                                         onClick={() => downloadFromUrl(att.url, att.name)}
-                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                                         title="Baixar"
-                                       >
-                                         <Download size={14} />
-                                       </button>
-                                     </div>
-                                   </div>
-                                 )}
+                                    </a>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {att.mime_type?.includes('pdf') && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewDoc({ url: att.url, name: att.name || 'PDF' })}
+                                          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                          title="Pré-visualizar"
+                                        >
+                                          <ZoomIn size={14} />
+                                        </button>
+                                      )}
+                                      <a
+                                        href={att.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                        title="Abrir"
+                                      >
+                                        <ExternalLink size={14} />
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadFromUrl(att.url, att.name)}
+                                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                                        title="Baixar"
+                                      >
+                                        <Download size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                                  {att.type === 'video' && (
                                    <div className="flex flex-col gap-2">
                                      <video
@@ -1046,19 +1845,38 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                        </button>
                                      </div>
                                    )}
-                               </div>
-                             ))}
-                             {msg.content && <p>{msg.content}</p>}
-                           </div>
+                             </div>
+                           ))}
+                            {msg.content && <p>{renderHighlightedText(msg.content)}</p>}
+                          </div>
                         ) : (
-                          msg.content
+                          renderHighlightedText(msg.content)
                         )}
                       </div>
+
+                      {reactions.length > 0 && (
+                        <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          {reactions.map((r) => (
+                            <button
+                              key={r.emoji}
+                              type="button"
+                              onClick={() => toggleReaction(msg, r.emoji)}
+                              className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${r.me ? 'border-cyan-400/40 bg-cyan-500/10 text-white' : 'border-white/10 bg-black/10 text-white/90 hover:bg-white/5'}`}
+                              title={r.me ? 'Remover reação' : 'Reagir'}
+                            >
+                              {r.emoji} <span className="opacity-70 font-bold">{r.count}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       
                       <div className={`flex items-center gap-1 mt-1 px-1 opacity-60 group-hover:opacity-100 transition-opacity`}>
                         <span className="text-[10px] text-[var(--text-muted)] font-medium">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
+                        {(msg.is_edited || msg.edited_at) && !msg.deleted_at && (
+                          <span className="text-[10px] text-[var(--text-muted)] font-medium">(editada)</span>
+                        )}
                         {isMe && ticks.kind !== 'none' && (
                           ticks.kind === 'sent' ? (
                             <Check size={12} className="text-[var(--text-muted)]" />
@@ -1072,13 +1890,64 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       </div>
                     </div>
                   </div>
+                  </React.Fragment>
                 );
               })}
+              {pendingNewCount > 0 && !isAtBottom && (
+                <div className="sticky bottom-4 z-10 flex justify-center pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+                      setPendingNewCount(0)
+                      if (activeRoomId) {
+                        void markRoomAsRead(activeRoomId)
+                        void markActiveRoomAsRead()
+                      }
+                    }}
+                    className="pointer-events-auto px-4 py-2 rounded-full bg-cyan-500 text-black text-xs font-black shadow-lg hover:bg-cyan-400 transition-colors"
+                    title="Ir para o final"
+                  >
+                    Novas mensagens ({pendingNewCount}) ↓
+                  </button>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
             <div className="p-4 bg-[var(--bg-panel)] border-t border-[var(--border)] relative">
+              {(replyingTo || editingMessage) && (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] px-4 py-3">
+                  <div className="min-w-0 flex items-start gap-3">
+                    {editingMessage ? (
+                      <Pencil size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <CornerUpLeft size={16} className="text-cyan-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-[var(--text-main)]">
+                        {editingMessage
+                          ? 'Editando mensagem'
+                          : `Respondendo a ${replyingTo?.sender?.nome || 'mensagem'}`}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[70vw]">
+                        {editingMessage
+                          ? getMessagePreviewText(editingMessage)
+                          : getMessagePreviewText(replyingTo)}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelComposerMode}
+                    className="p-2 rounded-full hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                    title="Cancelar"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
               
               {showAttachmentsMenu && (
                 <div className="absolute bottom-20 left-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-20 animate-in slide-in-from-bottom-5 duration-200 min-w-[180px]">
@@ -1122,20 +1991,33 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               ) : (
                 <form className="flex items-end gap-2" onSubmit={handleSendMessage}>
                   <div className="flex-1 flex items-end gap-2 bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl p-2 pl-2 shadow-inner focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-500/50 transition-all">
-                    <button type="button" onClick={() => setShowAttachmentsMenu(!showAttachmentsMenu)} className={`p-2 rounded-full transition-all mb-0.5 ${showAttachmentsMenu ? 'bg-cyan-500/10 text-cyan-500 rotate-45' : 'text-[var(--text-muted)] hover:text-cyan-500 hover:bg-[var(--bg-panel)]'}`}>
+                    <button
+                      type="button"
+                      disabled={!!editingMessage}
+                      onClick={() => setShowAttachmentsMenu(!showAttachmentsMenu)}
+                      className={`p-2 rounded-full transition-all mb-0.5 ${editingMessage ? 'opacity-40 cursor-not-allowed text-[var(--text-muted)]' : (showAttachmentsMenu ? 'bg-cyan-500/10 text-cyan-500 rotate-45' : 'text-[var(--text-muted)] hover:text-cyan-500 hover:bg-[var(--bg-panel)]')}`}
+                      title={editingMessage ? 'Finalize ou cancele a edição para anexar arquivos' : 'Anexos'}
+                    >
                       <Plus size={20} />
                     </button>
                     
                     <textarea 
+                      ref={messageInputRef}
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setMessage(next)
+                        if (next.trim()) pingTyping()
+                        else stopTyping()
+                      }}
+                      onBlur={() => stopTyping()}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage(e);
                         }
                       }}
-                      placeholder="Digite sua mensagem..."
+                      placeholder={editingMessage ? "Edite sua mensagem..." : "Digite sua mensagem..."}
                       className="flex-1 bg-transparent border-none py-3 text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:ring-0 resize-none max-h-32 custom-scrollbar"
                       rows={1}
                       style={{ minHeight: '44px' }}
@@ -1325,6 +2207,246 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   draggable={false}
                 />
               </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        size="4xl"
+        noPadding
+        title={
+          <div className="flex items-center justify-between w-full pr-8">
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-[var(--text-main)] truncate">
+                {previewDoc?.name || 'Documento'}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] hidden sm:block">
+                Clique fora para fechar • ESC
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => downloadFromUrl(previewDoc?.url || '', previewDoc?.name || '')}
+                className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                title="Baixar"
+              >
+                <Download size={18} />
+              </button>
+              <a
+                href={previewDoc?.url}
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
+                title="Abrir em nova aba"
+              >
+                <ExternalLink size={18} />
+              </a>
+            </div>
+          </div>
+        }
+      >
+        <div className="flex-1 bg-black/20 overflow-hidden min-h-[400px]">
+          <iframe
+            src={previewDoc?.url || ''}
+            title={previewDoc?.name || 'Documento'}
+            className="w-full h-[75vh]"
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!actionSheetMessage}
+        onClose={() => setActionSheetMessage(null)}
+        size="sm"
+        noPadding
+        title="Ações da mensagem"
+      >
+        <div className="p-2 bg-[var(--bg-panel)]">
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+            {actionSheetMessage && (
+              <div className="px-3 py-2 border-b border-[var(--border)] flex items-center gap-1">
+                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={async () => {
+                      await toggleReaction(actionSheetMessage, emoji)
+                      setActionSheetMessage(null)
+                    }}
+                    className="w-10 h-10 rounded-xl hover:bg-[var(--bg-main)] transition-colors text-lg flex items-center justify-center"
+                    title={`Reagir com ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (!actionSheetMessage) return
+                startReply(actionSheetMessage)
+                setActionSheetMessage(null)
+              }}
+              className="w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+            >
+              <CornerUpLeft size={18} className="text-cyan-400" />
+              Responder
+            </button>
+            {actionSheetMessage && canEditMessage(actionSheetMessage) && (
+              <button
+                type="button"
+                onClick={() => {
+                  startEdit(actionSheetMessage)
+                  setActionSheetMessage(null)
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+              >
+                <Pencil size={18} className="text-amber-400" />
+                Editar
+              </button>
+            )}
+            {actionSheetMessage && activeRoomId && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!actionSheetMessage) return
+                  try {
+                    const isPinned = pinnedItems.some((p) => p.messageId === actionSheetMessage.id)
+                    if (isPinned) await chatService.unpinMessage(activeRoomId, actionSheetMessage.id)
+                    else await chatService.pinMessage(activeRoomId, actionSheetMessage.id)
+                    setActionSheetMessage(null)
+                  } catch (error: any) {
+                    alert(error?.message || 'Não foi possível atualizar o pin.')
+                  }
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+              >
+                {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? (
+                  <PinOff size={18} className="text-cyan-300" />
+                ) : (
+                  <Pin size={18} className="text-cyan-400" />
+                )}
+                {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? 'Desafixar' : 'Fixar'}
+              </button>
+            )}
+            {actionSheetMessage && canDeleteMessage(actionSheetMessage) && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!actionSheetMessage) return
+                  if (!confirm('Excluir esta mensagem?')) return
+                  try {
+                    await deleteMessage(actionSheetMessage.id, actionSheetMessage.attachments ?? [])
+                    if (editingMessage?.id === actionSheetMessage.id) cancelComposerMode()
+                    if (replyingTo?.id === actionSheetMessage.id) setReplyingTo(null)
+                    setActionSheetMessage(null)
+                  } catch (error: any) {
+                    alert(error?.message || 'Não foi possível excluir a mensagem.')
+                  }
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-3"
+              >
+                <Trash2 size={18} />
+                Excluir
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isMessageSearchOpen}
+        onClose={() => setIsMessageSearchOpen(false)}
+        size="md"
+        noPadding
+        title="Buscar na conversa"
+      >
+        <div className="flex flex-col h-[70vh] max-h-[520px] bg-[var(--bg-panel)]">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-main)]">
+            <input
+              value={messageSearchQuery}
+              onChange={(e) => setMessageSearchQuery(e.target.value)}
+              placeholder="Buscar por texto, usuário ou data (dd/mm/aaaa)..."
+              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/40 text-[var(--text-main)] outline-none transition-all"
+              autoFocus
+            />
+            <div className="flex items-center justify-between mt-3 text-[11px] text-[var(--text-muted)]">
+              <div>
+                {messageSearchQuery.trim().length < 2
+                  ? 'Digite pelo menos 2 caracteres'
+                  : `${messageSearchResults.length} resultado(s)`}
+              </div>
+              {messageSearchResults.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const total = messageSearchResults.length
+                      if (total === 0) return
+                      const next = (messageSearchActiveIndex - 1 + total) % total
+                      setMessageSearchActiveIndex(next)
+                      setPendingScrollMessageId(messageSearchResults[next].id)
+                      setIsMessageSearchOpen(false)
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const total = messageSearchResults.length
+                      if (total === 0) return
+                      const next = (messageSearchActiveIndex + 1) % total
+                      setMessageSearchActiveIndex(next)
+                      setPendingScrollMessageId(messageSearchResults[next].id)
+                      setIsMessageSearchOpen(false)
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors"
+                  >
+                    Próximo
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+            {messageSearchResults.length === 0 ? (
+              <div className="text-center p-10 text-[var(--text-muted)] text-sm">
+                {messageSearchQuery.trim().length < 2 ? ' ' : 'Nenhum resultado encontrado.'}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {messageSearchResults.slice(0, 50).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setPendingScrollMessageId(m.id)
+                      setIsMessageSearchOpen(false)
+                    }}
+                    className="w-full p-3 rounded-xl border border-transparent hover:border-[var(--border)] hover:bg-[var(--bg-main)] text-left transition-all"
+                    title="Ir para mensagem"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs font-bold text-[var(--text-main)] truncate">
+                        {m.sender?.nome || 'Usuário'}
+                      </div>
+                      <div className="text-[10px] text-[var(--text-muted)] shrink-0">
+                        {m.created_at ? new Date(m.created_at).toLocaleString() : ''}
+                      </div>
+                    </div>
+                    <div className="text-xs text-[var(--text-soft)] truncate mt-1">
+                      {getMessagePreviewText(m)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
 

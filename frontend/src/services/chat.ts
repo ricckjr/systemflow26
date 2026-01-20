@@ -16,6 +16,7 @@ function normalizeAttachments(input: unknown): ChatAttachment[] {
       return {
         type: o.type,
         url: o.url,
+        path: typeof o.path === 'string' ? o.path : undefined,
         name: o.name,
         size: typeof o.size === 'number' ? o.size : undefined,
         mime_type: typeof o.mime_type === 'string' ? o.mime_type : undefined,
@@ -35,9 +36,11 @@ const MESSAGE_SELECT_BASE = `
   attachments,
   created_at,
   updated_at,
+  edited_at,
+  deleted_at,
   is_edited,
   reply_to_id,
-  sender:profiles(${PROFILE_SELECT})
+  sender:profiles!chat_messages_sender_id_fkey(${PROFILE_SELECT})
 ` as const
 
 const MESSAGE_SELECT_WITH_RECEIPTS = `
@@ -67,6 +70,8 @@ function normalizeMessage(input: any): ChatMessage {
     content: typeof input?.content === 'string' ? input.content : '',
     attachments: normalizeAttachments(input?.attachments),
     receipts,
+    edited_at: typeof input?.edited_at === 'string' ? input.edited_at : input?.edited_at ?? null,
+    deleted_at: typeof input?.deleted_at === 'string' ? input.deleted_at : input?.deleted_at ?? null,
   }
 }
 
@@ -99,7 +104,7 @@ export const chatService = {
             joined_at,
             last_read_at,
             role,
-            profile:profiles(${PROFILE_SELECT})
+            profile:profiles!chat_room_members_user_id_fkey(${PROFILE_SELECT})
           )
         `
       )
@@ -184,10 +189,25 @@ export const chatService = {
     return (data ?? []).map(normalizeMessage)
   },
 
+  async getMessagesBefore(roomId: string, beforeCreatedAt: string, limit = 50): Promise<ChatMessage[]> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
+      .eq('room_id', roomId)
+      .lt('created_at', beforeCreatedAt)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    const rows = (data ?? []).map(normalizeMessage)
+    return rows.reverse()
+  },
+
   async sendMessage(
     roomId: string,
     content: string,
-    attachments: ChatAttachment[] = []
+    attachments: ChatAttachment[] = [],
+    replyToId?: string | null
   ): Promise<ChatMessage> {
     const userId = await getCurrentUserId()
     const trimmedContent = (content ?? '').trim()
@@ -203,6 +223,7 @@ export const chatService = {
         sender_id: userId,
         content: contentToInsert,
         attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
+        reply_to_id: replyToId ?? null,
       })
       .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .single()
@@ -216,6 +237,7 @@ export const chatService = {
             sender_id: userId,
             content: contentToInsert,
             attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
+            reply_to_id: replyToId ?? null,
           })
           .select(MESSAGE_SELECT_BASE)
           .single()
@@ -230,7 +252,7 @@ export const chatService = {
     return normalizeMessage(data)
   },
 
-  async uploadAttachment(file: File): Promise<string> {
+  async uploadAttachment(file: File): Promise<{ publicUrl: string; path: string }> {
     const userId = await getCurrentUserId()
 
     const allowedTypes = [
@@ -262,12 +284,108 @@ export const chatService = {
       throw error
     }
 
-    return supabase
+    const publicUrl = supabase
       .storage
       .from('chat-attachments')
       .getPublicUrl(path)
       .data
       .publicUrl
+
+    return { publicUrl, path }
+  },
+
+  async updateMessage(messageId: string, content: string): Promise<ChatMessage> {
+    const trimmed = (content ?? '').trim()
+    if (!trimmed) throw new Error('Mensagem vazia')
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({
+        content: trimmed,
+        is_edited: true,
+        edited_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', messageId)
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
+      .single()
+
+    if (error) {
+      if (error.code === '42P01') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('chat_messages')
+          .update({
+            content: trimmed,
+            is_edited: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', messageId)
+          .select(MESSAGE_SELECT_BASE)
+          .single()
+        if (fallbackError) throw fallbackError
+        if (!fallbackData) throw new Error('Falha ao editar mensagem')
+        return normalizeMessage(fallbackData)
+      }
+      throw error
+    }
+
+    if (!data) throw new Error('Falha ao editar mensagem')
+    return normalizeMessage(data)
+  },
+
+  async softDeleteMessage(messageId: string): Promise<ChatMessage> {
+    const now = new Date().toISOString()
+
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({
+        deleted_at: now,
+        content: 'Mensagem excluída',
+        attachments: [] as unknown as Json[],
+        updated_at: now,
+      })
+      .eq('id', messageId)
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
+      .single()
+
+    if (error) {
+      if (error.code === '42P01') {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('chat_messages')
+          .update({
+            content: 'Mensagem excluída',
+            attachments: [] as unknown as Json[],
+            updated_at: now,
+          })
+          .eq('id', messageId)
+          .select(MESSAGE_SELECT_BASE)
+          .single()
+        if (fallbackError) throw fallbackError
+        if (!fallbackData) throw new Error('Falha ao excluir mensagem')
+        return normalizeMessage(fallbackData)
+      }
+      throw error
+    }
+
+    if (!data) throw new Error('Falha ao excluir mensagem')
+    return normalizeMessage(data)
+  },
+
+  async removeAttachmentPaths(paths: string[]) {
+    const clean = (paths ?? []).map((p) => p.trim()).filter(Boolean)
+    if (clean.length === 0) return
+    const { error } = await supabase.storage.from('chat-attachments').remove(clean)
+    if (error) throw error
+  },
+
+  async getMessageById(messageId: string): Promise<ChatMessage | null> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(MESSAGE_SELECT_WITH_RECEIPTS)
+      .eq('id', messageId)
+      .maybeSingle()
+    if (error) throw error
+    return data ? normalizeMessage(data) : null
   },
 
   async markAsRead(roomId: string) {
@@ -306,6 +424,124 @@ export const chatService = {
     return data
   },
 
+  async getPinnedMessages(roomId: string): Promise<Array<{ message_id: string; pinned_by: string | null; pinned_at: string }>> {
+    const { data, error } = await supabase
+      .from('chat_message_pins')
+      .select('message_id,pinned_by,pinned_at')
+      .eq('room_id', roomId)
+      .order('pinned_at', { ascending: false })
+    if (error) throw error
+    return (data ?? []) as any
+  },
+
+  async pinMessage(roomId: string, messageId: string) {
+    const userId = await getCurrentUserId()
+    const { data, error } = await supabase
+      .from('chat_message_pins')
+      .insert({ room_id: roomId, message_id: messageId, pinned_by: userId })
+      .select('message_id,pinned_by,pinned_at')
+      .single()
+    if (error) throw error
+    return data as any
+  },
+
+  async unpinMessage(roomId: string, messageId: string) {
+    const { error } = await supabase
+      .from('chat_message_pins')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('message_id', messageId)
+    if (error) throw error
+  },
+
+  subscribeToPins(
+    roomId: string,
+    callback: (evt: { event: 'INSERT' | 'DELETE'; message_id: string; pinned_by?: string | null; pinned_at?: string }) => void
+  ) {
+    const channel = supabase
+      .channel(`chat_pins_${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_message_pins', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.new as any
+          if (!row?.message_id) return
+          callback({ event: 'INSERT', message_id: row.message_id, pinned_by: row.pinned_by ?? null, pinned_at: row.pinned_at })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_message_pins', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.old as any
+          if (!row?.message_id) return
+          callback({ event: 'DELETE', message_id: row.message_id })
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  },
+
+  async getReactions(roomId: string, messageIds: string[]) {
+    const ids = (messageIds ?? []).filter(Boolean)
+    if (ids.length === 0) return [] as Array<{ message_id: string; user_id: string; emoji: string }>
+    const { data, error } = await supabase
+      .from('chat_message_reactions')
+      .select('message_id,user_id,emoji')
+      .eq('room_id', roomId)
+      .in('message_id', ids)
+    if (error) throw error
+    return (data ?? []) as any
+  },
+
+  async addReaction(roomId: string, messageId: string, emoji: string) {
+    const userId = await getCurrentUserId()
+    const { error } = await supabase
+      .from('chat_message_reactions')
+      .insert({ room_id: roomId, message_id: messageId, user_id: userId, emoji })
+    if (error) throw error
+  },
+
+  async removeReaction(roomId: string, messageId: string, emoji: string) {
+    const userId = await getCurrentUserId()
+    const { error } = await supabase
+      .from('chat_message_reactions')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
+      .eq('emoji', emoji)
+    if (error) throw error
+  },
+
+  subscribeToReactions(
+    roomId: string,
+    callback: (evt: { event: 'INSERT' | 'DELETE'; message_id: string; user_id?: string; emoji?: string }) => void
+  ) {
+    const channel = supabase
+      .channel(`chat_reactions_${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_message_reactions', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.new as any
+          if (!row?.message_id || !row?.emoji || !row?.user_id) return
+          callback({ event: 'INSERT', message_id: row.message_id, user_id: row.user_id, emoji: row.emoji })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_message_reactions', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.old as any
+          if (!row?.message_id || !row?.emoji || !row?.user_id) return
+          callback({ event: 'DELETE', message_id: row.message_id, user_id: row.user_id, emoji: row.emoji })
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  },
+
   subscribeToNewMessages(roomId: string, callback: (msg: ChatMessage) => void) {
     const channel = supabase
       .channel(`chat_room_${roomId}`)
@@ -338,6 +574,29 @@ export const chatService = {
             ...base,
             sender: (senderProfile as any) ?? undefined,
           })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  },
+
+  subscribeToMessageUpdates(roomId: string, callback: (msg: ChatMessage) => void) {
+    const channel = supabase
+      .channel(`chat_room_updates_${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const msg = payload.new as any
+          callback(normalizeMessage(msg))
         }
       )
       .subscribe()

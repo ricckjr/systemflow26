@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Notification } from '@/types'
+import { playNotificationSound } from '@/utils/notificationSound'
 
 interface SystemNotificationsContextType {
   notifications: Notification[]
@@ -72,6 +73,7 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
             return [next, ...filtered].slice(0, 20)
           })
           if (!next.is_read) setUnreadCount((c) => c + 1)
+          if (!next.is_read) void playNotificationSound()
         }
       )
       .on(
@@ -204,4 +206,3 @@ export function useSystemNotifications() {
   if (!ctx) throw new Error('useSystemNotifications must be used within SystemNotificationsProvider')
   return ctx
 }
-

@@ -7,7 +7,7 @@ export async function fetchOmieServics(): Promise<OmieServic[]> {
   const { data, error } = await supabase
     .from('omie_servics')
     .select('*')
-    .order('updated_at', { ascending: false })
+    .order('data_alteracao', { ascending: false })
 
   if (error) throw error
   return data || []
@@ -15,18 +15,18 @@ export async function fetchOmieServics(): Promise<OmieServic[]> {
 
 export async function updateOmieServicStatus(params: {
   id_omie: string
-  status_proposta: string | null
-  updated_at?: string
-  id_etapa?: string | null
+  status: string | null
+  data_alteracao?: string
+  etapa?: string | null
 }): Promise<OmieServic> {
-  const updatedAt = params.updated_at || new Date().toISOString()
+  const dataAlteracao = params.data_alteracao || new Date().toISOString()
 
   const { data, error } = await supabase
     .from('omie_servics')
     .update({
-      status_proposta: params.status_proposta,
-      id_etapa: params.id_etapa,
-      updated_at: updatedAt,
+      status: params.status,
+      etapa: params.etapa,
+      data_alteracao: dataAlteracao,
     })
     .eq('id_omie', params.id_omie)
     .select('*')

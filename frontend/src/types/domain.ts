@@ -86,8 +86,10 @@ export interface ServicEquipamento {
   imagens?: string[] | null;
   data_entrada: string;
   data_finalizada?: string | null;
-  etapa: string; // Replaces 'status'
+  fase: string; // Replaces 'status'
   responsavel?: string | null;
+  solucao?: string | null;
+  etapa_omie?: string | null;
   created_at: string;
   updated_at: string;
 }

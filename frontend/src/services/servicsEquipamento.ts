@@ -44,13 +44,13 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoEtapa(id: string, etapa: string): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoFase(id: string, fase: string): Promise<ServicEquipamento> {
   const updates: any = {
-    etapa,
+    fase,
     updated_at: new Date().toISOString()
   }
   
-  if (etapa === 'FINALIZADO') {
+  if (fase === 'FINALIZADO') {
     updates.data_finalizada = new Date().toISOString()
   } else {
     updates.data_finalizada = null // Reset if moved back
@@ -65,6 +65,18 @@ export async function updateServicEquipamentoEtapa(id: string, etapa: string): P
 
   if (error) throw error
   return data as ServicEquipamento
+}
+
+export async function updateServicEquipamentoEtapaOmie(codProposta: string, etapaOmie: string): Promise<void> {
+  const { error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      etapa_omie: etapaOmie,
+      updated_at: new Date().toISOString()
+    })
+    .eq('cod_proposta', codProposta)
+
+  if (error) throw error
 }
 
 export async function uploadEquipmentImage(file: File): Promise<string> {

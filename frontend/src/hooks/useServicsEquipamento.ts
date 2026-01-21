@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ServicEquipamento } from '@/types/domain'
-import { getServicsEquipamentos, updateServicEquipamentoEtapa, createServicEquipamento, getServicsEquipamentosByProposal, uploadEquipmentImage } from '@/services/servicsEquipamento'
+import { getServicsEquipamentos, updateServicEquipamentoFase, createServicEquipamento, getServicsEquipamentosByProposal, uploadEquipmentImage } from '@/services/servicsEquipamento'
 
 export function useServicsEquipamento() {
   const [services, setServices] = useState<ServicEquipamento[]>([])
@@ -24,12 +24,12 @@ export function useServicsEquipamento() {
     refresh()
   }, [refresh])
 
-  const moveService = useCallback(async (serviceId: string, newEtapa: string) => {
+  const moveService = useCallback(async (serviceId: string, newFase: string) => {
     // Optimistic update
-    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, etapa: newEtapa, updated_at: new Date().toISOString() } : s))
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, fase: newFase, updated_at: new Date().toISOString() } : s))
     
     try {
-      await updateServicEquipamentoEtapa(serviceId, newEtapa)
+      await updateServicEquipamentoFase(serviceId, newFase)
     } catch (err: any) {
       setError(err.message)
       // Revert on error

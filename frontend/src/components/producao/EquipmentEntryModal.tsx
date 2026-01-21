@@ -26,6 +26,8 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     cliente: '',
     cnpj: '',
     endereco: '',
+    solucao: '',
+    etapa_omie: '',
     modelo: '',
     fabricante: '',
     numero_serie: '',
@@ -35,7 +37,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     observacoes_equipamento: '',
     imagens: [],
     data_entrada: new Date().toISOString(),
-    etapa: 'ANALISE',
+    fase: 'ANALISE',
     ...initialData
   })
 
@@ -88,18 +90,34 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     e.preventDefault()
     setLoading(true)
     try {
-      // Remove campos nulos/undefined antes de enviar
-      const payload = Object.fromEntries(
-        Object.entries(formData).filter(([_, v]) => v !== undefined && v !== null)
-      )
+      // Clean payload construction with type safety
+      const basePayload = {
+        ...formData,
+        // Fallbacks
+        cliente: formData.cliente || initialData.cliente,
+        cod_proposta: formData.cod_proposta || initialData.cod_proposta,
+        cnpj: formData.cnpj || initialData.cnpj,
+        solucao: formData.solucao || initialData.solucao,
+        etapa_omie: formData.etapa_omie || initialData.etapa_omie,
+        endereco: formData.endereco || initialData.endereco
+      }
       
-      // Validação básica
-      if (!payload.cliente || !payload.cod_proposta) {
-          console.error('Dados faltando:', payload)
+      const cleanPayload: Partial<ServicEquipamento> = {}
+      for (const [key, value] of Object.entries(basePayload)) {
+        if (value !== undefined && value !== null && value !== '') {
+          ;(cleanPayload as any)[key] = value
+        }
+      }
+
+      console.log('Enviando payload:', cleanPayload) // Debug
+      
+      // Validation
+      if (!cleanPayload.cliente || !cleanPayload.cod_proposta) {
+          console.error('Dados faltando:', { cleanPayload, initialData, formData })
           throw new Error('Cliente e Código da Proposta são obrigatórios. Tente fechar e abrir o modal novamente.')
       }
 
-      await addService(payload as any)
+      await addService(cleanPayload as any)
       onSuccess()
       onClose()
     } catch (error: any) {

@@ -14,7 +14,7 @@ interface ServiceKanbanBoardProps {
 
 export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, onDragEnd, onCardClick }) => {
   const getServicesByStatus = (status: string) => {
-    return services.filter(s => s.etapa === status)
+    return services.filter(s => s.fase === status)
   }
 
   if (loading && services.length === 0) {

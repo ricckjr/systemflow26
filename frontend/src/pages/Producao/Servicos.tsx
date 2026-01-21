@@ -92,12 +92,28 @@ const Servicos: React.FC = () => {
                                 {selectedService.endereco}
                             </div>
                         )}
+                        {selectedService.solucao && (
+                            <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Solução</label>
+                                <p className="text-xs text-[var(--text-main)] line-clamp-2">{selectedService.solucao}</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)]">
-                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Proposta</label>
-                            <div className="text-base font-bold text-cyan-400">{selectedService.cod_proposta}</div>
+                        <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] flex flex-col justify-between">
+                            <div>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Proposta</label>
+                                <div className="text-base font-bold text-cyan-400">{selectedService.cod_proposta}</div>
+                            </div>
+                            {selectedService.etapa_omie && (
+                                <div className="mt-2">
+                                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Etapa Omie</label>
+                                    <div className="text-xs font-medium px-2 py-1 rounded bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] inline-block">
+                                        {selectedService.etapa_omie}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)]">
                             <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Dias em Prod.</label>
@@ -179,14 +195,30 @@ const Servicos: React.FC = () => {
                 )}
                 
                 {/* Footer Meta */}
-                <div className="flex items-center justify-between pt-4 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
-                     <div className="flex items-center gap-4">
-                        <span>Criado em: {new Date(selectedService.created_at).toLocaleString()}</span>
-                        <span>Atualizado em: {new Date(selectedService.updated_at).toLocaleString()}</span>
+                <div className="flex flex-col gap-3 pt-4 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1"><Calendar size={12}/> Entrada: {new Date(selectedService.data_entrada).toLocaleDateString()}</span>
+                            {selectedService.data_finalizada && (
+                                <span className="text-emerald-400 font-medium">Finalizado: {new Date(selectedService.data_finalizada).toLocaleDateString()}</span>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <span className="uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[var(--bg-body)] border border-[var(--border)]">
+                                Fase Prod: {selectedService.fase}
+                             </span>
+                        </div>
                      </div>
-                     <div className="flex items-center gap-2">
-                        <User size={12} />
-                        Responsável: <span className="text-[var(--text-main)] font-medium">{selectedService.responsavel || 'Não atribuído'}</span>
+                     
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <span>Criado: {new Date(selectedService.created_at).toLocaleString()}</span>
+                            <span>Atualizado: {new Date(selectedService.updated_at).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <User size={12} />
+                            Responsável: <span className="text-[var(--text-main)] font-medium">{selectedService.responsavel || 'Não atribuído'}</span>
+                        </div>
                      </div>
                 </div>
             </div>

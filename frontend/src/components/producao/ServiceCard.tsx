@@ -17,6 +17,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={() => onClick(service)}
+          data-kanban-card="true"
           className="p-3 mb-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm hover:shadow-md transition-shadow cursor-pointer active:cursor-grabbing group"
         >
           <div className="flex justify-between items-start mb-2">

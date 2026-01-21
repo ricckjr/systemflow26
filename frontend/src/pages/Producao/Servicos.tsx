@@ -6,7 +6,7 @@ import { DropResult } from '@hello-pangea/dnd'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
 import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamento'
-import { useUsuarios } from '@/hooks/useUsuarios'
+import { useUsuarios } from '../../hooks/useUsuarios'
 
 const Servicos: React.FC = () => {
   const { services, loading, refresh, moveService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
@@ -231,7 +231,7 @@ const Servicos: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-80px)] pt-4 pb-6 max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col">
+    <div className="h-full min-h-0 w-full min-w-0 overflow-x-hidden pt-4 pb-6 max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4 shrink-0">
         <h2 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
           Produção / Serviços

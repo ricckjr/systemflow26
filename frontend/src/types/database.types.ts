@@ -1082,6 +1082,57 @@ export interface Database {
         }
         Relationships: []
       }
+      servics_historico: {
+        Row: {
+          id: string
+          service_id: string
+          fase_origem: string | null
+          responsavel_origem: string | null
+          fase_destino: string
+          responsavel_destino: string | null
+          alterado_por: string | null
+          data_movimentacao: string | null
+          tempo_permanencia: unknown | null
+        }
+        Insert: {
+          id?: string
+          service_id: string
+          fase_origem?: string | null
+          responsavel_origem?: string | null
+          fase_destino: string
+          responsavel_destino?: string | null
+          alterado_por?: string | null
+          data_movimentacao?: string | null
+          tempo_permanencia?: unknown | null
+        }
+        Update: {
+          id?: string
+          service_id?: string
+          fase_origem?: string | null
+          responsavel_origem?: string | null
+          fase_destino?: string
+          responsavel_destino?: string | null
+          alterado_por?: string | null
+          data_movimentacao?: string | null
+          tempo_permanencia?: unknown | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servics_historico_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "servics_equipamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servics_historico_alterado_por_fkey"
+            columns: ["alterado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

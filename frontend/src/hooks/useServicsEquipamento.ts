@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { ServicEquipamento } from '@/types/domain'
-import { getServicsEquipamentos, updateServicEquipamentoFase, createServicEquipamento, getServicsEquipamentosByProposal, uploadEquipmentImage } from '@/services/servicsEquipamento'
+import { getServicsEquipamentos, updateServicEquipamentoFase, createServicEquipamento, getServicsEquipamentosByProposal, uploadEquipmentImage, updateServicEquipamentoAnaliseVisual, updateServicEquipamentoTestesRealizados, updateServicEquipamentoServicosAFazer, updateServicEquipamentoImagens, updateServicEquipamentoCertificadoCalibracao } from '@/services/servicsEquipamento'
 
 export function useServicsEquipamento() {
   const [services, setServices] = useState<ServicEquipamento[]>([])
@@ -24,12 +24,17 @@ export function useServicsEquipamento() {
     refresh()
   }, [refresh])
 
-  const moveService = useCallback(async (serviceId: string, newFase: string) => {
+  const moveService = useCallback(async (serviceId: string, newFase: string, responsavel?: string) => {
     // Optimistic update
-    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, fase: newFase, updated_at: new Date().toISOString() } : s))
+    setServices(prev => prev.map(s => s.id === serviceId ? { 
+      ...s, 
+      fase: newFase, 
+      responsavel: responsavel !== undefined ? responsavel : s.responsavel,
+      updated_at: new Date().toISOString() 
+    } : s))
     
     try {
-      await updateServicEquipamentoFase(serviceId, newFase)
+      await updateServicEquipamentoFase(serviceId, newFase, responsavel)
     } catch (err: any) {
       setError(err.message)
       // Revert on error
@@ -52,6 +57,56 @@ export function useServicsEquipamento() {
     return await uploadEquipmentImage(file)
   }, [])
 
+  const updateAnaliseVisual = useCallback(async (serviceId: string, analiseVisual: string | null) => {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, observacoes_equipamento: analiseVisual, updated_at: new Date().toISOString() } : s))
+    try {
+      await updateServicEquipamentoAnaliseVisual(serviceId, analiseVisual)
+    } catch (err: any) {
+      setError(err.message)
+      refresh()
+    }
+  }, [refresh])
+
+  const updateTestesRealizados = useCallback(async (serviceId: string, testesRealizados: string | null) => {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, testes_realizados: testesRealizados, updated_at: new Date().toISOString() } : s))
+    try {
+      await updateServicEquipamentoTestesRealizados(serviceId, testesRealizados)
+    } catch (err: any) {
+      setError(err.message)
+      refresh()
+    }
+  }, [refresh])
+
+  const updateServicosAFazer = useCallback(async (serviceId: string, servicosAFazer: string | null) => {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, servicos_a_fazer: servicosAFazer, updated_at: new Date().toISOString() } : s))
+    try {
+      await updateServicEquipamentoServicosAFazer(serviceId, servicosAFazer)
+    } catch (err: any) {
+      setError(err.message)
+      refresh()
+    }
+  }, [refresh])
+
+  const updateImagens = useCallback(async (serviceId: string, imagens: string[] | null) => {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, imagens, updated_at: new Date().toISOString() } : s))
+    try {
+      await updateServicEquipamentoImagens(serviceId, imagens)
+    } catch (err: any) {
+      setError(err.message)
+      refresh()
+    }
+  }, [refresh])
+
+  const updateCertificadoCalibracao = useCallback(async (serviceId: string, numeroCertificado: string | null, dataCalibracao: string | null) => {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, numero_certificado: numeroCertificado, data_calibracao: dataCalibracao, updated_at: new Date().toISOString() } : s))
+    try {
+      await updateServicEquipamentoCertificadoCalibracao(serviceId, numeroCertificado, dataCalibracao)
+    } catch (err: any) {
+      setError(err.message)
+      refresh()
+    }
+  }, [refresh])
+
   return {
     services,
     loading,
@@ -59,7 +114,12 @@ export function useServicsEquipamento() {
     refresh,
     moveService,
     addService,
-    uploadImage
+    uploadImage,
+    updateAnaliseVisual,
+    updateTestesRealizados,
+    updateServicosAFazer,
+    updateImagens,
+    updateCertificadoCalibracao
   }
 }
 

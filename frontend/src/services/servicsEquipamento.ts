@@ -3,12 +3,12 @@ import { ServicEquipamento } from '@/types/domain'
 
 export const ETAPAS_SERVICOS = [
   'ANALISE',
-  'LABORATORIO',
-  'OFICINA',
+  'AGUARDANDO CLIENTE',
+  'CALIBRACAO',
   'LAVADOR',
-  'PINTURA',
+  'PREPARO-PINTURA',
   'ELETRONICA',
-  'EMBALAGEM',
+  'PREPARO FINAL',
   'FINALIZADO'
 ] as const
 
@@ -44,10 +44,20 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoFase(id: string, fase: string): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoFase(id: string, fase: string, responsavel?: string): Promise<ServicEquipamento> {
+  const { data: currentService } = await supabase
+    .from('servics_equipamento')
+    .select('fase, responsavel')
+    .eq('id', id)
+    .single()
+
   const updates: any = {
     fase,
     updated_at: new Date().toISOString()
+  }
+  
+  if (responsavel !== undefined) {
+    updates.responsavel = responsavel
   }
   
   if (fase === 'FINALIZADO') {
@@ -64,7 +74,36 @@ export async function updateServicEquipamentoFase(id: string, fase: string): Pro
     .single()
 
   if (error) throw error
+
+  // Registrar histórico se houve mudança
+  if (currentService && (currentService.fase !== fase || (responsavel !== undefined && currentService.responsavel !== responsavel))) {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('servics_historico').insert({
+      service_id: id,
+      fase_origem: currentService.fase,
+      fase_destino: fase,
+      responsavel_origem: currentService.responsavel,
+      responsavel_destino: responsavel !== undefined ? responsavel : currentService.responsavel,
+      alterado_por: user?.id,
+      data_movimentacao: new Date().toISOString()
+    })
+  }
+
   return data as ServicEquipamento
+}
+
+export async function getServicHistorico(serviceId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('servics_historico')
+    .select(`
+      *,
+      profiles:alterado_por (nome)
+    `)
+    .eq('service_id', serviceId)
+    .order('data_movimentacao', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }
 
 export async function updateServicEquipamentoEtapaOmie(codProposta: string, etapaOmie: string): Promise<void> {
@@ -79,24 +118,111 @@ export async function updateServicEquipamentoEtapaOmie(codProposta: string, etap
   if (error) throw error
 }
 
+export async function updateServicEquipamentoAnaliseVisual(id: string, analiseVisual: string | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      observacoes_equipamento: analiseVisual,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
+export async function updateServicEquipamentoTestesRealizados(id: string, testesRealizados: string | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      testes_realizados: testesRealizados,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
+export async function updateServicEquipamentoServicosAFazer(id: string, servicosAFazer: string | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      servicos_a_fazer: servicosAFazer,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
+export async function updateServicEquipamentoCertificadoCalibracao(id: string, numeroCertificado: string | null, dataCalibracao: string | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      numero_certificado: numeroCertificado,
+      data_calibracao: dataCalibracao,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
+export async function updateServicEquipamentoImagens(id: string, imagens: string[] | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({ 
+      imagens,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
 export async function uploadEquipmentImage(file: File): Promise<string> {
   const fileExt = file.name.split('.').pop()
-  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-  const filePath = `${fileName}`
+  const safeBaseName = (file.name || 'arquivo')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+  const uniquePrefix = Math.random().toString(36).substring(2)
+  const fileName = `${uniquePrefix}_${safeBaseName}${fileExt ? '' : '.bin'}`
+  const filePath = fileName
   
-  // Try 'production-files' first, fallback to 'task-attachments' if not found
-  const bucketName = 'production-files'
-  
-  const { error: uploadError } = await supabase.storage
-    .from(bucketName)
-    .upload(filePath, file)
+  const bucketCandidates = ['production-files', 'task-attachments']
+  let uploadedBucket: string | null = null
 
-  if (uploadError) {
-    throw uploadError
+  for (const bucketName of bucketCandidates) {
+    const { error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, file)
+
+    if (!uploadError) {
+      uploadedBucket = bucketName
+      break
+    }
+  }
+
+  if (!uploadedBucket) {
+    throw new Error('Falha ao enviar arquivo para o Storage.')
   }
 
   const { data } = supabase.storage
-    .from(bucketName)
+    .from(uploadedBucket)
     .getPublicUrl(filePath)
 
   return data.publicUrl

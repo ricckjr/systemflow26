@@ -1005,6 +1005,10 @@ export interface Database {
           faixa: string | null
           observacoes_equipamento: string | null
           imagens: string[] | null // Stored as jsonb
+          testes_realizados: string | null
+          servicos_a_fazer: string | null
+          numero_certificado: string | null
+          data_calibracao: string | null
           data_entrada: string
           data_finalizada: string | null
           fase: string
@@ -1033,6 +1037,10 @@ export interface Database {
           faixa?: string | null
           observacoes_equipamento?: string | null
           imagens?: string[] | null
+          testes_realizados?: string | null
+          servicos_a_fazer?: string | null
+          numero_certificado?: string | null
+          data_calibracao?: string | null
           data_entrada?: string
           data_finalizada?: string | null
           fase?: string
@@ -1059,6 +1067,10 @@ export interface Database {
           faixa?: string | null
           observacoes_equipamento?: string | null
           imagens?: string[] | null
+          testes_realizados?: string | null
+          servicos_a_fazer?: string | null
+          numero_certificado?: string | null
+          data_calibracao?: string | null
           data_entrada?: string
           data_finalizada?: string | null
           fase?: string

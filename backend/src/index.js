@@ -3,9 +3,17 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
 
-// Carrega variáveis de ambiente
-dotenv.config();
+const envCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '..', '.env'),
+  path.resolve(__dirname, '..', '..', '.env'),
+];
+
+const envPath = envCandidates.find((p) => fs.existsSync(p));
+dotenv.config(envPath ? { path: envPath } : undefined);
 
 process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
 

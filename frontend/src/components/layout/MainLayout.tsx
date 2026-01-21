@@ -18,6 +18,10 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   const [supabaseConnected, setSupabaseConnected] = useState(true);
   const location = useLocation();
   const isTvMode = useMemo(() => new URLSearchParams(location.search).get('tv') === '1', [location.search]);
+  const isFullBleed = useMemo(() => {
+    if (isTvMode) return false
+    return location.pathname.startsWith('/app/producao/omie')
+  }, [isTvMode, location.pathname])
 
   // Safe default profile (visual only – não altera lógica)
   const safeProfile: Profile = profile || {
@@ -137,7 +141,11 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
 
       {/* MAIN CONTENT */}
       {/* Added ml-20 to push content to the right of the dock */}
-      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden relative transition-all duration-300 ${isTvMode ? '' : 'lg:ml-20 pt-16'}`}>
+      <div
+        className={`flex-1 flex flex-col min-h-0 relative transition-all duration-300 ${
+          isTvMode ? '' : 'lg:ml-20 pt-16'
+        } ${isFullBleed ? 'overflow-x-visible overflow-y-hidden' : 'overflow-hidden'}`}
+      >
         {!isTvMode && (
           <Header
             isMobileMenuOpen={isMobileMenuOpen}
@@ -150,16 +158,28 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
           />
         )}
 
-        <main className={`flex-1 min-h-0 ${isTvMode ? 'overflow-hidden' : 'overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar'}`}>
+        <main
+          className={`flex-1 min-h-0 ${
+            isTvMode
+              ? 'overflow-hidden'
+              : isFullBleed
+                ? 'overflow-y-auto overflow-x-visible px-0 py-0 custom-scrollbar'
+                : 'overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar'
+          }`}
+        >
           {isTvMode ? (
             children || <Outlet />
           ) : (
-            <div
-              className="min-h-full rounded-2xl bg-[#111827] border border-white/5
+            isFullBleed ? (
+              children || <Outlet />
+            ) : (
+              <div
+                className="min-h-full rounded-2xl bg-[#111827] border border-white/5
                          p-4 sm:p-6 shadow-sm"
-            >
-              {children || <Outlet />}
-            </div>
+              >
+                {children || <Outlet />}
+              </div>
+            )
           )}
         </main>
       </div>

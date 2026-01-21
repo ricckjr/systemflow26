@@ -9,7 +9,8 @@ import {
   ChevronDown,
   X,
   LayoutDashboard,
-  Users
+  Users,
+  Factory
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,16 @@ const navItems: NavItem[] = [
       { label: 'Chat', path: '/app/comunicacao/chat', submodulo: 'chat' },
       { label: 'FlowSmart', path: '/app/comunicacao/flowsmart', submodulo: 'flowsmart' },
       { label: 'Assistente Flow', path: '/app/comunicacao/ia', submodulo: 'ia-flow' },
+    ],
+  },
+  {
+    label: 'PRODUÇÃO',
+    icon: Factory,
+    modulo: 'producao',
+    subItems: [
+      { label: 'OMIE', path: '/app/producao/omie', submodulo: 'omie' },
+      { label: 'Serviços', path: '/app/producao/servicos', submodulo: 'servicos' },
+      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
     ],
   },
 ];

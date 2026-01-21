@@ -424,7 +424,16 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
           setComments(prev => ({
             ...prev,
-            [activeTaskId]: [...(prev[activeTaskId] || []), newComment]
+            [activeTaskId]: (() => {
+              const list = prev[activeTaskId] || []
+              const idx = list.findIndex(c => c.id === newComment.id)
+              if (idx >= 0) {
+                const copy = list.slice()
+                copy[idx] = { ...copy[idx], ...newComment }
+                return copy
+              }
+              return [...list, newComment]
+            })()
           }));
 
           markTaskSeen(activeTaskId).catch(() => null);
@@ -454,7 +463,15 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             user_avatar: userData?.avatar_url
           };
 
-          setActivityLog(prev => [newLog, ...prev]);
+          setActivityLog(prev => {
+            const idx = prev.findIndex(l => l.id === newLog.id);
+            if (idx >= 0) {
+              const copy = prev.slice();
+              copy[idx] = { ...copy[idx], ...newLog };
+              return copy;
+            }
+            return [newLog, ...prev];
+          });
 
           markTaskSeen(activeTaskId).catch(() => null);
           setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
@@ -951,7 +968,19 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         user_nome: profileName,
         user_avatar: profileAvatarUrl
       };
-      setComments(prev => ({ ...prev, [activeTaskId]: [...(prev[activeTaskId] || []), optimisticComment] }));
+      setComments(prev => ({
+        ...prev,
+        [activeTaskId]: (() => {
+          const list = prev[activeTaskId] || []
+          const idx = list.findIndex(comment => comment.id === optimisticComment.id)
+          if (idx >= 0) {
+            const copy = list.slice()
+            copy[idx] = { ...copy[idx], ...optimisticComment }
+            return copy
+          }
+          return [...list, optimisticComment]
+        })()
+      }));
       setNewComment('');
       await logActivity(activeTaskId, profileId, 'comment_added');
       await markTaskSeen(activeTaskId).catch(() => null);
@@ -1907,7 +1936,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                 if (item.kind === 'activity') {
                   return (
                     <div
-                      key={item.id}
+                      key={`${item.kind}:${item.id}`}
                       className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 opacity-60 hover:opacity-100 transition-opacity"
                     >
                       <div className="w-8 h-8 flex items-center justify-center shrink-0">
@@ -1942,7 +1971,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                 }
 
                 return (
-                  <div key={item.id} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
+                  <div key={`${item.kind}:${item.id}`} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
                     <div className="w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-[10px] font-black shrink-0 border border-cyan-500/20 mt-1">
                       {item.user_nome ? item.user_nome.substring(0, 2).toUpperCase() : 'U'}
                     </div>

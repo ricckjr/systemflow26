@@ -361,7 +361,11 @@ export function useChat() {
     try {
       const older = await chatService.getMessagesBefore(activeRoomId, oldest, limit)
       if (older.length === 0) return 0
-      setMessages((prev) => [...older, ...prev])
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id))
+        const uniqueOlder = older.filter((m) => !existingIds.has(m.id))
+        return [...uniqueOlder, ...prev]
+      })
       return older.length
     } catch (error) {
       console.error('Error loading older messages:', error)

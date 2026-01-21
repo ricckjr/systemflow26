@@ -50,6 +50,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 ================================ */
 const PROFILE_CACHE_KEY = 'systemflow:profile'
 const PERMS_CACHE_KEY   = 'systemflow:permissions'
+const AUTH_STORAGE_KEY  = 'systemflow-auth-token'
 
 declare global {
   var __systemflow_auth_sub: { unsubscribe: () => void } | undefined
@@ -80,6 +81,20 @@ function normalizeProfile(p: any): Profile | null {
   return p as Profile
 }
 
+function isInvalidRefreshTokenError(err: unknown) {
+  const message =
+    typeof err === 'object' && err && 'message' in err
+      ? String((err as any).message)
+      : String(err)
+
+  const m = message.toLowerCase()
+  return (
+    m.includes('invalid refresh token') ||
+    m.includes('refresh token not found') ||
+    m.includes('invalid_grant')
+  )
+}
+
 /* ================================
    Provider
 ================================ */
@@ -94,8 +109,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authReady, setAuthReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
 
+  const clearAuthStorageAndState = useCallback((setReady: boolean) => {
+    localStorage.removeItem(PROFILE_CACHE_KEY)
+    localStorage.removeItem(PERMS_CACHE_KEY)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k)
+    })
+
+    setSession(null)
+    sessionRef.current = null
+    setProfile(null)
+    setPermissions(null)
+    if (setReady) setAuthReady(true)
+    setProfileReady(true)
+  }, [])
+
   /* ================================
-     Init (BOOT)
+    Init (BOOT)
   ================================ */
   useEffect(() => {
     mounted.current = true
@@ -108,8 +140,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Session
     withTimeout(supabase.auth.getSession(), 8000)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (!mounted.current) return
+
+        if (error) {
+          if (isInvalidRefreshTokenError(error)) {
+            clearAuthStorageAndState(true)
+            supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+            return
+          }
+          throw error
+        }
 
         const currentSession = data.session ?? null
         setSession(currentSession)
@@ -125,12 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch(err => {
         if (!mounted.current) return
         console.error('[AUTH] getSession failed', err)
-        setSession(null)
-        sessionRef.current = null
-        setAuthReady(true)
-        setProfile(null)
-        setPermissions(null)
-        setProfileReady(true)
+        clearAuthStorageAndState(true)
       })
 
     globalThis.__systemflow_auth_sub?.unsubscribe()
@@ -146,8 +182,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!newSession && prevSession) {
           withTimeout(supabase.auth.getSession(), 2000)
-            .then(({ data }) => {
+            .then(({ data, error }) => {
               if (!mounted.current) return
+              if (error) {
+                if (isInvalidRefreshTokenError(error)) {
+                  clearAuthStorageAndState(true)
+                  supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+                  return
+                }
+                throw error
+              }
               const verifiedSession = data.session ?? null
               if (verifiedSession) {
                 setSession(verifiedSession)
@@ -155,23 +199,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return
               }
 
-              setSession(null)
-              sessionRef.current = null
-              setProfile(null)
-              setPermissions(null)
-              setProfileReady(true)
-              localStorage.removeItem(PROFILE_CACHE_KEY)
-              localStorage.removeItem(PERMS_CACHE_KEY)
+              clearAuthStorageAndState(false)
             })
             .catch(() => {
               if (!mounted.current) return
-              setSession(null)
-              sessionRef.current = null
-              setProfile(null)
-              setPermissions(null)
-              setProfileReady(true)
-              localStorage.removeItem(PROFILE_CACHE_KEY)
-              localStorage.removeItem(PERMS_CACHE_KEY)
+              clearAuthStorageAndState(false)
             })
 
           return

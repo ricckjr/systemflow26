@@ -14,6 +14,31 @@ if (!rawUrl || !rawAnonKey) {
 
 const supabaseUrl = rawUrl.trim().replace(/\/+$/, '')
 const supabaseAnonKey = rawAnonKey.trim()
+const SUPABASE_AUTH_STORAGE_KEY = 'systemflow-auth-token'
+
+function clearSupabaseAuthStorage() {
+  try {
+    localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY)
+    Object.keys(localStorage).forEach((k) => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k)
+    })
+  } catch {
+  }
+}
+
+try {
+  const raw = localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY)
+  if (raw) {
+    const parsed = JSON.parse(raw)
+    const candidate = parsed?.currentSession ?? parsed?.session ?? parsed
+    const refreshToken = candidate?.refresh_token
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      clearSupabaseAuthStorage()
+    }
+  }
+} catch {
+  clearSupabaseAuthStorage()
+}
 
 /* ------------------------------------------------------------------
  * GLOBAL SINGLETON (HMR SAFE)

@@ -58,6 +58,45 @@ const STATUS_LABELS = {
   offline: 'Offline'
 };
 
+const CHAT_TIME_ZONE = 'America/Sao_Paulo' as const
+
+const formatTimeSP = (input: string | Date | null | undefined) => {
+  if (!input) return ''
+  const d = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: CHAT_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+}
+
+const formatDateSP = (input: string | Date | null | undefined) => {
+  if (!input) return ''
+  const d = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: CHAT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d)
+}
+
+const formatDateTimeSP = (input: string | Date | null | undefined) => {
+  if (!input) return ''
+  const d = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: CHAT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+}
+
 const AudioVisualizer: React.FC<{ stream: MediaStream | null }> = ({ stream }) => {
   // ... (keep existing implementation)
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -839,7 +878,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     return ids.length === 1 ? `${label} está digitando...` : `${label} estão digitando...`
   }, [activeRoom?.members, allUsers, typingByUserId])
 
-  const firstUnreadIndex = useMemo(() => {
+  const unreadDividerIndex = useMemo(() => {
     if (!activeRoomId) return -1
     if (!activeRoom?.members || !currentUser?.id) return -1
     if (activeUnreadCount <= 0) return -1
@@ -941,7 +980,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       if (!m) return false
       const content = (m.content ?? '').toLowerCase()
       const sender = (m.sender?.nome ?? '').toLowerCase()
-      const date = m.created_at ? new Date(m.created_at).toLocaleDateString('pt-BR') : ''
+      const date = m.created_at ? formatDateSP(m.created_at) : ''
       return content.includes(q) || sender.includes(q) || date.includes(q)
     })
   }, [messageSearchQuery, messages])
@@ -1096,7 +1135,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   };
 
   const messagesScrollRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSeenMarkAtRef = useRef<number>(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isAtBottomRef = useRef(true)
@@ -1104,12 +1142,30 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const prevMessagesLenRef = useRef(0)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const isPrependingHistoryRef = useRef(false)
+  const ignoreScrollUntilRef = useRef(0)
+  const pendingInitialScrollRef = useRef(false)
+
+  useEffect(() => {
+    const root = messagesScrollRef.current
+    prevMessagesLenRef.current = 0
+    isAtBottomRef.current = true
+    setIsAtBottom(true)
+    setPendingNewCount(0)
+    pendingInitialScrollRef.current = true
+    requestAnimationFrame(() => {
+      const el = root
+      if (!el) return
+      ignoreScrollUntilRef.current = Date.now() + 250
+      el.scrollTop = el.scrollHeight
+    })
+  }, [activeRoomId])
 
   useEffect(() => {
     const root = messagesScrollRef.current
     if (!root) return
 
     const onScroll = async () => {
+      if (Date.now() < ignoreScrollUntilRef.current) return
       const el = root
       const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight
       const atBottom = distanceToBottom < 80
@@ -1119,8 +1175,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
       if (!activeRoomId) return
       if (loadingOlder) return
-      if (el.scrollTop > 60) return
       if (messages.length === 0) return
+      if (el.scrollTop > 60) return
 
       setLoadingOlder(true)
       isPrependingHistoryRef.current = true
@@ -1130,6 +1186,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       requestAnimationFrame(() => {
         const newHeight = el.scrollHeight
         el.scrollTop = prevTop + (newHeight - prevHeight)
+        ignoreScrollUntilRef.current = Date.now() + 250
         setLoadingOlder(false)
         isPrependingHistoryRef.current = false
       })
@@ -1150,38 +1207,40 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     if (nextLen === 0) return
     if (isPrependingHistoryRef.current) return
 
+    const root = messagesScrollRef.current
+    if (!root) return
+    if (pendingInitialScrollRef.current) {
+      pendingInitialScrollRef.current = false
+      requestAnimationFrame(() => {
+        ignoreScrollUntilRef.current = Date.now() + 250
+        root.scrollTop = root.scrollHeight
+      })
+      return
+    }
+
     const last = messages[nextLen - 1]
     const lastIsMine = !!currentUser?.id && last?.sender_id === currentUser.id
     if (!isAtBottomRef.current && nextLen > prevLen && !lastIsMine) {
       setPendingNewCount((c) => c + (nextLen - prevLen))
       return
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+    requestAnimationFrame(() => {
+      ignoreScrollUntilRef.current = Date.now() + 250
+      root.scrollTop = root.scrollHeight
+    })
   }, [messages]);
 
   useEffect(() => {
     if (!activeRoomId) return
     if (activeUnreadCount <= 0) return
-    const root = messagesScrollRef.current
-    const target = messagesEndRef.current
-    if (!root || !target) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        if (!entry?.isIntersecting) return
-        const now = Date.now()
-        if (now - lastSeenMarkAtRef.current < 800) return
-        lastSeenMarkAtRef.current = now
-        void markRoomAsRead(activeRoomId)
-        void markActiveRoomAsRead()
-      },
-      { root, threshold: 0.95 }
-    )
-
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [activeRoomId, activeUnreadCount, markActiveRoomAsRead, markRoomAsRead])
+    if (!isAtBottom) return
+    const now = Date.now()
+    if (now - lastSeenMarkAtRef.current < 800) return
+    lastSeenMarkAtRef.current = now
+    void markRoomAsRead(activeRoomId)
+    void markActiveRoomAsRead()
+  }, [activeRoomId, activeUnreadCount, isAtBottom, markActiveRoomAsRead, markRoomAsRead])
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
@@ -1372,7 +1431,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           </p>
                           {info.lastMessage && (
                             <span className={`text-[10px] ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'} ${info.hasUnread ? 'text-cyan-400 font-bold' : ''}`}>
-                              {new Date(info.lastMessage.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatTimeSP(info.lastMessage.created_at)}
                             </span>
                           )}
                         </div>
@@ -1609,7 +1668,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
                 return (
                   <React.Fragment key={msg.id}>
-                  {index === firstUnreadIndex && (
+                  {index === unreadDividerIndex && (
                     <div className="flex items-center gap-3 py-2">
                       <div className="h-px flex-1 bg-white/10" />
                       <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300/90">
@@ -2021,7 +2080,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       
                       <div className={`flex items-center gap-1 mt-1 px-1 opacity-60 group-hover:opacity-100 transition-opacity`}>
                         <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatTimeSP(msg.created_at)}
                         </span>
                         {(msg.is_edited || msg.edited_at) && !msg.deleted_at && (
                           <span className="text-[10px] text-[var(--text-muted)] font-medium">(editada)</span>
@@ -2047,7 +2106,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <button
                     type="button"
                     onClick={() => {
-                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+                      const root = messagesScrollRef.current
+                      root?.scrollTo({ top: root.scrollHeight, behavior: 'smooth' })
                       setPendingNewCount(0)
                       if (activeRoomId) {
                         void markRoomAsRead(activeRoomId)
@@ -2055,13 +2115,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       }
                     }}
                     className="pointer-events-auto px-4 py-2 rounded-full bg-cyan-500 text-black text-xs font-black shadow-lg hover:bg-cyan-400 transition-colors"
-                    title="Ir para o final"
+                    title="Ir para a última mensagem"
                   >
-                    Novas mensagens ({pendingNewCount}) ↓
+                    Novas mensagens{pendingNewCount > 0 ? ` (+${pendingNewCount})` : ''} ↓
                   </button>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
@@ -2277,7 +2336,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Criado Em</div>
-                    <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? new Date(profileModalUser.created_at).toLocaleString() : '-'}</div>
+                    <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? formatDateTimeSP(profileModalUser.created_at) : '-'}</div>
                   </div>
                 </div>
               )}
@@ -2585,7 +2644,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         {m.sender?.nome || 'Usuário'}
                       </div>
                       <div className="text-[10px] text-[var(--text-muted)] shrink-0">
-                        {m.created_at ? new Date(m.created_at).toLocaleString() : ''}
+                        {m.created_at ? formatDateTimeSP(m.created_at) : ''}
                       </div>
                     </div>
                     <div className="text-xs text-[var(--text-soft)] truncate mt-1">

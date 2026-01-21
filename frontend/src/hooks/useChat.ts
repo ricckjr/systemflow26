@@ -17,6 +17,30 @@ export function useChat() {
   const activeRoomReceiptUnsubscribe = useRef<(() => void) | null>(null);
   const activeRoomUpdateUnsubscribe = useRef<(() => void) | null>(null);
   const messagesCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
+  const roomListUnsubscribeByRoomId = useRef<Map<string, () => void>>(new Map())
+
+  const sortRoomsByRecency = useCallback((next: ChatRoom[]) => {
+    return [...next].sort((a, b) => {
+      const aRef = a.last_message_at || a.last_message?.created_at || a.updated_at || a.created_at
+      const bRef = b.last_message_at || b.last_message?.created_at || b.updated_at || b.created_at
+      return new Date(bRef ?? 0).getTime() - new Date(aRef ?? 0).getTime()
+    })
+  }, [])
+
+  const upsertRoomLastMessage = useCallback((roomId: string, msg: ChatMessage) => {
+    setRooms((prev) => {
+      const idx = prev.findIndex((r) => r.id === roomId)
+      if (idx < 0) return prev
+      const next = [...prev]
+      const current = next[idx]
+      next[idx] = {
+        ...current,
+        last_message: msg,
+        last_message_at: msg.created_at,
+      }
+      return sortRoomsByRecency(next)
+    })
+  }, [sortRoomsByRecency])
 
   // Initial load of rooms
   useEffect(() => {
@@ -41,6 +65,45 @@ export function useChat() {
     // For now, we'll just reload rooms on new message event in the list view context
     // Ideally, we'd listen to 'chat_rooms' updates or 'chat_messages' inserts globally
   }, [profile?.id]);
+
+  useEffect(() => {
+    if (!profile?.id) return
+    const desired = new Set(
+      rooms
+        .map((r) => r.id)
+        .filter(Boolean)
+        .filter((id) => id !== activeRoomId)
+    )
+
+    const subs = roomListUnsubscribeByRoomId.current
+    for (const [roomId, unsubscribe] of subs.entries()) {
+      if (desired.has(roomId)) continue
+      try {
+        unsubscribe()
+      } catch {}
+      subs.delete(roomId)
+    }
+
+    for (const roomId of desired.values()) {
+      if (subs.has(roomId)) continue
+      const unsubscribe = chatService.subscribeToNewMessages(roomId, (msg) => {
+        upsertRoomLastMessage(roomId, msg)
+      })
+      subs.set(roomId, unsubscribe)
+    }
+  }, [activeRoomId, profile?.id, rooms, upsertRoomLastMessage])
+
+  useEffect(() => {
+    return () => {
+      const subs = roomListUnsubscribeByRoomId.current
+      for (const unsubscribe of subs.values()) {
+        try {
+          unsubscribe()
+        } catch {}
+      }
+      subs.clear()
+    }
+  }, [])
 
   // Load messages when active room changes
   useEffect(() => {
@@ -105,6 +168,7 @@ export function useChat() {
           if (prev.some((m) => m.id === enrichedMessage.id)) return prev
           return [...prev, enrichedMessage]
         })
+        upsertRoomLastMessage(activeRoomId, enrichedMessage)
 
         try {
           await chatService.markAsRead(activeRoomId)
@@ -207,7 +271,7 @@ export function useChat() {
       }
     };
     // CRITICAL FIX: Removed 'rooms' dependency to prevent re-fetching messages/re-subscribing when room list updates
-  }, [activeRoomId]);
+  }, [activeRoomId, profile?.id, upsertRoomLastMessage]);
 
   useEffect(() => {
     if (!activeRoomId) return

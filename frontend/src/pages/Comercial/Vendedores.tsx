@@ -184,10 +184,28 @@ const Vendedores: React.FC = () => {
 
     // Transform to array
     const sellerArray: SellerStats[] = Object.entries(sellerMap).map(([name, data]) => {
+      const parsePercent = (raw?: string | null) => {
+        const s = (raw || '').toString().trim();
+        if (!s) return 0;
+        const n = parseFloat(s.replace('%', '').replace(',', '.'));
+        if (!Number.isFinite(n)) return 0;
+        const normalized = n <= 1 ? n * 100 : n;
+        return Math.max(0, Math.min(100, normalized));
+      };
+
       const perf = vendedoresPerformanceByName.get(name.trim().toLowerCase()) || null;
-      const taxaConversao = data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0;
-      const ticketMedio = data.countVendas > 0 ? data.totalVendas / data.countVendas : 0;
-      const pctMeta = (data.totalVendas / META_INDIVIDUAL) * 100;
+      const metaFromPerf = perf ? parseValorProposta(perf.meta_financeira_total_mes) : 0;
+      const meta = metaFromPerf > 0 ? metaFromPerf : META_INDIVIDUAL;
+
+      const totalVendas = perf ? parseValorProposta(perf.valor_vendido) : data.totalVendas;
+      const totalOportunidades = perf ? perf.total_quantidade_oportunidades : data.totalOps;
+      const ligacoesFeitas = perf ? perf.ligacoes_feitas : data.ligacoesFeitas;
+
+      const taxaConversao = perf ? parsePercent(perf.taxa_conversao_real) : (data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0);
+      const ticketMedio = perf ? parseValorProposta(perf.ticket_medio) : (data.countVendas > 0 ? data.totalVendas / data.countVendas : 0);
+
+      const pctMetaFromPerf = perf ? parsePercent(perf.progresso_meta_mensal || perf.percentual_meta_financeira) : 0;
+      const pctMeta = pctMetaFromPerf > 0 ? pctMetaFromPerf : ((totalVendas / meta) * 100);
 
       // Calculate Trend
       let trendVendas = 0;
@@ -208,16 +226,16 @@ const Vendedores: React.FC = () => {
 
       return {
         name,
-        totalVendas: data.totalVendas,
-        totalOportunidades: data.totalOps,
+        totalVendas,
+        totalOportunidades,
         taxaConversao,
         ticketMedio,
-        meta: META_INDIVIDUAL,
+        meta,
         pctMeta,
         ranking: 0, // Will sort next
         vendasPorDia,
         historico: data.ops,
-        ligacoesFeitas: data.ligacoesFeitas,
+        ligacoesFeitas,
         ligacoesNaoAtendidas: data.ligacoesNaoAtendidas,
         trendVendas,
         avatarUrl: perf?.avatar_url ?? null,

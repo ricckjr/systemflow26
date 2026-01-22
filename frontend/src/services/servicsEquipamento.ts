@@ -190,6 +190,42 @@ export async function updateServicEquipamentoCertificadoCalibracao(id: string, n
   return data as ServicEquipamento
 }
 
+export async function updateServicEquipamentoDetalhes(
+  id: string,
+  updates: Partial<
+    Pick<
+      ServicEquipamento,
+      | 'modelo'
+      | 'fabricante'
+      | 'numero_serie'
+      | 'tag'
+      | 'faixa'
+      | 'garantia'
+      | 'numero_nf'
+      | 'numero_pedido'
+      | 'observacoes_equipamento'
+      | 'numero_certificado'
+      | 'data_calibracao'
+      | 'responsavel'
+    >
+  > & {
+    numero_serie2?: string | null
+  }
+): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
 export async function updateServicEquipamentoImagens(id: string, imagens: string[] | null): Promise<ServicEquipamento> {
   const { data, error } = await supabase
     .from('servics_equipamento')

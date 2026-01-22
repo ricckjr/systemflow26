@@ -20,7 +20,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   const isTvMode = useMemo(() => new URLSearchParams(location.search).get('tv') === '1', [location.search]);
   const isFullBleed = useMemo(() => {
     if (isTvMode) return false
-    return location.pathname.startsWith('/app/producao/omie')
+    return location.pathname.startsWith('/app/producao/servicos-vendas') || location.pathname.startsWith('/app/producao/omie')
   }, [isTvMode, location.pathname])
 
   // Safe default profile (visual only – não altera lógica)

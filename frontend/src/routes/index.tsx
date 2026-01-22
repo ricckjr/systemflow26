@@ -22,7 +22,7 @@ const IAFlow = lazy(() => import('@/pages/Comunicacao/IAFlow'))
 const Usuarios = lazy(() => import('@/pages/Configuracoes/Usuarios'))
 const Permissoes = lazy(() => import('@/pages/Configuracoes/Permissoes'))
 const Perfil = lazy(() => import('@/pages/Configuracoes/Perfil'))
-const OmieKanban = lazy(() => import('@/pages/Producao/OmieKanban'))
+const ServicosVendas = lazy(() => import('@/pages/Producao/OmieKanban'))
 const Servicos = lazy(() => import('@/pages/Producao/Servicos'))
 const Equipamentos = lazy(() => import('@/pages/Producao/Equipamentos'))
 
@@ -75,7 +75,8 @@ export const router = createBrowserRouter([
       { path: 'comunicacao/flowsmart', element: lazyPage(<FlowSmart />, 'Carregando FlowSmart...') },
       { path: 'comunicacao/ia', element: lazyPage(<IAFlow />, 'Carregando IA...') },
 
-      { path: 'producao/omie', element: lazyPage(<OmieKanban />, 'Carregando Kanban OMIE...') },
+      { path: 'producao/omie', element: <Navigate to="/app/producao/servicos-vendas" replace /> },
+      { path: 'producao/servicos-vendas', element: lazyPage(<ServicosVendas />, 'Carregando Serviços/Vendas...') },
       { path: 'producao/servicos', element: lazyPage(<Servicos />, 'Carregando Serviços...') },
       { path: 'producao/equipamentos', element: lazyPage(<Equipamentos />, 'Carregando Equipamentos...') },
 

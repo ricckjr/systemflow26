@@ -79,9 +79,15 @@ export interface ServicEquipamento {
   modelo?: string | null;
   fabricante?: string | null;
   numero_serie?: string | null;
+  numero_serie2?: string | null;
   tag?: string | null;
   garantia: boolean;
   faixa?: string | null;
+  relatorio_tecnico?: string | null;
+  anexos?: unknown | null;
+  vendedor?: string | null;
+  email_vendedor?: string | null;
+  empresa_correspondente?: string | null;
   observacoes_equipamento?: string | null;
   imagens?: string[] | null;
   testes_realizados?: string | null;

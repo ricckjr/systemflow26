@@ -1000,11 +1000,14 @@ export interface Database {
           modelo: string | null
           fabricante: string | null
           numero_serie: string | null
+          numero_serie2: string | null
           tag: string | null
           garantia: boolean
           faixa: string | null
           observacoes_equipamento: string | null
           imagens: string[] | null // Stored as jsonb
+          relatorio_tecnico: string | null
+          anexos: unknown | null
           testes_realizados: string | null
           servicos_a_fazer: string | null
           numero_certificado: string | null
@@ -1017,6 +1020,9 @@ export interface Database {
           numero_nf: string | null
           numero_pedido: string | null
           etapa_omie: string | null
+          vendedor: string | null
+          email_vendedor: string | null
+          empresa_correspondente: string | null
           created_at: string
           updated_at: string
         }
@@ -1032,11 +1038,14 @@ export interface Database {
           modelo?: string | null
           fabricante?: string | null
           numero_serie?: string | null
+          numero_serie2?: string | null
           tag?: string | null
           garantia?: boolean
           faixa?: string | null
           observacoes_equipamento?: string | null
           imagens?: string[] | null
+          relatorio_tecnico?: string | null
+          anexos?: unknown | null
           testes_realizados?: string | null
           servicos_a_fazer?: string | null
           numero_certificado?: string | null
@@ -1047,6 +1056,9 @@ export interface Database {
           responsavel?: string | null
           solucao?: string | null
           etapa_omie?: string | null
+          vendedor?: string | null
+          email_vendedor?: string | null
+          empresa_correspondente?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1062,11 +1074,14 @@ export interface Database {
           modelo?: string | null
           fabricante?: string | null
           numero_serie?: string | null
+          numero_serie2?: string | null
           tag?: string | null
           garantia?: boolean
           faixa?: string | null
           observacoes_equipamento?: string | null
           imagens?: string[] | null
+          relatorio_tecnico?: string | null
+          anexos?: unknown | null
           testes_realizados?: string | null
           servicos_a_fazer?: string | null
           numero_certificado?: string | null
@@ -1077,6 +1092,9 @@ export interface Database {
           responsavel?: string | null
           solucao?: string | null
           etapa_omie?: string | null
+          vendedor?: string | null
+          email_vendedor?: string | null
+          empresa_correspondente?: string | null
           created_at?: string
           updated_at?: string
         }

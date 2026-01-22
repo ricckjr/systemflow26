@@ -4,6 +4,8 @@ import { supabase } from '@/services/supabase'
 export interface UsuarioSimples {
   id: string
   nome: string
+  email_login?: string | null
+  email_corporativo?: string | null
   cargo: string | null
   avatar_url: string | null
 }
@@ -17,7 +19,7 @@ export function useUsuarios() {
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('id, nome, cargo, avatar_url')
+          .select('id, nome, email_login, email_corporativo, cargo, avatar_url')
           .eq('ativo', true)
           .order('nome')
         

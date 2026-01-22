@@ -53,7 +53,7 @@ import {
 } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Modal } from '@/components/ui';
+import { HorizontalScrollArea, Modal } from '@/components/ui';
 
 const priorities = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
 
@@ -1113,7 +1113,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         </div>
       ) : (
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-scroll overflow-y-hidden pb-4 px-4 md:px-0 taskflow-kanban-scroll">
+          <HorizontalScrollArea className="flex-1 overflow-x-scroll overflow-y-hidden pb-4 px-4 md:px-0 taskflow-kanban-scroll">
             <div className="flex h-full gap-5 min-w-[1200px]">
               {columns.map(col => {
                 const theme = getColumnTheme(col.name);
@@ -1259,7 +1259,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                 );
               })}
             </div>
-          </div>
+          </HorizontalScrollArea>
         </DragDropContext>
       )}
 

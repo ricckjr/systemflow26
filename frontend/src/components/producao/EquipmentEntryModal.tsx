@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
-import { Loader2, Upload, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Upload, Wrench, X } from 'lucide-react'
 
 interface EquipmentEntryModalProps {
   isOpen: boolean
@@ -20,6 +20,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
   const { addService, uploadImage } = useServicsEquipamento()
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   
   const [formData, setFormData] = useState<Partial<ServicEquipamento>>({
     cod_proposta: '',
@@ -31,6 +32,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     modelo: '',
     fabricante: '',
     numero_serie: '',
+    numero_serie2: '',
     tag: '',
     garantia: false,
     faixa: '',
@@ -63,6 +65,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return
+    setErrorMessage(null)
     setUploading(true)
     try {
       const files = Array.from(e.target.files)
@@ -73,7 +76,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       }))
     } catch (error) {
       console.error('Erro ao fazer upload', error)
-      alert('Erro ao fazer upload da imagem')
+      setErrorMessage('Erro ao fazer upload da imagem.')
     } finally {
       setUploading(false)
     }
@@ -89,6 +92,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setErrorMessage(null)
     try {
       // Clean payload construction with type safety
       const basePayload = {
@@ -108,8 +112,6 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
           ;(cleanPayload as any)[key] = value
         }
       }
-
-      console.log('Enviando payload:', cleanPayload) // Debug
       
       // Validation
       if (!cleanPayload.cliente || !cleanPayload.cod_proposta) {
@@ -122,157 +124,178 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       onClose()
     } catch (error: any) {
       console.error(error)
-      alert(error.message || 'Erro ao criar registro de equipamento')
+      setErrorMessage(error.message || 'Erro ao criar registro de equipamento')
     } finally {
       setLoading(false)
     }
   }
 
+  const inputBase =
+    'w-full h-9 px-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors'
+  const textareaBase =
+    'w-full p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors resize-none'
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Entrada de Equipamento"
+      title={
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
+            <Wrench size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Entrada de Equipamento</div>
+            <div className="text-base font-bold text-[var(--text-main)] truncate">
+              {formData.cod_proposta ? `Proposta ${formData.cod_proposta}` : 'Nova entrada'}
+            </div>
+            {!!formData.cliente && <div className="text-xs text-[var(--text-muted)] truncate">{formData.cliente}</div>}
+          </div>
+        </div>
+      }
       size="2xl"
       zIndex={1050}
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            form="equipment-entry-form"
+            type="submit"
+            disabled={loading || uploading}
+            className="px-5 py-2 rounded-lg bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            {loading && <Loader2 className="animate-spin" size={16} />}
+            Confirmar entrada
+          </button>
+        </>
+      }
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* New Fields - NF and Order */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número NF</label>
-            <input 
-              name="numero_nf"
-              value={formData.numero_nf || ''}
-              onChange={handleChange}
-              placeholder="Ex: 12345"
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
+      <form id="equipment-entry-form" onSubmit={handleSubmit} className="space-y-5">
+        {errorMessage && (
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span className="leading-relaxed">{errorMessage}</span>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número Pedido</label>
-            <input 
-              name="numero_pedido"
-              value={formData.numero_pedido || ''}
-              onChange={handleChange}
-              placeholder="Ex: PED-001"
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
+        )}
 
-          {/* New Fields - ID RST removed as requested */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">TAG</label>
-            <input 
-              name="tag"
-              value={formData.tag || ''}
-              onChange={handleChange}
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Fabricante</label>
-            <input 
-              name="fabricante"
-              value={formData.fabricante || ''}
-              onChange={handleChange}
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Modelo</label>
-            <input 
-              name="modelo"
-              value={formData.modelo || ''}
-              onChange={handleChange}
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Série</label>
-            <input 
-              name="numero_serie"
-              value={formData.numero_serie || ''}
-              onChange={handleChange}
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Faixa</label>
-            <input 
-              name="faixa"
-              value={formData.faixa || ''}
-              onChange={handleChange}
-              className="w-full h-10 px-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-            />
-          </div>
-
-           <div className="space-y-1 md:col-span-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input 
-                type="checkbox"
-                name="garantia"
-                checked={formData.garantia || false}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+          <div className="text-xs font-bold text-[var(--text-main)] mb-3">Identificação</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número NF</label>
+              <input
+                name="numero_nf"
+                value={formData.numero_nf || ''}
                 onChange={handleChange}
-                className="w-4 h-4 rounded border-[var(--border)] bg-[var(--bg-panel)] text-[var(--primary)] focus:ring-[var(--primary)]"
+                placeholder="Ex: 12345"
+                className={inputBase}
               />
-              <span className="text-sm font-medium text-[var(--text-main)]">Garantia</span>
-            </label>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número Pedido</label>
+              <input
+                name="numero_pedido"
+                value={formData.numero_pedido || ''}
+                onChange={handleChange}
+                placeholder="Ex: PED-001"
+                className={inputBase}
+              />
+            </div>
           </div>
+        </div>
 
-          <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Observações (Análise Visual)</label>
-            <textarea 
-              name="observacoes_equipamento"
-              value={formData.observacoes_equipamento || ''}
-              onChange={handleChange}
-              rows={3}
-              className="w-full p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
-            />
-          </div>
-
-          <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block">Imagens</label>
-            <div className="flex flex-wrap gap-3">
-              {formData.imagens?.map((url, i) => (
-                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[var(--border)] group">
-                  <img src={url} alt={`img-${i}`} className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-              <label className="w-20 h-20 rounded-lg border border-dashed border-[var(--border)] flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--bg-main)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-main)]">
-                {uploading ? <Loader2 className="animate-spin" size={20} /> : <Upload size={20} />}
-                <span className="text-[10px] mt-1">Upload</span>
-                <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+          <div className="text-xs font-bold text-[var(--text-main)] mb-3">Dados do equipamento</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">TAG</label>
+              <input name="tag" value={formData.tag || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Fabricante</label>
+              <input name="fabricante" value={formData.fabricante || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Modelo</label>
+              <input name="modelo" value={formData.modelo || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 1</label>
+              <input name="numero_serie" value={formData.numero_serie || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 2</label>
+              <input name="numero_serie2" value={formData.numero_serie2 || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Faixa</label>
+              <input name="faixa" value={formData.faixa || ''} onChange={handleChange} className={inputBase} />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  name="garantia"
+                  checked={formData.garantia || false}
+                  onChange={handleChange}
+                  className="w-4 h-4 rounded border-[var(--border)] bg-[var(--bg-main)] text-[var(--primary)] focus:ring-[var(--primary)]/30"
+                />
+                <span className="text-sm font-semibold text-[var(--text-main)]">Garantia</span>
               </label>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-[var(--border)]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={loading || uploading}
-            className="px-6 py-2 rounded-xl bg-[var(--primary)] text-white font-medium hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading && <Loader2 className="animate-spin" size={16} />}
-            Confirmar Entrada
-          </button>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+          <div className="text-xs font-bold text-[var(--text-main)] mb-3">Análise visual</div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Observações</label>
+            <textarea
+              name="observacoes_equipamento"
+              value={formData.observacoes_equipamento || ''}
+              onChange={handleChange}
+              rows={3}
+              placeholder="Ex: riscos, amassados, acessórios faltantes..."
+              className={textareaBase}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="text-xs font-bold text-[var(--text-main)]">Imagens</div>
+            <label className="inline-flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:border-[var(--primary)]/30 hover:bg-[var(--bg-body)] transition-colors cursor-pointer">
+              {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+              <span className="text-xs font-bold">Adicionar</span>
+              <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+            </label>
+          </div>
+
+          {formData.imagens?.length ? (
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+              {formData.imagens.map((url, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[var(--border)] group bg-[var(--bg-main)]">
+                  <img src={url} alt={`img-${i}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remover imagem"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-[var(--text-muted)]">Nenhuma imagem adicionada.</div>
+          )}
         </div>
       </form>
     </Modal>

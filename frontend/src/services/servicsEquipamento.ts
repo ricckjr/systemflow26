@@ -40,7 +40,18 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    const code = (error as any)?.code as string | undefined
+    const message = (error as any)?.message as string | undefined
+    if (code === 'PGRST204' && message?.toLowerCase().includes('schema cache')) {
+      throw new Error(
+        `Seu Supabase ainda não reconhece uma ou mais colunas enviadas (schema cache desatualizado). ` +
+          `Aplique a migration mais recente em public.servics_equipamento e recarregue o schema do PostgREST (ou aguarde alguns minutos). ` +
+          `Detalhe: ${message}`
+      )
+    }
+    throw error
+  }
   return data as ServicEquipamento
 }
 

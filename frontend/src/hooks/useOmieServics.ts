@@ -22,7 +22,7 @@ export function useOmieServics(): UseOmieServicsResult {
       const data = await fetchOmieServics()
       setItems(data)
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Erro ao carregar dados do OMIE'
+      const message = e instanceof Error ? e.message : 'Erro ao carregar dados de Serviços/Vendas'
       setError(message)
     } finally {
       setLoading(false)

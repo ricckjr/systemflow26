@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { api } from '@/services/api'
 import { Profile, Cargo } from '@/types'
 import { CARGO_OPTIONS } from '@/constants/cargo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { HorizontalScrollArea } from '@/components/ui'
 import {
   UserPlus,
   ToggleLeft,
@@ -34,8 +35,9 @@ interface UsuariosProps {
 }
 
 export default function Usuarios({ profile: propProfile }: UsuariosProps) {
-  const { profile: authProfile, loading: authLoading } = useAuth()
+  const { profile: authProfile, authReady, profileReady } = useAuth()
   const profile = propProfile || authProfile
+  const authLoading = !authReady || !profileReady
 
   const [usuarios, setUsuarios] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
@@ -266,7 +268,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <HorizontalScrollArea className="overflow-x-scroll touch-pan-y">
             <table className="w-full">
             <thead className="bg-industrial-bg/80 text-industrial-text-secondary text-xs uppercase tracking-wider font-semibold">
                 <tr>
@@ -367,7 +369,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                 )}
             </tbody>
             </table>
-        </div>
+        </HorizontalScrollArea>
       </div>
 
       {/* Modal de Criação/Edição */}

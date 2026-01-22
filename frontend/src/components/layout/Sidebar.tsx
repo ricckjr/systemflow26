@@ -60,7 +60,7 @@ const navItems: NavItem[] = [
     icon: Factory,
     modulo: 'producao',
     subItems: [
-      { label: 'OMIE', path: '/app/producao/omie', submodulo: 'omie' },
+      { label: 'Serviços/Vendas', path: '/app/producao/servicos-vendas', submodulo: 'omie' },
       { label: 'Serviços', path: '/app/producao/servicos', submodulo: 'servicos' },
       { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
     ],

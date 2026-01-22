@@ -12,9 +12,16 @@ if (!rawUrl || !rawAnonKey) {
   throw new Error('[Supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY')
 }
 
-const supabaseUrl = rawUrl.trim().replace(/\/+$/, '')
+const supabaseRemoteUrl = rawUrl.trim().replace(/\/+$/, '')
 const supabaseAnonKey = rawAnonKey.trim()
 const SUPABASE_AUTH_STORAGE_KEY = 'systemflow-auth-token'
+const useDevProxy =
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '1') !== '0' &&
+  typeof window !== 'undefined' &&
+  !!window.location?.origin
+
+const supabaseUrl = useDevProxy ? window.location.origin : supabaseRemoteUrl
 
 function clearSupabaseAuthStorage() {
   try {
@@ -90,6 +97,7 @@ if (import.meta.env.DEV) {
     logInfo('supabase', 'client initialized', {
       url: supabaseUrl,
       anonKey: maskedKey,
+      devProxy: useDevProxy,
     })
   } catch {
     logWarn('supabase', 'failed to log initialization')

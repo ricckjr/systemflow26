@@ -37,24 +37,20 @@ export async function checkSupabaseReachable(
   }
 
   try {
-    // Usa endpoint LEVE e rápido
+    // Usa endpoint LEVE e rápido (evita preflight CORS)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
 
-    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=none`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: 'public-anon-check'
-      },
-      body: '{}',
-      signal: controller.signal
+    const res = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
     })
 
     clearTimeout(timeout)
 
-    // Mesmo 401/400 significa que respondeu
-    lastStatus = res.ok || res.status === 400 || res.status === 401
+    // Mesmo 401 significa que respondeu (servidor acessível)
+    lastStatus = res.ok || res.status === 401 || res.status === 403 || res.status === 404
     return lastStatus
   } catch {
     lastStatus = false

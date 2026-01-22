@@ -6,11 +6,25 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig(({ mode }) => {
     const envDir = path.resolve(__dirname, '..');
     const env = loadEnv(mode, envDir, '');
+    const supabaseTarget = (env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+    const enableSupabaseDevProxy =
+      mode === 'development' &&
+      !!supabaseTarget &&
+      String(env.VITE_SUPABASE_DEV_PROXY || '1') !== '0';
+
     return {
       envDir,
       server: {
         port: 3000,
         host: '0.0.0.0',
+        cors: enableSupabaseDevProxy
+          ? {
+              origin: true,
+              methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+              allowedHeaders: ['authorization', 'apikey', 'content-type', 'x-client-info'],
+              exposedHeaders: ['content-range', 'content-location'],
+            }
+          : true,
         headers: {
           'Cache-Control': 'no-store',
           'Pragma': 'no-cache',
@@ -20,6 +34,36 @@ export default defineConfig(({ mode }) => {
           overlay: true,
           timeout: 600000,
         },
+        proxy: enableSupabaseDevProxy
+          ? {
+              '/rest/v1': {
+                target: supabaseTarget,
+                changeOrigin: true,
+                secure: false,
+              },
+              '/auth/v1': {
+                target: supabaseTarget,
+                changeOrigin: true,
+                secure: false,
+              },
+              '/storage/v1': {
+                target: supabaseTarget,
+                changeOrigin: true,
+                secure: false,
+              },
+              '/functions/v1': {
+                target: supabaseTarget,
+                changeOrigin: true,
+                secure: false,
+              },
+              '/realtime/v1': {
+                target: supabaseTarget,
+                changeOrigin: true,
+                secure: false,
+                ws: true,
+              },
+            }
+          : undefined,
       },
       optimizeDeps: {
         include: ['react', 'react-dom'],

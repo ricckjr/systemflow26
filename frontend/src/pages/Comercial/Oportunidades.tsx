@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/services/supabase'
-import { checkSupabaseConnectivity, checkTableAccess } from '@/services/diagnostics'
-import { logInfo } from '@/utils/logger'
 import { CRM_Oportunidade } from '@/services/crm'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
 import { useOportunidades, useInvalidateCRM } from '@/hooks/useCRM'
+import { useUsuarios } from '@/hooks/useUsuarios'
 import {
   Search,
   RefreshCw,
@@ -59,10 +58,23 @@ const Oportunidades: React.FC = () => {
      }
   }
 
+  const clearFilters = () => {
+    setSearch('')
+    setDebouncedSearch('')
+    setVendedor('all')
+    setStatus('all')
+    setEtapa('all')
+    setMonth('all')
+    setYear('all')
+    setSortColumn(null)
+    setSortDirection('asc')
+  }
+
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [vendedor, setVendedor] = useState('all')
   const [status, setStatus] = useState('all')
+  const [etapa, setEtapa] = useState('all')
   const [month, setMonth] = useState('all')
   const [year, setYear] = useState('all')
 
@@ -74,17 +86,19 @@ const Oportunidades: React.FC = () => {
   const [nota, setNota] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const { usuarios } = useUsuarios()
+
+  const normalize = (value: string) =>
+    (value || '')
+      .toString()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+
   /* ===========================
      INIT
   ============================ */
-  useEffect(() => {
-    void (async () => {
-      await checkSupabaseConnectivity()
-      await checkTableAccess('crm_oportunidades')
-      // No need to fetch manually, React Query handles it
-    })()
-  }, [])
-
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250)
     return () => clearTimeout(t)
@@ -100,20 +114,30 @@ const Oportunidades: React.FC = () => {
     [lista]
   )
 
+  const etapas = useMemo(
+    () => Array.from(new Set(lista.map(l => l.etapa).filter(Boolean))),
+    [lista]
+  )
+
   /* ===========================
      FILTROS
   ============================ */
   const filtrados = useMemo(() => {
     return lista.filter(op => {
-      const s = debouncedSearch.toLowerCase()
+      const q = normalize(debouncedSearch)
 
       const matchSearch =
-        (op.cliente || '').toLowerCase().includes(s) ||
-        (op.solucao || '').toLowerCase().includes(s)
+        !q ||
+        normalize(op.cliente || '').includes(q) ||
+        normalize(op.cod_oportunidade || '').includes(q) ||
+        normalize(op.id_oportunidade || '').includes(q) ||
+        normalize(op.solucao || '').includes(q) ||
+        normalize(op.vendedor || '').includes(q)
 
       const matchVendedor = vendedor === 'all' || op.vendedor === vendedor
 
       const matchStatus = status === 'all' || op.status === status
+      const matchEtapa = etapa === 'all' || op.etapa === etapa
 
       let matchDate = true
       if (month !== 'all' && year !== 'all') {
@@ -134,9 +158,9 @@ const Oportunidades: React.FC = () => {
          }
       }
 
-      return matchSearch && matchVendedor && matchDate && matchStatus
+      return matchSearch && matchVendedor && matchEtapa && matchDate && matchStatus
     })
-  }, [lista, debouncedSearch, vendedor, month, year, status])
+  }, [lista, debouncedSearch, vendedor, etapa, month, year, status])
 
   const sortedList = useMemo(() => {
     if (!sortColumn) return filtrados
@@ -198,13 +222,47 @@ const Oportunidades: React.FC = () => {
   /* ===========================
      HELPERS UI
   ============================ */
-  const getStatusColor = (status: string) => {
-    const s = (status || '').toUpperCase()
-    if (['CONQUISTADO', 'GANHO', 'VENDIDO', 'FATURADO'].includes(s)) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-    if (['PERDIDO', 'CANCELADO'].includes(s)) return 'bg-red-500/20 text-red-400 border-red-500/30'
-    if (['NEGOCIACAO', 'PROPOSTA'].includes(s)) return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-    if (['APRESENTACAO', 'QUALIFICACAO'].includes(s)) return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    return 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+  const getStatusBadgeClasses = (raw: string) => {
+    const s = normalize(raw)
+    if (['ATIVO', 'EM ANDAMENTO', 'ANDAMENTO'].includes(s)) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'
+    if (['PERDIDO', 'CANCELADO', 'SUSPENSO'].includes(s)) return 'bg-red-500/15 text-red-300 border-red-500/25'
+    if (['CONQUISTADO', 'GANHO', 'VENDIDO', 'FATURADO'].includes(s)) return 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25'
+    return 'bg-slate-500/15 text-slate-300 border-slate-500/25'
+  }
+
+  const getEtapaBadgeClasses = (raw: string) => {
+    const s = normalize(raw)
+    if (['PROSPECCAO', 'PROSPECCAO/PROSPECTAR', 'PROSPECTAR', 'PROPECCAO'].includes(s)) {
+      return 'bg-amber-800/15 text-amber-300 border-amber-700/25'
+    }
+    if (['QUALIFICACAO'].includes(s)) return 'bg-violet-600/15 text-violet-300 border-violet-500/25'
+    if (['APRESENTACAO', 'APRESENTACAO/DEMO', 'DEMO'].includes(s)) return 'bg-pink-600/15 text-pink-300 border-pink-500/25'
+    if (['PROPOSTA'].includes(s)) return 'bg-sky-600/15 text-sky-300 border-sky-500/25'
+    if (['NEGOCIACAO', 'NEGOCIACAO/FECHAMENTO', 'FECHAMENTO'].includes(s)) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25'
+    if (['CONCLUSAO', 'CONCLUAO'].includes(s)) return 'bg-slate-500/15 text-slate-300 border-slate-500/25'
+    return 'bg-slate-500/15 text-slate-300 border-slate-500/25'
+  }
+
+  const usuariosById = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; avatar_url: string | null }>()
+    for (const u of usuarios) m.set(u.id, u)
+    return m
+  }, [usuarios])
+
+  const usuariosByNome = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; avatar_url: string | null }>()
+    for (const u of usuarios) m.set(normalize(u.nome), u)
+    return m
+  }, [usuarios])
+
+  const getVendedorProfile = (op: CRM_Oportunidade) => {
+    if (op.id_vendedor) {
+      const byId = usuariosById.get(op.id_vendedor)
+      if (byId) return byId
+    }
+    const nome = normalize(op.vendedor || '')
+    if (!nome) return null
+    return usuariosByNome.get(nome) || null
   }
 
   /* ===========================
@@ -251,13 +309,24 @@ const Oportunidades: React.FC = () => {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por cliente, solução..."
-            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] outline-none transition-all shadow-sm"
+            placeholder="Buscar por cliente, cód. oportunidade, vendedor..."
+            className="w-full pl-10 pr-10 py-3 bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl text-sm focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] outline-none transition-all shadow-sm"
           />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+              aria-label="Limpar busca"
+              title="Limpar"
+            >
+              <X size={16} />
+            </button>
+          ) : null}
         </div>
 
         {/* Filter Group */}
-        <div className="md:col-span-7 flex flex-wrap gap-3">
+        <div className="md:col-span-7 flex flex-wrap gap-3 items-stretch">
            <FilterSelect 
              icon={User} 
              value={vendedor} 
@@ -270,6 +339,13 @@ const Oportunidades: React.FC = () => {
              value={status} 
              onChange={setStatus} 
              options={[{ value: 'all', label: 'Todos Status' }, ...statuses.map(s => ({ value: s, label: s || 'N/A' }))]} 
+           />
+
+           <FilterSelect 
+             icon={Briefcase} 
+             value={etapa} 
+             onChange={setEtapa} 
+             options={[{ value: 'all', label: 'Todas Etapas' }, ...etapas.map(e => ({ value: e, label: e || 'N/A' }))]} 
            />
            
            <FilterSelect 
@@ -297,6 +373,15 @@ const Oportunidades: React.FC = () => {
                { value: '2026', label: '2026' }
              ]} 
            />
+
+           <button
+             type="button"
+             onClick={clearFilters}
+             className="px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-sm font-semibold text-[var(--text-main)] hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/30 transition-colors"
+             title="Limpar filtros"
+           >
+             Limpar filtros
+           </button>
         </div>
       </div>
 
@@ -307,7 +392,7 @@ const Oportunidades: React.FC = () => {
             <thead className="bg-[var(--bg-body)] text-[var(--text-muted)] text-xs uppercase tracking-wider sticky top-0 z-10 border-b border-[var(--border)]">
               <tr>
                 <SortableHeader label="Cliente / Oportunidade" column="cliente" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
-                <SortableHeader label="Responsável" column="vendedor" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Vendedor" column="vendedor" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Etapa / Status" column="etapa" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Valor Proposta" column="valor_proposta" currentSort={sortColumn} direction={sortDirection} onSort={handleSort} align="right" />
                 <th className="px-6 py-4 font-semibold text-center">Ações</th>
@@ -337,7 +422,12 @@ const Oportunidades: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                sortedList.map(op => (
+                sortedList.map(op => {
+                  const profile = getVendedorProfile(op)
+                  const avatarUrl = profile?.avatar_url || null
+                  const displayName = profile?.nome || op.vendedor || 'N/A'
+
+                  return (
                   <tr
                     key={op.id_oportunidade}
                     onClick={() => {
@@ -360,23 +450,35 @@ const Oportunidades: React.FC = () => {
                     
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white">
-                          {(op.vendedor || 'U').charAt(0).toUpperCase()}
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={displayName}
+                            className="w-7 h-7 rounded-full object-cover border border-white/10"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] font-bold text-white border border-white/10">
+                            {displayName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-[var(--text-main)] font-medium truncate block">{displayName}</span>
                         </div>
-                        <span className="text-[var(--text-main)]">{op.vendedor || 'N/A'}</span>
                       </div>
                     </td>
 
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1.5 items-start">
                         {op.etapa && (
-                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(op.etapa)}`}>
+                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getEtapaBadgeClasses(op.etapa)}`}>
                             {op.etapa}
                           </span>
                         )}
                         {/* Se o status for diferente da fase, mostra tbm */}
                         {op.status && op.status !== op.etapa && (
-                          <span className="text-[10px] text-[var(--text-muted)] border border-[var(--border)] px-1.5 rounded bg-[var(--bg-body)]">
+                          <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getStatusBadgeClasses(op.status)}`}>
                             {op.status}
                           </span>
                         )}
@@ -395,7 +497,8 @@ const Oportunidades: React.FC = () => {
                        </button>
                     </td>
                   </tr>
-                ))
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -455,11 +558,11 @@ const Oportunidades: React.FC = () => {
                    </div>
                    <p className="text-xs uppercase text-[var(--text-muted)] font-semibold mb-2">Status do Funil</p>
                    <div className="flex flex-wrap gap-2">
-                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${getStatusColor(selected.etapa || '')}`}>
+                     <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${getEtapaBadgeClasses(selected.etapa || '')}`}>
                         {selected.etapa || 'N/A'}
                      </span>
                      {selected.status && selected.status !== selected.etapa && (
-                        <span className="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] text-[var(--text-muted)]">
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase border ${getStatusBadgeClasses(selected.status)}`}>
                           {selected.status}
                         </span>
                      )}
@@ -467,47 +570,60 @@ const Oportunidades: React.FC = () => {
                 </div>
               </div>
 
-              {/* 2. INFORMAÇÕES DETALHADAS */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-[var(--border)]">
                   <FileText size={14} className="text-indigo-400" />
-                  Detalhes do Cliente & Negociação
+                  Resumo
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <DetailItem icon={User} label="Vendedor Responsável" value={selected.vendedor} />
-                  <DetailItem icon={Phone} label="Contato Principal" value={selected.nome_contato} />
-                  <DetailItem icon={Tag} label="Solução Ofertada" value={selected.solucao} />
-                  <DetailItem icon={Globe} label="Origem / Canal" value={selected.origem} />
-                  <DetailItem icon={Thermometer} label="Temperatura" value={selected.temperatura ? `${selected.temperatura}%` : null} />
-                  <DetailItem icon={Clock} label="Dias em Aberto" value={selected.dias_abertos ? `${selected.dias_abertos} dias` : null} />
                   <DetailItem icon={Hash} label="Cód. Oportunidade" value={selected.cod_oportunidade} />
-                  <DetailItem icon={Calendar} label="Data Inclusão" value={parseDate(selected.data_inclusao)?.toLocaleDateString()} />
-                  <DetailItem icon={Calendar} label="Data Atualização" value={parseDate(selected.data)?.toLocaleDateString()} />
+                  <VendedorItem selected={selected} getVendedorProfile={getVendedorProfile} />
+                  <DetailItem icon={Tag} label="Solução" value={selected.solucao} />
+                  <DetailItem icon={Thermometer} label="Temperatura" value={selected.temperatura ? `${selected.temperatura}%` : null} />
+                  <DetailItem icon={Globe} label="Origem" value={selected.origem} />
+                  <DetailItem icon={Briefcase} label="Empresa Correspondente" value={selected.empresa_correspondente} />
                 </div>
               </div>
 
-              {/* 3. DESCRIÇÃO & OBSERVAÇÕES (READ ONLY) */}
-              {(selected.descricao_oportunidade || selected.observacoes_vendedor) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selected.descricao_oportunidade && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-[var(--text-soft)] uppercase">Descrição Inicial</label>
-                      <div className="p-3 rounded-lg bg-[var(--bg-body)] border border-[var(--border)] text-sm text-[var(--text-soft)] min-h-[80px]">
-                        {selected.descricao_oportunidade}
-                      </div>
-                    </div>
-                  )}
-                  {selected.observacoes_vendedor && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-[var(--text-soft)] uppercase">Obs. do Vendedor</label>
-                      <div className="p-3 rounded-lg bg-[var(--bg-body)] border border-[var(--border)] text-sm text-[var(--text-soft)] min-h-[80px]">
-                        {selected.observacoes_vendedor}
-                      </div>
-                    </div>
-                  )}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-[var(--border)]">
+                  <User size={14} className="text-indigo-400" />
+                  Dados Contato
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <DetailItem icon={User} label="Contato Principal" value={selected.nome_contato} />
+                  <DetailItem icon={Phone} label="Telefone 1" value={selected.telefone01_contato} />
+                  <DetailItem icon={Phone} label="Telefone 2" value={selected.telefone02_contato} />
+                  <DetailItem icon={MessageSquare} label="E-mail" value={selected.email} />
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-[var(--border)]">
+                  <Calendar size={14} className="text-indigo-400" />
+                  Datas
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <DetailItem icon={Calendar} label="Data Inclusão" value={parseDate(selected.data_inclusao)?.toLocaleDateString()} />
+                  <DetailItem icon={Calendar} label="Data Atualização" value={parseDate(selected.data)?.toLocaleDateString()} />
+                  <DetailItem icon={Clock} label="Dias em Aberto" value={selected.dias_abertos ? `${selected.dias_abertos} dias` : null} />
+                  <DetailItem icon={Clock} label="Dias Parado" value={selected.dias_parado ? `${selected.dias_parado} dias` : null} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-[var(--border)]">
+                  <FileText size={14} className="text-indigo-400" />
+                  Descrição Inicial
+                </h3>
+
+                <div className="p-4 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm text-[var(--text-soft)] leading-relaxed min-h-[84px]">
+                  {selected.descricao_oportunidade || <span className="text-[var(--text-muted)] italic">N/A</span>}
+                </div>
+              </div>
 
               {/* 4. NOTAS ESTRATÉGICAS (EDITABLE) */}
               <div className="space-y-2 pt-2">
@@ -521,9 +637,6 @@ const Oportunidades: React.FC = () => {
                   className="w-full min-h-[120px] bg-[var(--bg-body)] border border-[var(--border)] rounded-xl p-4 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none resize-none placeholder:text-[var(--text-muted)]/50 transition-all"
                   placeholder="Escreva aqui detalhes importantes sobre a negociação, próximos passos ou observações estratégicas..."
                 />
-                <p className="text-xs text-[var(--text-muted)] text-right">
-                  Essas notas são salvas apenas no sistema e não sobrescrevem as observações do CRM original.
-                </p>
               </div>
             </div>
 
@@ -592,6 +705,42 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, lab
     </div>
   </div>
 )
+
+const VendedorItem = ({
+  selected,
+  getVendedorProfile
+}: {
+  selected: CRM_Oportunidade
+  getVendedorProfile: (op: CRM_Oportunidade) => { id: string; nome: string; avatar_url: string | null } | null
+}) => {
+  const profile = getVendedorProfile(selected)
+  const avatarUrl = profile?.avatar_url || null
+  const displayName = profile?.nome || selected.vendedor || 'N/A'
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border)]/50 bg-[var(--bg-body)]/50 hover:bg-[var(--bg-body)] transition-colors">
+      <div className="p-2 rounded-lg bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-muted)] shrink-0 w-9 h-9 flex items-center justify-center overflow-hidden">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={displayName}
+            className="w-full h-full object-cover rounded-md"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <User size={14} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase text-[var(--text-muted)] font-bold tracking-wider mb-0.5">Vendedor</p>
+        <p className="text-sm font-medium text-[var(--text-main)] truncate block" title={displayName}>
+          {displayName}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 /* ===========================
    SORTABLE HEADER COMPONENT

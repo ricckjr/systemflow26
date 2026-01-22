@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { fetchOportunidades, fetchLigacoes, fetchPabxLigacoes, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
+import { fetchOportunidades, fetchLigacoes, fetchPabxLigacoes, fetchVendedoresPerformance, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
 
 export const CRM_KEYS = {
   all: ['crm'] as const,
   oportunidades: () => [...CRM_KEYS.all, 'oportunidades'] as const,
   ligacoes: () => [...CRM_KEYS.all, 'ligacoes'] as const,
   pabxLigacoes: () => [...CRM_KEYS.all, 'pabxLigacoes'] as const,
+  vendedoresPerformance: (idData?: string) => [...CRM_KEYS.all, 'vendedoresPerformance', idData] as const,
   meta: () => [...CRM_KEYS.all, 'meta'] as const,
 }
 
@@ -34,6 +35,16 @@ export function usePabxLigacoes() {
   return useQuery({
     queryKey: CRM_KEYS.pabxLigacoes(),
     queryFn: fetchPabxLigacoes,
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 5,
+  })
+}
+
+export function useVendedoresPerformance(idData?: string) {
+  return useQuery({
+    queryKey: CRM_KEYS.vendedoresPerformance(idData),
+    queryFn: () => fetchVendedoresPerformance({ idData }),
+    enabled: !!idData,
     staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 5,
   })

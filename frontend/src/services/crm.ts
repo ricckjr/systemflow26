@@ -47,6 +47,63 @@ export interface CRM_PabxLigacao {
   updated_at: string
 }
 
+export interface CRM_VendedorPerformance {
+  id_data: string
+  id_user: string
+  data_atualizacao: string | null
+  ativo: boolean
+  vendedor: string
+  email_corporativo: string | null
+  telefone: string | null
+  ramal: string | null
+  avatar_url: string | null
+  total_quantidade_oportunidades: number
+  total_valor_oportunidades: string
+  quantidade_andamento: number
+  valor_andamento: string
+  quantidade_vendido: number
+  valor_vendido: string
+  quantidade_perdido: number
+  valor_perdido: string
+  quantidade_suspenso: number
+  valor_suspenso: string
+  taxa_conversao_real: string
+  ticket_medio: string
+  novas_meta_total_mes: number
+  novas_meta_feita: number
+  novas_meta_falta: number
+  novas_meta_diaria: number
+  novas_progresso_meta: string
+  ligacoes_total_mes: number
+  ligacoes_feitas: number
+  ligacoes_falta: number
+  ligacoes_diarias: number
+  progresso_ligacoes: string
+  meta_financeira_total_mes: string
+  meta_financeira_feita: string
+  meta_financeira_falta: string
+  meta_financeira_diaria: string
+  percentual_meta_financeira: string
+  progresso_meta_mensal: string
+  valor_produto: string
+  valor_servicos: string
+  pipeline_funil: string | null
+  fase_prospeccao: number
+  fase_qualificacao: number
+  fase_apresentacao: number
+  fase_proposta: number
+  fase_negociacao: number
+  fase_prospeccao_valor: string
+  fase_qualificacao_valor: string
+  fase_apresentacao_valor: string
+  fase_proposta_valor: string
+  fase_negociacao_valor: string
+  dias_uteis_mes: number
+  dias_uteis_restantes: number
+  quantidade_cancelado: number
+  valor_cancelado: string
+}
+
 export interface CRM_Meta {
   id: number
   meta_valor_financeiro: number
@@ -153,6 +210,23 @@ export async function fetchPabxLigacoes() {
   }
 
   return data as CRM_PabxLigacao[]
+}
+
+export async function fetchVendedoresPerformance(opts?: { idData?: string }) {
+  const q = supabase
+    .from('crm_vendedores_performance')
+    .select('*')
+    .order('vendedor', { ascending: true })
+
+  const { data, error } = opts?.idData ? await q.eq('id_data', opts.idData) : await q
+
+  if (error) {
+    if (error.code === '42P01') return []
+    console.error('Erro ao buscar performance de vendedores:', error)
+    return []
+  }
+
+  return data as CRM_VendedorPerformance[]
 }
 
 /* ======================================================

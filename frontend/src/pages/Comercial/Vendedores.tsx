@@ -28,8 +28,8 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { CRM_Oportunidade, isVenda } from '@/services/crm';
-import { useOportunidades, usePabxLigacoes } from '@/hooks/useCRM';
+import { CRM_Oportunidade, CRM_VendedorPerformance, isVenda } from '@/services/crm';
+import { useOportunidades, usePabxLigacoes, useVendedoresPerformance } from '@/hooks/useCRM';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
 import { Modal } from '@/components/ui';
 import { format, isSameMonth, parseISO, parse, subMonths } from 'date-fns';
@@ -52,6 +52,11 @@ interface SellerStats {
   ligacoesFeitas: number;
   ligacoesNaoAtendidas: number;
   trendVendas: number; // New field for MoM trend
+  avatarUrl?: string | null;
+  emailCorporativo?: string | null;
+  telefone?: string | null;
+  ramal?: string | null;
+  performance?: CRM_VendedorPerformance | null;
 }
 
 const Vendedores: React.FC = () => {
@@ -63,13 +68,24 @@ const Vendedores: React.FC = () => {
   const allLigacoes = ligacoesData || [];
 
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const currentMonthStr = useMemo(() => format(selectedMonth, 'MM-yyyy'), [selectedMonth]);
+  const prevMonth = useMemo(() => subMonths(selectedMonth, 1), [selectedMonth]);
+
+  const { data: vendedoresPerformanceData } = useVendedoresPerformance(currentMonthStr);
+  const allVendedoresPerformance = vendedoresPerformanceData || [];
+
+  const vendedoresPerformanceByName = useMemo(() => {
+    const map = new Map<string, CRM_VendedorPerformance>();
+    allVendedoresPerformance.forEach((p) => {
+      const key = (p.vendedor || '').trim().toLowerCase();
+      if (!key) return;
+      if (!map.has(key)) map.set(key, p);
+    });
+    return map;
+  }, [allVendedoresPerformance]);
   // Process data when opportunities or month changes
   const sellers = useMemo(() => {
     // Format selectedMonth to "MM-yyyy" for PABX data matching
-    const currentMonthStr = format(selectedMonth, 'MM-yyyy');
-    const prevMonth = subMonths(selectedMonth, 1);
-
-    // Filter Current Month
     const filteredOps = allOportunidades.filter(op => {
       if (!op.data_inclusao) return false;
       return isSameMonth(parseISO(op.data_inclusao), selectedMonth);
@@ -150,8 +166,25 @@ const Vendedores: React.FC = () => {
       }
     });
 
+    // 3. Ensure sellers from performance table appear even without ops/calls
+    allVendedoresPerformance.forEach((p) => {
+      const sellerName = p.vendedor || 'Não Atribuído';
+      if (!sellerMap[sellerName]) {
+        sellerMap[sellerName] = {
+          totalVendas: 0,
+          prevTotalVendas: 0,
+          countVendas: 0,
+          totalOps: 0,
+          ops: [],
+          ligacoesFeitas: 0,
+          ligacoesNaoAtendidas: 0
+        };
+      }
+    });
+
     // Transform to array
     const sellerArray: SellerStats[] = Object.entries(sellerMap).map(([name, data]) => {
+      const perf = vendedoresPerformanceByName.get(name.trim().toLowerCase()) || null;
       const taxaConversao = data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0;
       const ticketMedio = data.countVendas > 0 ? data.totalVendas / data.countVendas : 0;
       const pctMeta = (data.totalVendas / META_INDIVIDUAL) * 100;
@@ -186,7 +219,12 @@ const Vendedores: React.FC = () => {
         historico: data.ops,
         ligacoesFeitas: data.ligacoesFeitas,
         ligacoesNaoAtendidas: data.ligacoesNaoAtendidas,
-        trendVendas
+        trendVendas,
+        avatarUrl: perf?.avatar_url ?? null,
+        emailCorporativo: perf?.email_corporativo ?? null,
+        telefone: perf?.telefone ?? null,
+        ramal: perf?.ramal ?? null,
+        performance: perf,
       };
     });
 
@@ -196,7 +234,7 @@ const Vendedores: React.FC = () => {
 
     return sellerArray;
 
-  }, [allOportunidades, allLigacoes, selectedMonth]);
+  }, [allOportunidades, allLigacoes, allVendedoresPerformance, vendedoresPerformanceByName, selectedMonth, currentMonthStr, prevMonth]);
 
   const [selectedSeller, setSelectedSeller] = useState<SellerStats | null>(null);
 
@@ -269,10 +307,13 @@ const Vendedores: React.FC = () => {
             {/* Avatar & Name */}
             <div className="flex flex-col items-center text-center mb-6">
               <div className="relative mb-3">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold uppercase border-4 shadow-xl
-                   ${seller.ranking === 1 ? 'border-amber-400 text-amber-500 bg-amber-500/10' : 'border-[var(--bg-body)] text-[var(--primary)] bg-[var(--primary)]/10'}
-                `}>
-                  {seller.name.substring(0, 2)}
+                <div
+                  className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold uppercase border-4 shadow-xl bg-center bg-cover
+                    ${seller.ranking === 1 ? 'border-amber-400 text-amber-500 bg-amber-500/10' : 'border-[var(--bg-body)] text-[var(--primary)] bg-[var(--primary)]/10'}
+                  `}
+                  style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
+                >
+                  {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
                 </div>
                 {seller.ranking === 1 && (
                   <div className="absolute -top-2 -right-2 bg-amber-400 text-white p-1.5 rounded-full shadow-lg animate-bounce">
@@ -326,215 +367,285 @@ const Vendedores: React.FC = () => {
           size="4xl"
           title={
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-bold uppercase shadow-lg shadow-cyan-500/20">
-                {selectedSeller.name.substring(0, 2)}
+              <div
+                className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-black uppercase shadow-lg shadow-cyan-500/20 bg-center bg-cover overflow-hidden"
+                style={selectedSeller.avatarUrl ? { backgroundImage: `url(${selectedSeller.avatarUrl})` } : undefined}
+              >
+                {!selectedSeller.avatarUrl ? selectedSeller.name.substring(0, 2) : null}
               </div>
-              <div>
-                <h3 className="text-lg font-black text-[var(--text-main)]">{selectedSeller.name}</h3>
-                <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-soft)]">
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ativo</span>
-                  <span>•</span>
-                  <span>{format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}</span>
+              <div className="min-w-0">
+                <div className="text-base font-black text-cyan-400">Relatório de Performance Comercial</div>
+                <div className="mt-0.5 text-xs text-[var(--text-soft)] truncate">
+                  {selectedSeller.name}
+                  {selectedSeller.performance?.ramal ? ` • Ramal ${selectedSeller.performance.ramal}` : ''}
+                  {selectedSeller.performance?.email_corporativo ? ` • ${selectedSeller.performance.email_corporativo}` : ''}
                 </div>
+              </div>
+              <div className="ml-auto">
+                <span className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider ${selectedSeller.performance?.ativo === false ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                  {selectedSeller.performance?.ativo === false ? 'Inativo' : 'Ativo'}
+                </span>
               </div>
             </div>
           }
         >
-          <div className="space-y-8">
-              
-              {/* Top KPIs */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <DollarSign size={40} />
-                  </div>
-                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Vendas Totais</p>
-                  <p className="text-2xl font-black text-[var(--text-main)]">{formatCurrency(selectedSeller.totalVendas)}</p>
-                  <div className={`text-[10px] mt-2 font-bold flex items-center gap-1 ${selectedSeller.trendVendas >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    <TrendingUp size={10} className={selectedSeller.trendVendas < 0 ? 'rotate-180' : ''} /> 
-                    {selectedSeller.trendVendas >= 0 ? '+' : ''}{selectedSeller.trendVendas.toFixed(1)}% vs mês anterior
-                  </div>
-                </div>
-
-                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <Target size={40} />
-                  </div>
-                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Atingimento Meta</p>
-                  <p className={`text-2xl font-black ${selectedSeller.pctMeta >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {selectedSeller.pctMeta.toFixed(1)}%
-                  </p>
-                  <div className="w-full bg-[var(--bg-panel)] h-1.5 rounded-full mt-3 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${selectedSeller.pctMeta >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} 
-                      style={{ width: `${Math.min(selectedSeller.pctMeta, 100)}%` }} 
-                    />
-                  </div>
-                </div>
-
-                {/* KPI de Ligações */}
-                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
-                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <Phone size={40} />
-                  </div>
-                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Ligações Realizadas</p>
-                  <p className="text-2xl font-black text-blue-400">{selectedSeller.ligacoesFeitas}</p>
-                  <p className="text-[10px] text-rose-400 mt-2 font-medium flex items-center gap-1">
-                     <PhoneMissed size={10} /> {selectedSeller.ligacoesNaoAtendidas} não atendidas
-                  </p>
-                </div>
-
-                <div className="bg-[var(--bg-body)] p-5 rounded-2xl border border-[var(--border)] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <BarChart2 size={40} />
-                  </div>
-                  <p className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Ticket Médio</p>
-                  <p className="text-2xl font-black text-[var(--text-main)]">{formatCurrency(selectedSeller.ticketMedio)}</p>
-                  <p className="text-[10px] text-[var(--text-soft)] mt-2">
-                    Por venda realizada
-                  </p>
+          <div className="space-y-6">
+            {!selectedSeller.performance ? (
+              <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                <div className="text-sm text-[var(--text-muted)]">
+                  Nenhum registro encontrado em <span className="font-bold">{currentMonthStr}</span> para este vendedor.
                 </div>
               </div>
+            ) : (
+              (() => {
+                const perf = selectedSeller.performance!;
 
-              {/* Charts & Details Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                {/* Detailed Metrics List - FULL WIDTH */}
-                <div className="lg:col-span-3 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6 flex flex-col">
-                  <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
-                    <Target size={16} className="text-amber-400" />
-                    Detalhamento de Performance
-                  </h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Column 1 */}
-                    <div className="space-y-6">
-                        {/* Meta Financeira */}
-                        <div>
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-xs font-medium text-[var(--text-soft)]">Meta Financeira</span>
-                            <span className="text-xs font-bold text-[var(--text-main)]">
-                            {selectedSeller.pctMeta.toFixed(1)}%
-                            </span>
-                        </div>
-                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
-                            <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${selectedSeller.pctMeta >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                            style={{ width: `${Math.min(selectedSeller.pctMeta, 100)}%` }}
-                            />
-                        </div>
-                        <div className="flex justify-between mt-1">
-                            <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(selectedSeller.totalVendas)}</span>
-                            <span className="text-[10px] text-[var(--text-muted)]">Meta: {formatCurrency(selectedSeller.meta)}</span>
-                        </div>
+                const parsePercent = (raw?: string | null) => {
+                  const s = (raw || '').toString().trim();
+                  if (!s) return 0;
+                  const n = parseFloat(s.replace('%', '').replace(',', '.'));
+                  if (!Number.isFinite(n)) return 0;
+                  const normalized = n <= 1 ? n * 100 : n;
+                  return Math.max(0, Math.min(100, normalized));
+                };
+
+                const money = (raw?: string | null) => {
+                  if (!raw) return '-';
+                  const n = parseValorProposta(raw);
+                  return Number.isFinite(n) ? formatCurrency(n) : raw;
+                };
+
+                const progressoMetaMensal = parsePercent(perf.progresso_meta_mensal);
+                const progressoLigacoes = parsePercent(perf.progresso_ligacoes);
+                const progressoNovas = parsePercent(perf.novas_progresso_meta);
+
+                const fases = [
+                  { label: 'Prospecção', color: 'text-blue-400', qtd: perf.fase_prospeccao, val: perf.fase_prospeccao_valor },
+                  { label: 'Qualificação', color: 'text-emerald-400', qtd: perf.fase_qualificacao, val: perf.fase_qualificacao_valor },
+                  { label: 'Apresentação', color: 'text-amber-400', qtd: perf.fase_apresentacao, val: perf.fase_apresentacao_valor },
+                  { label: 'Proposta', color: 'text-purple-400', qtd: perf.fase_proposta, val: perf.fase_proposta_valor },
+                  { label: 'Negociação', color: 'text-rose-400', qtd: perf.fase_negociacao, val: perf.fase_negociacao_valor },
+                ];
+
+                return (
+                  <>
+                    <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                      <div className="px-6 py-5 border-b border-[var(--border)] bg-gradient-to-r from-cyan-500/10 via-blue-500/5 to-transparent">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                              <TrendingUp size={16} />
+                              Indicadores do Pipeline
+                            </div>
+                            <div className="mt-2 text-xs text-[var(--text-soft)]">
+                              {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-[var(--text-soft)]">Progresso da Meta Mensal</div>
+                            <div className="mt-0.5 text-sm font-black text-[var(--text-main)]">
+                              {perf.progresso_meta_mensal || `${progressoMetaMensal.toFixed(0)}%`}
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Conversão */}
-                        <div>
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-xs font-medium text-[var(--text-soft)]">Taxa de Conversão</span>
-                            <span className="text-xs font-bold text-[var(--text-main)]">
-                            {selectedSeller.taxaConversao.toFixed(1)}%
-                            </span>
+                        <div className="mt-3 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border)]">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                            style={{ width: `${progressoMetaMensal}%` }}
+                          />
                         </div>
-                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
-                            <div 
-                            className="h-full rounded-full bg-cyan-500 transition-all duration-1000"
-                            style={{ width: `${Math.min(selectedSeller.taxaConversao * 2, 100)}%` }} // Scale factor for visualization
-                            />
+                      </div>
+
+                      <div className="p-6 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                            <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">Pipeline</div>
+                            <div className="mt-1 text-xl font-black text-rose-400">{perf.pipeline_funil || '-'}</div>
+                          </div>
+                          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                            <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">Ticket Médio</div>
+                            <div className="mt-1 text-xl font-black text-cyan-400">{money(perf.ticket_medio)}</div>
+                          </div>
+                          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                            <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">Vendas</div>
+                            <div className="mt-1 text-xl font-black text-emerald-400">{money(perf.valor_vendido)}</div>
+                          </div>
                         </div>
-                        <p className="text-[10px] text-[var(--text-muted)] mt-1">Baseado em {selectedSeller.totalOportunidades} oportunidades</p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                            <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">Valor em Produto</div>
+                            <div className="mt-1 text-lg font-black text-purple-400">{money(perf.valor_produto)}</div>
+                          </div>
+                          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                            <div className="text-[10px] uppercase font-black tracking-wider text-[var(--text-muted)]">Valor em Serviços</div>
+                            <div className="mt-1 text-lg font-black text-amber-400">{money(perf.valor_servicos)}</div>
+                          </div>
                         </div>
+                      </div>
                     </div>
 
-                    {/* Column 2 */}
-                    <div className="space-y-6">
-                        {/* Ligações Feitas */}
-                        <div>
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-xs font-medium text-[var(--text-soft)]">Ligações Realizadas</span>
-                            <span className="text-xs font-bold text-[var(--text-main)]">
-                            {selectedSeller.ligacoesFeitas} / 1000
-                            </span>
-                        </div>
-                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
-                            <div 
-                            className="h-full rounded-full bg-blue-500 transition-all duration-1000"
-                            style={{ width: `${Math.min((selectedSeller.ligacoesFeitas / 1000) * 100, 100)}%` }}
-                            />
-                        </div>
-                        <p className="text-[10px] text-[var(--text-muted)] mt-1">Meta ref: 1.000 ligações/mês</p>
+                    <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                      <div className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                        <Users size={16} />
+                        KPIs do CRM
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-cyan-400">Em Andamento</div>
+                          <div className="mt-2 text-sm text-[var(--text-soft)]">
+                            Quantidade: <span className="text-[var(--text-main)] font-bold">{perf.quantidade_andamento}</span>
+                          </div>
+                          <div className="text-sm text-[var(--text-soft)]">
+                            Valor: <span className="text-[var(--text-main)] font-bold">{money(perf.valor_andamento)}</span>
+                          </div>
                         </div>
 
-                        {/* Taxa de Atendimento (Invertida) */}
-                        <div>
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-xs font-medium text-[var(--text-soft)]">Eficiência de Contato</span>
-                            <span className="text-xs font-bold text-[var(--text-main)]">
-                            {selectedSeller.ligacoesFeitas > 0 
-                                ? ((1 - (selectedSeller.ligacoesNaoAtendidas / selectedSeller.ligacoesFeitas)) * 100).toFixed(1) 
-                                : 0}%
-                            </span>
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-emerald-400">Vendas</div>
+                          <div className="mt-2 text-sm text-[var(--text-soft)]">
+                            Quantidade: <span className="text-[var(--text-main)] font-bold">{perf.quantidade_vendido}</span>
+                          </div>
+                          <div className="text-sm text-[var(--text-soft)]">
+                            Valor: <span className="text-[var(--text-main)] font-bold">{money(perf.valor_vendido)}</span>
+                          </div>
                         </div>
-                        <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden">
-                            <div 
-                            className="h-full rounded-full bg-purple-500 transition-all duration-1000"
-                            style={{ width: `${selectedSeller.ligacoesFeitas > 0 ? (1 - (selectedSeller.ligacoesNaoAtendidas / selectedSeller.ligacoesFeitas)) * 100 : 0}%` }}
-                            />
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-rose-400">Perdidas</div>
+                          <div className="mt-2 text-sm text-[var(--text-soft)]">
+                            <span className="text-[var(--text-main)] font-bold">{perf.quantidade_perdido}</span> •{' '}
+                            <span className="text-[var(--text-main)] font-bold">{money(perf.valor_perdido)}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between mt-1">
-                            <span className="text-[10px] text-[var(--text-muted)]">Atendidas: {selectedSeller.ligacoesFeitas - selectedSeller.ligacoesNaoAtendidas}</span>
-                            <span className="text-[10px] text-rose-400">Perdidas: {selectedSeller.ligacoesNaoAtendidas}</span>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-amber-400">Suspensas</div>
+                          <div className="mt-2 text-sm text-[var(--text-soft)]">
+                            <span className="text-[var(--text-main)] font-bold">{perf.quantidade_suspenso}</span> •{' '}
+                            <span className="text-[var(--text-main)] font-bold">{money(perf.valor_suspenso)}</span>
+                          </div>
                         </div>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-slate-300">Canceladas</div>
+                          <div className="mt-2 text-sm text-[var(--text-soft)]">
+                            <span className="text-[var(--text-main)] font-bold">{perf.quantidade_cancelado}</span> •{' '}
+                            <span className="text-[var(--text-main)] font-bold">{money(perf.valor_cancelado)}</span>
+                          </div>
                         </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Recent Sales Table (Full Width) */}
-              <div className="mt-8 bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
-                 <h4 className="text-sm font-bold text-[var(--text-main)] mb-6 flex items-center gap-2">
-                    <Star size={16} className="text-yellow-400" />
-                    Histórico de Vendas Recentes
-                 </h4>
-                 <div className="overflow-x-auto">
-                   <table className="w-full text-left border-collapse">
-                     <thead>
-                       <tr className="border-b border-[var(--border)] text-xs uppercase text-[var(--text-muted)]">
-                         <th className="py-3 px-4 font-semibold">Cliente</th>
-                         <th className="py-3 px-4 font-semibold">Data</th>
-                         <th className="py-3 px-4 font-semibold">Produto/Solução</th>
-                         <th className="py-3 px-4 font-semibold text-right">Valor</th>
-                         <th className="py-3 px-4 font-semibold text-center">Status</th>
-                       </tr>
-                     </thead>
-                     <tbody className="text-sm">
-                       {selectedSeller.historico.filter(op => isVenda(op.status)).map((op, idx) => (
-                         <tr key={idx} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-panel)] transition-colors">
-                           <td className="py-3 px-4 text-[var(--text-main)] font-medium">{op.cliente || 'N/A'}</td>
-                           <td className="py-3 px-4 text-[var(--text-soft)]">{op.data_inclusao ? format(parseISO(op.data_inclusao), 'dd/MM/yyyy') : '-'}</td>
-                           <td className="py-3 px-4 text-[var(--text-soft)]">{op.solucao || '-'}</td>
-                           <td className="py-3 px-4 text-[var(--text-main)] font-bold text-right text-emerald-400">{op.valor_proposta}</td>
-                           <td className="py-3 px-4 text-center">
-                             <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                               VENDIDO
-                             </span>
-                           </td>
-                         </tr>
-                       ))}
-                       {selectedSeller.historico.filter(op => isVenda(op.status)).length === 0 && (
-                         <tr>
-                           <td colSpan={5} className="py-8 text-center text-[var(--text-muted)] italic">
-                             Nenhuma venda registrada neste período.
-                           </td>
-                         </tr>
-                       )}
-                     </tbody>
-                   </table>
-                 </div>
-              </div>
-            </div>
+                    <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                      <div className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                        <Target size={16} />
+                        KPIs com Progresso
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-emerald-400">Meta Financeira</div>
+                          <div className="mt-1 text-sm text-[var(--text-soft)]">{money(perf.meta_financeira_feita)}</div>
+                          <div className="mt-3 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border)]">
+                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progressoMetaMensal}%` }} />
+                          </div>
+                          <div className="mt-2 text-[10px] text-[var(--text-muted)] text-right font-bold">
+                            {perf.progresso_meta_mensal || `${progressoMetaMensal.toFixed(0)}%`}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-cyan-400">Ligações Feitas</div>
+                          <div className="mt-1 text-sm text-[var(--text-soft)]">{perf.ligacoes_feitas}</div>
+                          <div className="mt-3 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border)]">
+                            <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${progressoLigacoes}%` }} />
+                          </div>
+                          <div className="mt-2 text-[10px] text-[var(--text-muted)] text-right font-bold">
+                            {perf.progresso_ligacoes || `${progressoLigacoes.toFixed(0)}%`}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+                          <div className="text-xs font-black text-amber-400">Novas Oportunidades</div>
+                          <div className="mt-1 text-sm text-[var(--text-soft)]">{perf.novas_meta_feita}</div>
+                          <div className="mt-3 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border)]">
+                            <div className="h-full bg-amber-400 rounded-full" style={{ width: `${progressoNovas}%` }} />
+                          </div>
+                          <div className="mt-2 text-[10px] text-[var(--text-muted)] text-right font-bold">
+                            {perf.novas_progresso_meta || `${progressoNovas.toFixed(0)}%`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] overflow-hidden">
+                      <div className="px-6 py-5 border-b border-[var(--border)] bg-gradient-to-r from-blue-500/10 via-cyan-500/5 to-transparent">
+                        <div className="text-base font-black text-cyan-400">Metas Diárias</div>
+                        <div className="mt-1 text-xs text-[var(--text-soft)]">Prioridade máxima para execução hoje</div>
+                      </div>
+
+                      <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-5">
+                          <div className="text-xs font-black text-[var(--text-soft)]">Meta Financeira</div>
+                          <div className="mt-2 text-3xl font-black text-emerald-400">{money(perf.meta_financeira_diaria)}</div>
+                          <div className="mt-3 text-xs text-[var(--text-soft)]">
+                            Meta Mensal: <span className="text-[var(--text-main)] font-bold">{money(perf.meta_financeira_total_mes)}</span>
+                            <br />
+                            Falta: <span className="text-rose-400 font-bold">{money(perf.meta_financeira_falta)}</span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-5">
+                          <div className="text-xs font-black text-[var(--text-soft)]">Meta Ligações</div>
+                          <div className="mt-2 text-3xl font-black text-cyan-400">{perf.ligacoes_diarias}</div>
+                          <div className="mt-3 text-xs text-[var(--text-soft)]">
+                            Meta Mensal: <span className="text-[var(--text-main)] font-bold">{perf.ligacoes_total_mes}</span>
+                            <br />
+                            Falta: <span className="text-rose-400 font-bold">{perf.ligacoes_falta}</span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-5">
+                          <div className="text-xs font-black text-[var(--text-soft)]">Novas Oportunidades</div>
+                          <div className="mt-2 text-3xl font-black text-amber-400">{perf.novas_meta_diaria}</div>
+                          <div className="mt-3 text-xs text-[var(--text-soft)]">
+                            Meta Mensal: <span className="text-[var(--text-main)] font-bold">{perf.novas_meta_total_mes}</span>
+                            <br />
+                            Falta: <span className="text-rose-400 font-bold">{perf.novas_meta_falta}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-6">
+                      <div className="text-sm font-black text-cyan-400 flex items-center gap-2">
+                        <BarChart2 size={16} />
+                        Funil de Vendas
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-[var(--border)] overflow-hidden">
+                        <div className="divide-y divide-[var(--border)]">
+                          {fases.map((f) => (
+                            <div key={f.label} className="flex items-center justify-between gap-3 px-4 py-3 bg-[var(--bg-panel)]/30">
+                              <div className={`text-sm font-black ${f.color}`}>{f.label}</div>
+                              <div className="text-sm text-[var(--text-main)] font-bold">
+                                {f.qtd.toLocaleString('pt-BR')} • {money(f.val)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()
+            )}
+          </div>
         </Modal>
       )}
     </div>

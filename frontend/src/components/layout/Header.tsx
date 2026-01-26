@@ -310,9 +310,10 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Status / Notifications / Chat */}
         <div className="flex items-center gap-3 pr-4 border-r border-white/10">
           {/* Supabase Status */}
-          <div 
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10"
-            title={supabaseConnected ? 'Banco de Dados Online' : 'Banco de Dados Offline'}
+          <button 
+            onClick={() => navigate('/app/infra/supabase')}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 hover:border-blue-500/50 hover:bg-blue-500/10 transition-all cursor-pointer"
+            title={supabaseConnected ? 'Monitoramento de Infraestrutura' : 'Banco de Dados Offline'}
           >
              <svg
               viewBox="0 0 24 24"
@@ -325,7 +326,7 @@ export const Header: React.FC<HeaderProps> = ({
                 fill="currentColor"
               />
             </svg>
-          </div>
+          </button>
 
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>

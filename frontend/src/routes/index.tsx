@@ -25,6 +25,7 @@ const Perfil = lazy(() => import('@/pages/Configuracoes/Perfil'))
 const Propostas = lazy(() => import('@/pages/Producao/Propostas'))
 const OrdensServico = lazy(() => import('@/pages/Producao/OrdensServico'))
 const Equipamentos = lazy(() => import('@/pages/Producao/Equipamentos'))
+const SupabaseHealth = lazy(() => import('@/pages/Infra/SupabaseHealth'))
 
 // ==============================
 // Loader
@@ -85,6 +86,8 @@ export const router = createBrowserRouter([
       { path: 'configuracoes/usuarios', element: lazyPage(<RequireAdmin><Usuarios /></RequireAdmin>, 'Carregando Usuários...') },
       { path: 'configuracoes/perfil', element: lazyPage(<Perfil />, 'Carregando Perfil...') },
       { path: 'configuracoes/permissoes', element: lazyPage(<RequireAdmin><Permissoes /></RequireAdmin>, 'Carregando Permissões...') },
+
+      { path: 'infra/supabase', element: lazyPage(<SupabaseHealth />, 'Carregando Monitoramento...') },
     ]
   },
 

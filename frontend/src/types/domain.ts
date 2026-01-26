@@ -102,4 +102,5 @@ export interface ServicEquipamento {
   etapa_omie?: string | null;
   created_at: string;
   updated_at: string;
+  data_fase_atual?: string;
 }

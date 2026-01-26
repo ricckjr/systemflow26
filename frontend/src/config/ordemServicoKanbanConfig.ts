@@ -1,0 +1,115 @@
+export interface OsKanbanColumnConfig {
+  id: string
+  label: string
+  color: string
+  bg: string
+  border: string
+  iconColor: string
+}
+
+export const OS_KANBAN_CONFIG: Record<string, OsKanbanColumnConfig> = {
+  'ANALISE': {
+    id: 'ANALISE',
+    label: 'Análise Técnica',
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/5',
+    border: 'border-blue-500/20',
+    iconColor: 'text-blue-500'
+  },
+  'AGUARDANDO CLIENTE': {
+    id: 'AGUARDANDO CLIENTE',
+    label: 'Aguardando Aprovação',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-500/5',
+    border: 'border-yellow-500/20',
+    iconColor: 'text-yellow-500'
+  },
+  'CALIBRACAO': {
+    id: 'CALIBRACAO',
+    label: 'Calibração',
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/5',
+    border: 'border-indigo-500/20',
+    iconColor: 'text-indigo-500'
+  },
+  'CALIBRACAO_EXTERNA': {
+    id: 'CALIBRACAO_EXTERNA',
+    label: 'Calibração Externa',
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/5',
+    border: 'border-amber-500/20',
+    iconColor: 'text-amber-500'
+  },
+  'LAVADOR': {
+    id: 'LAVADOR',
+    label: 'Descontaminação',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/5',
+    border: 'border-cyan-500/20',
+    iconColor: 'text-cyan-500'
+  },
+  'PREPARO-PINTURA': {
+    id: 'PREPARO-PINTURA',
+    label: 'Estufa de Pintura',
+    color: 'text-purple-400',
+    bg: 'bg-purple-500/5',
+    border: 'border-purple-500/20',
+    iconColor: 'text-purple-500'
+  },
+  'ELETRONICA': {
+    id: 'ELETRONICA',
+    label: 'Eletrônica',
+    color: 'text-violet-400',
+    bg: 'bg-violet-500/5',
+    border: 'border-violet-500/20',
+    iconColor: 'text-violet-500'
+  },
+  'SERVICO_EXTERNO': {
+    id: 'SERVICO_EXTERNO',
+    label: 'Serviço Externo',
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/5',
+    border: 'border-orange-500/20',
+    iconColor: 'text-orange-500'
+  },
+  'PREPARO FINAL': {
+    id: 'PREPARO FINAL',
+    label: 'Qualidade',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/5',
+    border: 'border-emerald-500/20',
+    iconColor: 'text-emerald-500'
+  },
+  'FINALIZADO': {
+    id: 'FINALIZADO',
+    label: 'Concluído',
+    color: 'text-slate-400',
+    bg: 'bg-slate-500/5',
+    border: 'border-slate-500/20',
+    iconColor: 'text-slate-500'
+  }
+}
+
+export const OS_PHASES = [
+  'ANALISE',
+  'AGUARDANDO CLIENTE',
+  'CALIBRACAO',
+  'CALIBRACAO_EXTERNA',
+  'LAVADOR',
+  'PREPARO-PINTURA',
+  'ELETRONICA',
+  'SERVICO_EXTERNO',
+  'PREPARO FINAL',
+  'FINALIZADO'
+] as const
+
+export const getOsPhaseConfig = (phase: string) => {
+  return OS_KANBAN_CONFIG[phase] || {
+    id: phase,
+    label: phase,
+    color: 'text-gray-400',
+    bg: 'bg-gray-500/5',
+    border: 'border-gray-500/20',
+    iconColor: 'text-gray-500'
+  }
+}

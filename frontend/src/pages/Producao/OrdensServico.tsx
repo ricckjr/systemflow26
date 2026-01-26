@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock } from 'lucide-react'
+import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer } from 'lucide-react'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
 import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
 import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamento'
+import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
 import { useUsuarios } from '../../hooks/useUsuarios'
+import { formatDuration, getStatusDurationColor } from '@/utils/time'
 
-const Servicos: React.FC = () => {
+const OrdensServico: React.FC = () => {
   const { services, loading, refresh, moveService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
   const { usuarios } = useUsuarios()
   const [selectedService, setSelectedService] = useState<ServicEquipamento | null>(null)
@@ -25,7 +27,14 @@ const Servicos: React.FC = () => {
   const [loadingHistorico, setLoadingHistorico] = useState(false)
   const [nextFase, setNextFase] = useState<string>('')
   const [nextResponsavel, setNextResponsavel] = useState<string>('')
+  const [nextDescricao, setNextDescricao] = useState<string>('')
   const [showFaseModal, setShowFaseModal] = useState(false)
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'warning' | 'error' | 'success' }>({ isOpen: false, title: '', message: '', type: 'warning' })
+
+  const vendedorUser = useMemo(() => {
+    if (!selectedService?.vendedor) return null
+    return usuarios.find(u => u.nome === selectedService.vendedor)
+  }, [selectedService, usuarios])
 
   const onDragEnd = (result: DropResult) => {
     const { destination, draggableId } = result
@@ -73,6 +82,7 @@ const Servicos: React.FC = () => {
   const handleOpenFaseModal = () => {
       setNextFase(selectedService?.fase || '')
       setNextResponsavel(selectedService?.responsavel || '')
+      setNextDescricao('')
       setShowFaseModal(true)
   }
 
@@ -83,12 +93,39 @@ const Servicos: React.FC = () => {
 
       // Regra 1: De ANALISE só pode ir para AGUARDANDO CLIENTE
       if (selectedService.fase === 'ANALISE' && nextFase !== 'AGUARDANDO CLIENTE') {
-          alert('BLOQUEIO DE PROCESSO:\n\nDa fase "ANALISE", o equipamento só pode ser movido para "AGUARDANDO CLIENTE".\n\nPor favor, selecione a fase correta.')
+          const analiseLabel = getOsPhaseConfig('ANALISE').label
+          const aguardandoLabel = getOsPhaseConfig('AGUARDANDO CLIENTE').label
+          
+          setAlertModal({
+            isOpen: true,
+            title: 'Bloqueio de Processo',
+            type: 'warning',
+            message: (
+                <div className="flex flex-col gap-3">
+                    <p className="text-sm text-[var(--text-soft)] leading-relaxed">
+                        O equipamento está na fase <strong className="text-[var(--text-main)]">{analiseLabel}</strong>.
+                    </p>
+                    <p className="text-sm text-[var(--text-soft)] leading-relaxed">
+                        Por regras de segurança e qualidade, ele só pode ser movido para:
+                    </p>
+                    <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center gap-3 shadow-sm">
+                        <div className="p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
+                            <ArrowRight size={18} />
+                        </div>
+                        <span className="font-bold text-[var(--text-main)] text-base">{aguardandoLabel}</span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] mt-2">
+                        Por favor, selecione a fase correta no modal para prosseguir.
+                    </p>
+                </div>
+            )
+          })
           return
       }
 
       // Regra 2: De AGUARDANDO CLIENTE só pode sair se Etapa Omie estiver APROVADO
       if (selectedService.fase === 'AGUARDANDO CLIENTE' && selectedService.fase !== nextFase) {
+          const aguardandoLabel = getOsPhaseConfig('AGUARDANDO CLIENTE').label
           const etapaOmie = (selectedService.etapa_omie || '').toUpperCase()
           // Verifica se contém termos de aprovação
           const isAprovado = etapaOmie.includes('APROVADO') || 
@@ -97,13 +134,43 @@ const Servicos: React.FC = () => {
                              etapaOmie.includes('GANHO')
 
           if (!isAprovado) {
-               alert(`BLOQUEIO DE PROCESSO:\n\nPara mover de "AGUARDANDO CLIENTE", a Etapa no Omie deve estar APROVADA.\n\nStatus Atual Omie: ${selectedService.etapa_omie || 'NÃO INFORMADO'}`)
+               setAlertModal({
+                isOpen: true,
+                title: 'Aguardando Aprovação',
+                type: 'warning',
+                message: (
+                    <div className="flex flex-col gap-4">
+                        <p className="text-sm text-[var(--text-soft)] leading-relaxed">
+                            Para mover desta etapa (<strong className="text-[var(--text-main)]">{aguardandoLabel}</strong>), a proposta comercial precisa estar aprovada no sistema financeiro (Omie).
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <span className="text-xs font-bold uppercase text-[var(--text-muted)]">Status Atual no Omie</span>
+                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 font-bold font-mono text-sm flex items-center gap-2">
+                                <AlertCircle size={16} />
+                                {selectedService.etapa_omie || 'NÃO INFORMADO'}
+                            </div>
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)]">
+                            Verifique a situação comercial antes de prosseguir com o serviço.
+                        </p>
+                    </div>
+                )
+               })
                return
           }
       }
 
       try {
-          await moveService(selectedService.id, nextFase, nextResponsavel)
+          if (!nextDescricao.trim()) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Campo Obrigatório',
+                type: 'error',
+                message: 'Por favor, descreva o motivo da movimentação no campo "Descrição".'
+            })
+            return
+          }
+          await moveService(selectedService.id, nextFase, nextResponsavel, nextDescricao)
           setSelectedService(prev => prev ? { 
               ...prev, 
               fase: nextFase, 
@@ -120,7 +187,12 @@ const Servicos: React.FC = () => {
             .finally(() => setLoadingHistorico(false))
       } catch (error) {
           console.error('Erro ao salvar fase:', error)
-          alert('Erro ao mover serviço: ' + error)
+          setAlertModal({
+              isOpen: true,
+              title: 'Erro ao Mover',
+              type: 'error',
+              message: String(error)
+          })
       }
   }
 
@@ -234,7 +306,7 @@ const Servicos: React.FC = () => {
     <div className="h-full min-h-0 w-full min-w-0 overflow-x-hidden pt-4 pb-6 max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4 shrink-0">
         <h2 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
-          Produção / Serviços
+          Produção / Ordens de Serviços
         </h2>
 
         <div className="flex gap-2">
@@ -259,6 +331,7 @@ const Servicos: React.FC = () => {
         <ServiceKanbanBoard 
             services={services} 
             loading={loading} 
+            usuarios={usuarios}
             onDragEnd={onDragEnd}
             onCardClick={setSelectedService}
         />
@@ -280,10 +353,10 @@ const Servicos: React.FC = () => {
              {selectedService?.fase && (
                 <button 
                   onClick={handleOpenFaseModal}
-                  className="ml-4 px-3 py-1 rounded-full bg-[var(--bg-body)] border border-[var(--border)] text-xs font-bold text-[var(--text-soft)] uppercase tracking-wider hover:bg-[var(--bg-panel)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-all flex items-center gap-2"
+                  className="ml-4 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2 shadow-lg shadow-[var(--primary)]/20"
                 >
+                  <ArrowRight size={14} />
                   Movimentar Equipamento
-                  <ArrowRight size={12} />
                 </button>
              )}
           </div>
@@ -361,11 +434,49 @@ const Servicos: React.FC = () => {
                                         <div className="text-sm font-medium text-[var(--text-soft)]">{selectedService.etapa_omie}</div>
                                     </div>
                                 )}
-                                <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] col-span-2">
-                                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Dias em Prod.</label>
-                                    <div className="text-lg font-bold text-[var(--text-main)]">{daysInProduction(selectedService.data_entrada)}</div>
+                                <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] col-span-2 flex items-center justify-between">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5">
+                                            <Timer size={12} />
+                                            Tempo Total
+                                        </label>
+                                        <div className="text-lg font-bold text-[var(--text-main)]">{formatDuration(selectedService.data_entrada)}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5 justify-end">
+                                            <Hourglass size={12} />
+                                            Nesta Fase
+                                        </label>
+                                        <div className={`text-lg font-bold ${getStatusDurationColor(selectedService.data_fase_atual)}`}>
+                                            {formatDuration(selectedService.data_fase_atual || selectedService.updated_at)}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Card Vendedor */}
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                            <User size={16} className="text-[var(--primary)]" />
+                            <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Vendedor Responsável</h3>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 rounded-full border-2 border-[var(--border)] bg-[var(--bg-main)] overflow-hidden flex items-center justify-center shrink-0">
+                                {vendedorUser?.avatar_url ? (
+                                    <img src={vendedorUser.avatar_url} alt={selectedService.vendedor || ''} className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-sm font-bold text-[var(--text-muted)]">
+                                        {(selectedService.vendedor || '??').substring(0, 2).toUpperCase()}
+                                    </span>
+                                )}
+                             </div>
+                             <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-bold text-[var(--text-main)] truncate">{selectedService.vendedor || 'Não informado'}</span>
+                                <span className="text-xs text-[var(--text-soft)] truncate">{selectedService.email_vendedor || vendedorUser?.email_corporativo || vendedorUser?.email_login || '-'}</span>
+                             </div>
                         </div>
                     </div>
 
@@ -658,65 +769,104 @@ const Servicos: React.FC = () => {
         onClose={() => setShowFaseModal(false)}
         title={
           <div className="flex items-center gap-3">
-             <Layers size={24} className="text-[var(--primary)]" />
-             <span className="font-bold text-lg">Mover Equipamento</span>
+             <div className="p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
+                <Layers size={24} />
+             </div>
+             <div className="flex flex-col">
+               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Ação de Fluxo</span>
+               <span className="font-bold text-lg text-[var(--text-main)]">Mover Equipamento</span>
+             </div>
           </div>
         }
-        size="md"
+        size="lg"
         zIndex={130}
         footer={
             <div className="flex justify-end gap-3 w-full">
                 <button
                   onClick={() => setShowFaseModal(false)}
-                  className="h-10 px-4 rounded-xl border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors"
+                  className="h-10 px-4 rounded-xl border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors font-medium text-sm"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveFase}
-                  className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all"
+                  disabled={!nextDescricao.trim()}
+                  className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20 flex items-center gap-2"
                 >
                   Confirmar Movimentação
+                  <ArrowRight size={16} />
                 </button>
             </div>
         }
       >
-        <div className="space-y-6 py-2">
-            <div>
-                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block">Nova Fase</label>
-                <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-                    {ETAPAS_SERVICOS.map(fase => (
-                        <button
-                            key={fase}
-                            onClick={() => setNextFase(fase)}
-                            className={`p-3 rounded-lg border text-left text-sm transition-all ${
-                                nextFase === fase 
-                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)] font-bold' 
-                                : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-[var(--text-muted)]'
-                            }`}
-                        >
-                            {fase}
-                        </button>
-                    ))}
+        <div className="space-y-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3 block flex items-center gap-2">
+                        <Layers size={14} />
+                        Selecione a Nova Fase
+                    </label>
+                    <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2 p-1">
+                        {ETAPAS_SERVICOS.map(fase => {
+                            const config = getOsPhaseConfig(fase)
+                            const isSelected = nextFase === fase
+                            return (
+                            <button
+                                key={fase}
+                                onClick={() => setNextFase(fase)}
+                                className={`group relative p-3 rounded-xl border text-left text-sm transition-all duration-200 ${
+                                    isSelected 
+                                    ? `${config.bg} ${config.border} ring-1 ring-[var(--primary)] shadow-md` 
+                                    : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-[var(--text-muted)] hover:shadow-sm'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className={`font-bold ${isSelected ? config.color : 'text-[var(--text-main)]'}`}>
+                                        {config.label}
+                                    </span>
+                                    {isSelected && <div className={`w-2 h-2 rounded-full ${config.color.replace('text-', 'bg-')}`} />}
+                                </div>
+                            </button>
+                        )})}
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block">Responsável</label>
-                <select
-                    value={nextResponsavel}
-                    onChange={(e) => setNextResponsavel(e.target.value)}
-                    className="w-full p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:outline-none focus:border-[var(--primary)] transition-colors"
-                >
-                    <option value="">Selecione um responsável...</option>
-                    {usuarios
-                      .filter(u => !['FINANCEIRO', 'ADMINISTRATIVO', 'VENDEDOR'].includes(u.cargo || ''))
-                      .map(u => (
-                        <option key={u.id} value={u.nome}>
-                            {u.nome} {u.cargo ? `(${u.cargo})` : ''}
-                        </option>
-                    ))}
-                </select>
+                <div className="space-y-6">
+                    <div>
+                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
+                            <User size={14} />
+                            Responsável pela Fase
+                        </label>
+                        <select
+                            value={nextResponsavel}
+                            onChange={(e) => setNextResponsavel(e.target.value)}
+                            className="w-full h-11 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all cursor-pointer"
+                        >
+                            <option value="">Selecione um responsável...</option>
+                            {usuarios.map(u => (
+                                <option key={u.id} value={u.nome}>
+                                    {u.nome} {u.cargo ? `(${u.cargo})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
+                            Selecione quem será o responsável técnico ou administrativo por acompanhar o equipamento nesta nova etapa.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
+                            <History size={14} />
+                            Descrição da Movimentação <span className="text-rose-500">*</span>
+                        </label>
+                        <textarea
+                            value={nextDescricao}
+                            onChange={(e) => setNextDescricao(e.target.value)}
+                            placeholder="Descreva o que foi realizado, motivo da mudança ou observações importantes para o histórico..."
+                            className="w-full h-[140px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none leading-relaxed"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
       </Modal>
@@ -754,8 +904,42 @@ const Servicos: React.FC = () => {
             />
         )}
       </Modal>
+
+      {/* Modal de Alerta / Bloqueio */}
+      <Modal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+        title={
+            <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                    alertModal.type === 'error' ? 'bg-rose-500/10 text-rose-500' :
+                    alertModal.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
+                    'bg-amber-500/10 text-amber-500'
+                }`}>
+                    {alertModal.type === 'error' ? <AlertCircle size={24} /> :
+                     alertModal.type === 'success' ? <CheckCircle2 size={24} /> :
+                     <AlertTriangle size={24} />}
+                </div>
+                <span className="font-bold text-lg">{alertModal.title}</span>
+            </div>
+        }
+        size="md"
+        zIndex={200}
+        footer={
+            <button
+                onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                className="h-10 px-6 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors font-medium text-sm w-full sm:w-auto"
+            >
+                Entendido
+            </button>
+        }
+      >
+        <div className="py-2">
+            {alertModal.message}
+        </div>
+      </Modal>
     </div>
   )
 }
 
-export default Servicos
+export default OrdensServico

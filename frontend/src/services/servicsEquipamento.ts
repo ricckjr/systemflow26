@@ -1,16 +1,9 @@
 import { supabase } from '@/services/supabase'
 import { ServicEquipamento } from '@/types/domain'
 
-export const ETAPAS_SERVICOS = [
-  'ANALISE',
-  'AGUARDANDO CLIENTE',
-  'CALIBRACAO',
-  'LAVADOR',
-  'PREPARO-PINTURA',
-  'ELETRONICA',
-  'PREPARO FINAL',
-  'FINALIZADO'
-] as const
+import { OS_PHASES } from '@/config/ordemServicoKanbanConfig'
+
+export const ETAPAS_SERVICOS = OS_PHASES
 
 export async function getServicsEquipamentos(): Promise<ServicEquipamento[]> {
   const { data, error } = await supabase
@@ -55,16 +48,21 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoFase(id: string, fase: string, responsavel?: string): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoFase(id: string, fase: string, responsavel?: string, descricao?: string): Promise<ServicEquipamento> {
   const { data: currentService } = await supabase
     .from('servics_equipamento')
-    .select('fase, responsavel')
+    .select('fase, responsavel, id_rst')
     .eq('id', id)
     .single()
 
   const updates: any = {
     fase,
     updated_at: new Date().toISOString()
+  }
+  
+  // Atualizar timestamp da fase se mudou
+  if (currentService && currentService.fase !== fase) {
+    updates.data_fase_atual = new Date().toISOString()
   }
   
   if (responsavel !== undefined) {
@@ -96,8 +94,31 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
       responsavel_origem: currentService.responsavel,
       responsavel_destino: responsavel !== undefined ? responsavel : currentService.responsavel,
       alterado_por: user?.id,
-      data_movimentacao: new Date().toISOString()
+      data_movimentacao: new Date().toISOString(),
+      descricao: descricao || null // Add description to history
     })
+
+    // Send notification if responsible user changed or phase changed and responsible user is set
+    const nextResponsavel = responsavel !== undefined ? responsavel : currentService.responsavel
+    if (nextResponsavel) {
+      // Find user ID by name (since we store name in responsavel column)
+      const { data: responsibleUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nome', nextResponsavel)
+        .single()
+
+      if (responsibleUser) {
+        await supabase.from('notifications').insert({
+          user_id: responsibleUser.id,
+          title: `OS ${currentService.id_rst} - Nova Movimentação`,
+          content: `A OS foi movida para ${fase} por ${user?.email}. ${descricao ? `\nObs: ${descricao}` : ''}`,
+          link: '/app/producao/ordens-servico',
+          type: 'info',
+          is_read: false
+        })
+      }
+    }
   }
 
   return data as ServicEquipamento

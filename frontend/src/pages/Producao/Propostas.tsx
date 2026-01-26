@@ -564,7 +564,7 @@ const DetailsModal = React.memo(
   }
 )
 
-const ServicosVendas: React.FC = () => {
+const Propostas: React.FC = () => {
   const { items = [], loading, error, refresh } = useOmieServics()
   const { usuarios } = useUsuarios()
 
@@ -734,9 +734,9 @@ const ServicosVendas: React.FC = () => {
               <Layers size={20} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-[var(--text-main)] leading-none">Serviços/Vendas</h1>
+              <h1 className="text-lg font-bold text-[var(--text-main)] leading-none">Propostas</h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-xs text-[var(--text-muted)] font-medium">Propostas e serviços</span>
+                <span className="text-xs text-[var(--text-muted)] font-medium">Gestão de Propostas</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)]">
                   {filteredItems.length} de {items.length}
                 </span>
@@ -889,4 +889,4 @@ const ServicosVendas: React.FC = () => {
   )
 }
 
-export default ServicosVendas
+export default Propostas

@@ -1,0 +1,2 @@
+ALTER TABLE servics_equipamento
+ADD COLUMN IF NOT EXISTS data_fase_atual TIMESTAMPTZ DEFAULT NOW();

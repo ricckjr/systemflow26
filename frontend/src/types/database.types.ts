@@ -1025,6 +1025,7 @@ export interface Database {
           empresa_correspondente: string | null
           created_at: string
           updated_at: string
+          data_fase_atual: string
         }
         Insert: {
           id?: string
@@ -1061,6 +1062,7 @@ export interface Database {
           empresa_correspondente?: string | null
           created_at?: string
           updated_at?: string
+          data_fase_atual?: string
         }
         Update: {
           id?: string
@@ -1097,6 +1099,7 @@ export interface Database {
           empresa_correspondente?: string | null
           created_at?: string
           updated_at?: string
+          data_fase_atual?: string
         }
         Relationships: []
       }
@@ -1111,6 +1114,7 @@ export interface Database {
           alterado_por: string | null
           data_movimentacao: string | null
           tempo_permanencia: unknown | null
+          descricao: string | null
         }
         Insert: {
           id?: string
@@ -1122,6 +1126,7 @@ export interface Database {
           alterado_por?: string | null
           data_movimentacao?: string | null
           tempo_permanencia?: unknown | null
+          descricao?: string | null
         }
         Update: {
           id?: string
@@ -1133,6 +1138,7 @@ export interface Database {
           alterado_por?: string | null
           data_movimentacao?: string | null
           tempo_permanencia?: unknown | null
+          descricao?: string | null
         }
         Relationships: [
           {

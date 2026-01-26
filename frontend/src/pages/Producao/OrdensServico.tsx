@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer } from 'lucide-react'
+import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor } from 'lucide-react'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
 import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
@@ -9,8 +9,10 @@ import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamen
 import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
+import { useTvMode } from '@/hooks/useTvMode'
 
 const OrdensServico: React.FC = () => {
+  const { isTvMode, toggleTvMode } = useTvMode()
   const { services, loading, refresh, moveService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
   const { usuarios } = useUsuarios()
   const [selectedService, setSelectedService] = useState<ServicEquipamento | null>(null)
@@ -303,23 +305,33 @@ const OrdensServico: React.FC = () => {
   }
 
   return (
-    <div className="h-full min-h-0 w-full min-w-0 overflow-x-hidden pt-4 pb-6 max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4 shrink-0">
-        <h2 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
-          Produção / Ordens de Serviços
-        </h2>
+    <div className={`h-full min-h-0 w-full min-w-0 overflow-x-hidden flex flex-col ${isTvMode ? 'p-2' : 'pt-4 pb-6 max-w-[1800px] mx-auto px-4 md:px-6'}`}>
+      {!isTvMode && (
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4 shrink-0">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
+            Produção / Ordens de Serviços
+          </h2>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => refresh()}
-            disabled={loading}
-            className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => toggleTvMode()}
+              className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2"
+              title="Entrar em Modo TV"
+            >
+              <Monitor size={14} />
+              Modo TV
+            </button>
+            <button
+              onClick={() => refresh()}
+              disabled={loading}
+              className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Atualizar
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 shrink-0">
@@ -334,6 +346,7 @@ const OrdensServico: React.FC = () => {
             usuarios={usuarios}
             onDragEnd={onDragEnd}
             onCardClick={setSelectedService}
+            isTvMode={isTvMode}
         />
       </div>
 

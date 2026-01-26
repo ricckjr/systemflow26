@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { ServicEquipamento } from '@/types/domain'
 import { ETAPAS_SERVICOS } from '@/services/servicsEquipamento'
@@ -14,12 +14,18 @@ interface ServiceKanbanBoardProps {
   usuarios?: UsuarioSimples[]
   onDragEnd: (result: DropResult) => void
   onCardClick: (service: ServicEquipamento) => void
+  isTvMode?: boolean
 }
 
-export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, usuarios = [], onDragEnd, onCardClick }) => {
+export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, usuarios = [], onDragEnd, onCardClick, isTvMode = false }) => {
   const getServicesByStatus = (status: string) => {
     return services.filter(s => s.fase === status)
   }
+
+  const displayedPhases = useMemo(() => {
+    if (!isTvMode) return ETAPAS_SERVICOS;
+    return ETAPAS_SERVICOS.filter(phase => phase !== 'FINALIZADO');
+  }, [isTvMode]);
 
   if (loading && services.length === 0) {
       return (
@@ -31,17 +37,17 @@ export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <HorizontalScrollArea className="flex h-full min-h-0 w-full max-w-full gap-4 overflow-x-scroll overflow-y-hidden pb-3 items-start overscroll-contain snap-x snap-mandatory md:snap-none">
-        {ETAPAS_SERVICOS.map((status) => {
+      <HorizontalScrollArea className={`flex h-full min-h-0 w-full max-w-full gap-4 pb-3 items-start ${isTvMode ? 'overflow-hidden px-2' : 'overflow-x-scroll overflow-y-hidden overscroll-contain snap-x snap-mandatory md:snap-none'}`}>
+        {displayedPhases.map((status) => {
           const config = getOsPhaseConfig(status)
           const items = getServicesByStatus(status)
           
           return (
-          <div key={status} className="flex-shrink-0 w-[calc(100vw-2rem)] sm:w-80 flex flex-col h-full min-h-0 max-h-full snap-start">
+          <div key={status} className={`flex-shrink-0 flex flex-col h-full min-h-0 max-h-full snap-start ${isTvMode ? 'flex-1 min-w-[150px]' : 'w-[calc(100vw-2rem)] sm:w-80'}`}>
             <div className="flex items-center justify-between mb-3 px-1 shrink-0">
               <div className="flex items-center gap-2">
                  <div className={`w-2 h-2 rounded-full ${config.color.replace('text-', 'bg-')}`} />
-                 <h3 className={`text-xs font-bold uppercase tracking-wider ${config.color} opacity-90`}>
+                 <h3 className={`text-xs font-bold uppercase tracking-wider ${config.color} opacity-90 truncate`}>
                    {config.label}
                  </h3>
               </div>
@@ -67,6 +73,7 @@ export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services
                                 index={index} 
                                 onClick={onCardClick}
                                 responsavelAvatar={responsavelUser?.avatar_url}
+                                isTvMode={isTvMode}
                             />
                         )
                     })}

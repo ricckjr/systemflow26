@@ -9,9 +9,71 @@ interface ServiceCardProps {
   index: number
   onClick: (service: ServicEquipamento) => void
   responsavelAvatar?: string | null
+  isTvMode?: boolean
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, responsavelAvatar }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, responsavelAvatar, isTvMode = false }) => {
+  if (isTvMode) {
+    return (
+      <Draggable draggableId={service.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            onClick={() => onClick(service)}
+            data-kanban-card="true"
+            className={`
+              group relative flex flex-col gap-2 p-3 mb-2 rounded-xl border transition-all duration-200
+              ${snapshot.isDragging ? 'shadow-xl ring-2 ring-[var(--primary)] rotate-2 scale-105 z-50' : 'shadow-sm hover:shadow-md hover:border-[var(--primary)]/50'}
+              bg-[var(--bg-panel)] border-[var(--border)]
+            `}
+          >
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 bg-[var(--bg-main)]/50 px-1.5 py-0.5 rounded-md border border-[var(--border)]">
+                    <Hash size={10} className="text-[var(--text-muted)]" />
+                    <span className="text-[10px] font-bold text-[var(--text-main)]">{service.cod_proposta}</span>
+                </div>
+                <div className="flex items-center gap-1 text-[9px] text-[var(--text-muted)] font-mono bg-[var(--bg-main)]/50 px-1.5 py-0.5 rounded-md border border-[var(--border)]">
+                   <span>SN:</span>
+                   <span className="text-[var(--text-main)]">{service.numero_serie || '-'}</span>
+                </div>
+             </div>
+
+             <div className="flex flex-col gap-1">
+                <h4 className="text-xs font-bold text-[var(--text-main)] leading-tight line-clamp-2" title={service.modelo || ''}>
+                    {service.modelo || 'Modelo não informado'}
+                </h4>
+             </div>
+
+             {service.solucao && (
+                <div className="p-1.5 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]/50">
+                    <p className="text-[9px] text-[var(--text-soft)] line-clamp-2 leading-relaxed italic">
+                        "{service.solucao}"
+                    </p>
+                </div>
+             )}
+
+             <div className="flex flex-col gap-1 pt-2 border-t border-[var(--border)] mt-auto">
+                <div className="flex items-center justify-between text-[9px]">
+                    <span className="text-[var(--text-muted)]">Total:</span>
+                    <span className="font-medium text-[var(--text-main)]">{formatDuration(service.data_entrada)}</span>
+                </div>
+                {service.data_fase_atual && (
+                    <div className="flex items-center justify-between text-[9px]">
+                        <span className="text-[var(--text-muted)]">Fase:</span>
+                        <span className={`font-bold ${getStatusDurationColor(service.data_fase_atual)}`}>
+                            {formatDuration(service.data_fase_atual)}
+                        </span>
+                    </div>
+                )}
+             </div>
+          </div>
+        )}
+      </Draggable>
+    )
+  }
+
   return (
     <Draggable draggableId={service.id} index={index}>
       {(provided, snapshot) => (

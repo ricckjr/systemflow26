@@ -274,13 +274,19 @@ export async function fetchUnifiedTasks(search?: string) {
 }
 
 export async function fetchTaskSeen(userId: string, taskIds: string[]) {
-  if (!userId || taskIds.length === 0) return new Map<string, string>();
+  if (!userId) return new Map<string, string>();
   try {
-    const { data, error } = await (supabase as any)
+    let query = (supabase as any)
       .from('taskflow_task_seen')
       .select('task_id,last_seen_at')
-      .eq('user_id', userId)
-      .in('task_id', taskIds);
+      .eq('user_id', userId);
+
+    // Optimization: If taskIds is small, filter. If large, fetch all for user (usually faster than sending huge query string)
+    if (taskIds.length > 0 && taskIds.length < 200) {
+      query = query.in('task_id', taskIds);
+    }
+
+    const { data, error } = await query;
     if (error) return new Map<string, string>();
     const map = new Map<string, string>();
     for (const row of data || []) map.set((row as any).task_id, (row as any).last_seen_at);
@@ -517,4 +523,13 @@ export async function fetchTaskAssignees(taskId: string) {
     role: d.role,
     ...d.profiles
   }));
+}
+
+export async function fetchTaskDetailsRPC(taskId: string) {
+  const { data, error } = await supabase.rpc('tf_get_task_details', { p_task_id: taskId });
+  if (error) {
+    console.error('Error fetching task details via RPC:', error);
+    return null;
+  }
+  return data; // Returns the JSON object directly
 }

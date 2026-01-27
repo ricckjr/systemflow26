@@ -14,6 +14,7 @@ import {
   updateTask,
   deleteTask,
   moveTask,
+  moveTaskToColumnName,
   fetchComments,
   addComment,
   logActivity,
@@ -155,6 +156,12 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const [taskShareSearch, setTaskShareSearch] = useState('');
   const [taskShareDraft, setTaskShareDraft] = useState<string[]>([]);
 
+  // Title Edit State
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleContent, setEditTitleContent] = useState('');
+  const [isUpdatingTitle, setIsUpdatingTitle] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+
   // Description Edit State
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDescContent, setEditDescContent] = useState('');
@@ -200,7 +207,15 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     let next = tasks
     if (priorityFilter !== 'all') next = next.filter(t => t.priority === priorityFilter)
     if (!debouncedSearch) return next
-    return next.filter(t => (t.title || '').toLowerCase().includes(debouncedSearch) || (t.description || '').toLowerCase().includes(debouncedSearch))
+    const term = debouncedSearch.trim().replace(/^#/, '')
+    return next.filter(t => {
+      const title = (t.title || '').toLowerCase()
+      const desc = (t.description || '').toLowerCase()
+      if (title.includes(debouncedSearch) || desc.includes(debouncedSearch)) return true
+      const shortId = String(t.id || '').split('-')[0].toLowerCase()
+      if (!term) return false
+      return !!shortId && shortId.includes(term)
+    })
   }, [tasks, debouncedSearch, priorityFilter])
 
   const byColumn = useMemo(() => {
@@ -257,6 +272,14 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const activeTaskOwnerId = useMemo(() => {
     return activeTask?.created_by || '';
   }, [activeTask?.created_by]);
+
+  const canEditActiveTaskTitle = useMemo(() => {
+    if (!activeTask || !profileId) return false;
+    if (activeTask.created_by === profileId) return true;
+    if (assignedUsers.includes(profileId)) return true;
+    const list = activeTask.assignees_list || [];
+    return list.some(a => a?.id === profileId);
+  }, [activeTask, assignedUsers, profileId]);
 
   const canShareActiveTask = useMemo(() => {
     return !!activeTaskOwnerId && activeTaskOwnerId === profileId;
@@ -626,7 +649,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     }
 
     try {
-      await moveTask(taskId, destinationColumnId);
+      await moveTaskToColumnName(taskId, targetColumnName);
       const details = fromColumnName ? `de ${fromColumnName} para ${targetColumnName}` : targetColumnName;
       await logActivity(taskId, profileId, 'status_changed', details);
       await markTaskSeen(taskId).catch(() => null);
@@ -794,6 +817,14 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
   useEffect(() => {
     if (!activeTaskId) return;
+    setEditTitleContent(activeTask?.title || '');
+    setIsEditingTitle(false);
+    setIsUpdatingTitle(false);
+    setTitleError(null);
+  }, [activeTaskId, activeTask?.title]);
+
+  useEffect(() => {
+    if (!activeTaskId) return;
     setTaskDueDateDraft(activeTaskDueDateInputValue);
     setDueDateError(null);
     setIsUpdatingDueDate(false);
@@ -817,6 +848,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     setTaskShareDraft([]);
     setIsEditingDesc(false);
     setIsUpdatingDesc(false);
+    setIsEditingTitle(false);
+    setIsUpdatingTitle(false);
+    setTitleError(null);
     setTaskAttachments([]);
     setActivityLog([]);
     setAssignedUsers([]);
@@ -868,6 +902,33 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       // Optional: show error toast
     } finally {
       setIsUpdatingDesc(false);
+    }
+  };
+
+  const handleUpdateTitle = async () => {
+    if (!activeTaskId) return;
+    if (!canEditActiveTaskTitle) return;
+
+    const nextTitle = editTitleContent.trim();
+    if (!nextTitle) {
+      setTitleError('O título não pode ficar vazio.');
+      return;
+    }
+
+    setTitleError(null);
+    setIsUpdatingTitle(true);
+    try {
+      const updated = await updateTask(activeTaskId, { title: nextTitle });
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, title: updated.title } : t)));
+      setIsEditingTitle(false);
+      await logActivity(activeTaskId, profileId, 'title_updated', nextTitle);
+      await markTaskSeen(activeTaskId).catch(() => null);
+      setTasks(prev => prev.map(t => (t.id === activeTaskId ? { ...t, last_seen_at: new Date().toISOString() } : t)));
+    } catch (e) {
+      console.error(e);
+      setTitleError('Não foi possível atualizar o título.');
+    } finally {
+      setIsUpdatingTitle(false);
     }
   };
 
@@ -1157,7 +1218,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             id="taskflow-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar tarefas..." 
+            placeholder="Buscar por título ou ID..." 
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] shadow-sm"
           />
         </div>
@@ -1691,17 +1752,71 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       <Modal
         isOpen={!!activeTaskId}
         onClose={() => setActiveTaskId(null)}
-        size="5xl"
+        size="4xl"
         noPadding
         className="h-[90vh] md:max-h-[90vh] md:rounded-2xl overflow-hidden flex flex-col"
         title={
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="shrink-0 px-2 py-0.5 rounded-md bg-[var(--bg-body)] border border-[var(--border)] text-[10px] font-mono text-[var(--text-muted)]">
-              #{activeTaskShortId}
-            </span>
-            <h3 className="text-lg font-bold text-[var(--text-main)] truncate" title={activeTask?.title}>
-              {activeTask?.title}
-            </h3>
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-[var(--bg-body)] border border-[var(--border)] text-[10px] font-mono text-[var(--text-muted)]">
+                #{activeTaskShortId}
+              </span>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <input
+                      value={editTitleContent}
+                      onChange={(e) => setEditTitleContent(e.target.value)}
+                      className="w-full min-w-0 px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-bold text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingTitle(false);
+                        setEditTitleContent(activeTask?.title || '');
+                        setTitleError(null);
+                      }}
+                      className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-body)] text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleUpdateTitle}
+                      disabled={isUpdatingTitle}
+                      className="px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold disabled:opacity-60"
+                    >
+                      {isUpdatingTitle ? 'Salvando...' : 'Salvar'}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-[var(--text-main)] truncate" title={activeTask?.title}>
+                      {activeTask?.title}
+                    </h3>
+                    {canEditActiveTaskTitle && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditTitleContent(activeTask?.title || '');
+                          setTitleError(null);
+                          setIsEditingTitle(true);
+                        }}
+                        className="shrink-0 p-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-300 hover:border-cyan-500/30"
+                        title="Editar título"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            {isEditingTitle && titleError && (
+              <div className="text-[11px] font-medium text-rose-300">
+                {titleError}
+              </div>
+            )}
           </div>
         }
       >

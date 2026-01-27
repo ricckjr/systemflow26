@@ -66,6 +66,27 @@ function createSupabaseClient() {
           return await fetch(input, init)
         } catch (err) {
           try {
+            if (
+              useDevProxy &&
+              supabaseRemoteUrl &&
+              supabaseRemoteUrl !== supabaseUrl &&
+              typeof window !== 'undefined' &&
+              !(window as any).__systemflow_unloading
+            ) {
+              const raw =
+                typeof input === 'string'
+                  ? input
+                  : input instanceof URL
+                    ? input.toString()
+                    : (input as Request).url
+              if (raw && raw.startsWith(supabaseUrl)) {
+                const fallbackUrl = `${supabaseRemoteUrl}${raw.slice(supabaseUrl.length)}`
+                return await fetch(fallbackUrl, init)
+              }
+            }
+          } catch {
+          }
+          try {
             if (typeof window !== 'undefined' && (window as any).__systemflow_unloading) {
               return new Promise<Response>(() => {})
             }
@@ -103,8 +124,24 @@ export const SUPABASE_URL = supabaseUrl
 try {
   if (typeof window !== 'undefined') {
     ;(window as any).__systemflow_unloading = false
+    try {
+      if ((import.meta as any).hot) {
+        ;(import.meta as any).hot.on('vite:beforeFullReload', () => {
+          ;(window as any).__systemflow_unloading = true
+        })
+      }
+    } catch {
+    }
     window.addEventListener('beforeunload', () => {
       ;(window as any).__systemflow_unloading = true
+    })
+    window.addEventListener('pagehide', () => {
+      ;(window as any).__systemflow_unloading = true
+    })
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        ;(window as any).__systemflow_unloading = true
+      }
     })
   }
 } catch {

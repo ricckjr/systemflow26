@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor } from 'lucide-react'
+import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor, Pencil, ExternalLink, ZoomIn, Trash2 } from 'lucide-react'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
 import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
@@ -27,6 +27,9 @@ const OrdensServico: React.FC = () => {
   const [historico, setHistorico] = useState<any[]>([])
   const [showHistorico, setShowHistorico] = useState(false)
   const [loadingHistorico, setLoadingHistorico] = useState(false)
+  const [galleryEditMode, setGalleryEditMode] = useState(false)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
+  const [confirmRemoveImageUrl, setConfirmRemoveImageUrl] = useState<string | null>(null)
   const [nextFase, setNextFase] = useState<string>('')
   const [nextResponsavel, setNextResponsavel] = useState<string>('')
   const [nextDescricao, setNextDescricao] = useState<string>('')
@@ -57,6 +60,9 @@ const OrdensServico: React.FC = () => {
     setServicosAFazer(selectedService.servicos_a_fazer || '')
     setNumeroCertificado(selectedService.numero_certificado || '')
     setDataCalibracao(selectedService.data_calibracao ? new Date(selectedService.data_calibracao).toISOString().split('T')[0] : '')
+    setGalleryEditMode(false)
+    setPreviewImageUrl(null)
+    setConfirmRemoveImageUrl(null)
     
     // Carregar histórico
     setLoadingHistorico(true)
@@ -79,6 +85,9 @@ const OrdensServico: React.FC = () => {
     setHistorico([])
     setShowHistorico(false)
     setShowFaseModal(false)
+    setGalleryEditMode(false)
+    setPreviewImageUrl(null)
+    setConfirmRemoveImageUrl(null)
   }
 
   const handleOpenFaseModal = () => {
@@ -662,43 +671,76 @@ const OrdensServico: React.FC = () => {
                                     Galeria de Imagens
                                 </label>
                                 
-                                <label className={`
-                                    group flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] 
-                                    hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all cursor-pointer
-                                    ${uploadingImagens ? 'opacity-50 pointer-events-none' : ''}
-                                `}>
-                                    <Upload size={16} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" />
-                                    <span className="text-sm font-medium text-[var(--text-main)] group-hover:text-[var(--primary)]">Adicionar Imagens</span>
-                                    <input
-                                      type="file"
-                                      className="hidden"
-                                      multiple
-                                      accept="image/*"
-                                      disabled={uploadingImagens}
-                                      onChange={(e) => {
-                                        handleAddImagens(e.target.files)
-                                        e.currentTarget.value = ''
-                                      }}
-                                    />
-                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setGalleryEditMode(v => !v)}
+                                    disabled={savingCampos || uploadingImagens}
+                                    className={`h-10 px-4 rounded-xl border transition-all flex items-center gap-2 font-bold text-xs uppercase tracking-wider ${
+                                      galleryEditMode
+                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/15'
+                                        : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                                    } disabled:opacity-50`}
+                                    title={galleryEditMode ? 'Sair do modo de edição' : 'Entrar no modo de edição para apagar imagens'}
+                                  >
+                                    {galleryEditMode ? <CheckCircle2 size={16} /> : <Pencil size={16} />}
+                                    {galleryEditMode ? 'Concluir' : 'Editar'}
+                                  </button>
+
+                                  <label className={`
+                                      group flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] 
+                                      hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all cursor-pointer
+                                      ${uploadingImagens ? 'opacity-50 pointer-events-none' : ''}
+                                  `}>
+                                      <Upload size={16} className="text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" />
+                                      <span className="text-sm font-medium text-[var(--text-main)] group-hover:text-[var(--primary)]">Adicionar Imagens</span>
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        multiple
+                                        accept="image/*"
+                                        disabled={uploadingImagens}
+                                        onChange={(e) => {
+                                          handleAddImagens(e.target.files)
+                                          e.currentTarget.value = ''
+                                        }}
+                                      />
+                                  </label>
+                                </div>
                             </div>
 
                             {(selectedService.imagens && selectedService.imagens.length > 0) ? (
                               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
                                 {selectedService.imagens.map((url, i) => (
                                   <div key={`${url}-${i}`} className="group relative aspect-square rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)] shadow-sm hover:shadow-md transition-all">
-                                    <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                                      <img src={url} alt={`Imagem ${i}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                    </a>
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-200" />
                                     <button
-                                      onClick={() => handleRemoveImagem(url)}
-                                      disabled={uploadingImagens || savingCampos}
-                                      className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 translate-y-[-10px] group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:bg-rose-600 shadow-sm"
-                                      title="Remover imagem"
+                                      type="button"
+                                      onClick={() => setPreviewImageUrl(url)}
+                                      className="block w-full h-full"
+                                      title="Visualizar maior"
                                     >
-                                      <X size={14} />
+                                      <img src={url} alt={`Imagem ${i}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     </button>
+
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors duration-200 pointer-events-none" />
+
+                                    <div className="absolute bottom-2 left-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 pointer-events-none">
+                                      <div className="p-2 rounded-lg bg-black/60 text-white shadow-sm">
+                                        <Maximize2 size={14} />
+                                      </div>
+                                    </div>
+
+                                    {galleryEditMode && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmRemoveImageUrl(url)}
+                                        disabled={uploadingImagens || savingCampos}
+                                        className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 translate-y-[-10px] group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:bg-rose-600 shadow-sm disabled:opacity-50"
+                                        title="Remover imagem"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -715,6 +757,97 @@ const OrdensServico: React.FC = () => {
                 </div>
             </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={!!previewImageUrl}
+        onClose={() => setPreviewImageUrl(null)}
+        title={
+          <div className="flex items-center justify-between w-full gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+                <ZoomIn size={18} />
+              </div>
+              <span className="font-bold text-lg text-[var(--text-main)] truncate">Visualização da Imagem</span>
+            </div>
+            {previewImageUrl && (
+              <a
+                href={previewImageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2 shrink-0"
+                title="Abrir em nova aba"
+              >
+                <ExternalLink size={14} />
+                Abrir
+              </a>
+            )}
+          </div>
+        }
+        size="full"
+        className="h-[90vh]"
+        noPadding
+        scrollableContent={false}
+        zIndex={130}
+      >
+        <div className="h-full w-full flex items-center justify-center bg-black/30">
+          {previewImageUrl && (
+            <img
+              src={previewImageUrl}
+              alt="Imagem"
+              className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl border border-white/10 shadow-2xl"
+            />
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!confirmRemoveImageUrl}
+        onClose={() => setConfirmRemoveImageUrl(null)}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              <Trash2 size={18} />
+            </div>
+            <span className="font-bold text-lg">Apagar imagem?</span>
+          </div>
+        }
+        size="md"
+        zIndex={140}
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button
+              onClick={() => setConfirmRemoveImageUrl(null)}
+              className="h-11 px-6 rounded-xl border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors font-medium"
+              disabled={uploadingImagens}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirmRemoveImageUrl) return
+                const url = confirmRemoveImageUrl
+                setConfirmRemoveImageUrl(null)
+                await handleRemoveImagem(url)
+              }}
+              className="h-11 px-6 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/20"
+              disabled={uploadingImagens || savingCampos}
+            >
+              Apagar
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--text-soft)] leading-relaxed">
+            Esta ação remove a imagem da ordem de serviço.
+          </p>
+          {confirmRemoveImageUrl && (
+            <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
+              <img src={confirmRemoveImageUrl} alt="Prévia" className="w-full max-h-[40vh] object-contain bg-black/20" />
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Modal de Histórico */}

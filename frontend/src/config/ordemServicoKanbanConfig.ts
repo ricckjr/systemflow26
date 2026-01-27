@@ -34,7 +34,7 @@ export const OS_KANBAN_CONFIG: Record<string, OsKanbanColumnConfig> = {
   },
   'CALIBRACAO_EXTERNA': {
     id: 'CALIBRACAO_EXTERNA',
-    label: 'Calibração Externa',
+    label: 'Serviço Terceirizado',
     color: 'text-amber-400',
     bg: 'bg-amber-500/5',
     border: 'border-amber-500/20',

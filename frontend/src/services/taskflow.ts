@@ -178,6 +178,69 @@ export async function moveTask(taskId: string, toColumnId: string) {
   return data;
 }
 
+export async function moveTaskToColumnName(taskId: string, toColumnName: string) {
+  try {
+    const { data, error } = await (supabase as any).rpc('tf_move_task_to_column_name', {
+      p_task_id: taskId,
+      p_to_column_name: toColumnName
+    });
+    if (error) throw error;
+    return data as TFTask;
+  } catch (rpcErr: any) {
+    const rpcCode = rpcErr?.code;
+    const rpcMessage = String(rpcErr?.message || '');
+    const isMissingRpc =
+      rpcCode === 'PGRST202' ||
+      rpcMessage.toLowerCase().includes('tf_move_task_to_column_name') ||
+      rpcMessage.toLowerCase().includes('could not find the function');
+
+    if (!isMissingRpc) {
+      const details = rpcErr?.details ? ` | ${rpcErr.details}` : '';
+      const hint = rpcErr?.hint ? ` | ${rpcErr.hint}` : '';
+      throw new Error(`${rpcErr?.message || 'Falha ao mover tarefa'}${details}${hint}`);
+    }
+
+    const { data: taskRow, error: taskErr } = await supabase
+      .from('taskflow_tasks')
+      .select('board_id')
+      .eq('id', taskId)
+      .single();
+    if (taskErr || !taskRow?.board_id) {
+      const details = taskErr?.details ? ` | ${taskErr.details}` : '';
+      const hint = taskErr?.hint ? ` | ${taskErr.hint}` : '';
+      throw new Error(`${taskErr?.message || 'Falha ao carregar board da tarefa'}${details}${hint}`);
+    }
+
+    const { data: colRow, error: colErr } = await supabase
+      .from('taskflow_columns')
+      .select('id')
+      .eq('board_id', taskRow.board_id)
+      .ilike('name', toColumnName)
+      .order('order_index', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (colErr) {
+      const details = colErr?.details ? ` | ${colErr.details}` : '';
+      const hint = colErr?.hint ? ` | ${colErr.hint}` : '';
+      throw new Error(`${colErr?.message || 'Falha ao localizar coluna no board da tarefa'}${details}${hint}`);
+    }
+    if (!colRow?.id) throw new Error('Coluna de destino não existe no board da tarefa');
+
+    const { data, error: updErr } = await supabase
+      .from('taskflow_tasks')
+      .update({ column_id: colRow.id, updated_at: new Date().toISOString() })
+      .eq('id', taskId)
+      .select('*')
+      .single();
+    if (updErr) {
+      const details = updErr?.details ? ` | ${updErr.details}` : '';
+      const hint = updErr?.hint ? ` | ${updErr.hint}` : '';
+      throw new Error(`${updErr?.message || 'Falha ao mover tarefa'}${details}${hint}`);
+    }
+    return data as TFTask;
+  }
+}
+
 export async function assignUsers(taskId: string, userIds: string[]) {
   // Delete all (simple sync)
   const { error: deleteError } = await supabase.from('taskflow_task_users').delete().eq('task_id', taskId);
@@ -526,10 +589,22 @@ export async function fetchTaskAssignees(taskId: string) {
 }
 
 export async function fetchTaskDetailsRPC(taskId: string) {
-  const { data, error } = await supabase.rpc('tf_get_task_details', { p_task_id: taskId });
+  const { data, error } = await supabase.rpc('tf_get_task_details' as any, { p_task_id: taskId } as any);
   if (error) {
     console.error('Error fetching task details via RPC:', error);
     return null;
   }
-  return data; // Returns the JSON object directly
+
+  if (!data) return null;
+
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data);
+      return parsed && typeof parsed === 'object' ? (parsed as any) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return typeof data === 'object' ? (data as any) : null;
 }

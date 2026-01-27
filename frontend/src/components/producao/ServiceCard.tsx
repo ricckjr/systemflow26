@@ -1,7 +1,7 @@
 import React from 'react'
 import { ServicEquipamento } from '@/types/domain'
 import { Draggable } from '@hello-pangea/dnd'
-import { User, Wrench, Clock, Hourglass, Hash, FileText } from 'lucide-react'
+import { User, Wrench, Clock, Hourglass, Hash } from 'lucide-react'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 
 interface ServiceCardProps {
@@ -26,13 +26,13 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
             className={`
               group relative flex flex-col gap-2 p-3 mb-2 rounded-xl border transition-all duration-200
               ${snapshot.isDragging ? 'shadow-xl ring-2 ring-[var(--primary)] rotate-2 scale-105 z-50' : 'shadow-sm hover:shadow-md hover:border-[var(--primary)]/50'}
-              bg-[var(--bg-panel)] border-[var(--border)]
+              bg-[var(--bg-panel)] border-[var(--border)] ring-1 ring-white/5 hover:ring-white/10
             `}
           >
              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 bg-[var(--bg-main)]/50 px-1.5 py-0.5 rounded-md border border-[var(--border)]">
-                    <Hash size={10} className="text-[var(--text-muted)]" />
-                    <span className="text-[10px] font-bold text-[var(--text-main)]">{service.cod_proposta}</span>
+                <div className="flex items-center gap-1.5 bg-[var(--primary)] px-2 py-1 rounded-md border border-[var(--primary)]/40 shadow-sm shadow-[var(--primary)]/20">
+                    <Hash size={10} className="text-white/80" />
+                    <span className="text-xs font-black tracking-wide text-white">{service.cod_proposta}</span>
                 </div>
                 <div className="flex items-center gap-1 text-[9px] text-[var(--text-muted)] font-mono bg-[var(--bg-main)]/50 px-1.5 py-0.5 rounded-md border border-[var(--border)]">
                    <span>SN:</span>
@@ -86,7 +86,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
           className={`
             group relative flex flex-col gap-3 p-4 mb-3 rounded-2xl border transition-all duration-200
             ${snapshot.isDragging ? 'shadow-xl ring-2 ring-[var(--primary)] rotate-2 scale-105 z-50' : 'shadow-sm hover:shadow-md hover:border-[var(--primary)]/50'}
-            bg-[var(--bg-panel)] border-[var(--border)]
+            bg-[var(--bg-panel)] border-[var(--border)] ring-1 ring-white/5 hover:ring-white/10
           `}
         >
             {/* Header: ID e Proposta */}
@@ -94,9 +94,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                 <span className="text-[10px] font-black tracking-wider px-2 py-1 rounded-md bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border)]">
                     {service.id_rst || 'N/A'}
                 </span>
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-[var(--text-muted)] bg-[var(--bg-main)]/50 px-2 py-1 rounded-md border border-transparent group-hover:border-[var(--border)] transition-colors">
-                    <Hash size={10} />
-                    <span>{service.cod_proposta}</span>
+                <div className="flex items-center gap-2 text-sm font-black text-white bg-[var(--primary)] px-3 py-1.5 rounded-lg border border-[var(--primary)]/40 shadow-md shadow-[var(--primary)]/25">
+                    <Hash size={14} className="text-white/85" />
+                    <span className="tracking-wide">{service.cod_proposta}</span>
                 </div>
             </div>
 

@@ -4,6 +4,7 @@ import { Calendar, Hash, Image as ImageIcon, Loader2, Mail, Pencil, Save, Tag, U
 import { Modal } from '@/components/ui'
 import type { ServicEquipamento } from '@/types/domain'
 import { updateServicEquipamentoDetalhes } from '@/services/servicsEquipamento'
+import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
 
 interface EquipmentListProps {
     codProposta: string
@@ -152,7 +153,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                             </td>
                             <td className="px-4 py-2">
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-main)] uppercase">
-                                    {service.fase}
+                                    {getOsPhaseConfig(service.fase).label}
                                 </span>
                             </td>
                             <td className="px-2 py-2">
@@ -195,7 +196,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                         </div>
                         {selected?.fase && (
                             <span className="text-[10px] font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
-                                {selected.fase}
+                                {getOsPhaseConfig(selected.fase).label}
                             </span>
                         )}
                     </div>
@@ -263,7 +264,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-[var(--text-muted)]">Fase</span>
-                                        <span className="text-[var(--text-main)] font-medium">{selected.fase || 'NÃO INFORMADO'}</span>
+                                        <span className="text-[var(--text-main)] font-medium">{selected.fase ? getOsPhaseConfig(selected.fase).label : 'NÃO INFORMADO'}</span>
                                     </div>
                                 </div>
                             </div>

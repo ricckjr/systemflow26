@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd'
 import { ServicEquipamento } from '@/types/domain'
 import { ETAPAS_SERVICOS } from '@/services/servicsEquipamento'
-import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
+import { getOsPhaseConfig, normalizeOsPhase } from '@/config/ordemServicoKanbanConfig'
 import { ServiceCard } from './ServiceCard'
 import { Loader2 } from 'lucide-react'
 import { HorizontalScrollArea } from '@/components/ui'
@@ -19,7 +19,8 @@ interface ServiceKanbanBoardProps {
 
 export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, usuarios = [], onDragEnd, onCardClick, isTvMode = false }) => {
   const getServicesByStatus = (status: string) => {
-    return services.filter(s => s.fase === status)
+    const target = normalizeOsPhase(status)
+    return services.filter(s => normalizeOsPhase(s.fase) === target)
   }
 
   const displayedPhases = useMemo(() => {

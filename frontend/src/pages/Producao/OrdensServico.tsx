@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor, Pencil, ExternalLink, ZoomIn, Trash2 } from 'lucide-react'
+import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor, Pencil, ExternalLink, ZoomIn, Trash2, FileText } from 'lucide-react'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
 import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
 import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamento'
-import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
+import { getOsPhaseConfig, normalizeOsPhase } from '@/config/ordemServicoKanbanConfig'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 import { useTvMode } from '@/hooks/useTvMode'
@@ -91,7 +91,7 @@ const OrdensServico: React.FC = () => {
   }
 
   const handleOpenFaseModal = () => {
-      setNextFase(selectedService?.fase || '')
+      setNextFase(normalizeOsPhase(selectedService?.fase || ''))
       setNextResponsavel(selectedService?.responsavel || '')
       setNextDescricao('')
       setShowFaseModal(true)
@@ -887,9 +887,9 @@ const OrdensServico: React.FC = () => {
                                 <div className="p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border)] space-y-2">
                                     {h.fase_origem !== h.fase_destino && (
                                         <div className="flex items-center gap-2 text-sm">
-                                            <span className="font-medium text-[var(--text-soft)]">{h.fase_origem}</span>
+                                            <span className="font-medium text-[var(--text-soft)]">{h.fase_origem ? getOsPhaseConfig(h.fase_origem).label : ''}</span>
                                             <ArrowRight size={14} className="text-[var(--text-muted)]" />
-                                            <span className="font-bold text-[var(--text-main)]">{h.fase_destino}</span>
+                                            <span className="font-bold text-[var(--text-main)]">{h.fase_destino ? getOsPhaseConfig(h.fase_destino).label : ''}</span>
                                         </div>
                                     )}
                                     {h.responsavel_origem !== h.responsavel_destino && (
@@ -898,6 +898,14 @@ const OrdensServico: React.FC = () => {
                                             <span className="text-[var(--text-soft)]">{h.responsavel_origem || 'Sem resp.'}</span>
                                             <ArrowRight size={12} className="text-[var(--text-muted)]" />
                                             <span className="text-[var(--text-main)] font-medium">{h.responsavel_destino || 'Sem resp.'}</span>
+                                        </div>
+                                    )}
+                                    {String(h.descricao || '').trim().length > 0 && (
+                                        <div className="flex items-start gap-2 text-xs">
+                                            <FileText size={12} className="text-[var(--text-muted)] mt-0.5 shrink-0" />
+                                            <span className="text-[var(--text-soft)] leading-relaxed whitespace-pre-wrap">
+                                              {String(h.descricao).trim()}
+                                            </span>
                                         </div>
                                     )}
                                 </div>

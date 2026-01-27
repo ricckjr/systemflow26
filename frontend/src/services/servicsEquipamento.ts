@@ -1,7 +1,7 @@
 import { supabase } from '@/services/supabase'
 import { ServicEquipamento } from '@/types/domain'
 
-import { OS_PHASES } from '@/config/ordemServicoKanbanConfig'
+import { OS_PHASES, normalizeOsPhase, getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
 
 export const ETAPAS_SERVICOS = OS_PHASES
 
@@ -49,6 +49,7 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
 }
 
 export async function updateServicEquipamentoFase(id: string, fase: string, responsavel?: string, descricao?: string): Promise<ServicEquipamento> {
+  const normalizedFase = normalizeOsPhase(fase)
   const { data: currentService } = await supabase
     .from('servics_equipamento')
     .select('fase, responsavel, id_rst')
@@ -56,12 +57,12 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
     .single()
 
   const updates: any = {
-    fase,
+    fase: normalizedFase,
     updated_at: new Date().toISOString()
   }
   
   // Atualizar timestamp da fase se mudou
-  if (currentService && currentService.fase !== fase) {
+  if (currentService && currentService.fase !== normalizedFase) {
     updates.data_fase_atual = new Date().toISOString()
   }
   
@@ -69,7 +70,7 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
     updates.responsavel = responsavel
   }
   
-  if (fase === 'FINALIZADO') {
+  if (normalizedFase === 'FINALIZADO') {
     updates.data_finalizada = new Date().toISOString()
   } else {
     updates.data_finalizada = null // Reset if moved back
@@ -85,12 +86,12 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
   if (error) throw error
 
   // Registrar histórico se houve mudança
-  if (currentService && (currentService.fase !== fase || (responsavel !== undefined && currentService.responsavel !== responsavel))) {
+  if (currentService && (currentService.fase !== normalizedFase || (responsavel !== undefined && currentService.responsavel !== responsavel))) {
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('servics_historico').insert({
       service_id: id,
       fase_origem: currentService.fase,
-      fase_destino: fase,
+      fase_destino: normalizedFase,
       responsavel_origem: currentService.responsavel,
       responsavel_destino: responsavel !== undefined ? responsavel : currentService.responsavel,
       alterado_por: user?.id,
@@ -109,10 +110,11 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
         .single()
 
       if (responsibleUser) {
+        const faseLabel = getOsPhaseConfig(normalizedFase).label
         await supabase.from('notifications').insert({
           user_id: responsibleUser.id,
           title: `OS ${currentService.id_rst} - Nova Movimentação`,
-          content: `A OS foi movida para ${fase} por ${user?.email}. ${descricao ? `\nObs: ${descricao}` : ''}`,
+          content: `A OS foi movida para ${faseLabel} por ${user?.email}. ${descricao ? `\nObs: ${descricao}` : ''}`,
           link: '/app/producao/ordens-servico',
           type: 'info',
           is_read: false

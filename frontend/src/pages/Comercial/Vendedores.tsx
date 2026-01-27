@@ -31,6 +31,7 @@ import {
 import { CRM_Oportunidade, CRM_VendedorPerformance, isVenda } from '@/services/crm';
 import { useOportunidades, usePabxLigacoes, useVendedoresPerformance } from '@/hooks/useCRM';
 import { parseValorProposta, formatCurrency } from '@/utils/comercial/format';
+import { formatDateBR } from '@/utils/datetime';
 import { Modal } from '@/components/ui';
 import { format, isSameMonth, parseISO, parse, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -218,7 +219,9 @@ const Vendedores: React.FC = () => {
       // Calculate sales over time
       const salesByDayMap: Record<string, number> = {};
       data.ops.filter(o => isVenda(o.status)).forEach(o => {
-        const day = format(parseISO(o.data_inclusao!), 'dd/MM');
+        const full = formatDateBR(o.data_inclusao);
+        if (!full) return;
+        const day = full.slice(0, 5);
         const val = parseValorProposta(o.valor_proposta);
         salesByDayMap[day] = (salesByDayMap[day] || 0) + val;
       });

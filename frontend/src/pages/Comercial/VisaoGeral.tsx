@@ -32,6 +32,7 @@ import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial
 import { isVenda, isAtivo, CRM_Oportunidade } from '@/services/crm'
 import { useOportunidades, usePabxLigacoes, useInvalidateCRM, useMeta, useUpdateMeta } from '@/hooks/useCRM'
 import { APP_TIME_ZONE } from '@/constants/timezone'
+import { formatTimeBR } from '@/utils/datetime'
 import { Modal } from '@/components/ui'
 import { useTvMode } from '@/hooks/useTvMode'
 
@@ -224,7 +225,7 @@ export default function VisaoGeral() {
                 handleRefresh();
               }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white hover:bg-[var(--primary)]/90 active:scale-95 transition-all duration-300 font-medium text-sm shadow-sm shadow-indigo-500/20 cursor-pointer select-none"
-            title={`Última atualização: ${lastUpdated.toLocaleTimeString()}`}
+            title={`Última atualização: ${formatTimeBR(lastUpdated)}`}
             disabled={isManualRefreshing}
             style={{ position: 'relative', zIndex: 100 }}
           >

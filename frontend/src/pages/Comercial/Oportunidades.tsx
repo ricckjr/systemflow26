@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { CRM_Oportunidade } from '@/services/crm'
 import { parseValorProposta, formatCurrency, parseDate } from '@/utils/comercial/format'
+import { formatDateBR, formatTimeBR } from '@/utils/datetime'
 import { useOportunidades, useInvalidateCRM } from '@/hooks/useCRM'
 import { useUsuarios } from '@/hooks/useUsuarios'
 import {
@@ -279,7 +280,7 @@ const Oportunidades: React.FC = () => {
           </h1>
           <p className="text-sm text-[var(--text-soft)] mt-1 flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            {sortedList.length} oportunidades encontradas • Atualizado em: {lastUpdated.toLocaleTimeString()}
+            {sortedList.length} oportunidades encontradas • Atualizado em: {formatTimeBR(lastUpdated)}
           </p>
         </div>
 
@@ -607,8 +608,8 @@ const Oportunidades: React.FC = () => {
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <DetailItem icon={Calendar} label="Data Inclusão" value={parseDate(selected.data_inclusao)?.toLocaleDateString()} />
-                  <DetailItem icon={Calendar} label="Data Atualização" value={parseDate(selected.data)?.toLocaleDateString()} />
+                  <DetailItem icon={Calendar} label="Data Inclusão" value={formatDateBR(parseDate(selected.data_inclusao))} />
+                  <DetailItem icon={Calendar} label="Data Atualização" value={formatDateBR(parseDate(selected.data))} />
                   <DetailItem icon={Clock} label="Dias em Aberto" value={selected.dias_abertos ? `${selected.dias_abertos} dias` : null} />
                   <DetailItem icon={Clock} label="Dias Parado" value={selected.dias_parado ? `${selected.dias_parado} dias` : null} />
                 </div>

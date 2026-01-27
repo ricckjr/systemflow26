@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui'
 import type { ServicEquipamento } from '@/types/domain'
 import { updateServicEquipamentoDetalhes } from '@/services/servicsEquipamento'
 import { getOsPhaseConfig } from '@/config/ordemServicoKanbanConfig'
+import { formatDateBR, formatDateTimeBR, toDateInputValue } from '@/utils/datetime'
 
 interface EquipmentListProps {
     codProposta: string
@@ -47,7 +48,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
         return raw
     }, [selected])
 
-    const fmtDate = (v?: string | null) => (v ? new Date(v).toLocaleString() : 'NÃO INFORMADO')
+    const fmtDate = (v?: string | null) => (v ? formatDateTimeBR(v) : 'NÃO INFORMADO')
     const inputBase =
         'w-full h-9 px-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors'
     const textareaBase =
@@ -67,7 +68,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
             numero_nf: service.numero_nf || '',
             numero_pedido: service.numero_pedido || '',
             numero_certificado: service.numero_certificado || '',
-            data_calibracao: service.data_calibracao ? new Date(service.data_calibracao).toISOString().split('T')[0] : '',
+            data_calibracao: toDateInputValue(service.data_calibracao),
             observacoes_equipamento: service.observacoes_equipamento || '',
             responsavel: service.responsavel || ''
         })
@@ -148,7 +149,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                             <td className="px-4 py-2 text-[var(--text-soft)]">{service.modelo || '-'}</td>
                             <td className="px-4 py-2">
                                 <span className="text-xs text-[var(--text-muted)]">
-                                    {new Date(service.data_entrada || service.created_at).toLocaleDateString()}
+                                    {formatDateBR(service.data_entrada || service.created_at)}
                                 </span>
                             </td>
                             <td className="px-4 py-2">
@@ -421,7 +422,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         {isEditing ? (
                                             <input type="date" value={draft.data_calibracao} onChange={(e) => setDraft((p) => ({ ...p, data_calibracao: e.target.value }))} className={inputBase} />
                                         ) : (
-                                            <div className="text-[var(--text-main)] font-semibold">{selected.data_calibracao ? new Date(selected.data_calibracao).toLocaleDateString() : 'NÃO INFORMADO'}</div>
+                                            <div className="text-[var(--text-main)] font-semibold">{selected.data_calibracao ? formatDateBR(selected.data_calibracao) : 'NÃO INFORMADO'}</div>
                                         )}
                                     </div>
                                     <div className="sm:col-span-2">

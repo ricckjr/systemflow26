@@ -18,6 +18,7 @@ import {
 import { useOmieServics } from '@/hooks/useOmieServics'
 import { useUsuarios } from '@/hooks/useUsuarios'
 import { formatCurrency } from '@/utils/comercial/format'
+import { formatDateBR } from '@/utils/datetime'
 import { HorizontalScrollArea, Modal } from '@/components/ui'
 import { EquipmentEntryModal } from '@/components/producao/EquipmentEntryModal'
 import { EquipmentList } from '@/components/producao/EquipmentList.tsx'
@@ -333,7 +334,7 @@ const PropostaRow = React.memo(
       <td className="px-4 py-3">
         <div className="flex flex-col gap-1 text-xs text-[var(--text-soft)]">
           <span className="flex items-center gap-1" title="Data de Entrega">
-            <Calendar size={12} /> {item.data_entrega ? new Date(item.data_entrega).toLocaleDateString() : '-'}
+            <Calendar size={12} /> {item.data_entrega ? formatDateBR(item.data_entrega) : '-'}
           </span>
           {daysUntilDelivery !== null && !finalized && (
             <span className={`text-[10px] font-bold ${daysUntilDelivery < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
@@ -480,7 +481,7 @@ const DetailsModal = React.memo(
                   <label className="text-[10px] text-[var(--text-muted)] uppercase">Entrega</label>
                   <div className="pt-1 flex flex-col gap-1">
                     <div className="font-medium text-sm">
-                      {selected.data_entrega ? new Date(selected.data_entrega).toLocaleDateString() : 'NÃO INFORMADO'}
+                      {selected.data_entrega ? formatDateBR(selected.data_entrega) : 'NÃO INFORMADO'}
                     </div>
                     {daysUntilDelivery !== null && !finalized && (
                       <div className={`text-[10px] font-bold ${daysUntilDelivery < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -492,13 +493,13 @@ const DetailsModal = React.memo(
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
                   <label className="text-[10px] text-[var(--text-muted)] uppercase">Inclusão</label>
                   <div className="font-medium text-sm pt-1">
-                    {selected.data_inclusao ? new Date(selected.data_inclusao).toLocaleDateString() : 'NÃO INFORMADO'}
+                    {selected.data_inclusao ? formatDateBR(selected.data_inclusao) : 'NÃO INFORMADO'}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
                   <label className="text-[10px] text-[var(--text-muted)] uppercase">Alteração</label>
                   <div className="font-medium text-sm pt-1">
-                    {selected.data_alteracao ? new Date(selected.data_alteracao).toLocaleDateString() : 'NÃO INFORMADO'}
+                    {selected.data_alteracao ? formatDateBR(selected.data_alteracao) : 'NÃO INFORMADO'}
                   </div>
                 </div>
               </div>

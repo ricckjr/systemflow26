@@ -5,6 +5,7 @@ import { Profile } from '@/types';
 import { supabase } from '@/services/supabase';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { useSystemNotifications } from '@/contexts/SystemNotificationsContext';
+import { formatDateBR, formatTimeBR } from '@/utils/datetime';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -385,7 +386,7 @@ export const Header: React.FC<HeaderProps> = ({
                               </p>
                             )}
                             <p className="text-[9px] text-[#6B7280] mt-1.5 font-medium">
-                              {new Date(notification.created_at).toLocaleDateString()} • {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatDateBR(notification.created_at)} • {formatTimeBR(notification.created_at)}
                             </p>
                           </div>
                         </button>
@@ -476,7 +477,7 @@ export const Header: React.FC<HeaderProps> = ({
                                  {senderName} mandou mensagem
                                </p>
                                <span className="text-[9px] text-[#6B7280]">
-                                 {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                 {formatTimeBR(notif.created_at)}
                                </span>
                             </div>
                             <p className="text-[11px] text-[#9CA3AF] line-clamp-1 truncate">

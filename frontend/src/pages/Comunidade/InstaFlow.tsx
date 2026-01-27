@@ -19,8 +19,7 @@ import {
   Sparkles,
   Smile
 } from 'lucide-react';
-import { format, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateTimeBR } from '@/utils/datetime';
 import { searchProfilesByName } from '@/services/profiles';
 import { fetchFeed, fetchPostById, fetchReactionSummary, uploadMedia, createPostWithMedia, setReaction, fetchReactions, fetchComments, addComment, deletePost, editPost, type InstaFlowReaction } from '@/services/instaflow';
 import { isInstaFlowSoundEnabled, playInstaFlowNewPostSound, setInstaFlowSoundEnabled } from '@/utils/instaflowSound';
@@ -35,9 +34,7 @@ const safeInitials = (name: string) => {
 };
 
 const formatDateTime = (iso: string) => {
-  const d = new Date(iso);
-  if (!isValid(d)) return '';
-  return format(d, "d MMM, HH:mm", { locale: ptBR });
+  return formatDateTimeBR(iso);
 };
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|ogg)(\?|#|$)/i.test(url);

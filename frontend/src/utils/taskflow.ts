@@ -1,21 +1,9 @@
+import { parseDateInputToEndOfDayISO } from './datetime';
+
 export type TaskDeadlineStatus = 'overdue' | 'soon' | 'ok' | 'none';
 
 export function parseLocalDateToEndOfDayISO(dateValue: string): string | null {
-  const trimmed = (dateValue || '').trim();
-  if (!trimmed) return null;
-
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (!match) return null;
-
-  const year = Number(match[1]);
-  const monthIndex = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) return null;
-
-  const localEndOfDay = new Date(year, monthIndex, day, 23, 59, 59, 999);
-  if (Number.isNaN(localEndOfDay.getTime())) return null;
-
-  return localEndOfDay.toISOString();
+  return parseDateInputToEndOfDayISO(dateValue)
 }
 
 export function getDeadlineStatus(dueDateISO?: string | null, nowMs: number = Date.now()): TaskDeadlineStatus {

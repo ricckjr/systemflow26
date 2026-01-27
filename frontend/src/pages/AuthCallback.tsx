@@ -5,18 +5,18 @@ import { useAuth } from '@/contexts/AuthContext'
 
 const AuthCallback: React.FC = () => {
   const navigate = useNavigate()
-  const { session, loadingSession } = useAuth()
+  const { session, authReady } = useAuth()
 
   useEffect(() => {
     // Aguarda AuthContext resolver a sessão
-    if (loadingSession) return
+    if (!authReady) return
 
     if (session) {
       navigate('/app', { replace: true })
     } else {
       navigate('/login?error=auth_failed', { replace: true })
     }
-  }, [session, loadingSession, navigate])
+  }, [session, authReady, navigate])
 
   return (
     <div className="min-h-screen bg-[#081522] flex items-center justify-center">

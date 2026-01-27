@@ -13,8 +13,7 @@ import {
   XCircle,
   Box
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateTimeBR } from '@/utils/datetime';
 
 // --- Types ---
 
@@ -112,7 +111,7 @@ const SupabaseHealth = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: logs, error: err } = await supabase
+      const { data: logs, error: err } = await (supabase as any)
         .from('vps_health_logs')
         .select('*')
         .order('timestamp', { ascending: false })
@@ -121,7 +120,7 @@ const SupabaseHealth = () => {
       if (err) throw err;
 
       if (logs && logs.length > 0) {
-        setData(logs[0]);
+        setData(logs[0] as VPSHealthLog);
       } else {
         setData(null);
       }
@@ -237,7 +236,7 @@ const SupabaseHealth = () => {
             <Server size={14} />
             {data.host}
             <span className="w-1 h-1 rounded-full bg-slate-600 mx-1"></span>
-            Última atualização: {format(new Date(data.timestamp), "dd 'de' MMM, HH:mm:ss", { locale: ptBR })}
+            Última atualização: {formatDateTimeBR(data.timestamp)}
           </p>
         </div>
 

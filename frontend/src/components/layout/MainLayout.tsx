@@ -6,8 +6,8 @@ import { Profile, ProfilePermissao } from '@/types';
 import { useScrollLock } from '@/hooks/useScrollLock';
 
 interface LayoutProps {
-  profile: Profile | null;
-  perms: ProfilePermissao[];
+  profile?: Profile | null;
+  perms?: ProfilePermissao[];
   errorMessage?: string;
   children?: React.ReactNode;
 }

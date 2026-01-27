@@ -9,6 +9,7 @@ import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamen
 import { getOsPhaseConfig, normalizeOsPhase } from '@/config/ordemServicoKanbanConfig'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
+import { formatDateBR, formatDateTimeBR, toDateInputValue } from '@/utils/datetime'
 import { useTvMode } from '@/hooks/useTvMode'
 
 const OrdensServico: React.FC = () => {
@@ -59,7 +60,7 @@ const OrdensServico: React.FC = () => {
     setTestesRealizados(selectedService.testes_realizados || '')
     setServicosAFazer(selectedService.servicos_a_fazer || '')
     setNumeroCertificado(selectedService.numero_certificado || '')
-    setDataCalibracao(selectedService.data_calibracao ? new Date(selectedService.data_calibracao).toISOString().split('T')[0] : '')
+    setDataCalibracao(toDateInputValue(selectedService.data_calibracao))
     setGalleryEditMode(false)
     setPreviewImageUrl(null)
     setConfirmRemoveImageUrl(null)
@@ -214,7 +215,7 @@ const OrdensServico: React.FC = () => {
       (testesRealizados || '') !== (selectedService.testes_realizados || '') ||
       (servicosAFazer || '') !== (selectedService.servicos_a_fazer || '') ||
       (numeroCertificado || '') !== (selectedService.numero_certificado || '') ||
-      (dataCalibracao || '') !== (selectedService.data_calibracao ? new Date(selectedService.data_calibracao).toISOString().split('T')[0] : '')
+      (dataCalibracao || '') !== toDateInputValue(selectedService.data_calibracao)
     )
   }, [analiseVisual, servicosAFazer, selectedService, testesRealizados, numeroCertificado, dataCalibracao])
 
@@ -237,7 +238,7 @@ const OrdensServico: React.FC = () => {
       if ((servicos || '') !== (selectedService.servicos_a_fazer || '')) {
         await updateServicosAFazer(selectedService.id, servicos.length ? servicos : null)
       }
-      if ((cert || '') !== (selectedService.numero_certificado || '') || (dataCalib || '') !== (selectedService.data_calibracao ? new Date(selectedService.data_calibracao).toISOString().split('T')[0] : '')) {
+      if ((cert || '') !== (selectedService.numero_certificado || '') || (dataCalib || '') !== toDateInputValue(selectedService.data_calibracao)) {
           await updateCertificadoCalibracao(selectedService.id, cert.length ? cert : null, dataCalib.length ? dataCalib : null)
       }
 
@@ -389,7 +390,7 @@ const OrdensServico: React.FC = () => {
           selectedService ? (
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                 <span className="flex items-center gap-1.5"><Calendar size={14}/> Entrada: {new Date(selectedService.data_entrada).toLocaleDateString()}</span>
+                 <span className="flex items-center gap-1.5"><Calendar size={14}/> Entrada: {formatDateBR(selectedService.data_entrada)}</span>
                  <span className="w-px h-3 bg-[var(--border)]"></span>
                  <span className="flex items-center gap-1.5"><User size={14}/> Resp: {selectedService.responsavel || '-'}</span>
                  <span className="w-px h-3 bg-[var(--border)]"></span>
@@ -880,7 +881,7 @@ const OrdensServico: React.FC = () => {
                             <div className="flex flex-col gap-1">
                                 <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
                                     <Clock size={12} />
-                                    {new Date(h.data_movimentacao).toLocaleString()}
+                                    {formatDateTimeBR(h.data_movimentacao)}
                                     <span className="text-[var(--text-soft)]">•</span>
                                     <span>{h.profiles?.nome || 'Sistema'}</span>
                                 </div>

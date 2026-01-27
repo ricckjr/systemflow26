@@ -15,6 +15,7 @@ import {
   Clock,
   Filter
 } from 'lucide-react';
+import { formatTimeBR } from '@/utils/datetime';
 
 interface ChatContact {
   id: string;
@@ -70,7 +71,7 @@ const FlowSmart: React.FC = () => {
       id: Date.now().toString(),
       text: inputText,
       sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: formatTimeBR(new Date()),
       status: 'sent',
       type: 'text'
     };

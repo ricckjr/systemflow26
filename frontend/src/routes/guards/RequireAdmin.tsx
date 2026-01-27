@@ -4,10 +4,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Loader2 } from 'lucide-react'
 
 export default function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuth()
+  const { profile, authReady, profileReady } = useAuth()
   const location = useLocation()
 
-  if (loading && !profile) {
+  if ((!authReady || !profileReady) && !profile) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-navy-950">
         <Loader2 className="w-10 h-10 text-brand-500 animate-spin" />

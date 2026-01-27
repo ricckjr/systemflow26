@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Briefcase,
@@ -10,7 +10,8 @@ import {
   X,
   LayoutDashboard,
   Users,
-  Factory
+  Factory,
+  GraduationCap
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,6 +66,18 @@ const navItems: NavItem[] = [
       { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
     ],
   },
+  {
+    label: 'UNIVERSIDADE',
+    icon: GraduationCap,
+    modulo: 'universidade',
+    subItems: [
+      { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
+      { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
+      { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
+      { label: 'IT Serviços', path: '/app/universidade/it-servicos', submodulo: 'it-servicos' },
+      { label: 'Vídeo Aulas', path: '/app/universidade/video-aulas', submodulo: 'video-aulas' },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -87,23 +100,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { hasAnyUnread } = useChatNotifications();
 
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([
-    'COMERCIAL',
-    'COMUNICAÇÃO',
-  ]);
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
+    const active = navItems.find((item) =>
+      item.subItems?.some((si) => si.path === location.pathname)
+    );
+    return active?.label ?? null;
+  });
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  const showText = !isCollapsed || isMobileMenuOpen;
+
+  const activeMenuLabel = useMemo(() => {
+    const active = navItems.find((item) =>
+      item.subItems?.some((si) => si.path === location.pathname)
+    );
+    return active?.label ?? null;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!showText) {
+      setExpandedMenu(null);
+      return;
+    }
+    setExpandedMenu(activeMenuLabel);
+  }, [activeMenuLabel, showText]);
 
   const toggleMenu = (label: string) => {
     if (isCollapsed && setIsExpanded) {
       setIsExpanded(true);
-      if (!expandedMenus.includes(label)) {
-        setExpandedMenus((prev) => [...prev, label]);
-      }
+      setExpandedMenu(label);
       return;
     }
-    setExpandedMenus((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
-    );
+    setExpandedMenu((prev) => (prev === label ? null : label));
   };
 
   const openProfilePage = () => navigate('/app/configuracoes/perfil');
@@ -115,7 +143,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/login', { replace: true });
   };
 
-  const showText = !isCollapsed || isMobileMenuOpen;
   const avatarUrl = profile?.avatar_url;
   const profileInitial = (profile?.nome || 'U').substring(0, 1).toUpperCase();
 
@@ -150,15 +177,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ${showText ? 'px-4' : 'px-2'}`}>
         
         {navItems.map((item) => {
-          const isExpanded = expandedMenus.includes(item.label);
+          const isExpanded = expandedMenu === item.label;
           const hasActiveChild = item.subItems?.some((si) => si.path === location.pathname);
           const isActive = hasActiveChild || isExpanded;
 
           return (
-            <div key={item.label} className="mb-2">
+            <div key={item.label} className="mb-2 relative group">
               <button
                 onClick={() => toggleMenu(item.label)}
-                className={`w-full flex items-center transition-all duration-200 rounded-lg group
+                className={`w-full flex items-center transition-all duration-200 rounded-lg
                   ${showText 
                     ? 'justify-between px-3 py-2.5' 
                     : 'justify-center p-2.5 aspect-square'
@@ -197,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {/* Tooltip (Collapsed) */}
               {!showText && (
-                <div className="hidden group-hover:block absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap">
+                <div className="hidden group-hover:block absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
                   {item.label}
                 </div>
               )}

@@ -29,7 +29,7 @@ function classifySupabaseError(err: any): 'network' | 'auth' | 'schema' | 'rls' 
 export const checkTableAccess = async (table: string) => {
   try {
     const res: any = await withTiming('diagnostics', `count ${table}`, async () => {
-      return supabase
+      return (supabase as any)
         .from(table)
         .select('*', { count: 'exact', head: true })
         .limit(1)

@@ -12,6 +12,7 @@ import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { Modal } from '@/components/ui';
 import { isNotificationSoundEnabled, setNotificationSoundEnabled } from '@/utils/notificationSound';
+import { formatDateBR, formatDateTimeBR, formatTimeBR } from '@/utils/datetime';
 import { 
   Search, 
   Send, 
@@ -58,44 +59,7 @@ const STATUS_LABELS = {
   offline: 'Offline'
 };
 
-const CHAT_TIME_ZONE = 'America/Sao_Paulo' as const
-
-const formatTimeSP = (input: string | Date | null | undefined) => {
-  if (!input) return ''
-  const d = input instanceof Date ? input : new Date(input)
-  if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: CHAT_TIME_ZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d)
-}
-
-const formatDateSP = (input: string | Date | null | undefined) => {
-  if (!input) return ''
-  const d = input instanceof Date ? input : new Date(input)
-  if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: CHAT_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d)
-}
-
-const formatDateTimeSP = (input: string | Date | null | undefined) => {
-  if (!input) return ''
-  const d = input instanceof Date ? input : new Date(input)
-  if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: CHAT_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d)
-}
+ 
 
 const AudioVisualizer: React.FC<{ stream: MediaStream | null }> = ({ stream }) => {
   // ... (keep existing implementation)
@@ -980,7 +944,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       if (!m) return false
       const content = (m.content ?? '').toLowerCase()
       const sender = (m.sender?.nome ?? '').toLowerCase()
-      const date = m.created_at ? formatDateSP(m.created_at) : ''
+      const date = m.created_at ? formatDateBR(m.created_at) : ''
       return content.includes(q) || sender.includes(q) || date.includes(q)
     })
   }, [messageSearchQuery, messages])
@@ -1431,7 +1395,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           </p>
                           {info.lastMessage && (
                             <span className={`text-[10px] ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'} ${info.hasUnread ? 'text-cyan-400 font-bold' : ''}`}>
-                              {formatTimeSP(info.lastMessage.created_at)}
+                              {formatTimeBR(info.lastMessage.created_at)}
                             </span>
                           )}
                         </div>
@@ -2080,7 +2044,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       
                       <div className={`flex items-center gap-1 mt-1 px-1 opacity-60 group-hover:opacity-100 transition-opacity`}>
                         <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                          {formatTimeSP(msg.created_at)}
+                          {formatTimeBR(msg.created_at)}
                         </span>
                         {(msg.is_edited || msg.edited_at) && !msg.deleted_at && (
                           <span className="text-[10px] text-[var(--text-muted)] font-medium">(editada)</span>
@@ -2336,7 +2300,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Criado Em</div>
-                    <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? formatDateTimeSP(profileModalUser.created_at) : '-'}</div>
+                    <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? formatDateTimeBR(profileModalUser.created_at) : '-'}</div>
                   </div>
                 </div>
               )}
@@ -2644,7 +2608,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         {m.sender?.nome || 'Usuário'}
                       </div>
                       <div className="text-[10px] text-[var(--text-muted)] shrink-0">
-                        {m.created_at ? formatDateTimeSP(m.created_at) : ''}
+                        {m.created_at ? formatDateTimeBR(m.created_at) : ''}
                       </div>
                     </div>
                     <div className="text-xs text-[var(--text-soft)] truncate mt-1">

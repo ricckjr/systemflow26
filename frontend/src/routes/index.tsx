@@ -26,6 +26,11 @@ const Propostas = lazy(() => import('@/pages/Producao/Propostas'))
 const OrdensServico = lazy(() => import('@/pages/Producao/OrdensServico'))
 const Equipamentos = lazy(() => import('@/pages/Producao/Equipamentos'))
 const SupabaseHealth = lazy(() => import('@/pages/Infra/SupabaseHealth'))
+const UniversidadeCatalogos = lazy(() => import('@/pages/Universidade/Catalogos'))
+const UniversidadeManuais = lazy(() => import('@/pages/Universidade/Manuais'))
+const UniversidadeTreinamentos = lazy(() => import('@/pages/Universidade/Treinamentos'))
+const UniversidadeITServicos = lazy(() => import('@/pages/Universidade/ITServicos'))
+const UniversidadeVideoAulas = lazy(() => import('@/pages/Universidade/VideoAulas'))
 
 // ==============================
 // Loader
@@ -88,6 +93,12 @@ export const router = createBrowserRouter([
       { path: 'configuracoes/permissoes', element: lazyPage(<RequireAdmin><Permissoes /></RequireAdmin>, 'Carregando Permissões...') },
 
       { path: 'infra/supabase', element: lazyPage(<SupabaseHealth />, 'Carregando Monitoramento...') },
+
+      { path: 'universidade/catalogos', element: lazyPage(<UniversidadeCatalogos />, 'Carregando Catálogos...') },
+      { path: 'universidade/manuais', element: lazyPage(<UniversidadeManuais />, 'Carregando Manuais...') },
+      { path: 'universidade/treinamentos', element: lazyPage(<UniversidadeTreinamentos />, 'Carregando Treinamentos...') },
+      { path: 'universidade/it-servicos', element: lazyPage(<UniversidadeITServicos />, 'Carregando IT Serviços...') },
+      { path: 'universidade/video-aulas', element: lazyPage(<UniversidadeVideoAulas />, 'Carregando Vídeo Aulas...') },
     ]
   },
 

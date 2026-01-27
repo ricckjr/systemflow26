@@ -53,8 +53,7 @@ import {
   MessageCircle,
   Pencil
 } from 'lucide-react';
-import { format, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateBR, formatDateTimeBR, toDateInputValue, formatTimeBR } from '@/utils/datetime';
 import { HorizontalScrollArea, Modal } from '@/components/ui';
 
 const priorities = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
@@ -292,9 +291,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
   const activeTaskDueDateInputValue = useMemo(() => {
     if (!activeTask?.due_date) return '';
-    const d = new Date(activeTask.due_date);
-    if (Number.isNaN(d.getTime())) return '';
-    return format(d, 'yyyy-MM-dd');
+    return toDateInputValue(activeTask.due_date);
   }, [activeTask?.due_date]);
 
   const timelineItems = useMemo(() => {
@@ -1361,7 +1358,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                     {task.due_date && (
                                       <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${new Date(task.due_date) < new Date() ? 'text-rose-400 bg-rose-500/10' : 'bg-[var(--bg-body)]'}`} title="Prazo">
                                         <Clock size={10} />
-                                        <span>{format(new Date(task.due_date), 'dd/MM')}</span>
+                                        <span>{formatDateBR(task.due_date)}</span>
                                       </div>
                                     )}
                                     <div className="flex items-center gap-1 text-[10px] font-medium hover:text-cyan-400 transition-colors">
@@ -1931,7 +1928,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   </div>
                   <div className="flex items-center gap-2 group relative">
                     <span className={`text-sm font-medium ${!activeTaskDueDateInputValue ? 'text-[var(--text-muted)] italic' : 'text-[var(--text-main)]'}`}>
-                      {activeTaskDueDateInputValue ? format(new Date(activeTaskDueDateInputValue), "dd 'de' MMM, yyyy", { locale: ptBR }) : 'Sem prazo'}
+                      {activeTaskDueDateInputValue ? formatDateBR(activeTaskDueDateInputValue) : 'Sem prazo'}
                     </span>
                     {canEditActiveTaskDueDate && (
                        <button 
@@ -2056,7 +2053,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                           {att.file_name}
                         </a>
                         <span className="text-[10px] text-[var(--text-muted)]">
-                          {format(new Date(att.created_at), "d MMM, HH:mm", { locale: ptBR })}
+                          {formatDateTimeBR(att.created_at)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2117,7 +2114,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                               </div>
                               {item.details && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 italic">{item.details}</div>}
                               <div className="text-[9px] text-[var(--text-muted)] opacity-60 mt-1">
-                                 {format(new Date(item.created_at), "d MMM, HH:mm", { locale: ptBR })}
+                                 {formatDateTimeBR(item.created_at)}
                               </div>
                            </div>
                         </>
@@ -2132,7 +2129,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                            <div className="pb-4 flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
                                  <span className="text-xs font-bold text-[var(--text-main)]">{item.user_nome}</span>
-                                 <span className="text-[9px] text-[var(--text-muted)]">{format(new Date(item.created_at), "HH:mm", { locale: ptBR })}</span>
+                                 <span className="text-[9px] text-[var(--text-muted)]">{formatTimeBR(item.created_at)}</span>
                               </div>
                               <div className="bg-[var(--bg-panel)] p-3 rounded-xl rounded-tl-none border border-[var(--border)] text-sm text-[var(--text-main)] shadow-sm">
                                  {item.content}

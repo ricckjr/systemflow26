@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Profile, ProfilePermissao } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatTimeBR } from '@/utils/datetime';
 
 type ChatMsg = { id: string; role: 'user' | 'assistant' | 'system'; content: string; at: string };
 
@@ -289,7 +290,7 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: ProfilePermissao[] }> = ({ p
                     
                     {/* Message Actions */}
                     <div className={`absolute -bottom-6 ${m.role === 'user' ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2`}>
-                       <span className="text-[10px] text-[var(--text-muted)]">{new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                       <span className="text-[10px] text-[var(--text-muted)]">{formatTimeBR(m.at)}</span>
                        {m.role === 'assistant' && (
                          <button 
                            onClick={() => handleCopy(m.content, m.id)} 

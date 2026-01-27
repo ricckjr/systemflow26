@@ -213,7 +213,7 @@ export async function fetchPabxLigacoes() {
 }
 
 export async function fetchVendedoresPerformance(opts?: { idData?: string }) {
-  const q = supabase
+  const q = (supabase as any)
     .from('crm_vendedores_performance')
     .select('*')
     .order('vendedor', { ascending: true })

@@ -63,9 +63,7 @@ app.get('/me', authenticate, (req, res) => {
   res.json({ user: req.user, profile: req.profile });
 });
 
-// === Inicialização do Servidor (Bind 0.0.0.0) ===
-// Ouve em 0.0.0.0 para garantir acesso via localhost (IPv4) e rede externa (Docker)
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`\n✅ Backend running on http://0.0.0.0:${PORT}`);
   console.log(`✅ Accessible via http://localhost:${PORT}`);
   console.log(`✅ CORS Policy: Allow All (Development Mode)`);

@@ -3,7 +3,7 @@ import { Post, Recognition } from '@/types'
 
 const sb = supabase as any
 
-export type InstaFlowReaction = '👍' | '❤️' | '👏' | '🔥'
+export type InstaFlowReaction = string
 
 export interface InstaFlowReactionSummary {
   counts: Record<string, number>
@@ -272,7 +272,7 @@ export async function deletePost(postId: string, userId: string) {
 export async function likePost(postId: string, userId: string) {
   return !(await sb
     .from('instaflow_likes')
-    .upsert({ post_id: postId, created_by: userId, reaction: '❤️' }, { onConflict: 'post_id,created_by' })
+    .upsert({ post_id: postId, created_by: userId, reaction: '❤️' }, { onConflict: 'post_id,created_by', ignoreDuplicates: true })
   ).error
 }
 
@@ -290,31 +290,57 @@ export async function setReaction(postId: string, userId: string, reaction: Inst
   const res = await sb
     .from('instaflow_likes')
     .upsert({ post_id: postId, created_by: userId, reaction }, { onConflict: 'post_id,created_by' })
-  if (res.error) {
-    return reaction === '❤️' ? likePost(postId, userId) : false
-  }
+  if (!res.error) return true
+
+  const del = await sb
+    .from('instaflow_likes')
+    .delete()
+    .eq('post_id', postId)
+    .eq('created_by', userId)
+  if (del.error) return reaction === '❤️' ? likePost(postId, userId) : false
+
+  const ins = await sb
+    .from('instaflow_likes')
+    .insert({ post_id: postId, created_by: userId, reaction })
+  if (ins.error) return reaction === '❤️' ? likePost(postId, userId) : false
+
   return true
 }
 
 export async function fetchReactions(postId: string) {
-  const { data } = await sb
+  const base = await sb
     .from('instaflow_likes')
-    .select(`
-      reaction,
-      created_by,
-      profiles:created_by (
-        nome,
-        avatar_url
-      )
-    `)
+    .select('reaction, created_by, created_at')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
+    .limit(200)
 
-  return (data || []).map(r => ({
-    reaction: (r.reaction || '❤️') as string,
+  const fallback = (!base.error && base.data)
+    ? base
+    : await sb
+      .from('instaflow_likes')
+      .select('created_by, created_at')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+      .limit(200)
+
+  if (fallback.error || !fallback.data || fallback.data.length === 0) return []
+
+  const userIds = Array.from(new Set((fallback.data || []).map((r: any) => r.created_by).filter(Boolean)))
+  const { data: profiles } = await sb
+    .from('profiles')
+    .select('id, nome, avatar_url')
+    .in('id', userIds)
+
+  const profileMap = Object.fromEntries(
+    (profiles || []).map((p: any) => [p.id, p])
+  ) as Record<string, { nome?: string | null; avatar_url?: string | null }>
+
+  return (fallback.data || []).map((r: any) => ({
+    reaction: ((r.reaction as string) || '❤️') as string,
     user_id: r.created_by as string,
-    usuario_nome: r.profiles?.nome ?? 'Usuário',
-    usuario_avatar_url: r.profiles?.avatar_url ?? null
+    usuario_nome: profileMap[r.created_by]?.nome ?? 'Usuário',
+    usuario_avatar_url: profileMap[r.created_by]?.avatar_url ?? null
   }))
 }
 
@@ -325,7 +351,20 @@ export async function fetchReactionSummary(postId: string, userId?: string | nul
     .eq('post_id', postId)
 
   const summary: InstaFlowReactionSummary = { counts: {}, myReaction: null, total: 0 }
-  if (res.error || !res.data) return summary
+  if (res.error || !res.data) {
+    const fallback = await sb
+      .from('instaflow_likes')
+      .select('created_by')
+      .eq('post_id', postId)
+    if (fallback.error || !fallback.data) return summary
+    for (const r of fallback.data) {
+      const reaction = '❤️'
+      summary.counts[reaction] = (summary.counts[reaction] || 0) + 1
+      summary.total += 1
+      if (userId && r.created_by === userId) summary.myReaction = reaction
+    }
+    return summary
+  }
 
   for (const r of res.data) {
     const reaction = (r.reaction || '❤️') as string

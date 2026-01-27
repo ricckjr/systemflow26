@@ -266,6 +266,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   const [lightbox, setLightbox] = useState<{ srcs: string[]; index: number } | null>(null);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(isInstaFlowSoundEnabled());
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const cacheKey = useMemo(() => `systemflow:instaflow:feed:v1:${profile.id}`, [profile.id]);
 
   useEffect(() => {
@@ -782,7 +783,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
               
               <button className="flex items-center gap-2 text-[var(--text-soft)] hover:text-cyan-400 transition-colors text-sm group">
                 <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
-                <span>{post.comments_count}</span>
+                <span>{commentCounts[post.id] ?? post.comments_count}</span>
               </button>
               
               <button className="ml-auto text-[var(--text-soft)] hover:text-[var(--text-main)] transition-colors">
@@ -792,7 +793,13 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
 
             {/* Comments */}
             <div className="bg-[var(--bg-body)]/30 px-6 py-4 border-t border-[var(--border)]">
-              <CommentSection postId={post.id} userId={user.id} />
+              <CommentSection
+                postId={post.id}
+                userId={user.id}
+                onCountChange={(count) => {
+                  setCommentCounts(prev => (prev[post.id] === count ? prev : { ...prev, [post.id]: count }));
+                }}
+              />
             </div>
           </div>
         ))}
@@ -811,7 +818,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   );
 };
 
-const REACTIONS: InstaFlowReaction[] = ['👍', '❤️', '👏', '🔥'];
+const QUICK_REACTIONS: InstaFlowReaction[] = ['👍', '❤️', '👏', '🔥'];
 
 const ReactionsBar: React.FC<{
   post: Post;
@@ -820,12 +827,29 @@ const ReactionsBar: React.FC<{
 }> = ({ post, userId, onChange }) => {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [details, setDetails] = useState<{ reaction: string; user_id: string; usuario_nome: string; usuario_avatar_url?: string | null }[]>([]);
+  const [detailsFilter, setDetailsFilter] = useState<string>('all');
 
   const counts = post.reactions ?? {};
   const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0) || post.likes || 0;
   const my = post.my_reaction ?? null;
+  const detailsStats = useMemo(() => {
+    const byReaction: Record<string, number> = {};
+    for (const d of details) {
+      const key = d.reaction || '❤️';
+      byReaction[key] = (byReaction[key] || 0) + 1;
+    }
+    const reactions = Object.entries(byReaction)
+      .sort((a, b) => b[1] - a[1])
+      .map(([reaction, count]) => ({ reaction, count }));
+    return { total: details.length, reactions };
+  }, [details]);
+  const filteredDetails = useMemo(() => {
+    if (detailsFilter === 'all') return details;
+    return details.filter(d => (d.reaction || '❤️') === detailsFilter);
+  }, [details, detailsFilter]);
 
   const applyOptimistic = (nextReaction: string | null) => {
     const prevReaction = my;
@@ -854,18 +878,20 @@ const ReactionsBar: React.FC<{
     if (busy) return;
     setBusy(true);
     setOpen(false);
+    setEmojiOpen(false);
 
     const next = my === reaction ? null : reaction;
     const snapshot = { ...post };
     applyOptimistic(next);
 
-    const ok = await setReaction(post.id, userId, next as any);
+    const ok = await setReaction(post.id, userId, next);
     if (!ok) onChange(snapshot);
     setBusy(false);
   };
 
   const openDetails = async () => {
     setDetailsOpen(true);
+    setDetailsFilter('all');
     const rows = await fetchReactions(post.id);
     setDetails(rows);
   };
@@ -883,7 +909,7 @@ const ReactionsBar: React.FC<{
         <span>{total}</span>
       </button>
 
-      {Object.keys(counts).length > 0 && (
+      {total > 0 && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); void openDetails(); }}
@@ -896,7 +922,7 @@ const ReactionsBar: React.FC<{
 
       {open && (
         <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl shadow-xl px-3 py-2 flex items-center gap-2">
-          {REACTIONS.map(r => (
+          {QUICK_REACTIONS.map(r => (
             <button
               key={r}
               type="button"
@@ -907,6 +933,22 @@ const ReactionsBar: React.FC<{
               {r}
             </button>
           ))}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEmojiOpen(v => !v); }}
+              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
+              aria-label="Escolher outro emoji"
+              title="Mais emojis"
+            >
+              <Smile size={18} />
+            </button>
+            <EmojiPicker
+              open={emojiOpen}
+              onClose={() => setEmojiOpen(false)}
+              onSelect={(emoji) => void pick(emoji)}
+            />
+          </div>
         </div>
       )}
 
@@ -917,28 +959,56 @@ const ReactionsBar: React.FC<{
         size="md"
       >
         <div className="space-y-4">
-          {REACTIONS.map(r => {
-            const group = details.filter(d => d.reaction === r);
-            if (group.length === 0) return null;
-            return (
-              <div key={r} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-[var(--text-main)]">{r}</div>
-                  <div className="text-xs text-[var(--text-muted)]">{group.length}</div>
-                </div>
-                <div className="space-y-2">
-                  {group.map(u => (
-                    <div key={u.user_id} className="flex items-center gap-3">
-                      <Avatar name={u.usuario_nome} src={u.usuario_avatar_url} size={28} className="shrink-0 rounded-full object-cover" />
-                      <div className="text-sm text-[var(--text-main)]">{u.usuario_nome}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {total > 0 && details.length === 0 && (
+            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-3">
+              Este post mostra <span className="font-semibold text-[var(--text-main)]">{total}</span> reação(ões), mas não há registros individuais para listar.
+            </div>
+          )}
 
-          {details.length === 0 && (
+          {details.length > 0 && details.length < total && (
+            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-3">
+              Mostrando <span className="font-semibold text-[var(--text-main)]">{details.length}</span> de <span className="font-semibold text-[var(--text-main)]">{total}</span> reação(ões).
+            </div>
+          )}
+
+          {details.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setDetailsFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === 'all' ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+              >
+                Todos <span className="ml-1 text-[11px] text-[var(--text-muted)]">({detailsStats.total})</span>
+              </button>
+              {detailsStats.reactions.map(r => (
+                <button
+                  key={r.reaction}
+                  type="button"
+                  onClick={() => setDetailsFilter(r.reaction)}
+                  className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === r.reaction ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                >
+                  <span className="mr-1">{r.reaction}</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">({r.count})</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {details.length > 0 && (
+            <div className="max-h-[55vh] overflow-y-auto rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)]">
+              {filteredDetails.map(u => (
+                <div key={`${u.user_id}-${u.reaction}`} className="flex items-center gap-3 px-3 py-2.5">
+                  <Avatar name={u.usuario_nome} src={u.usuario_avatar_url} size={32} className="shrink-0 rounded-full object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-[var(--text-main)] truncate">{u.usuario_nome}</div>
+                  </div>
+                  <div className="text-lg leading-none">{u.reaction || '❤️'}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {details.length === 0 && total === 0 && (
             <div className="text-sm text-[var(--text-soft)]">Nenhuma reação ainda.</div>
           )}
         </div>
@@ -947,7 +1017,7 @@ const ReactionsBar: React.FC<{
   );
 };
 
-const CommentSection: React.FC<{ postId: string; userId: string }> = ({ postId, userId }) => {
+const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?: (count: number) => void }> = ({ postId, userId, onCountChange }) => {
   const [items, setItems] = useState<InstaFlowComment[]>([]);
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -962,10 +1032,14 @@ const CommentSection: React.FC<{ postId: string; userId: string }> = ({ postId, 
   
   useEffect(() => {
     (async () => {
-      const data = await fetchComments(postId);
+      const data = await fetchComments(postId, 1, 200);
       setItems(data);
     })();
   }, [postId]);
+
+  useEffect(() => {
+    onCountChange?.(items.length);
+  }, [items.length, onCountChange]);
 
   useEffect(() => {
     if (!mentionOpen) return;

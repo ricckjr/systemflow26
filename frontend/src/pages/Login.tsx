@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { supabase } from '@/services/supabase'
+import { Eye, EyeOff, Lock, Loader2, Mail } from 'lucide-react'
 import { logInfo, logError } from '@/utils/logger'
 import capaLogin from '@/assets/capalogin.png'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, loading } = useAuth()
+  const { session, authReady } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,13 +21,13 @@ const Login: React.FC = () => {
 
   // Redireciona automaticamente se já estiver autenticado
   useEffect(() => {
-    if (!loading && session) {
+    if (authReady && session) {
       navigate('/app', { replace: true })
     }
-  }, [loading, session, navigate])
+  }, [authReady, session, navigate])
 
   // Evita flash visual e erros de imagem durante bootstrap do auth
-  if (loading || session) {
+  if (!authReady || session) {
     return (
       <div className="min-h-screen bg-[#0B0F14] flex items-center justify-center">
         <Loader2 className="animate-spin text-[#38BDF8]" size={48} />

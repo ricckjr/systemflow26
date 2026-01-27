@@ -146,6 +146,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
       )
       .subscribe((status) => {
         realtimeSubscribedRef.current = status === 'SUBSCRIBED'
+        if (status === 'SUBSCRIBED') void loadUnread()
       })
 
     const pollMs = 45000

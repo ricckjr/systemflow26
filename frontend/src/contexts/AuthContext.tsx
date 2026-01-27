@@ -35,7 +35,7 @@ interface AuthContextType {
 
   refreshProfile: () => Promise<void>
   loadPermissions: () => Promise<void>
-  signOut: () => void
+  signOut: () => Promise<void>
 
   isAdmin: boolean
 }
@@ -239,8 +239,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     }
 
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isInvalidRefreshTokenError(event.reason)) {
+        event.preventDefault()
+        clearAuthStorageAndState(true)
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+      }
+    }
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+
     return () => {
       mounted.current = false
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
       if (globalThis.__systemflow_auth_sub === subscription) {
         globalThis.__systemflow_auth_sub = undefined
       }
@@ -308,11 +319,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /* ================================
      SignOut
   ================================ */
+  const signingOutRef = useRef(false)
+
   const signOut = useCallback(async () => {
+    if (signingOutRef.current) return
+    signingOutRef.current = true
+
+    try {
+      sessionStorage.setItem('systemflow:manual-logout', '1')
+    } catch {
+    }
+
     localStorage.removeItem(PROFILE_CACHE_KEY)
     localStorage.removeItem(PERMS_CACHE_KEY)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
 
-    Object.keys(localStorage).forEach(k => {
+    Object.keys(localStorage).forEach((k) => {
       if (k.startsWith('sb-')) localStorage.removeItem(k)
     })
 
@@ -320,16 +342,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionRef.current = null
     setProfile(null)
     setPermissions(null)
-    setAuthReady(false)
-    setProfileReady(false)
+    setAuthReady(true)
+    setProfileReady(true)
 
     try {
-      const { error } = await supabase.rpc('update_user_status', { new_status: 'offline' })
+      await withTimeout(
+        supabase.rpc('update_user_status', { new_status: 'offline' }),
+        4000
+      )
+    } catch {
+    }
+
+    try {
+      const { error } = await withTimeout(supabase.auth.signOut({ scope: 'local' }), 4000)
       if (error) throw error
     } catch {
     } finally {
-      await supabase.auth.signOut()
-      window.location.href = '/login'
+      signingOutRef.current = false
     }
   }, [])
 

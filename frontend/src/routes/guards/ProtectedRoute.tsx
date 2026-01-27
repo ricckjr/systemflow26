@@ -31,11 +31,21 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
    * 2️⃣ Sem sessão (auth já checado)
    */
   if (!session) {
+    let state: any = { message: 'Sessão expirada. Faça login novamente.' }
+    try {
+      const manualLogout = sessionStorage.getItem('systemflow:manual-logout') === '1'
+      if (manualLogout) {
+        sessionStorage.removeItem('systemflow:manual-logout')
+        state = undefined
+      }
+    } catch {
+    }
+
     return (
       <Navigate
         to="/login"
         replace
-        state={{ message: 'Sessão expirada. Faça login novamente.' }}
+        state={state}
       />
     )
   }

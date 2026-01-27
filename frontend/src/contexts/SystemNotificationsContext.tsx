@@ -125,6 +125,7 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
       )
       .subscribe((status) => {
         realtimeSubscribedRef.current = status === 'SUBSCRIBED'
+        if (status === 'SUBSCRIBED') void refresh()
       })
 
     const pollMs = 25000

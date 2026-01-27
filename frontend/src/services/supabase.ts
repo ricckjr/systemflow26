@@ -61,13 +61,25 @@ declare global {
 function createSupabaseClient() {
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: {
-      fetch: (...args) => fetch(...args),
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        try {
+          return await fetch(input, init)
+        } catch (err) {
+          try {
+            if (typeof window !== 'undefined' && (window as any).__systemflow_unloading) {
+              return new Promise<Response>(() => {})
+            }
+          } catch {
+          }
+          throw err
+        }
+      },
     },
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      storageKey: 'systemflow-auth-token',
+      storageKey: SUPABASE_AUTH_STORAGE_KEY,
       storage: localStorage,
     },
   })
@@ -87,6 +99,16 @@ if (import.meta.env.DEV) {
  * CONSTANTS
  * ------------------------------------------------------------------ */
 export const SUPABASE_URL = supabaseUrl
+
+try {
+  if (typeof window !== 'undefined') {
+    ;(window as any).__systemflow_unloading = false
+    window.addEventListener('beforeunload', () => {
+      ;(window as any).__systemflow_unloading = true
+    })
+  }
+} catch {
+}
 
 /* ------------------------------------------------------------------
  * LOGGING (DEV ONLY)

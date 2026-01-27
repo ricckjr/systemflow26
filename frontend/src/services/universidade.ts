@@ -34,6 +34,26 @@ export const universidadeService = {
     return data as Catalogo;
   },
 
+  async updateCatalogo(id: string, updates: Partial<Catalogo>) {
+    // 1. Update
+    const { error } = await (supabase
+      .from('universidade_catalogos' as any)
+      .update(updates)
+      .eq('id', id)) as any;
+
+    if (error) throw error;
+
+    // 2. Fetch fresh data (workaround for RLS issues with returning *)
+    const { data, error: fetchError } = await (supabase
+      .from('universidade_catalogos' as any)
+      .select('*')
+      .eq('id', id)
+      .single()) as any;
+
+    if (fetchError) throw fetchError;
+    return data as Catalogo;
+  },
+
   async deleteCatalogo(id: string) {
     const { error } = await (supabase
       .from('universidade_catalogos' as any)

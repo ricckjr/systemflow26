@@ -138,11 +138,6 @@ try {
     window.addEventListener('pagehide', () => {
       ;(window as any).__systemflow_unloading = true
     })
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        ;(window as any).__systemflow_unloading = true
-      }
-    })
   }
 } catch {
 }

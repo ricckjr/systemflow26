@@ -17,7 +17,6 @@ export function RealtimeDebugPanel() {
 
   const location = useLocation()
   const enabled = useMemo(() => {
-    if (!import.meta.env.DEV) return false
     const qs = new URLSearchParams(location.search)
     return parseBool(qs.get('rtdebug'))
   }, [location.search])
@@ -202,4 +201,3 @@ export function RealtimeDebugPanel() {
     </div>
   )
 }
-

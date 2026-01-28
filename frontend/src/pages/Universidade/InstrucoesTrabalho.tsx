@@ -1,5 +1,5 @@
 import React from 'react'
-import { Video, PlayCircle } from 'lucide-react'
+import { BookOpenText, FileText } from 'lucide-react'
 
 const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">
@@ -7,18 +7,18 @@ const Card = ({ children }: { children: React.ReactNode }) => (
   </div>
 )
 
-export default function VideoAulas() {
+export default function InstrucoesTrabalho() {
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Vídeo Aulas</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Instruções de Trabalho</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Conteúdos em vídeo para aprender mais rápido.
+            Materiais e orientações para executar tarefas com padrão e qualidade.
           </p>
         </div>
         <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Video size={14} className="text-cyan-400" />
+          <BookOpenText size={14} className="text-cyan-400" />
           Universidade
         </div>
       </div>
@@ -26,12 +26,12 @@ export default function VideoAulas() {
       <Card>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-            <PlayCircle size={18} className="text-cyan-400" />
+            <FileText size={18} className="text-cyan-400" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-200">Em breve</p>
             <p className="text-sm text-slate-400">
-              Esta área vai agrupar videoaulas por playlist e tema, com links diretos.
+              Aqui vamos centralizar instruções de trabalho, checklists e padrões de execução.
             </p>
           </div>
         </div>

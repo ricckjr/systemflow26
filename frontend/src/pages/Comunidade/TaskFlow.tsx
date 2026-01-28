@@ -87,6 +87,8 @@ type TFActivityVM = {
   user_avatar?: string;
 };
 
+type CreateTaskToastState = { message: string; visible: boolean } | null;
+
 const getDeadlineBorderClass = (status: ReturnType<typeof getDeadlineStatus>) => {
   if (status === 'overdue') return 'border-l-4 border-l-rose-500 shadow-[0_0_0_1px_rgba(244,63,94,0.25),0_0_24px_rgba(244,63,94,0.12)]';
   if (status === 'soon') return 'border-l-4 border-l-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.25),0_0_24px_rgba(251,191,36,0.10)]';
@@ -135,6 +137,11 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   const [shareSearch, setShareSearch] = useState('');
   const [shareDraft, setShareDraft] = useState<string[]>([]);
   const [newTaskError, setNewTaskError] = useState<string | null>(null);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [createTaskToast, setCreateTaskToast] = useState<CreateTaskToastState>(null);
+  const createTaskSubmitGuardRef = useRef(false);
+  const createTaskToastHideTimerRef = useRef<number | null>(null);
+  const createTaskToastClearTimerRef = useRef<number | null>(null);
   const [fadingUnseenByTaskId, setFadingUnseenByTaskId] = useState<Record<string, true>>({});
   const fadeTimersRef = useRef<Record<string, number>>({});
   
@@ -191,7 +198,24 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     return () => {
       for (const id of Object.values(fadeTimersRef.current)) window.clearTimeout(id);
       fadeTimersRef.current = {};
+      if (createTaskToastHideTimerRef.current) window.clearTimeout(createTaskToastHideTimerRef.current);
+      if (createTaskToastClearTimerRef.current) window.clearTimeout(createTaskToastClearTimerRef.current);
     };
+  }, []);
+
+  const showCreateTaskToast = useCallback((message: string) => {
+    setCreateTaskToast({ message, visible: true });
+
+    if (createTaskToastHideTimerRef.current) window.clearTimeout(createTaskToastHideTimerRef.current);
+    if (createTaskToastClearTimerRef.current) window.clearTimeout(createTaskToastClearTimerRef.current);
+
+    createTaskToastHideTimerRef.current = window.setTimeout(() => {
+      setCreateTaskToast(prev => (prev ? { ...prev, visible: false } : prev));
+    }, 1200);
+
+    createTaskToastClearTimerRef.current = window.setTimeout(() => {
+      setCreateTaskToast(null);
+    }, 1450);
   }, []);
 
   const firstColumnId = columns[0]?.id || '';
@@ -680,6 +704,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   }, [moveTaskToColumn]);
 
   const handleCreateTask = async () => {
+    if (createTaskSubmitGuardRef.current) return;
+    createTaskSubmitGuardRef.current = true;
+    setIsCreatingTask(true);
+    try {
     setNewTaskError(null);
     if (!profileId || !profile) {
       setNewTaskError('Perfil ainda está carregando. Tente novamente em alguns segundos.');
@@ -774,9 +802,15 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     setNewTaskAssignments([]);
     setIsNewTaskModalOpen(false);
     
-    await logActivity(t.id, profileId, 'task_created', newTaskTitle.trim());
+    showCreateTaskToast('Tarefa criada com sucesso');
+
+    await logActivity(t.id, profileId, 'task_created', title);
     markTaskSeen(t.id).catch(() => null);
     setTasks(prev => prev.map(x => (x.id === t.id ? { ...x, last_seen_at: new Date().toISOString() } : x)));
+    } finally {
+      createTaskSubmitGuardRef.current = false;
+      setIsCreatingTask(false);
+    }
   };
   
   const openTask = useCallback((taskId: string) => {
@@ -1135,6 +1169,20 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col animate-in fade-in duration-700">
+      {createTaskToast && (
+        <div className="fixed top-20 right-4 z-[60] pointer-events-none">
+          <div
+            className={`flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-[rgba(16,185,129,0.14)] px-4 py-3 text-xs text-emerald-100 shadow-xl shadow-emerald-500/10 backdrop-blur transition-all duration-200 ${
+              createTaskToast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            <CheckCircle2 size={16} className="text-emerald-300" />
+            <span className="font-bold">{createTaskToast.message}</span>
+          </div>
+        </div>
+      )}
       {/* Header Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0 px-4 md:px-0">
         <div className="flex items-center gap-3">
@@ -1394,7 +1442,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
       {/* New Task Modal */}
       <Modal
         isOpen={isNewTaskModalOpen}
-        onClose={() => setIsNewTaskModalOpen(false)}
+        onClose={() => {
+          if (isCreatingTask) return;
+          setIsNewTaskModalOpen(false);
+        }}
         title={
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
@@ -1408,17 +1459,27 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
           <>
             <button 
               onClick={() => setIsNewTaskModalOpen(false)}
-              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
+              disabled={isCreatingTask}
+              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
             <button 
               onClick={handleCreateTask}
-              disabled={!newTaskTitle.trim() || !newTaskDueDate.trim() || !board || columns.length === 0}
+              disabled={isCreatingTask || !newTaskTitle.trim() || !newTaskDueDate.trim() || !board || columns.length === 0}
               className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center gap-2"
             >
-              <Plus size={16} />
-              Criar Tarefa
+              {isCreatingTask ? (
+                <>
+                  <span className="w-4 h-4 rounded-full border-2 border-white/35 border-t-white animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  Criar Tarefa
+                </>
+              )}
             </button>
           </>
         }

@@ -11,7 +11,8 @@ import {
   LayoutDashboard,
   Users,
   Factory,
-  GraduationCap
+  GraduationCap,
+  Car
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,6 +68,15 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'FROTA',
+    icon: Car,
+    modulo: 'frota',
+    subItems: [
+      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
+      { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
+    ],
+  },
+  {
     label: 'UNIVERSIDADE',
     icon: GraduationCap,
     modulo: 'universidade',
@@ -74,8 +84,7 @@ const navItems: NavItem[] = [
       { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
       { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
       { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
-      { label: 'IT Serviços', path: '/app/universidade/it-servicos', submodulo: 'it-servicos' },
-      { label: 'Vídeo Aulas', path: '/app/universidade/video-aulas', submodulo: 'video-aulas' },
+      { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho' },
     ],
   },
 ];

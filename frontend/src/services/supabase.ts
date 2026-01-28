@@ -17,7 +17,7 @@ const supabaseAnonKey = rawAnonKey.trim()
 const SUPABASE_AUTH_STORAGE_KEY = 'systemflow-auth-token'
 const useDevProxy =
   import.meta.env.DEV &&
-  String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '1') !== '0' &&
+  String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '0') === '1' &&
   typeof window !== 'undefined' &&
   !!window.location?.origin
 

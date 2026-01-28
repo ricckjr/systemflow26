@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -190,6 +191,26 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const [reactionsByMessageId, setReactionsByMessageId] = useState<Record<string, Array<{ emoji: string; count: number; me: boolean }>>>({})
   const [openReactionPickerId, setOpenReactionPickerId] = useState<string | null>(null)
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null)
+  const [messageMenuAnchor, setMessageMenuAnchor] = useState<{
+    messageId: string
+    left: number
+    right: number
+    top: number
+    bottom: number
+    isMe: boolean
+  } | null>(null)
+  const [messageMenuCoords, setMessageMenuCoords] = useState<{ left: number; top: number } | null>(null)
+  const messageMenuRef = useRef<HTMLDivElement | null>(null)
+  const [reactionPickerAnchor, setReactionPickerAnchor] = useState<{
+    messageId: string
+    left: number
+    right: number
+    top: number
+    bottom: number
+    isMe: boolean
+  } | null>(null)
+  const [reactionPickerCoords, setReactionPickerCoords] = useState<{ left: number; top: number } | null>(null)
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const reactionsUnsubscribeRef = useRef<(() => void) | null>(null)
   
   const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
@@ -511,6 +532,56 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
+
+  useEffect(() => {
+    if (!openMessageMenuId) {
+      setMessageMenuAnchor(null)
+      setMessageMenuCoords(null)
+    }
+  }, [openMessageMenuId])
+
+  useEffect(() => {
+    if (!openReactionPickerId) {
+      setReactionPickerAnchor(null)
+      setReactionPickerCoords(null)
+    }
+  }, [openReactionPickerId])
+
+  useEffect(() => {
+    if (!openMessageMenuId) return
+    if (!messageMenuAnchor) return
+    if (messageMenuAnchor.messageId !== openMessageMenuId) return
+    const raf = window.requestAnimationFrame(() => {
+      const el = messageMenuRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const margin = 10
+      let left = messageMenuAnchor.isMe ? messageMenuAnchor.left - margin - r.width : messageMenuAnchor.right + margin
+      let top = messageMenuAnchor.top
+      left = Math.max(margin, Math.min(left, window.innerWidth - r.width - margin))
+      top = Math.max(margin, Math.min(top, window.innerHeight - r.height - margin))
+      setMessageMenuCoords({ left, top })
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [openMessageMenuId, messageMenuAnchor])
+
+  useEffect(() => {
+    if (!openReactionPickerId) return
+    if (!reactionPickerAnchor) return
+    if (reactionPickerAnchor.messageId !== openReactionPickerId) return
+    const raf = window.requestAnimationFrame(() => {
+      const el = reactionPickerRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const margin = 10
+      let left = reactionPickerAnchor.isMe ? reactionPickerAnchor.left - margin - r.width : reactionPickerAnchor.right + margin
+      let top = reactionPickerAnchor.bottom + 8
+      left = Math.max(margin, Math.min(left, window.innerWidth - r.width - margin))
+      top = Math.max(margin, Math.min(top, window.innerHeight - r.height - margin))
+      setReactionPickerCoords({ left, top })
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [openReactionPickerId, reactionPickerAnchor])
 
   useEffect(() => {
     if (reactionsUnsubscribeRef.current) {
@@ -909,6 +980,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const activeUnreadCount = activeRoomId ? (unreadByRoomId[activeRoomId] ?? 0) : 0
   const activeRoomMyRole = activeRoom?.members?.find((m) => m.user_id === currentUser?.id)?.role
   const canEditActiveGroup = activeRoom?.type === 'group' && (activeRoomMyRole === 'owner' || activeRoomMyRole === 'admin')
+  const messageMenuMsg = openMessageMenuId ? (messageById.get(openMessageMenuId) ?? null) : null
+  const reactionPickerMsg = openReactionPickerId ? (messageById.get(openReactionPickerId) ?? null) : null
 
   const typingStatusText = useMemo(() => {
     const now = Date.now()
@@ -1070,32 +1143,46 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     return { startIndex: lastAt, query: afterAt }
   }
 
+  const getMentionHandle = (name: string) => {
+    const raw = String(name ?? '').trim()
+    const first = (raw.split(/\s+/)[0] || raw || 'membro').trim()
+    const normalized = first
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\p{L}0-9_]/gu, '')
+    return (normalized || 'membro').slice(0, 24)
+  }
+
   const mentionOptions = useMemo(() => {
-    if (!mentionOpen) return [] as Array<{ id: string; nome: string; avatar_url?: string | null }>
-    if (!activeRoom || activeRoom.type !== 'group') return [] as Array<{ id: string; nome: string; avatar_url?: string | null }>
+    if (!mentionOpen) return [] as Array<{ id: string; nome: string; handle: string; avatar_url?: string | null }>
+    if (!activeRoom || activeRoom.type !== 'group') return [] as Array<{ id: string; nome: string; handle: string; avatar_url?: string | null }>
     const q = mentionQuery.trim().toLowerCase()
-    const opts: Array<{ id: string; nome: string; avatar_url?: string | null }> = [{ id: 'all', nome: 'Todos' }]
+    const opts: Array<{ id: string; nome: string; handle: string; avatar_url?: string | null }> = [
+      { id: 'all', nome: 'Todos', handle: 'todos' },
+    ]
     const members = (activeRoom.members ?? [])
-      .map((m: any) => ({ id: m.user_id, nome: m.profile?.nome || 'Usuário', avatar_url: m.profile?.avatar_url ?? null }))
+      .map((m: any) => {
+        const nome = m.profile?.nome || 'Usuário'
+        return { id: m.user_id, nome, handle: getMentionHandle(nome), avatar_url: m.profile?.avatar_url ?? null }
+      })
       .filter((m: any) => m.id && m.id !== currentUser?.id)
     members.sort((a: any, b: any) => String(a.nome).localeCompare(String(b.nome)))
     for (const m of members) {
-      if (!q) opts.push(m)
-      else {
-        const name = String(m.nome || '').toLowerCase()
-        if (name.includes(q)) opts.push(m)
-      }
+      const name = String(m.nome || '').toLowerCase()
+      const handle = String(m.handle || '').toLowerCase()
+      if (!q || name.includes(q) || handle.includes(q)) opts.push(m)
       if (opts.length >= 12) break
     }
     return opts
   }, [mentionOpen, mentionQuery, activeRoom, currentUser?.id])
 
-  const insertMentionToken = (opt: { id: string; nome: string }) => {
+  const insertMentionToken = (opt: { id: string; nome: string; handle: string }) => {
     const input = messageInputRef.current
     if (!input) return
     if (mentionStartIndex === null) return
     const caret = input.selectionStart ?? message.length
-    const token = opt.id === 'all' ? '@{all} ' : `@{${opt.id}} `
+    const handle = String(opt.handle || getMentionHandle(opt.nome) || 'membro')
+    const token = `@${handle} `
     const next = message.slice(0, mentionStartIndex) + token + message.slice(caret)
     setMessage(next)
     setMentionOpen(false)
@@ -1117,35 +1204,68 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       if (!m?.user_id) continue
       membersById.set(m.user_id, m)
     }
+    const membersByHandle = new Map<string, { id: string; nome: string }>()
+    for (const m of activeRoom?.members ?? []) {
+      const nome = String(m?.profile?.nome || '')
+      const handle = getMentionHandle(nome).toLowerCase()
+      if (!handle) continue
+      if (!membersByHandle.has(handle)) membersByHandle.set(handle, { id: m.user_id, nome })
+    }
+
     const parts: React.ReactNode[] = []
-    const re = /@\{(all|[0-9a-fA-F-]{36})\}/g
+    const re = /@\{(all|[0-9a-fA-F-]{36})\}|(^|[\s])@([\p{L}0-9_]{1,32})/gu
     let last = 0
     for (;;) {
       const match = re.exec(value)
       if (!match) break
       const idx = match.index
       if (idx > last) parts.push(value.slice(last, idx))
-      const id = match[1]
-      if (id === 'all') {
-        parts.push(
-          <span key={`m-${idx}`} className="text-cyan-300 font-bold">
-            @todos
-          </span>
-        )
+      if (match[1]) {
+        const id = match[1]
+        if (id === 'all') {
+          parts.push(
+            <span key={`m-${idx}`} className="text-cyan-300 font-bold">
+              @todos
+            </span>
+          )
+        } else {
+          const member = membersById.get(id)
+          const name = String(member?.profile?.nome || 'membro')
+          parts.push(
+            <button
+              key={`m-${idx}`}
+              type="button"
+              onClick={() => void openProfileModal(id)}
+              className="text-cyan-300 font-bold hover:underline"
+              title={name}
+            >
+              @{name}
+            </button>
+          )
+        }
       } else {
-        const member = membersById.get(id)
-        const name = String(member?.profile?.nome || 'membro')
-        parts.push(
-          <button
-            key={`m-${idx}`}
-            type="button"
-            onClick={() => void openProfileModal(id)}
-            className="text-cyan-300 font-bold hover:underline"
-            title={name}
-          >
-            @{name}
-          </button>
-        )
+        const lead = match[2] || ''
+        const handle = match[3] || ''
+        if (lead) parts.push(lead)
+        const norm = getMentionHandle(handle).toLowerCase()
+        if (norm === 'todos') {
+          parts.push(
+            <span key={`mh-${idx}`} className="text-cyan-300 font-bold">
+              @{handle}
+            </span>
+          )
+        } else {
+          const member = membersByHandle.get(norm)
+          parts.push(
+            <span
+              key={`mh-${idx}`}
+              className="text-cyan-300 font-bold"
+              title={member?.nome || handle}
+            >
+              @{handle}
+            </span>
+          )
+        }
       }
       last = idx + match[0].length
     }
@@ -1642,10 +1762,17 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 <button
                   type="button"
                   onClick={() => {
+                    if (activeRoomInfo.type === 'group' && activeRoom) {
+                      setGroupNameDraft(activeRoom.name || '')
+                      setGroupDescriptionDraft(activeRoom.description || '')
+                      setGroupAvatarFile(null)
+                      setIsGroupProfileModalOpen(true)
+                      return
+                    }
                     if (activeRoomInfo.userId) void openProfileModal(activeRoomInfo.userId)
                   }}
                   className="relative"
-                  title="Ver perfil"
+                  title={activeRoomInfo.type === 'group' ? 'Ver informações do grupo' : 'Ver perfil'}
                 >
                   {activeRoomInfo.avatar_url ? (
                     <img src={activeRoomInfo.avatar_url} alt={activeRoomInfo.name} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
@@ -1662,10 +1789,17 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <button
                     type="button"
                     onClick={() => {
+                      if (activeRoomInfo.type === 'group' && activeRoom) {
+                        setGroupNameDraft(activeRoom.name || '')
+                        setGroupDescriptionDraft(activeRoom.description || '')
+                        setGroupAvatarFile(null)
+                        setIsGroupProfileModalOpen(true)
+                        return
+                      }
                       if (activeRoomInfo.userId) void openProfileModal(activeRoomInfo.userId)
                     }}
                     className="text-left"
-                    title="Ver perfil"
+                    title={activeRoomInfo.type === 'group' ? 'Ver informações do grupo' : 'Ver perfil'}
                   >
                     <h3 className="text-base font-bold text-[var(--text-main)] leading-none">{activeRoomInfo.name}</h3>
                   </button>
@@ -1939,9 +2073,28 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           <button
                             type="button"
                             data-message-menu-button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
                               setOpenReactionPickerId(null)
-                              setOpenMessageMenuId((prev) => (prev === msg.id ? null : msg.id))
+                              setOpenMessageMenuId((prev) => {
+                                const next = prev === msg.id ? null : msg.id
+                                if (next) {
+                                  setMessageMenuAnchor({
+                                    messageId: msg.id,
+                                    left: rect.left,
+                                    right: rect.right,
+                                    top: rect.top,
+                                    bottom: rect.bottom,
+                                    isMe,
+                                  })
+                                  setMessageMenuCoords(null)
+                                } else {
+                                  setMessageMenuAnchor(null)
+                                  setMessageMenuCoords(null)
+                                }
+                                return next
+                              })
                             }}
                             className={[
                               'w-8 h-8 grid place-items-center rounded-full',
@@ -1956,126 +2109,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           >
                             <MoreVertical size={16} strokeWidth={1.75} />
                           </button>
-
-                          {isMessageMenuOpen && (
-                            <div
-                              data-message-menu
-                              className={[
-                                'absolute top-0 z-30 min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1',
-                                isMe ? 'right-full mr-2' : 'left-full ml-2',
-                                'animate-in fade-in zoom-in-95',
-                              ].join(' ')}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  startReply(msg)
-                                  setOpenMessageMenuId(null)
-                                }}
-                                className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
-                              >
-                                <CornerUpLeft size={16} className="text-cyan-400" />
-                                Responder
-                              </button>
-
-                              {canReactToMessage && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenMessageMenuId(null)
-                                    setOpenReactionPickerId((prev) => (prev === msg.id ? null : msg.id))
-                                  }}
-                                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
-                                >
-                                  <Smile size={16} className="text-amber-300" />
-                                  Reagir
-                                </button>
-                              )}
-
-                              {canEditMessage(msg) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    startEdit(msg)
-                                    setOpenMessageMenuId(null)
-                                  }}
-                                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
-                                >
-                                  <Pencil size={16} className="text-amber-400" />
-                                  Editar
-                                </button>
-                              )}
-
-                              {activeRoomId && (
-                                <button
-                                  type="button"
-                                  disabled={isPinBusy}
-                                  onClick={async () => {
-                                    setOpenMessageMenuId(null)
-                                    await togglePinMessage(msg)
-                                  }}
-                                  className={[
-                                    'w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3',
-                                    isPinBusy ? 'opacity-70 pointer-events-none' : '',
-                                  ].join(' ')}
-                                >
-                                  {isPinBusy ? (
-                                    <Circle size={16} className="animate-spin text-cyan-300" />
-                                  ) : isPinned ? (
-                                    <PinOff size={16} className="text-cyan-300" />
-                                  ) : (
-                                    <Pin size={16} className="text-cyan-400" />
-                                  )}
-                                  {isPinned ? 'Desafixar mensagem' : 'Fixar mensagem'}
-                                </button>
-                              )}
-
-                              {canDeleteMessage(msg) && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (!confirm('Excluir esta mensagem?')) return
-                                    try {
-                                      await deleteMessage(msg.id, msg.attachments ?? [])
-                                      if (editingMessage?.id === msg.id) cancelComposerMode()
-                                      if (replyingTo?.id === msg.id) setReplyingTo(null)
-                                      setOpenMessageMenuId(null)
-                                    } catch (error: any) {
-                                      alert(error?.message || 'Não foi possível excluir a mensagem.')
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-3"
-                                >
-                                  <Trash2 size={16} />
-                                  Excluir
-                                </button>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
-
-                      {openReactionPickerId === msg.id && (
-                        <div
-                          data-reaction-picker
-                          className={`absolute ${isMe ? 'right-full mr-2' : 'left-full ml-2'} top-8 rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl px-2 py-2 flex items-center gap-1`}
-                        >
-                          {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={async () => {
-                                await toggleReaction(msg, emoji)
-                                setOpenReactionPickerId(null)
-                              }}
-                              className="w-9 h-9 rounded-xl hover:bg-[var(--bg-main)] transition-colors text-lg flex items-center justify-center"
-                              title={`Reagir com ${emoji}`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                       
                       <div className={`
                         px-4 py-3 text-[14px] leading-relaxed shadow-sm relative break-words
@@ -2500,8 +2535,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="text-sm font-bold text-[var(--text-main)] truncate">
-                                  @{opt.id === 'all' ? 'todos' : opt.nome}
+                                  @{opt.handle}
                                 </div>
+                                {opt.id !== 'all' && (
+                                  <div className="text-[11px] text-[var(--text-muted)] truncate">
+                                    {opt.nome}
+                                  </div>
+                                )}
                               </div>
                             </button>
                           )
@@ -3011,6 +3051,156 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
           </div>
         </div>
       </Modal>
+
+      {openMessageMenuId &&
+        messageMenuAnchor &&
+        messageMenuMsg &&
+        messageMenuAnchor.messageId === openMessageMenuId &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] pointer-events-none">
+            <div
+              ref={messageMenuRef}
+              data-message-menu
+              className="pointer-events-auto min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1 animate-in fade-in zoom-in-95"
+              style={{
+                position: 'fixed',
+                left: messageMenuCoords?.left ?? messageMenuAnchor.right,
+                top: messageMenuCoords?.top ?? messageMenuAnchor.top,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  startReply(messageMenuMsg)
+                  setOpenMessageMenuId(null)
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+              >
+                <CornerUpLeft size={16} className="text-cyan-400" />
+                Responder
+              </button>
+
+              {!messageMenuMsg.deleted_at && (
+                <button
+                  type="button"
+                  data-reaction-button
+                  onClick={() => {
+                    setOpenMessageMenuId(null)
+                    setOpenReactionPickerId(messageMenuMsg.id)
+                    setReactionPickerAnchor({
+                      messageId: messageMenuMsg.id,
+                      left: messageMenuAnchor.left,
+                      right: messageMenuAnchor.right,
+                      top: messageMenuAnchor.top,
+                      bottom: messageMenuAnchor.bottom,
+                      isMe: messageMenuAnchor.isMe,
+                    })
+                    setReactionPickerCoords(null)
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                >
+                  <Smile size={16} className="text-amber-300" />
+                  Reagir
+                </button>
+              )}
+
+              {canEditMessage(messageMenuMsg) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    startEdit(messageMenuMsg)
+                    setOpenMessageMenuId(null)
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                >
+                  <Pencil size={16} className="text-amber-400" />
+                  Editar
+                </button>
+              )}
+
+              {activeRoomId && (
+                <button
+                  type="button"
+                  disabled={Boolean(pinBusyByMessageId[messageMenuMsg.id])}
+                  onClick={async () => {
+                    setOpenMessageMenuId(null)
+                    await togglePinMessage(messageMenuMsg)
+                  }}
+                  className={[
+                    'w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3',
+                    Boolean(pinBusyByMessageId[messageMenuMsg.id]) ? 'opacity-70 pointer-events-none' : '',
+                  ].join(' ')}
+                >
+                  {Boolean(pinBusyByMessageId[messageMenuMsg.id]) ? (
+                    <Circle size={16} className="animate-spin text-cyan-300" />
+                  ) : pinnedItems.some((p) => p.messageId === messageMenuMsg.id) ? (
+                    <PinOff size={16} className="text-cyan-300" />
+                  ) : (
+                    <Pin size={16} className="text-cyan-400" />
+                  )}
+                  {pinnedItems.some((p) => p.messageId === messageMenuMsg.id) ? 'Desafixar mensagem' : 'Fixar mensagem'}
+                </button>
+              )}
+
+              {canDeleteMessage(messageMenuMsg) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm('Excluir esta mensagem?')) return
+                    try {
+                      await deleteMessage(messageMenuMsg.id, messageMenuMsg.attachments ?? [])
+                      if (editingMessage?.id === messageMenuMsg.id) cancelComposerMode()
+                      if (replyingTo?.id === messageMenuMsg.id) setReplyingTo(null)
+                      setOpenMessageMenuId(null)
+                    } catch (error: any) {
+                      alert(error?.message || 'Não foi possível excluir a mensagem.')
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-3"
+                >
+                  <Trash2 size={16} />
+                  Excluir
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {openReactionPickerId &&
+        reactionPickerAnchor &&
+        reactionPickerMsg &&
+        reactionPickerAnchor.messageId === openReactionPickerId &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] pointer-events-none">
+            <div
+              ref={reactionPickerRef}
+              data-reaction-picker
+              className="pointer-events-auto rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl px-2 py-2 flex items-center gap-1 animate-in fade-in zoom-in-95"
+              style={{
+                position: 'fixed',
+                left: reactionPickerCoords?.left ?? reactionPickerAnchor.right,
+                top: reactionPickerCoords?.top ?? reactionPickerAnchor.bottom + 8,
+              }}
+            >
+              {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={async () => {
+                    await toggleReaction(reactionPickerMsg, emoji)
+                    setOpenReactionPickerId(null)
+                  }}
+                  className="w-9 h-9 rounded-xl hover:bg-[var(--bg-main)] transition-colors text-lg flex items-center justify-center"
+                  title={`Reagir com ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* New Chat Modal */}
       <NewChatModal

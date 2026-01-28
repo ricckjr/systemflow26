@@ -252,18 +252,22 @@ export async function editPost(
     .update(payload)
     .eq('id', postId)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error) return null
   return data
 }
 
 export async function deletePost(postId: string, userId: string) {
-  return !(await sb
+  const { data, error } = await sb
     .from('instaflow_posts')
     .delete()
     .eq('id', postId)
-  ).error
+    .select('id')
+
+  if (error) return false
+  if (Array.isArray(data)) return data.length > 0
+  return Boolean(data)
 }
 
 /* ======================================================
@@ -428,7 +432,8 @@ export async function fetchPostById(postId: string, userId?: string | null): Pro
 export async function fetchComments(
   postId: string,
   page = 1,
-  pageSize = 10
+  pageSize = 10,
+  userId?: string | null
 ) {
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
@@ -461,6 +466,43 @@ export async function fetchComments(
     (profiles || []).map(p => [p.id, p])
   ) as Record<string, { nome?: string | null; avatar_url?: string | null }>
 
+  const commentIds = (fallback.data || []).map((c: any) => c.id).filter(Boolean) as string[]
+  const reactionMap: Record<string, InstaFlowReactionSummary> = {}
+  if (commentIds.length > 0) {
+    const res = await sb
+      .from('instaflow_comment_likes')
+      .select('comment_id, created_by, reaction')
+      .in('comment_id', commentIds)
+
+    if (!res.error && res.data) {
+      for (const r of res.data) {
+        const commentId = r.comment_id as string
+        if (!reactionMap[commentId]) reactionMap[commentId] = { counts: {}, myReaction: null, total: 0 }
+        const reaction = ((r.reaction as string) || '❤️') as string
+        reactionMap[commentId].counts[reaction] = (reactionMap[commentId].counts[reaction] || 0) + 1
+        reactionMap[commentId].total += 1
+        if (userId && r.created_by === userId) reactionMap[commentId].myReaction = reaction
+      }
+    } else if (userId) {
+      const fallbackLikes = await sb
+        .from('instaflow_comment_likes')
+        .select('comment_id, created_by')
+        .in('comment_id', commentIds)
+
+      if (!fallbackLikes.error && fallbackLikes.data) {
+        for (const commentId of commentIds) {
+          reactionMap[commentId] = { counts: {}, myReaction: null, total: 0 }
+        }
+        for (const r of fallbackLikes.data) {
+          const commentId = r.comment_id as string
+          reactionMap[commentId].counts['❤️'] = (reactionMap[commentId].counts['❤️'] || 0) + 1
+          reactionMap[commentId].total += 1
+          if (r.created_by === userId) reactionMap[commentId].myReaction = '❤️'
+        }
+      }
+    }
+  }
+
   return fallback.data.map(c => ({
     id: c.id,
     content: c.content,
@@ -469,7 +511,10 @@ export async function fetchComments(
     parent_id: c.parent_id ?? null,
     mention_user_ids: c.mention_user_ids ?? [],
     usuario_nome: profileMap[c.created_by]?.nome ?? 'Usuário',
-    usuario_avatar_url: profileMap[c.created_by]?.avatar_url ?? null
+    usuario_avatar_url: profileMap[c.created_by]?.avatar_url ?? null,
+    reactions: reactionMap[c.id]?.counts,
+    my_reaction: reactionMap[c.id]?.myReaction ?? null,
+    reactions_total: reactionMap[c.id]?.total ?? 0
   }))
 }
 
@@ -569,6 +614,41 @@ export async function deleteComment(commentId: string, userId: string) {
     .eq('id', commentId)
     .eq('created_by', userId)
   ).error
+}
+
+export async function setCommentReaction(
+  postId: string,
+  commentId: string,
+  userId: string,
+  reaction: InstaFlowReaction | null
+) {
+  if (!reaction) {
+    return !(await sb
+      .from('instaflow_comment_likes')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('created_by', userId)
+    ).error
+  }
+
+  const res = await sb
+    .from('instaflow_comment_likes')
+    .upsert({ post_id: postId, comment_id: commentId, created_by: userId, reaction }, { onConflict: 'comment_id,created_by' })
+  if (!res.error) return true
+
+  const del = await sb
+    .from('instaflow_comment_likes')
+    .delete()
+    .eq('comment_id', commentId)
+    .eq('created_by', userId)
+  if (del.error) return false
+
+  const ins = await sb
+    .from('instaflow_comment_likes')
+    .insert({ post_id: postId, comment_id: commentId, created_by: userId, reaction })
+  if (ins.error) return false
+
+  return true
 }
 
 /* ======================================================

@@ -23,6 +23,9 @@ export interface InstaFlowComment {
   mention_user_ids?: string[];
   usuario_nome: string;
   usuario_avatar_url?: string | null;
+  reactions?: Record<string, number>;
+  my_reaction?: string | null;
+  reactions_total?: number;
 }
 
 export interface Opportunity {

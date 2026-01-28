@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { formatDateTimeBR } from '@/utils/datetime';
 import { searchProfilesByName } from '@/services/profiles';
-import { fetchFeed, fetchPostById, fetchReactionSummary, uploadMedia, createPostWithMedia, setReaction, fetchReactions, fetchComments, addComment, deletePost, editPost, type InstaFlowReaction } from '@/services/instaflow';
+import { fetchFeed, fetchPostById, fetchReactionSummary, uploadMedia, createPostWithMedia, setReaction, fetchReactions, fetchComments, addComment, deletePost, editPost, setCommentReaction, type InstaFlowReaction } from '@/services/instaflow';
 import { isInstaFlowSoundEnabled, playInstaFlowNewPostSound, setInstaFlowSoundEnabled } from '@/utils/instaflowSound';
 import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
@@ -272,6 +272,8 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(isInstaFlowSoundEnabled());
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [deleteConfirmPostId, setDeleteConfirmPostId] = useState<string | null>(null);
+  const [deletingPost, setDeletingPost] = useState(false);
   const cacheKey = useMemo(() => `systemflow:instaflow:feed:v1:${profile.id}`, [profile.id]);
   const [showNotificationPermissionPrompt, setShowNotificationPermissionPrompt] = useState(
     shouldShowNotificationPermissionPrompt
@@ -444,7 +446,9 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
       setPosts(posts.map(p => p.id === editingId ? { ...p, content: editContent.trim() } : p));
       setEditingId(null);
       setEditContent('');
+      return;
     }
+    setError('Não foi possível salvar a edição. Verifique sua permissão e tente novamente.');
   };
 
   const handleCancelEdit = () => {
@@ -454,13 +458,8 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
 
   const handleDelete = async (postId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Tem certeza que deseja excluir esta publicação?')) {
-      const success = await deletePost(postId, user.id);
-      if (success) {
-        setPosts(posts.filter(p => p.id !== postId));
-      }
-    }
     setMenuOpenId(null);
+    setDeleteConfirmPostId(postId);
   };
 
   const handleHide = (postId: string, e: React.MouseEvent) => {
@@ -863,6 +862,48 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
         canPrev={!!lightbox && lightbox.index > 0}
         canNext={!!lightbox && lightbox.index < lightbox.srcs.length - 1}
       />
+      <Modal
+        isOpen={!!deleteConfirmPostId}
+        onClose={() => { if (!deletingPost) setDeleteConfirmPostId(null); }}
+        title="Excluir publicação"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-[var(--text-soft)]">
+            Tem certeza que deseja excluir esta publicação? Esta ação não pode ser desfeita.
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={deletingPost}
+              onClick={() => setDeleteConfirmPostId(null)}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={!deleteConfirmPostId || deletingPost}
+              onClick={async () => {
+                if (!deleteConfirmPostId) return;
+                setDeletingPost(true);
+                setError(null);
+                const success = await deletePost(deleteConfirmPostId, user.id);
+                if (success) {
+                  setPosts(prev => prev.filter(p => p.id !== deleteConfirmPostId));
+                  setDeleteConfirmPostId(null);
+                } else {
+                  setError('Não foi possível excluir a publicação. Verifique sua permissão e tente novamente.');
+                }
+                setDeletingPost(false);
+              }}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm transition-colors disabled:opacity-50"
+            >
+              {deletingPost ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -1066,6 +1107,105 @@ const ReactionsBar: React.FC<{
   );
 };
 
+const CommentReactionsBar: React.FC<{
+  postId: string;
+  comment: InstaFlowComment;
+  userId: string;
+  onChange: (next: InstaFlowComment) => void;
+}> = ({ postId, comment, userId, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+
+  const counts = comment.reactions ?? {};
+  const total = comment.reactions_total ?? Object.values(counts).reduce((a, b) => a + (b || 0), 0);
+  const my = comment.my_reaction ?? null;
+
+  const applyOptimistic = (nextReaction: string | null) => {
+    const prevReaction = my;
+    const nextCounts = { ...counts };
+
+    if (prevReaction) {
+      nextCounts[prevReaction] = Math.max(0, (nextCounts[prevReaction] || 0) - 1);
+      if (nextCounts[prevReaction] === 0) delete nextCounts[prevReaction];
+    }
+    if (nextReaction) {
+      nextCounts[nextReaction] = (nextCounts[nextReaction] || 0) + 1;
+    }
+
+    const nextTotal = Math.max(0, total + (nextReaction ? 1 : 0) - (prevReaction ? 1 : 0));
+
+    onChange({
+      ...comment,
+      my_reaction: nextReaction,
+      reactions: nextCounts,
+      reactions_total: nextTotal
+    });
+  };
+
+  const pick = async (reaction: InstaFlowReaction) => {
+    if (busy) return;
+    setBusy(true);
+    setOpen(false);
+    setEmojiOpen(false);
+
+    const next = my === reaction ? null : reaction;
+    const snapshot = { ...comment };
+    applyOptimistic(next);
+
+    const ok = await setCommentReaction(postId, comment.id, userId, next);
+    if (!ok) onChange(snapshot);
+    setBusy(false);
+  };
+
+  return (
+    <div className="relative flex items-center gap-2">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+        disabled={busy}
+        className={`flex items-center gap-1 transition-all text-[11px] ${my ? 'text-cyan-400' : 'text-[var(--text-muted)] hover:text-cyan-400'} disabled:opacity-50`}
+        title="Reagir"
+      >
+        <span className="text-base leading-none">{my ?? '❤️'}</span>
+        <span>{total}</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl shadow-xl px-3 py-2 flex items-center gap-2">
+          {QUICK_REACTIONS.map(r => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => void pick(r)}
+              className={`h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-lg ${my === r ? 'bg-cyan-500/10' : ''}`}
+              aria-label={`Reagir com ${r}`}
+            >
+              {r}
+            </button>
+          ))}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEmojiOpen(v => !v); }}
+              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
+              aria-label="Escolher outro emoji"
+              title="Mais emojis"
+            >
+              <Smile size={18} />
+            </button>
+            <EmojiPicker
+              open={emojiOpen}
+              onClose={() => setEmojiOpen(false)}
+              onSelect={(emoji) => void pick(emoji)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?: (count: number) => void }> = ({ postId, userId, onCountChange }) => {
   const [items, setItems] = useState<InstaFlowComment[]>([]);
   const [text, setText] = useState('');
@@ -1081,10 +1221,10 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
   
   useEffect(() => {
     (async () => {
-      const data = await fetchComments(postId, 1, 200);
+      const data = await fetchComments(postId, 1, 200, userId);
       setItems(data);
     })();
-  }, [postId]);
+  }, [postId, userId]);
 
   useEffect(() => {
     onCountChange?.(items.length);
@@ -1180,7 +1320,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
       mention_user_ids: mentionIds
     });
     if (c) {
-      setItems(prev => [...prev, c]);
+      setItems(prev => [...prev, { ...c, reactions_total: 0, my_reaction: null, reactions: {} }]);
       setText('');
       setReplyTo(null);
       setMentionMap({});
@@ -1227,9 +1367,17 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                     {renderRichText(c.content)}
                   </p>
                   <div className="mt-1">
-                    <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
-                      Responder
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <CommentReactionsBar
+                        postId={postId}
+                        comment={c}
+                        userId={userId}
+                        onChange={(next) => setItems(prev => prev.map(i => i.id === c.id ? next : i))}
+                      />
+                      <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
+                        Responder
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1253,9 +1401,17 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                           {renderRichText(r.content)}
                         </p>
                         <div className="mt-1">
-                          <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
-                            Responder
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <CommentReactionsBar
+                              postId={postId}
+                              comment={r}
+                              userId={userId}
+                              onChange={(next) => setItems(prev => prev.map(i => i.id === r.id ? next : i))}
+                            />
+                            <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
+                              Responder
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

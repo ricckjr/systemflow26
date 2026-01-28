@@ -171,6 +171,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null)
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null)
   const [actionSheetMessage, setActionSheetMessage] = useState<ChatMessage | null>(null)
+  const [mentionOpen, setMentionOpen] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null)
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0)
   const messageLongPressTimerRef = useRef<number | null>(null)
   const [typingByUserId, setTypingByUserId] = useState<Record<string, number>>({})
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
@@ -266,6 +270,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       URL.revokeObjectURL(url)
     }
   }, [groupAvatarFile, groupAvatarPreviewUrl])
+
+  useEffect(() => {
+    setMentionOpen(false)
+    setMentionQuery('')
+    setMentionStartIndex(null)
+    setMentionActiveIndex(0)
+  }, [activeRoomId])
 
   useEffect(() => {
     return () => {
@@ -1044,6 +1055,101 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       )
       from = idx + q.length
     }
+    return <>{parts}</>
+  }
+
+  const getMentionContext = (value: string, caret: number) => {
+    const left = value.slice(0, caret)
+    const lastAt = left.lastIndexOf('@')
+    if (lastAt < 0) return null
+    const beforeAt = lastAt === 0 ? '' : left[lastAt - 1]
+    if (beforeAt && !/\s/.test(beforeAt)) return null
+    const afterAt = left.slice(lastAt + 1)
+    if (afterAt.includes('\n')) return null
+    if (/\s/.test(afterAt)) return null
+    return { startIndex: lastAt, query: afterAt }
+  }
+
+  const mentionOptions = useMemo(() => {
+    if (!mentionOpen) return [] as Array<{ id: string; nome: string; avatar_url?: string | null }>
+    if (!activeRoom || activeRoom.type !== 'group') return [] as Array<{ id: string; nome: string; avatar_url?: string | null }>
+    const q = mentionQuery.trim().toLowerCase()
+    const opts: Array<{ id: string; nome: string; avatar_url?: string | null }> = [{ id: 'all', nome: 'Todos' }]
+    const members = (activeRoom.members ?? [])
+      .map((m: any) => ({ id: m.user_id, nome: m.profile?.nome || 'Usuário', avatar_url: m.profile?.avatar_url ?? null }))
+      .filter((m: any) => m.id && m.id !== currentUser?.id)
+    members.sort((a: any, b: any) => String(a.nome).localeCompare(String(b.nome)))
+    for (const m of members) {
+      if (!q) opts.push(m)
+      else {
+        const name = String(m.nome || '').toLowerCase()
+        if (name.includes(q)) opts.push(m)
+      }
+      if (opts.length >= 12) break
+    }
+    return opts
+  }, [mentionOpen, mentionQuery, activeRoom, currentUser?.id])
+
+  const insertMentionToken = (opt: { id: string; nome: string }) => {
+    const input = messageInputRef.current
+    if (!input) return
+    if (mentionStartIndex === null) return
+    const caret = input.selectionStart ?? message.length
+    const token = opt.id === 'all' ? '@{all} ' : `@{${opt.id}} `
+    const next = message.slice(0, mentionStartIndex) + token + message.slice(caret)
+    setMessage(next)
+    setMentionOpen(false)
+    setMentionQuery('')
+    setMentionStartIndex(null)
+    setMentionActiveIndex(0)
+    window.setTimeout(() => {
+      const pos = (mentionStartIndex + token.length)
+      input.focus()
+      input.setSelectionRange(pos, pos)
+    }, 0)
+  }
+
+  const renderMessageTextWithMentions = (text: string) => {
+    const value = String(text ?? '')
+    if (!value) return null
+    const membersById = new Map<string, any>()
+    for (const m of activeRoom?.members ?? []) {
+      if (!m?.user_id) continue
+      membersById.set(m.user_id, m)
+    }
+    const parts: React.ReactNode[] = []
+    const re = /@\{(all|[0-9a-fA-F-]{36})\}/g
+    let last = 0
+    for (;;) {
+      const match = re.exec(value)
+      if (!match) break
+      const idx = match.index
+      if (idx > last) parts.push(value.slice(last, idx))
+      const id = match[1]
+      if (id === 'all') {
+        parts.push(
+          <span key={`m-${idx}`} className="text-cyan-300 font-bold">
+            @todos
+          </span>
+        )
+      } else {
+        const member = membersById.get(id)
+        const name = String(member?.profile?.nome || 'membro')
+        parts.push(
+          <button
+            key={`m-${idx}`}
+            type="button"
+            onClick={() => void openProfileModal(id)}
+            className="text-cyan-300 font-bold hover:underline"
+            title={name}
+          >
+            @{name}
+          </button>
+        )
+      }
+      last = idx + match[0].length
+    }
+    if (last < value.length) parts.push(value.slice(last))
     return <>{parts}</>
   }
 
@@ -2193,10 +2299,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                    )}
                              </div>
                            ))}
-                            {msg.content && <p>{renderHighlightedText(msg.content)}</p>}
+                            {msg.content && <p>{renderMessageTextWithMentions(msg.content)}</p>}
                           </div>
                         ) : (
-                          renderHighlightedText(msg.content)
+                          renderMessageTextWithMentions(msg.content)
                         )}
                       </div>
 
@@ -2355,7 +2461,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 </div>
               ) : (
                 <form className="flex items-end gap-2" onSubmit={handleSendMessage}>
-                  <div className="flex-1 flex items-end gap-2 bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl p-2 pl-2 shadow-inner focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-500/50 transition-all">
+                  <div className="relative flex-1 flex items-end gap-2 bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl p-2 pl-2 shadow-inner focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-500/50 transition-all">
                     <button
                       type="button"
                       disabled={!!editingMessage}
@@ -2366,6 +2472,43 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       <Plus size={20} />
                     </button>
                     
+                    {mentionOpen && mentionOptions.length > 0 && (
+                      <div className="absolute bottom-full left-2 right-2 mb-2 max-h-56 overflow-auto rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl z-30">
+                        {mentionOptions.map((opt, idx) => {
+                          const active = idx === mentionActiveIndex
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onMouseEnter={() => setMentionActiveIndex(idx)}
+                              onClick={() => insertMentionToken(opt)}
+                              className={[
+                                'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
+                                active ? 'bg-cyan-500/10' : 'hover:bg-[var(--bg-main)]',
+                              ].join(' ')}
+                            >
+                              {opt.id !== 'all' && opt.avatar_url ? (
+                                <img
+                                  src={opt.avatar_url}
+                                  alt={opt.nome}
+                                  className="w-7 h-7 rounded-full object-cover border border-[var(--border)]"
+                                />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-[11px] font-bold text-white uppercase">
+                                  {(opt.nome || 'U').substring(0, 2)}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-bold text-[var(--text-main)] truncate">
+                                  @{opt.id === 'all' ? 'todos' : opt.nome}
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+
                     <textarea 
                       ref={messageInputRef}
                       value={message}
@@ -2374,6 +2517,19 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         setMessage(next)
                         if (next.trim()) pingTyping()
                         else stopTyping()
+                        const caret = e.target.selectionStart ?? next.length
+                        const ctx = getMentionContext(next, caret)
+                        if (ctx && activeRoom?.type === 'group') {
+                          setMentionOpen(true)
+                          setMentionQuery(ctx.query)
+                          setMentionStartIndex(ctx.startIndex)
+                          setMentionActiveIndex(0)
+                        } else {
+                          setMentionOpen(false)
+                          setMentionQuery('')
+                          setMentionStartIndex(null)
+                          setMentionActiveIndex(0)
+                        }
                       }}
                       onPaste={(e) => {
                         const files = Array.from(e.clipboardData?.files ?? [])
@@ -2392,6 +2548,32 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       }}
                       onBlur={() => stopTyping()}
                       onKeyDown={(e) => {
+                        if (mentionOpen && mentionOptions.length > 0) {
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            setMentionActiveIndex((i) => Math.min(mentionOptions.length - 1, i + 1))
+                            return
+                          }
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            setMentionActiveIndex((i) => Math.max(0, i - 1))
+                            return
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setMentionOpen(false)
+                            setMentionQuery('')
+                            setMentionStartIndex(null)
+                            setMentionActiveIndex(0)
+                            return
+                          }
+                          if (e.key === 'Enter' || e.key === 'Tab') {
+                            e.preventDefault()
+                            const opt = mentionOptions[Math.max(0, Math.min(mentionOptions.length - 1, mentionActiveIndex))]
+                            if (opt) insertMentionToken(opt)
+                            return
+                          }
+                        }
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage(e);

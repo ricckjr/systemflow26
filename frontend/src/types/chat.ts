@@ -1,6 +1,7 @@
 import { Profile } from './auth';
 
 export type ChatRoomType = 'direct' | 'group' | 'crm_deal';
+export type ChatMessageType = 'text' | 'image' | 'file' | 'audio';
 
 export interface ChatAttachment {
   type: 'image' | 'video' | 'audio' | 'document';
@@ -18,6 +19,8 @@ export interface ChatRoom {
   type: ChatRoomType;
   name?: string;
   description?: string;
+  avatar_path?: string | null;
+  avatar_url?: string | null;
   created_by: string;
   metadata?: Record<string, any>;
   last_message_at: string;
@@ -32,6 +35,8 @@ export interface ChatRoomMember {
   user_id: string;
   joined_at: string;
   last_read_at?: string;
+  hidden_at?: string | null;
+  cleared_at?: string | null;
   role: 'owner' | 'admin' | 'member';
   // Joined profile
   profile?: Profile;
@@ -48,6 +53,7 @@ export interface ChatMessage {
   room_id: string;
   sender_id: string;
   content: string;
+  message_type?: ChatMessageType;
   created_at: string;
   updated_at?: string;
   edited_at?: string | null;

@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { ChatRoom, ChatMessage, ChatAttachment, ChatMessageReceipt } from '@/types/chat'
+import { ChatRoom, ChatMessage, ChatAttachment, ChatMessageReceipt, type ChatMessageType } from '@/types/chat'
 import type { Json } from '@/types/database.types'
 
 function normalizeAttachments(input: unknown): ChatAttachment[] {
@@ -33,6 +33,7 @@ const MESSAGE_SELECT_BASE = `
   room_id,
   sender_id,
   content,
+  message_type,
   attachments,
   created_at,
   updated_at,
@@ -80,6 +81,38 @@ function sanitizeFileName(input: string) {
   return name.length > 0 ? name : 'arquivo'
 }
 
+function encodeStoragePath(path: string) {
+  return path
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/')
+}
+
+const signedUrlCache = new Map<string, { url: string; expAt: number }>()
+
+function getSupabaseBaseUrl() {
+  const raw = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const useDevProxy =
+    import.meta.env.DEV &&
+    String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '0') === '1' &&
+    typeof window !== 'undefined' &&
+    !!window.location?.origin
+  return useDevProxy ? window.location.origin : raw
+}
+
+function inferMessageType(content: string, attachments: ChatAttachment[]): ChatMessageType {
+  const trimmed = (content ?? '').trim()
+  if (trimmed) return 'text'
+  if (!attachments || attachments.length === 0) return 'text'
+  if (attachments.length === 1) {
+    const t = attachments[0]?.type
+    if (t === 'image') return 'image'
+    if (t === 'audio') return 'audio'
+    return 'file'
+  }
+  return 'file'
+}
+
 export const chatService = {
   async getRooms(): Promise<ChatRoom[]> {
     const userId = await getCurrentUserId()
@@ -94,15 +127,18 @@ export const chatService = {
           type,
           name,
           description,
+          avatar_path,
           created_by,
           metadata,
           last_message_at,
-          my_member:chat_room_members!inner(user_id),
+          my_member:chat_room_members!inner(user_id,hidden_at,cleared_at),
           members:chat_room_members(
             room_id,
             user_id,
             joined_at,
             last_read_at,
+            hidden_at,
+            cleared_at,
             role,
             profile:profiles!chat_room_members_user_id_fkey(${PROFILE_SELECT})
           )
@@ -113,13 +149,37 @@ export const chatService = {
 
     if (error) throw error
 
-    const rooms = (data ?? []).map((r: any) => {
+    const roomsRaw = (data ?? []).map((r: any) => r ?? {})
+    const roomsWithState = roomsRaw.map((r: any) => {
+      const myMember = Array.isArray(r?.my_member) ? r.my_member[0] : r?.my_member
       const { my_member: _myMember, ...rest } = r ?? {}
-      return rest as ChatRoom
+      return { room: rest as ChatRoom, myMember }
     })
 
-    const roomIds = rooms.map((r) => r.id).filter(Boolean)
-    if (roomIds.length === 0) return rooms
+    const visibleRooms = roomsWithState
+      .filter(({ room, myMember }: any) => {
+        const hiddenAt = myMember?.hidden_at ? new Date(myMember.hidden_at).getTime() : null
+        if (!hiddenAt) return true
+        const lastAt = room?.last_message_at ? new Date(room.last_message_at).getTime() : 0
+        return lastAt > hiddenAt
+      })
+      .map(({ room }: any) => room)
+
+    await Promise.all(
+      visibleRooms.map(async (room: any) => {
+        if (room?.type !== 'group') return
+        const path = String(room?.avatar_path || '').trim()
+        if (!path) return
+        try {
+          room.avatar_url = await chatService.getSignedRoomAvatarUrl(path, 60 * 60)
+        } catch {
+          room.avatar_url = null
+        }
+      })
+    )
+
+    const roomIds = visibleRooms.map((r) => r.id).filter(Boolean)
+    if (roomIds.length === 0) return visibleRooms
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('chat_messages')
@@ -136,19 +196,19 @@ export const chatService = {
           .in('room_id', roomIds)
           .order('created_at', { ascending: false })
           .limit(Math.min(roomIds.length * 10, 200))
-        if (fallbackError) return rooms
+        if (fallbackError) return visibleRooms
         const lastMessageByRoom = new Map<string, ChatMessage>()
         for (const row of fallbackData ?? []) {
           const roomId = row?.room_id
           if (!roomId || lastMessageByRoom.has(roomId)) continue
           lastMessageByRoom.set(roomId, normalizeMessage(row))
         }
-        return rooms.map((room) => ({
+        return visibleRooms.map((room) => ({
           ...room,
           last_message: lastMessageByRoom.get(room.id),
         }))
       }
-      return rooms
+      return visibleRooms
     }
 
     const lastMessageByRoom = new Map<string, ChatMessage>()
@@ -158,17 +218,18 @@ export const chatService = {
       lastMessageByRoom.set(roomId, normalizeMessage(row))
     }
 
-    return rooms.map((room) => ({
+    return visibleRooms.map((room) => ({
       ...room,
       last_message: lastMessageByRoom.get(room.id),
     }))
   },
 
-  async getMessages(roomId: string, limit = 50): Promise<ChatMessage[]> {
+  async getMessages(roomId: string, limit = 50, afterCreatedAtExclusive?: string | null): Promise<ChatMessage[]> {
     const { data, error } = await supabase
       .from('chat_messages')
       .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .eq('room_id', roomId)
+      .gt('created_at', afterCreatedAtExclusive ?? '1970-01-01T00:00:00.000Z')
       .order('created_at', { ascending: true })
       .limit(limit)
 
@@ -178,6 +239,7 @@ export const chatService = {
           .from('chat_messages')
           .select(MESSAGE_SELECT_BASE)
           .eq('room_id', roomId)
+          .gt('created_at', afterCreatedAtExclusive ?? '1970-01-01T00:00:00.000Z')
           .order('created_at', { ascending: true })
           .limit(limit)
         if (fallbackError) throw fallbackError
@@ -189,12 +251,18 @@ export const chatService = {
     return (data ?? []).map(normalizeMessage)
   },
 
-  async getMessagesBefore(roomId: string, beforeCreatedAt: string, limit = 50): Promise<ChatMessage[]> {
+  async getMessagesBefore(
+    roomId: string,
+    beforeCreatedAt: string,
+    limit = 50,
+    afterCreatedAtExclusive?: string | null
+  ): Promise<ChatMessage[]> {
     const { data, error } = await supabase
       .from('chat_messages')
       .select(MESSAGE_SELECT_WITH_RECEIPTS)
       .eq('room_id', roomId)
       .lt('created_at', beforeCreatedAt)
+      .gt('created_at', afterCreatedAtExclusive ?? '1970-01-01T00:00:00.000Z')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -215,6 +283,7 @@ export const chatService = {
       throw new Error('Mensagem vazia')
     }
     const contentToInsert = trimmedContent
+    const messageType = inferMessageType(contentToInsert, attachments)
 
     const { data, error } = await supabase
       .from('chat_messages')
@@ -222,6 +291,7 @@ export const chatService = {
         room_id: roomId,
         sender_id: userId,
         content: contentToInsert,
+        message_type: messageType,
         attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
         reply_to_id: replyToId ?? null,
       })
@@ -236,6 +306,7 @@ export const chatService = {
             room_id: roomId,
             sender_id: userId,
             content: contentToInsert,
+            message_type: messageType,
             attachments: attachments.length > 0 ? (attachments as unknown as Json[]) : null,
             reply_to_id: replyToId ?? null,
           })
@@ -252,46 +323,189 @@ export const chatService = {
     return normalizeMessage(data)
   },
 
-  async uploadAttachment(file: File): Promise<{ publicUrl: string; path: string }> {
+  async uploadAttachment(
+    roomId: string,
+    file: File,
+    opts?: { onProgress?: (pct: number) => void }
+  ): Promise<{ path: string; signedUrl: string }> {
     const userId = await getCurrentUserId()
 
     const allowedTypes = [
       'image/png',
       'image/jpeg',
+      'image/webp',
+      'image/gif',
       'application/pdf',
       'text/plain',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'audio/webm',
+      'audio/ogg',
+      'audio/mpeg',
+      'audio/wav',
     ]
 
     if (!allowedTypes.includes(file.type)) {
       throw new Error('Tipo de arquivo não permitido')
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Arquivo excede 5MB')
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error('Arquivo excede 50MB')
     }
 
     const fileName = sanitizeFileName(file.name)
-    const path = `${userId}/${crypto.randomUUID()}-${fileName}`
+    const path = `${roomId}/${userId}/${crypto.randomUUID()}-${fileName}`
 
-    const { error } = await supabase
-      .storage
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) throw sessionError
+    const token = sessionData.session?.access_token
+    if (!token) throw new Error('Sessão inválida')
+
+    const baseUrl = getSupabaseBaseUrl()
+    if (!baseUrl) throw new Error('Supabase URL inválida')
+
+    const uploadUrl = `${baseUrl}/storage/v1/object/chat-attachments/${encodeStoragePath(path)}`
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', uploadUrl)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.setRequestHeader('x-upsert', 'false')
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return
+        const pct = Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100)))
+        try {
+          opts?.onProgress?.(pct)
+        } catch {
+        }
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve()
+        else reject(new Error('Falha ao enviar arquivo'))
+      }
+      xhr.onerror = () => reject(new Error('Falha ao enviar arquivo'))
+      xhr.send(file)
+    })
+
+    const { data, error } = await supabase.storage
       .from('chat-attachments')
-      .upload(path, file, { upsert: false, contentType: file.type })
+      .createSignedUrl(path, 60 * 60)
+    if (error) throw error
+    const signedUrl = data?.signedUrl
+    if (!signedUrl) throw new Error('Falha ao gerar link do arquivo')
 
+    return { path, signedUrl }
+  },
+
+  async getSignedAttachmentUrl(path: string, expiresInSeconds = 60 * 10) {
+    const clean = (path ?? '').trim()
+    if (!clean) throw new Error('Path inválido')
+    const { data, error } = await supabase.storage
+      .from('chat-attachments')
+      .createSignedUrl(clean, expiresInSeconds)
+    if (error) throw error
+    if (!data?.signedUrl) throw new Error('Falha ao gerar link do arquivo')
+    return data.signedUrl
+  },
+
+  async uploadRoomAvatar(
+    roomId: string,
+    file: File,
+    opts?: { onProgress?: (pct: number) => void }
+  ): Promise<{ path: string; signedUrl: string }> {
+    const userId = await getCurrentUserId()
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp']
+    if (!allowedTypes.includes(file.type)) throw new Error('Formato permitido: PNG, JPG ou WEBP')
+    if (file.size > 5 * 1024 * 1024) throw new Error('A foto do grupo deve ter até 5MB')
+
+    const fileName = sanitizeFileName(file.name)
+    const path = `${roomId}/${userId}/${Date.now()}-${fileName}`
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    if (sessionError) throw sessionError
+    const token = sessionData.session?.access_token
+    if (!token) throw new Error('Sessão inválida')
+
+    const baseUrl = getSupabaseBaseUrl()
+    if (!baseUrl) throw new Error('Supabase URL inválida')
+
+    const uploadUrl = `${baseUrl}/storage/v1/object/chat-room-avatars/${encodeStoragePath(path)}`
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', uploadUrl)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.setRequestHeader('x-upsert', 'false')
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return
+        const pct = Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100)))
+        try {
+          opts?.onProgress?.(pct)
+        } catch {
+        }
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve()
+        else reject(new Error('Falha ao enviar imagem'))
+      }
+      xhr.onerror = () => reject(new Error('Falha ao enviar imagem'))
+      xhr.send(file)
+    })
+
+    const { data, error } = await supabase.storage
+      .from('chat-room-avatars')
+      .createSignedUrl(path, 60 * 60)
+    if (error) throw error
+    const signedUrl = data?.signedUrl
+    if (!signedUrl) throw new Error('Falha ao gerar link da imagem')
+
+    signedUrlCache.set(path, { url: signedUrl, expAt: Date.now() + 55 * 60 * 1000 })
+    return { path, signedUrl }
+  },
+
+  async getSignedRoomAvatarUrl(path: string, expiresInSeconds = 60 * 10) {
+    const clean = (path ?? '').trim()
+    if (!clean) throw new Error('Path inválido')
+    const cached = signedUrlCache.get(clean)
+    if (cached && cached.expAt > Date.now()) return cached.url
+    const { data, error } = await supabase.storage
+      .from('chat-room-avatars')
+      .createSignedUrl(clean, expiresInSeconds)
+    if (error) throw error
+    if (!data?.signedUrl) throw new Error('Falha ao gerar link do avatar')
+    signedUrlCache.set(clean, { url: data.signedUrl, expAt: Date.now() + Math.max(30_000, (expiresInSeconds - 30) * 1000) })
+    return data.signedUrl
+  },
+
+  async updateGroupRoom(
+    roomId: string,
+    input: { name?: string | null; description?: string | null; avatar_path?: string | null }
+  ) {
+    const { error } = await supabase.rpc('update_group_chat_room', {
+      room_id: roomId,
+      room_name: input.name ?? null,
+      room_description: input.description ?? null,
+      room_avatar_path: input.avatar_path ?? null,
+    })
     if (error) {
-      throw error
+      if (error.code !== '42883') throw error
+      throw new Error('RPC update_group_chat_room não encontrada no banco')
     }
+  },
 
-    const publicUrl = supabase
-      .storage
-      .from('chat-attachments')
-      .getPublicUrl(path)
-      .data
-      .publicUrl
+  async hideRoom(roomId: string) {
+    const { error } = await supabase.rpc('chat_hide_room', { room_id: roomId })
+    if (error) throw error
+  },
 
-    return { publicUrl, path }
+  async clearRoomHistory(roomId: string) {
+    const { error } = await supabase.rpc('chat_clear_room_history', { room_id: roomId })
+    if (error) throw error
+  },
+
+  async leaveRoom(roomId: string) {
+    const { error } = await supabase.rpc('leave_chat_room', { room_id: roomId })
+    if (error) throw error
   },
 
   async updateMessage(messageId: string, content: string): Promise<ChatMessage> {
@@ -422,6 +636,68 @@ export const chatService = {
     if (error) throw error
     if (!data) throw new Error('Falha ao criar/abrir chat direto')
     return data
+  },
+
+  async createGroupRoom(input: { name: string; description?: string | null; memberIds: string[] }) {
+    const userId = await getCurrentUserId()
+    const name = (input.name ?? '').trim()
+    if (!name) throw new Error('Nome do grupo é obrigatório')
+
+    const uniqueMembers = Array.from(new Set((input.memberIds ?? []).filter(Boolean)))
+      .filter((id) => id !== userId)
+
+    const { data: rpcRoomId, error: rpcError } = await supabase.rpc('create_group_chat_room', {
+      room_name: name,
+      room_description: (input.description ?? '').trim() || null,
+      member_ids: uniqueMembers,
+    })
+
+    if (rpcError) {
+      if (rpcError.code !== '42883') throw rpcError
+    } else if (rpcRoomId) {
+      return rpcRoomId as string
+    }
+
+    const { data: room, error } = await supabase
+      .from('chat_rooms')
+      .insert({
+        type: 'group',
+        name,
+        description: (input.description ?? '').trim() || null,
+        created_by: userId,
+        metadata: {},
+      })
+      .select('id')
+      .single()
+
+    if (error) throw error
+    if (!room?.id) throw new Error('Falha ao criar grupo')
+
+    if (uniqueMembers.length > 0) {
+      const { error: membersError } = await supabase
+        .from('chat_room_members')
+        .insert(uniqueMembers.map((id) => ({ room_id: room.id, user_id: id, role: 'member' })))
+      if (membersError) throw membersError
+    }
+    return room.id as string
+  },
+
+  async addRoomMembers(roomId: string, userIds: string[]) {
+    const unique = Array.from(new Set((userIds ?? []).filter(Boolean)))
+    if (unique.length === 0) return
+    const { error } = await supabase
+      .from('chat_room_members')
+      .insert(unique.map((id) => ({ room_id: roomId, user_id: id, role: 'member' })))
+    if (error) throw error
+  },
+
+  async removeRoomMember(roomId: string, userId: string) {
+    const { error } = await supabase
+      .from('chat_room_members')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+    if (error) throw error
   },
 
   async getPinnedMessages(roomId: string): Promise<Array<{ message_id: string; pinned_by: string | null; pinned_at: string }>> {

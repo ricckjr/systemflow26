@@ -698,6 +698,7 @@ export interface Database {
           type: string
           name: string | null
           description: string | null
+          avatar_path: string | null
           created_by: string
           metadata: Json | null
           last_message_at: string
@@ -709,6 +710,7 @@ export interface Database {
           type: string
           name?: string | null
           description?: string | null
+          avatar_path?: string | null
           created_by: string
           metadata?: Json | null
           last_message_at?: string
@@ -720,6 +722,7 @@ export interface Database {
           type?: string
           name?: string | null
           description?: string | null
+          avatar_path?: string | null
           created_by?: string
           metadata?: Json | null
           last_message_at?: string
@@ -741,6 +744,8 @@ export interface Database {
           role: string
           joined_at: string
           last_read_at: string | null
+          hidden_at: string | null
+          cleared_at: string | null
         }
         Insert: {
           room_id: string
@@ -748,6 +753,8 @@ export interface Database {
           role?: string
           joined_at?: string
           last_read_at?: string | null
+          hidden_at?: string | null
+          cleared_at?: string | null
         }
         Update: {
           room_id?: string
@@ -755,6 +762,8 @@ export interface Database {
           role?: string
           joined_at?: string
           last_read_at?: string | null
+          hidden_at?: string | null
+          cleared_at?: string | null
         }
         Relationships: [
           {
@@ -779,6 +788,7 @@ export interface Database {
           room_id: string
           sender_id: string
           content: string | null
+          message_type: string
           created_at: string
           updated_at: string | null
           edited_at: string | null
@@ -792,6 +802,7 @@ export interface Database {
           room_id: string
           sender_id: string
           content?: string | null
+          message_type?: string
           created_at?: string
           updated_at?: string | null
           edited_at?: string | null
@@ -805,6 +816,7 @@ export interface Database {
           room_id?: string
           sender_id?: string
           content?: string | null
+          message_type?: string
           created_at?: string
           updated_at?: string | null
           edited_at?: string | null

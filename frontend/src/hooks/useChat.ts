@@ -18,6 +18,7 @@ export function useChat() {
   const activeRoomUpdateUnsubscribe = useRef<(() => void) | null>(null);
   const messagesCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
   const roomListUnsubscribeByRoomId = useRef<Map<string, () => void>>(new Map())
+  const myRoomStateRef = useRef<Map<string, { cleared_at: string | null; hidden_at: string | null }>>(new Map())
 
   const sortRoomsByRecency = useCallback((next: ChatRoom[]) => {
     return [...next].sort((a, b) => {
@@ -65,6 +66,18 @@ export function useChat() {
     // For now, we'll just reload rooms on new message event in the list view context
     // Ideally, we'd listen to 'chat_rooms' updates or 'chat_messages' inserts globally
   }, [profile?.id]);
+
+  useEffect(() => {
+    const next = new Map<string, { cleared_at: string | null; hidden_at: string | null }>()
+    for (const room of rooms) {
+      const me = room.members?.find((m) => m.user_id === profile?.id)
+      next.set(room.id, {
+        cleared_at: (me as any)?.cleared_at ?? null,
+        hidden_at: (me as any)?.hidden_at ?? null,
+      })
+    }
+    myRoomStateRef.current = next
+  }, [profile?.id, rooms])
 
   useEffect(() => {
     if (!profile?.id) return
@@ -116,12 +129,14 @@ export function useChat() {
 
     const loadMessages = async () => {
       try {
-        const msgs = await chatService.getMessages(activeRoomId);
+        const clearedAt = myRoomStateRef.current.get(activeRoomId)?.cleared_at ?? null
+        const msgs = await chatService.getMessages(activeRoomId, 50, clearedAt);
         setMessages(msgs);
         messagesCacheRef.current.set(activeRoomId, msgs)
         
-        // Mark messages as read in chat_room_members
-        await chatService.markAsRead(activeRoomId);
+        if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+          await chatService.markAsRead(activeRoomId);
+        }
         
         const { error: notifError } = await supabase
           .from('notifications')
@@ -172,7 +187,9 @@ export function useChat() {
         upsertRoomLastMessage(activeRoomId, enrichedMessage)
 
         try {
-          await chatService.markAsRead(activeRoomId)
+          if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+            await chatService.markAsRead(activeRoomId)
+          }
         } catch {}
       }
     )
@@ -290,6 +307,39 @@ export function useChat() {
       setLoading(false);
     }
   };
+
+  const hideRoom = async (roomId: string) => {
+    await chatService.hideRoom(roomId)
+    setRooms((prev) => prev.filter((r) => r.id !== roomId))
+    if (activeRoomId === roomId) {
+      setActiveRoomId(null)
+      setMessages([])
+    }
+  }
+
+  const clearRoomHistory = async (roomId: string) => {
+    await chatService.clearRoomHistory(roomId)
+    const now = new Date().toISOString()
+    setRooms((prev) =>
+      prev.map((r) => {
+        if (r.id !== roomId) return r
+        const nextMembers = (r.members ?? []).map((m) =>
+          m.user_id === profile?.id ? ({ ...(m as any), cleared_at: now, hidden_at: null } as any) : m
+        )
+        return { ...r, members: nextMembers, last_message: undefined }
+      })
+    )
+    if (activeRoomId === roomId) setMessages([])
+  }
+
+  const leaveRoom = async (roomId: string) => {
+    await chatService.leaveRoom(roomId)
+    setRooms((prev) => prev.filter((r) => r.id !== roomId))
+    if (activeRoomId === roomId) {
+      setActiveRoomId(null)
+      setMessages([])
+    }
+  }
 
   const markRoomAsRead = async (roomId: string) => {
     if (!profile?.id) return
@@ -426,7 +476,8 @@ export function useChat() {
     const oldest = messages[0]?.created_at
     if (!oldest) return 0
     try {
-      const older = await chatService.getMessagesBefore(activeRoomId, oldest, limit)
+      const clearedAt = myRoomStateRef.current.get(activeRoomId)?.cleared_at ?? null
+      const older = await chatService.getMessagesBefore(activeRoomId, oldest, limit, clearedAt)
       if (older.length === 0) return 0
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id))
@@ -450,6 +501,17 @@ export function useChat() {
     }
   };
 
+  const startGroupChat = async (input: { name: string; description?: string | null; memberIds: string[] }) => {
+    try {
+      const roomId = await chatService.createGroupRoom(input)
+      await loadRooms()
+      setActiveRoomId(roomId)
+    } catch (error) {
+      console.error('Error starting group chat:', error)
+      throw error
+    }
+  }
+
   return {
     rooms,
     messages,
@@ -460,8 +522,19 @@ export function useChat() {
     deleteMessage,
     markActiveRoomAsRead,
     loadOlderMessages,
-    uploadAttachment: chatService.uploadAttachment,
+    uploadAttachment: (roomId: string, file: File, opts?: { onProgress?: (pct: number) => void }) =>
+      chatService.uploadAttachment(roomId, file, opts),
+    uploadRoomAvatar: (roomId: string, file: File, opts?: { onProgress?: (pct: number) => void }) =>
+      chatService.uploadRoomAvatar(roomId, file, opts),
     startDirectChat,
+    startGroupChat,
+    updateGroupRoom: chatService.updateGroupRoom,
+    addRoomMembers: chatService.addRoomMembers,
+    removeRoomMember: chatService.removeRoomMember,
+    hideRoom,
+    clearRoomHistory,
+    leaveRoom,
+    reloadRooms: loadRooms,
     loading,
     sending,
     currentUser: profile

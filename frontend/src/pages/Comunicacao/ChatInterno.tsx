@@ -13,6 +13,7 @@ import { useNotifications } from '@/contexts/NotificationsContext';
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
 import { Modal } from '@/components/ui';
 import { formatDateBR, formatDateTimeBR, formatTimeBR } from '@/utils/datetime';
+import { NewChatModal } from './chat-interno/NewChatModal';
 import { 
   Search, 
   Send, 
@@ -26,6 +27,7 @@ import {
   ZoomIn,
   ZoomOut,
   MoreVertical,
+  Camera,
   CornerUpLeft,
   Pencil,
   Pin,
@@ -141,7 +143,16 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     markActiveRoomAsRead,
     loadOlderMessages,
     startDirectChat,
+    startGroupChat,
+    addRoomMembers,
+    removeRoomMember,
+    hideRoom,
+    clearRoomHistory,
+    leaveRoom,
+    reloadRooms,
     uploadAttachment,
+    uploadRoomAvatar,
+    updateGroupRoom,
     loading,
     currentUser
   } = useChat();
@@ -186,10 +197,33 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   // New Chat Modal State
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
-  const [newChatSearch, setNewChatSearch] = useState('');
 
   // Mobile view state
   const [showMobileList, setShowMobileList] = useState(true);
+
+  const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false)
+  const [confirmRoomAction, setConfirmRoomAction] = useState<
+    | null
+    | { kind: 'hide' | 'clear' | 'leave'; roomId: string }
+  >(null)
+  const [confirmRoomActionBusy, setConfirmRoomActionBusy] = useState(false)
+
+  const [isParticipantsModalOpen, setIsParticipantsModalOpen] = useState(false)
+  const [isAddParticipantsModalOpen, setIsAddParticipantsModalOpen] = useState(false)
+  const [participantsSearch, setParticipantsSearch] = useState('')
+  const [addParticipantsSearch, setAddParticipantsSearch] = useState('')
+  const [addParticipantsSelected, setAddParticipantsSelected] = useState<Set<string>>(new Set())
+
+  const [isGroupProfileModalOpen, setIsGroupProfileModalOpen] = useState(false)
+  const [groupProfileBusy, setGroupProfileBusy] = useState(false)
+  const [groupNameDraft, setGroupNameDraft] = useState('')
+  const [groupDescriptionDraft, setGroupDescriptionDraft] = useState('')
+  const [groupAvatarFile, setGroupAvatarFile] = useState<File | null>(null)
+  const [groupAvatarPreviewUrl, setGroupAvatarPreviewUrl] = useState<string | null>(null)
+  const groupAvatarInputRef = useRef<HTMLInputElement>(null)
+
+  const [uploadPct, setUploadPct] = useState<number | null>(null)
+  const [uploadLabel, setUploadLabel] = useState<string | null>(null)
 
   useEffect(() => {
     const roomFromUrl = new URLSearchParams(window.location.search).get('room')
@@ -219,6 +253,19 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   useEffect(() => {
     setActiveChatRoomId(activeRoomId)
   }, [activeRoomId, setActiveChatRoomId])
+
+  useEffect(() => {
+    if (!groupAvatarFile) {
+      if (groupAvatarPreviewUrl) URL.revokeObjectURL(groupAvatarPreviewUrl)
+      setGroupAvatarPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(groupAvatarFile)
+    setGroupAvatarPreviewUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [groupAvatarFile, groupAvatarPreviewUrl])
 
   useEffect(() => {
     return () => {
@@ -684,10 +731,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         const ext = mimeType.split('/')[1].split(';')[0];
         const audioFile = new File([audioBlob], `voice_message_${Date.now()}.${ext}`, { type: mimeType });
         try {
-          const uploaded = await uploadAttachment(audioFile);
+          if (!activeRoomId) throw new Error('Conversa inválida')
+          setUploadLabel('Enviando áudio…')
+          setUploadPct(0)
+          const uploaded = await uploadAttachment(activeRoomId, audioFile, { onProgress: setUploadPct });
           await sendMessage('', [{ 
             type: 'audio',
-            url: uploaded.publicUrl,
+            url: uploaded.signedUrl,
             path: uploaded.path,
             name: 'Mensagem de Voz',
             mime_type: mimeType,
@@ -697,6 +747,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         } catch (error: any) {
           console.error("Error sending audio:", error);
           alert(`Erro ao enviar áudio: ${error.message}`);
+        } finally {
+          setUploadPct(null)
+          setUploadLabel(null)
         }
         if (audioStream) {
             audioStream.getTracks().forEach(track => track.stop());
@@ -731,23 +784,52 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         e.target.value = '';
         return
       }
-      const uploaded = await uploadAttachment(file);
-      await sendMessage('', [{ 
-        type,
-        url: uploaded.publicUrl,
-        path: uploaded.path,
-        name: file.name,
-        mime_type: file.type,
-        size: file.size
-      }], replyingTo?.id ?? null);
-      setReplyingTo(null)
+      await handleSendFiles([file])
       e.target.value = '';
       setShowAttachmentsMenu(false);
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
       alert("Erro ao enviar arquivo.");
+    } finally {
+      setUploadPct(null)
+      setUploadLabel(null)
     }
   };
+
+  const inferAttachmentType = (file: File): 'image' | 'video' | 'audio' | 'document' => {
+    const t = (file.type || '').toLowerCase()
+    if (t.startsWith('image/')) return 'image'
+    if (t.startsWith('video/')) return 'video'
+    if (t.startsWith('audio/')) return 'audio'
+    return 'document'
+  }
+
+  const handleSendFiles = async (files: File[]) => {
+    if (!activeRoomId) throw new Error('Conversa inválida')
+    const list = (files ?? []).filter(Boolean)
+    if (list.length === 0) return
+    if (editingMessage) {
+      alert('Finalize ou cancele a edição antes de enviar anexos.')
+      return
+    }
+    const attachments: any[] = []
+    for (const file of list) {
+      const t = inferAttachmentType(file)
+      setUploadLabel(t === 'image' ? 'Enviando imagem…' : t === 'audio' ? 'Enviando áudio…' : 'Enviando arquivo…')
+      setUploadPct(0)
+      const uploaded = await uploadAttachment(activeRoomId, file, { onProgress: setUploadPct })
+      attachments.push({
+        type: t,
+        url: uploaded.signedUrl,
+        path: uploaded.path,
+        name: file.name,
+        mime_type: file.type,
+        size: file.size,
+      })
+    }
+    await sendMessage('', attachments, replyingTo?.id ?? null)
+    setReplyingTo(null)
+  }
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setMessage(prev => prev + emojiData.emoji);
@@ -763,6 +845,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const getRoomInfo = (room: ChatRoom) => {
     const unreadCount = unreadByRoomId[room.id] ?? 0
     const hasUnread = unreadCount > 0
+    const me = room.members?.find((m) => m.user_id === currentUser?.id) as any
+    const clearedAt = me?.cleared_at ? new Date(me.cleared_at).getTime() : null
+    const lastMessageAt = room.last_message?.created_at ? new Date(room.last_message.created_at).getTime() : null
+    const lastMessageVisible =
+      clearedAt && lastMessageAt && lastMessageAt <= clearedAt ? undefined : room.last_message
 
     if (room.type === 'direct') {
       const otherMember = room.members?.find(m => m.user_id !== currentUser?.id);
@@ -779,7 +866,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         avatar_url: otherMember?.profile?.avatar_url,
         status: status, 
         statusText,
-        lastMessage: room.last_message,
+        lastMessage: lastMessageVisible,
+        clearedAt: (me?.cleared_at as string | null) ?? null,
         role: otherMember?.profile?.cargo || 'Membro',
         hasUnread,
         unreadCount,
@@ -791,9 +879,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         type: room.type,
         userId: null,
         name: room.name || 'Grupo sem nome',
-        avatar_url: null,
+        avatar_url: room.avatar_url || null,
+        avatar_path: room.avatar_path || null,
+        description: room.description || '',
         status: null, // Groups don't have single status
-        lastMessage: room.last_message,
+        lastMessage: lastMessageVisible,
+        clearedAt: (me?.cleared_at as string | null) ?? null,
         role: 'Grupo',
         hasUnread,
         unreadCount,
@@ -805,6 +896,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const activeRoom = rooms.find(r => r.id === activeRoomId);
   const activeRoomInfo = activeRoom ? getRoomInfo(activeRoom) : null;
   const activeUnreadCount = activeRoomId ? (unreadByRoomId[activeRoomId] ?? 0) : 0
+  const activeRoomMyRole = activeRoom?.members?.find((m) => m.user_id === currentUser?.id)?.role
+  const canEditActiveGroup = activeRoom?.type === 'group' && (activeRoomMyRole === 'owner' || activeRoomMyRole === 'admin')
 
   const typingStatusText = useMemo(() => {
     const now = Date.now()
@@ -899,13 +992,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     const info = getRoomInfo(room);
     return info.name.toLowerCase().includes(search.toLowerCase());
   });
-
-  const filteredNewChatUsers = useMemo(() => {
-    return allUsers.filter(u => 
-      u.nome.toLowerCase().includes(newChatSearch.toLowerCase()) ||
-      u.email_login.toLowerCase().includes(newChatSearch.toLowerCase())
-    );
-  }, [newChatSearch, allUsers]);
 
   const getMessagePreviewText = (msg: ChatMessage | null | undefined) => {
     if (!msg) return ''
@@ -1071,15 +1157,17 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   const handleStartNewChat = async (userId: string) => {
     await startDirectChat(userId);
-    setIsNewChatModalOpen(false);
-    setNewChatSearch('');
     setShowMobileList(false);
   };
 
+  const handleCreateGroup = async (input: { name: string; description?: string | null; memberIds: string[] }) => {
+    await startGroupChat(input)
+    setShowMobileList(false)
+  }
+
   const handleClearChat = () => {
-    if (confirm("Tem certeza que deseja limpar esta conversa? Esta ação apagará o histórico localmente.")) {
-        console.log("Clearing chat for room:", activeRoomId);
-    }
+    if (!activeRoomId) return
+    setConfirmRoomAction({ kind: 'clear', roomId: activeRoomId })
   };
 
   const messagesScrollRef = useRef<HTMLDivElement>(null)
@@ -1410,7 +1498,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                 </span>
                                 </>
                             ) : (
-                                <span className="italic opacity-50">Nova conversa</span>
+                                <span className="italic opacity-50">
+                                  {info.clearedAt ? 'Histórico limpo' : 'Nova conversa'}
+                                </span>
                             )}
                             </p>
                             {info.hasUnread && (
@@ -1520,19 +1610,132 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 >
                   {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                 </button>
-                <button 
-                  onClick={handleClearChat}
-                  className="flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all text-xs font-medium" 
-                  title="Limpar Conversa"
-                >
-                  <Trash2 size={16} />
-                  <span className="hidden sm:inline">Limpar Conversa</span>
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsRoomMenuOpen((v) => !v)}
+                    className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-all"
+                    title="Opções da conversa"
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+
+                  {isRoomMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 min-w-[230px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1 z-30">
+                      {activeRoom?.type === 'group' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!activeRoom) return
+                              setIsRoomMenuOpen(false)
+                              setGroupNameDraft(activeRoom.name || '')
+                              setGroupDescriptionDraft(activeRoom.description || '')
+                              setGroupAvatarFile(null)
+                              setIsGroupProfileModalOpen(true)
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                          >
+                            <Camera size={16} className="text-cyan-400" />
+                            Perfil do grupo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!activeRoomId) return
+                              setIsRoomMenuOpen(false)
+                              setAddParticipantsSearch('')
+                              setAddParticipantsSelected(new Set())
+                              setIsAddParticipantsModalOpen(true)
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                            disabled={!canEditActiveGroup}
+                          >
+                            <UserPlus size={16} className="text-cyan-400" />
+                            Adicionar participantes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRoomMenuOpen(false)
+                              setIsParticipantsModalOpen(true)
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                          >
+                            <UserPlus size={16} className="text-cyan-400" />
+                            Participantes
+                          </button>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRoomMenuOpen(false)
+                          handleClearChat()
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                      >
+                        <Trash2 size={16} className="text-amber-400" />
+                        Limpar histórico
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!activeRoomId) return
+                          setIsRoomMenuOpen(false)
+                          setConfirmRoomAction({ kind: 'hide', roomId: activeRoomId })
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
+                      >
+                        <X size={16} className="text-red-400" />
+                        Excluir conversa para mim
+                      </button>
+
+                      {activeRoom?.type === 'group' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!activeRoomId) return
+                            setIsRoomMenuOpen(false)
+                            setConfirmRoomAction({ kind: 'leave', roomId: activeRoomId })
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-3"
+                        >
+                          <ArrowLeft size={16} className="text-red-300" />
+                          Sair do grupo
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </header>
 
             {/* Messages Area */}
-            <div ref={messagesScrollRef} className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0F14] relative">
+            <div
+              ref={messagesScrollRef}
+              className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0F14] relative"
+              onDragOver={(e) => {
+                if (e.dataTransfer?.types?.includes?.('Files')) e.preventDefault()
+              }}
+              onDrop={(e) => {
+                const files = Array.from(e.dataTransfer?.files ?? [])
+                if (files.length === 0) return
+                e.preventDefault()
+                void (async () => {
+                  try {
+                    await handleSendFiles(files)
+                  } catch (err: any) {
+                    alert(err?.message || 'Não foi possível enviar o arquivo.')
+                  } finally {
+                    setUploadPct(null)
+                    setUploadLabel(null)
+                  }
+                })()
+              }}
+            >
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')] [mask-image:linear-gradient(to_bottom,transparent,black)]"></div>
 
               {pinnedItems.length > 0 && (
@@ -1623,7 +1826,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       <div className="h-px flex-1 bg-white/10" />
                     </div>
                   )}
-                  <div id={`chat-message-${msg.id}`} className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}>
+                  <div
+                    id={`chat-message-${msg.id}`}
+                    className={`flex ${isMe ? 'justify-end' : 'justify-start'} z-0`}
+                    style={{ contentVisibility: 'auto', containIntrinsicSize: '80px' }}
+                  >
                     <div className={`max-w-[75%] md:max-w-[60%] group relative flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && activeRoom?.type === 'group' && !isSequence && (
                         <span className="text-[10px] text-[var(--text-soft)] ml-1 mb-1 font-bold">{msg.sender?.nome}</span>
@@ -2102,6 +2309,25 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </button>
                 </div>
               )}
+
+              {uploadPct !== null && (
+                <div className="mb-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-bold text-[var(--text-main)] truncate">
+                      {uploadLabel || 'Enviando…'}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] font-mono">
+                      {uploadPct}%
+                    </div>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-2 rounded-full bg-cyan-500 transition-[width] duration-150"
+                      style={{ width: `${uploadPct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               
               {showAttachmentsMenu && (
                 <div className="absolute bottom-20 left-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-20 animate-in slide-in-from-bottom-5 duration-200 min-w-[180px]">
@@ -2163,6 +2389,21 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         setMessage(next)
                         if (next.trim()) pingTyping()
                         else stopTyping()
+                      }}
+                      onPaste={(e) => {
+                        const files = Array.from(e.clipboardData?.files ?? [])
+                        if (files.length === 0) return
+                        e.preventDefault()
+                        void (async () => {
+                          try {
+                            await handleSendFiles(files)
+                          } catch (err: any) {
+                            alert(err?.message || 'Não foi possível enviar o arquivo colado.')
+                          } finally {
+                            setUploadPct(null)
+                            setUploadLabel(null)
+                          }
+                        })()
                       }}
                       onBlur={() => stopTyping()}
                       onKeyDown={(e) => {
@@ -2605,68 +2846,458 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       </Modal>
 
       {/* New Chat Modal */}
-      <Modal
+      <NewChatModal
         isOpen={isNewChatModalOpen}
         onClose={() => setIsNewChatModalOpen(false)}
+        users={allUsers}
+        currentUserId={currentUser?.id}
+        usersPresence={usersPresence as any}
+        onOpenProfile={(id) => void openProfileModal(id)}
+        onStartDirect={handleStartNewChat}
+        onCreateGroup={handleCreateGroup}
+      />
+
+      <Modal
+        isOpen={isGroupProfileModalOpen}
+        onClose={() => {
+          if (groupProfileBusy) return
+          setIsGroupProfileModalOpen(false)
+          setGroupAvatarFile(null)
+          setGroupProfileBusy(false)
+        }}
         size="sm"
-        noPadding
-        title={
-            <div className="flex items-center gap-2">
-                <UserPlus size={20} className="text-cyan-500" /> 
-                Nova Conversa
-            </div>
+        title="Perfil do grupo"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                if (groupProfileBusy) return
+                setIsGroupProfileModalOpen(false)
+                setGroupAvatarFile(null)
+              }}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors text-sm"
+              disabled={groupProfileBusy}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!activeRoomId) return
+                if (!canEditActiveGroup) return
+                const name = groupNameDraft.trim()
+                if (!name) {
+                  alert('Informe o nome do grupo.')
+                  return
+                }
+                setGroupProfileBusy(true)
+                try {
+                  let avatarPath: string | null | undefined = null
+                  if (groupAvatarFile) {
+                    setUploadLabel('Enviando foto do grupo…')
+                    setUploadPct(0)
+                    const uploaded = await uploadRoomAvatar(activeRoomId, groupAvatarFile, { onProgress: setUploadPct })
+                    avatarPath = uploaded.path
+                  }
+                  await updateGroupRoom(activeRoomId, {
+                    name,
+                    description: groupDescriptionDraft.trim() || null,
+                    avatar_path: avatarPath ?? null,
+                  })
+                  await reloadRooms()
+                  setIsGroupProfileModalOpen(false)
+                  setGroupAvatarFile(null)
+                } catch (e: any) {
+                  alert(e?.message || 'Não foi possível atualizar o grupo.')
+                } finally {
+                  setGroupProfileBusy(false)
+                  setUploadPct(null)
+                  setUploadLabel(null)
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={groupProfileBusy || !canEditActiveGroup || !groupNameDraft.trim()}
+            >
+              Salvar
+            </button>
+          </>
         }
       >
-        <div className="flex flex-col h-[60vh] max-h-[500px]">
-            <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-main)]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={18} />
-                <input type="text" value={newChatSearch} onChange={(e) => setNewChatSearch(e.target.value)} placeholder="Buscar por nome ou email..." className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] outline-none" autoFocus />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-[var(--bg-panel)]">
-              {filteredNewChatUsers.length === 0 ? (
-                <div className="text-center p-10 text-[var(--text-muted)] text-sm">Nenhum usuário encontrado.</div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {groupAvatarPreviewUrl || activeRoomInfo?.avatar_url ? (
+                <img
+                  src={groupAvatarPreviewUrl || (activeRoomInfo?.avatar_url as string)}
+                  alt={groupNameDraft || activeRoomInfo?.name || 'Grupo'}
+                  className="w-16 h-16 rounded-full object-cover border border-[var(--border)]"
+                />
               ) : (
-                <div className="space-y-1">
-                  {filteredNewChatUsers.map(user => (
-                    <button key={user.id} onClick={() => handleStartNewChat(user.id)} className="w-full p-3 flex items-center gap-4 rounded-xl hover:bg-[var(--bg-main)] border border-transparent hover:border-[var(--border)] transition-all duration-200 text-left group">
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          void openProfileModal(user.id)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            void openProfileModal(user.id)
-                          }
-                        }}
-                        className="relative shrink-0"
-                        title="Ver perfil"
-                      >
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} alt={user.nome} className="w-10 h-10 rounded-full object-cover border border-[var(--border)]" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1e293b] to-[#0f172a] flex items-center justify-center text-white font-bold uppercase text-sm border border-[var(--border)]">{user.nome.substring(0, 2)}</div>
-                        )}
-                         {usersPresence[user.id]?.status && (
-                             <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[usersPresence[user.id].status]}`}></div>
-                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[var(--text-main)] group-hover:text-cyan-400 transition-colors truncate">{user.nome}</p>
-                        <p className="text-xs text-[var(--text-muted)] truncate">{user.cargo || 'Membro da equipe'}</p>
-                      </div>
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-cyan-500 bg-cyan-500/10 p-2 rounded-full"><MessageSquare size={16} /></div>
-                    </button>
-                  ))}
+                <div className="w-16 h-16 rounded-full bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center text-[var(--text-main)] font-black">
+                  {(groupNameDraft || activeRoomInfo?.name || 'G').substring(0, 2).toUpperCase()}
                 </div>
               )}
+              <input
+                ref={groupAvatarInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  setGroupAvatarFile(f)
+                  e.target.value = ''
+                }}
+                disabled={!canEditActiveGroup || groupProfileBusy}
+              />
+              <button
+                type="button"
+                onClick={() => groupAvatarInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={!canEditActiveGroup || groupProfileBusy}
+                title="Alterar foto"
+              >
+                <Camera size={14} />
+              </button>
             </div>
+            <div className="text-[11px] text-[var(--text-muted)]">
+              {canEditActiveGroup ? 'Admin pode alterar nome, descrição e foto.' : 'Apenas admins podem editar o grupo.'}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-[var(--text-muted)]">Nome</div>
+            <input
+              value={groupNameDraft}
+              onChange={(e) => setGroupNameDraft(e.target.value)}
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+              disabled={!canEditActiveGroup || groupProfileBusy}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-[var(--text-muted)]">Descrição</div>
+            <textarea
+              value={groupDescriptionDraft}
+              onChange={(e) => setGroupDescriptionDraft(e.target.value)}
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30 resize-none"
+              rows={3}
+              placeholder="Descrição do grupo"
+              disabled={!canEditActiveGroup || groupProfileBusy}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isParticipantsModalOpen}
+        onClose={() => setIsParticipantsModalOpen(false)}
+        size="sm"
+        title="Participantes"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsParticipantsModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors text-sm"
+            >
+              Fechar
+            </button>
+            {canEditActiveGroup && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsParticipantsModalOpen(false)
+                  setAddParticipantsSearch('')
+                  setAddParticipantsSelected(new Set())
+                  setIsAddParticipantsModalOpen(true)
+                }}
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold"
+              >
+                Adicionar participantes
+              </button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {canEditActiveGroup && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsParticipantsModalOpen(false)
+                setAddParticipantsSearch('')
+                setAddParticipantsSelected(new Set())
+                setIsAddParticipantsModalOpen(true)
+              }}
+              className="w-full px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <UserPlus size={16} />
+              Adicionar participantes
+            </button>
+          )}
+          <input
+            value={participantsSearch}
+            onChange={(e) => setParticipantsSearch(e.target.value)}
+            placeholder="Buscar participante..."
+            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+          />
+          <div className="space-y-2">
+            {(activeRoom?.members ?? [])
+              .filter((m) => {
+                const q = participantsSearch.trim().toLowerCase()
+                if (!q) return true
+                const name = (m.profile?.nome ?? '').toLowerCase()
+                const email = (m.profile as any)?.email_login ? String((m.profile as any).email_login).toLowerCase() : ''
+                return name.includes(q) || email.includes(q)
+              })
+              .map((m) => {
+                const meRole = activeRoom?.members?.find((x) => x.user_id === currentUser?.id)?.role
+                const canManage = meRole === 'owner' || meRole === 'admin'
+                const canRemove = canManage && m.user_id !== currentUser?.id && m.role !== 'owner'
+                return (
+                  <div
+                    key={m.user_id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] px-3 py-2.5"
+                  >
+                    <div className="min-w-0 flex items-center gap-3">
+                      {m.profile?.avatar_url ? (
+                        <img
+                          src={m.profile.avatar_url}
+                          alt={m.profile?.nome || 'Usuário'}
+                          className="w-9 h-9 rounded-full object-cover border border-[var(--border)]"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
+                          {(m.profile?.nome || 'U').substring(0, 2)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-[var(--text-main)] truncate">
+                          {m.profile?.nome || 'Usuário'}
+                          {m.user_id === currentUser?.id ? ' (você)' : ''}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          {m.role === 'owner' ? 'Dono' : m.role === 'admin' ? 'Admin' : 'Membro'}
+                        </div>
+                      </div>
+                    </div>
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!activeRoomId) return
+                          if (!confirm(`Remover ${m.profile?.nome || 'usuário'} do grupo?`)) return
+                          try {
+                            await removeRoomMember(activeRoomId, m.user_id)
+                            await reloadRooms()
+                          } catch (e: any) {
+                            alert(e?.message || 'Não foi possível remover o participante.')
+                          }
+                        }}
+                        className="p-2 rounded-xl text-red-300 hover:bg-red-500/10 transition-colors"
+                        title="Remover"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isAddParticipantsModalOpen}
+        onClose={() => setIsAddParticipantsModalOpen(false)}
+        size="sm"
+        title="Adicionar participantes"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsAddParticipantsModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!activeRoomId) return
+                const ids = Array.from(addParticipantsSelected.values())
+                if (ids.length === 0) return
+                try {
+                  await addRoomMembers(activeRoomId, ids)
+                  await reloadRooms()
+                  setIsAddParticipantsModalOpen(false)
+                  setAddParticipantsSelected(new Set())
+                  setAddParticipantsSearch('')
+                } catch (e: any) {
+                  alert(e?.message || 'Não foi possível adicionar participantes.')
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={addParticipantsSelected.size === 0}
+            >
+              Adicionar ({addParticipantsSelected.size})
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <input
+            value={addParticipantsSearch}
+            onChange={(e) => setAddParticipantsSearch(e.target.value)}
+            placeholder="Buscar usuário..."
+            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+          />
+          <div className="space-y-2">
+            {allUsers
+              .filter((u) => u.id !== currentUser?.id)
+              .filter((u) => !(activeRoom?.members ?? []).some((m) => m.user_id === u.id))
+              .filter((u) => {
+                const q = addParticipantsSearch.trim().toLowerCase()
+                if (!q) return true
+                const name = (u.nome ?? '').toLowerCase()
+                const email = (u.email_login ?? '').toLowerCase()
+                return name.includes(q) || email.includes(q)
+              })
+              .slice(0, 200)
+              .map((u) => {
+                const selected = addParticipantsSelected.has(u.id)
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setAddParticipantsSelected((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(u.id)) next.delete(u.id)
+                        else next.add(u.id)
+                        return next
+                      })
+                    }}
+                    className={[
+                      'w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors',
+                      selected
+                        ? 'bg-cyan-500/10 border-cyan-500/20'
+                        : 'bg-[var(--bg-main)] border-[var(--border)] hover:bg-[var(--bg-panel)]',
+                    ].join(' ')}
+                  >
+                    <div className="min-w-0 flex items-center gap-3">
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt={u.nome} className="w-9 h-9 rounded-full object-cover border border-[var(--border)]" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
+                          {u.nome.substring(0, 2)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-[var(--text-main)] truncate">{u.nome}</div>
+                        <div className="text-[11px] text-[var(--text-muted)] truncate">{u.cargo || u.email_login || ''}</div>
+                      </div>
+                    </div>
+                    <div className={['w-5 h-5 rounded-md border', selected ? 'bg-cyan-500 border-cyan-400' : 'border-[var(--border)]'].join(' ')}>
+                      {selected && <Check size={16} className="text-black" />}
+                    </div>
+                  </button>
+                )
+              })}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!confirmRoomAction}
+        onClose={() => {
+          if (confirmRoomActionBusy) return
+          setConfirmRoomAction(null)
+        }}
+        size="sm"
+        title={
+          confirmRoomAction?.kind === 'clear'
+            ? 'Limpar histórico'
+            : confirmRoomAction?.kind === 'hide'
+              ? 'Excluir conversa para mim'
+              : 'Sair do grupo'
+        }
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setConfirmRoomAction(null)}
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] hover:bg-[var(--bg-main)] transition-colors text-sm"
+              disabled={confirmRoomActionBusy}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirmRoomAction) return
+                setConfirmRoomActionBusy(true)
+                try {
+                  if (confirmRoomAction.kind === 'clear') {
+                    await clearRoomHistory(confirmRoomAction.roomId)
+                  } else if (confirmRoomAction.kind === 'hide') {
+                    await hideRoom(confirmRoomAction.roomId)
+                    setShowMobileList(true)
+                  } else {
+                    await leaveRoom(confirmRoomAction.roomId)
+                    setShowMobileList(true)
+                  }
+                  setConfirmRoomAction(null)
+                } catch (e: any) {
+                  alert(e?.message || 'Não foi possível concluir a ação.')
+                } finally {
+                  setConfirmRoomActionBusy(false)
+                }
+              }}
+              className={[
+                'px-4 py-2 rounded-xl transition-colors text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed',
+                confirmRoomAction?.kind === 'clear'
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                  : 'bg-red-600 hover:bg-red-500 text-white',
+              ].join(' ')}
+              disabled={confirmRoomActionBusy}
+            >
+              {confirmRoomAction?.kind === 'clear'
+                ? 'Limpar'
+                : confirmRoomAction?.kind === 'hide'
+                  ? 'Excluir'
+                  : 'Sair'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-[var(--text-main)]">
+          {confirmRoomAction?.kind === 'clear' && (
+            <>
+              <div className="text-[var(--text-soft)]">
+                Remove as mensagens desta conversa apenas para você. O outro lado continuará com o histórico.
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)]">
+                Novas mensagens continuarão chegando normalmente.
+              </div>
+            </>
+          )}
+          {confirmRoomAction?.kind === 'hide' && (
+            <>
+              <div className="text-[var(--text-soft)]">
+                Oculta esta conversa da sua lista. Se houver novas mensagens, ela poderá reaparecer.
+              </div>
+            </>
+          )}
+          {confirmRoomAction?.kind === 'leave' && (
+            <>
+              <div className="text-[var(--text-soft)]">
+                Você sairá do grupo e não receberá novas mensagens dele.
+              </div>
+            </>
+          )}
         </div>
       </Modal>
     </div>

@@ -123,12 +123,13 @@ export function useChat() {
         // Mark messages as read in chat_room_members
         await chatService.markAsRead(activeRoomId);
         
-        // Also mark notifications as read for this room
         const { error: notifError } = await supabase
-          .from('chat_notifications')
+          .from('notifications')
           .update({ is_read: true })
-          .eq('room_id', activeRoomId)
-          .eq('user_id', profile?.id);
+          .eq('type', 'chat')
+          .eq('user_id', profile?.id)
+          .eq('is_read', false)
+          .contains('metadata', { room_id: activeRoomId } as any);
           
         if (notifError && notifError.code !== '42P01') {
            console.error('Error marking notifications as read:', notifError);
@@ -294,10 +295,12 @@ export function useChat() {
     if (!profile?.id) return
     await chatService.markAsRead(roomId)
     const { error: notifError } = await supabase
-      .from('chat_notifications')
+      .from('notifications')
       .update({ is_read: true })
-      .eq('room_id', roomId)
+      .eq('type', 'chat')
       .eq('user_id', profile.id)
+      .eq('is_read', false)
+      .contains('metadata', { room_id: roomId } as any)
     if (notifError && notifError.code !== '42P01') throw notifError
   }
 

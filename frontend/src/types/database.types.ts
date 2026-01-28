@@ -413,6 +413,7 @@ export interface Database {
           link: string | null
           type: string
           is_read: boolean
+          metadata: Json | null
           created_at: string
         }
         Insert: {
@@ -423,6 +424,7 @@ export interface Database {
           link?: string | null
           type: string
           is_read?: boolean
+          metadata?: Json | null
           created_at?: string
         }
         Update: {
@@ -433,6 +435,7 @@ export interface Database {
           link?: string | null
           type?: string
           is_read?: boolean
+          metadata?: Json | null
           created_at?: string
         }
         Relationships: [
@@ -440,6 +443,59 @@ export interface Database {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          user_id: string
+          system_in_app_enabled: boolean
+          system_sound_enabled: boolean
+          system_native_enabled: boolean
+          system_push_enabled: boolean
+          chat_in_app_enabled: boolean
+          chat_sound_enabled: boolean
+          chat_native_enabled: boolean
+          chat_push_enabled: boolean
+          permission_prompt_dismissed_until: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          system_in_app_enabled?: boolean
+          system_sound_enabled?: boolean
+          system_native_enabled?: boolean
+          system_push_enabled?: boolean
+          chat_in_app_enabled?: boolean
+          chat_sound_enabled?: boolean
+          chat_native_enabled?: boolean
+          chat_push_enabled?: boolean
+          permission_prompt_dismissed_until?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          system_in_app_enabled?: boolean
+          system_sound_enabled?: boolean
+          system_native_enabled?: boolean
+          system_push_enabled?: boolean
+          chat_in_app_enabled?: boolean
+          chat_sound_enabled?: boolean
+          chat_native_enabled?: boolean
+          chat_push_enabled?: boolean
+          permission_prompt_dismissed_until?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           }

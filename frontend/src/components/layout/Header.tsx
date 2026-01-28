@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, X, Check, Inbox } from 'lucide-react';
+import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, Check, Inbox } from 'lucide-react';
 import { Profile } from '@/types';
-import { supabase } from '@/services/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
-import { useSystemNotifications } from '@/contexts/SystemNotificationsContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { formatDateBR, formatTimeBR } from '@/utils/datetime';
 
 interface HeaderProps {
@@ -16,29 +14,6 @@ interface HeaderProps {
   profile: Profile;
   supabaseConnected: boolean;
   errorMessage?: string;
-}
-
-type ChatNotifMessage = {
-  id: string
-  content: string | null
-  attachments?: any[] | null
-}
-
-type ChatNotifSender = {
-  id: string
-  nome: string | null
-  avatar_url: string | null
-}
-
-type ChatNotifItem = {
-  id: string
-  room_id: string
-  message_id: string
-  sender_id: string
-  is_read: boolean
-  created_at: string
-  sender?: ChatNotifSender | null
-  message?: ChatNotifMessage | null
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -54,110 +29,11 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const { session } = useAuth()
   const userId = session?.user?.id ?? profile?.id ?? null
-  const { totalUnread } = useChatNotifications();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useSystemNotifications()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   
   // Notification UI State (System Alerts)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-
-  // Chat Notification State
-  const [isChatNotificationsOpen, setIsChatNotificationsOpen] = useState(false);
-  const [chatNotifications, setChatNotifications] = useState<ChatNotifItem[]>([]);
-  const chatNotificationRef = useRef<HTMLDivElement>(null);
-
-  // ... (keep fetchUnreadChat and subscriptions)
-
-  // Fetch recent chat notifications for the list
-  useEffect(() => {
-    if (isChatNotificationsOpen && userId) {
-      ;(async () => {
-        const { data: notifRows } = await supabase
-          .from('chat_notifications')
-          .select('id, room_id, message_id, sender_id, is_read, created_at')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(10)
-
-        const base = (notifRows ?? []) as any[]
-        if (base.length === 0) {
-          setChatNotifications([])
-          return
-        }
-
-        const senderIds = Array.from(
-          new Set(base.map((r) => r?.sender_id).filter(Boolean))
-        ) as string[]
-        const messageIds = Array.from(
-          new Set(base.map((r) => r?.message_id).filter(Boolean))
-        ) as string[]
-
-        const [{ data: senders }, { data: messages }] = await Promise.all([
-          supabase.from('profiles').select('id, nome, avatar_url').in('id', senderIds),
-          supabase.from('chat_messages').select('id, content, attachments').in('id', messageIds),
-        ])
-
-        const senderById = new Map<string, ChatNotifSender>()
-        for (const s of (senders ?? []) as any[]) {
-          if (!s?.id) continue
-          senderById.set(s.id, {
-            id: s.id,
-            nome: s.nome ?? null,
-            avatar_url: s.avatar_url ?? null,
-          })
-        }
-
-        const messageById = new Map<string, ChatNotifMessage>()
-        for (const m of (messages ?? []) as any[]) {
-          if (!m?.id) continue
-          messageById.set(m.id, {
-            id: m.id,
-            content: typeof m.content === 'string' ? m.content : null,
-            attachments: m.attachments ?? null,
-          })
-        }
-
-        const items: ChatNotifItem[] = base
-          .filter((r) => r?.id && r?.room_id && r?.message_id && r?.sender_id)
-          .map((r) => ({
-            id: r.id,
-            room_id: r.room_id,
-            message_id: r.message_id,
-            sender_id: r.sender_id,
-            is_read: Boolean(r.is_read),
-            created_at: r.created_at,
-            sender: senderById.get(r.sender_id) ?? null,
-            message: messageById.get(r.message_id) ?? null,
-          }))
-
-        setChatNotifications(items)
-      })()
-    }
-  }, [isChatNotificationsOpen, totalUnread, userId]);
-
-  // Click outside for chat notifications
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (chatNotificationRef.current && !chatNotificationRef.current.contains(event.target as Node)) {
-        setIsChatNotificationsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleChatNotificationClick = async (notif: any) => {
-    const roomId = notif?.room_id as string | undefined
-    const messageId = notif?.message_id as string | undefined
-    const qs = roomId
-      ? messageId
-        ? `?room=${encodeURIComponent(roomId)}&message=${encodeURIComponent(messageId)}`
-        : `?room=${encodeURIComponent(roomId)}`
-      : ''
-    navigate(`/app/comunicacao/chat${qs}`)
-    setIsChatNotificationsOpen(false);
-    // Mark as read happens automatically in the chat page or we can do it here
-  };
 
 
   const getPageTitle = () => {
@@ -318,128 +194,47 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   ) : (
                     <div className="divide-y divide-white/5">
-                      {notifications.map(notification => (
-                        <button
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={`w-full p-3 text-left hover:bg-white/5 transition-colors flex gap-3 ${!notification.is_read ? 'bg-cyan-500/5' : ''}`}
-                        >
-                          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!notification.is_read ? 'bg-cyan-500' : 'bg-transparent'}`}></div>
-                          <div>
-                            <p className={`text-xs mb-1 ${!notification.is_read ? 'text-white font-semibold' : 'text-[#E5E7EB]'}`}>
-                              {notification.title}
-                            </p>
-                            {notification.content && (
-                              <p className="text-[11px] text-[#9CA3AF] line-clamp-2 leading-relaxed">
-                                {notification.content}
-                              </p>
-                            )}
-                            <p className="text-[9px] text-[#6B7280] mt-1.5 font-medium">
-                              {formatDateBR(notification.created_at)} • {formatTimeBR(notification.created_at)}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+                      {notifications.map((notification) => {
+                        const isChat = String(notification?.type || '').toLowerCase() === 'chat'
+                        const Icon = isChat ? MessageSquare : Bell
+                        const bgUnread = isChat ? 'bg-violet-500/5' : 'bg-cyan-500/5'
+                        const dotUnread = isChat ? 'bg-violet-500' : 'bg-cyan-500'
 
-          {/* Chat Notifications */}
-          <div className="relative" ref={chatNotificationRef}>
-            <button 
-              onClick={() => setIsChatNotificationsOpen(!isChatNotificationsOpen)}
-              className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${isChatNotificationsOpen ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-[#0F172A] border-white/10 text-[#9CA3AF] hover:text-[#E5E7EB] hover:bg-white/5'}`}
-              title="Mensagens"
-            >
-              <MessageSquare size={16} />
-              {totalUnread > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-500 rounded-full border-2 border-[#0B0F14] flex items-center justify-center text-[9px] font-bold text-[#0B0F14]">
-                  {totalUnread > 9 ? '9+' : totalUnread}
-                </span>
-              )}
-            </button>
+                        return (
+                          <button
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`w-full p-3 text-left hover:bg-white/5 transition-colors flex gap-3 ${!notification.is_read ? bgUnread : ''}`}
+                          >
+                            <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${!notification.is_read ? dotUnread : 'bg-transparent'}`}></div>
 
-            {/* Chat Dropdown */}
-            {isChatNotificationsOpen && (
-              <div className="absolute top-12 right-0 w-80 bg-[#0F172A] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                <div className="p-3 border-b border-white/10 flex items-center justify-between bg-[#131B2C]">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <MessageSquare size={14} className="text-cyan-400" />
-                    Mensagens
-                  </h3>
-                  <button 
-                    onClick={() => navigate('/app/comunicacao/chat')}
-                    className="text-[10px] text-cyan-400 hover:text-cyan-300 font-medium hover:underline"
-                  >
-                    Ver todas
-                  </button>
-                </div>
-                
-                <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
-                  {chatNotifications.length === 0 ? (
-                    <div className="p-8 text-center text-[#9CA3AF] flex flex-col items-center gap-3">
-                      <Inbox size={32} className="opacity-20" />
-                      <p className="text-xs">Nenhuma mensagem recente.</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-white/5">
-                      {chatNotifications.map(notif => (
-                        (() => {
-                          const content = typeof notif?.message?.content === 'string' ? notif.message.content.trim() : ''
-                          const attachments = notif?.message?.attachments
-                          const hasAttachments = Array.isArray(attachments) && attachments.length > 0
-                          const firstType = hasAttachments ? (attachments as any[])[0]?.type : undefined
-                          const attachmentPreview =
-                            firstType === 'audio'
-                              ? '🎵 Áudio'
-                              : firstType === 'image'
-                                ? '🖼️ Imagem'
-                                : firstType === 'video'
-                                  ? '🎬 Vídeo'
-                                  : firstType === 'document'
-                                    ? '📄 Documento'
-                                    : hasAttachments
-                                      ? '📎 Anexo'
-                                      : ''
-                          const preview = content || attachmentPreview || 'Nova mensagem'
-                          const senderName = (notif?.sender?.nome || 'Alguém').trim?.() ? (notif.sender.nome as any) : 'Alguém'
-
-                          return (
-                        <button
-                          key={notif.id}
-                          onClick={() => handleChatNotificationClick(notif)}
-                          className={`w-full p-3 text-left hover:bg-white/5 transition-colors flex gap-3 ${!notif.is_read ? 'bg-cyan-500/5' : ''}`}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-[#1E293B] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
-                             {notif.sender?.avatar_url ? (
-                               <img src={notif.sender.avatar_url} className="w-full h-full object-cover" />
-                             ) : (
-                               <span className="text-[10px] font-bold text-white">{senderName.substring(0, 2).toUpperCase()}</span>
-                             )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-baseline mb-0.5">
-                               <p className={`text-xs truncate ${!notif.is_read ? 'text-white font-bold' : 'text-[#E5E7EB]'}`}>
-                                 {senderName} mandou mensagem
-                               </p>
-                               <span className="text-[9px] text-[#6B7280]">
-                                 {formatTimeBR(notif.created_at)}
-                               </span>
+                            <div className={`mt-0.5 w-8 h-8 rounded-lg border border-white/10 flex items-center justify-center shrink-0 ${isChat ? 'bg-violet-500/10 text-violet-300' : 'bg-cyan-500/10 text-cyan-300'}`}>
+                              <Icon size={16} />
                             </div>
-                            <p className="text-[11px] text-[#9CA3AF] line-clamp-1 truncate">
-                              {preview}
-                            </p>
-                          </div>
-                          {!notif.is_read && (
-                             <div className="w-2 h-2 rounded-full bg-cyan-500 mt-2 shrink-0"></div>
-                          )}
-                        </button>
-                          )
-                        })()
-                      ))}
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className={`text-xs ${!notification.is_read ? 'text-white font-semibold' : 'text-[#E5E7EB]'}`}>
+                                  {notification.title}
+                                </p>
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isChat ? 'bg-violet-500/10 text-violet-300' : 'bg-cyan-500/10 text-cyan-300'}`}>
+                                  {isChat ? 'Chat' : 'Sistema'}
+                                </span>
+                              </div>
+
+                              {notification.content && (
+                                <p className="text-[11px] text-[#9CA3AF] line-clamp-2 leading-relaxed mt-1">
+                                  {notification.content}
+                                </p>
+                              )}
+
+                              <p className="text-[9px] text-[#6B7280] mt-1.5 font-medium">
+                                {formatDateBR(notification.created_at)} • {formatTimeBR(notification.created_at)}
+                              </p>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

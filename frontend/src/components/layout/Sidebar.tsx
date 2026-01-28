@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { LogoutModal } from '../ui/LogoutModal';
 
 interface NavItem {
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { hasAnyUnread } = useChatNotifications();
+  const { hasAnyChatUnread } = useNotifications();
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
     const active = navItems.find((item) =>
@@ -212,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       strokeWidth={1.5}
                       className={isActive ? 'text-cyan-500' : 'text-slate-500 group-hover:text-slate-300'}
                     />
-                    {item.modulo === 'comunicacao' && hasAnyUnread && (
+                    {item.modulo === 'comunicacao' && hasAnyChatUnread && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
                     )}
                   </div>
@@ -255,7 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span>{sub.label}</span>
-                          {sub.path === '/app/comunicacao/chat' && hasAnyUnread && (
+                          {sub.path === '/app/comunicacao/chat' && hasAnyChatUnread && (
                             <span className="w-2 h-2 bg-cyan-500 rounded-full" />
                           )}
                         </div>

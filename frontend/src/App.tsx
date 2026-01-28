@@ -5,8 +5,8 @@ import { ThemeProvider } from '@/hooks/useTheme';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PresenceProvider } from '@/contexts/PresenceContext';
 import { NotificationPreferencesProvider } from '@/contexts/NotificationPreferencesContext';
-import { ChatNotificationsProvider } from '@/contexts/ChatNotificationsContext';
-import { SystemNotificationsProvider } from '@/contexts/SystemNotificationsContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { primeNotificationAudio } from '@/utils/notificationSound';
 import router from '@/routes';
 
@@ -30,11 +30,11 @@ const App: React.FC = () => {
       <AuthProvider>
         <PresenceProvider>
           <NotificationPreferencesProvider>
-            <ChatNotificationsProvider>
-              <SystemNotificationsProvider>
+            <ToastProvider>
+              <NotificationsProvider>
                 <RouterProvider router={router} />
-              </SystemNotificationsProvider>
-            </ChatNotificationsProvider>
+              </NotificationsProvider>
+            </ToastProvider>
           </NotificationPreferencesProvider>
         </PresenceProvider>
       </AuthProvider>

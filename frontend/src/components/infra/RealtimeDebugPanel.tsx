@@ -36,10 +36,8 @@ export function RealtimeDebugPanel() {
   const [broadcastStatus, setBroadcastStatus] = useState<ChannelStatus>('INIT')
   const [broadcastPingOk, setBroadcastPingOk] = useState<boolean | null>(null)
 
-  const [sysStatus, setSysStatus] = useState<ChannelStatus>('INIT')
-  const [sysEvents, setSysEvents] = useState(0)
-
-  const [chatStatus, setChatStatus] = useState<ChannelStatus>('INIT')
+  const [notificationsStatus, setNotificationsStatus] = useState<ChannelStatus>('INIT')
+  const [notificationsEvents, setNotificationsEvents] = useState(0)
   const [chatEvents, setChatEvents] = useState(0)
   const [soundEvents, setSoundEvents] = useState<SoundDebugEvent[]>([])
   const [testRunning, setTestRunning] = useState(false)
@@ -176,48 +174,30 @@ export function RealtimeDebugPanel() {
 
   useEffect(() => {
     if (!enabled) return
-    if (!authReady || !userId || !accessToken) {
-      setSysStatus('INIT')
-      setChatStatus('INIT')
-      return
+
+    const onEvt = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent<any>).detail as any
+        if (!detail) return
+        if (detail.status) setNotificationsStatus(detail.status as ChannelStatus)
+        if (detail.event === 'INSERT') {
+          setNotificationsEvents((n) => n + 1)
+          if (String(detail.type || '').toLowerCase() === 'chat') setChatEvents((n) => n + 1)
+        }
+      } catch {
+      }
     }
 
-    try {
-      ;(supabase as any).realtime?.setAuth?.(accessToken)
-    } catch {}
-
-    setSysEvents(0)
+    setNotificationsEvents(0)
     setChatEvents(0)
-    setSysStatus('SUBSCRIBING')
-    setChatStatus('SUBSCRIBING')
-
-    const sys = supabase
-      .channel(`systemflow_rtdebug_sys_${userId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => setSysEvents((n) => n + 1)
-      )
-      .subscribe((status) => setSysStatus(status as any))
-
-    const chat = supabase
-      .channel(`systemflow_rtdebug_chat_${userId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chat_notifications', filter: `user_id=eq.${userId}` },
-        () => setChatEvents((n) => n + 1)
-      )
-      .subscribe((status) => setChatStatus(status as any))
-
-    return () => {
-      void supabase.removeChannel(sys)
-      void supabase.removeChannel(chat)
-    }
-  }, [accessToken, authReady, enabled, userId])
+    window.addEventListener('systemflow:notificationsRealtime', onEvt as any)
+    return () => window.removeEventListener('systemflow:notificationsRealtime', onEvt as any)
+  }, [enabled])
 
   if (!enabled) return null
 
   const apiBase = String((import.meta as any).env?.VITE_API_URL ?? '').trim().replace(/\/+$/, '')
+  const systemEvents = Math.max(0, notificationsEvents - chatEvents)
 
   return (
     <div className="fixed bottom-3 right-3 z-[9999] w-[340px] rounded-2xl border border-white/10 bg-black/70 p-3 text-[11px] text-white backdrop-blur">
@@ -286,17 +266,17 @@ export function RealtimeDebugPanel() {
         <div className="rounded-xl border border-white/10 bg-white/5 p-2">
           <div className="flex items-center justify-between">
             <span>sistema</span>
-            <span className="text-white/90">{sysStatus}</span>
+            <span className="text-white/90">{notificationsStatus}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>eventos</span>
-            <span className="text-white/90">{sysEvents}</span>
+            <span className="text-white/90">{systemEvents}</span>
           </div>
         </div>
         <div className="rounded-xl border border-white/10 bg-white/5 p-2">
           <div className="flex items-center justify-between">
             <span>chat</span>
-            <span className="text-white/90">{chatStatus}</span>
+            <span className="text-white/90">{notificationsStatus}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>eventos</span>
@@ -334,7 +314,7 @@ export function RealtimeDebugPanel() {
             if (!accessToken || !apiBase) return
             setTestRunning(true)
             setTestResult('rodando...')
-            const startSys = sysEvents
+            const startNotifications = notificationsEvents
             const startChat = chatEvents
             try {
               const resp = await fetch(`${apiBase}/debug/realtime-test`, {
@@ -358,7 +338,7 @@ export function RealtimeDebugPanel() {
 
             const deadline = Date.now() + 6000
             const tick = window.setInterval(() => {
-              const sysDelta = sysEvents - startSys
+              const sysDelta = notificationsEvents - startNotifications
               const chatDelta = chatEvents - startChat
               if (sysDelta > 0 || chatDelta > 0) {
                 window.clearInterval(tick)

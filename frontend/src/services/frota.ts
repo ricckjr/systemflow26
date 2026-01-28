@@ -31,7 +31,7 @@ export async function fetchFrotaVeiculos() {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return ((data ?? []) as FrotaVeiculo[]) || []
+  return ((data ?? []) as unknown as FrotaVeiculo[]) || []
 }
 
 export type FrotaDiarioBordoRow = {
@@ -95,5 +95,5 @@ export async function fetchFrotaDiarioBordo(params: FetchFrotaDiarioParams = {})
 
   const { data, error } = await query
   if (error) throw error
-  return ((data ?? []) as FrotaDiarioBordoRow[]) || []
+  return ((data ?? []) as unknown as FrotaDiarioBordoRow[]) || []
 }

@@ -165,27 +165,6 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({
 
     channelRef.current = channel
 
-    const notificationsChannel = supabase
-      .channel(`chat_notifications_${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        async (payload) => {
-          const row = payload.new as any
-          const messageId = row?.message_id as string | undefined
-          if (!messageId) return
-          try {
-            await supabase.rpc('mark_message_delivered', { message_id: messageId })
-          } catch {}
-        }
-      )
-      .subscribe()
-
     const activityEvents: Array<keyof WindowEventMap> = [
       'mousemove',
       'keydown',
@@ -200,7 +179,6 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({
       activityEvents.forEach((ev) => window.removeEventListener(ev, resetIdleTimer as any))
       clearIdleTimer()
       void supabase.removeChannel(channel)
-      void supabase.removeChannel(notificationsChannel)
       channelRef.current = null
       setUsersPresence({})
     }

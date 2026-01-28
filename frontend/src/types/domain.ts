@@ -63,6 +63,7 @@ export interface Notification {
   message?: string;
   content?: string;
   link?: string;
+  metadata?: any | null;
   is_read: boolean;
   created_at: string;
 }

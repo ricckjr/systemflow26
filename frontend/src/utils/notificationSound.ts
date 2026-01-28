@@ -1,5 +1,4 @@
-import systemAlertUrl from '@/assets/sounds/system-alert.mp3'
-import chatNotificationUrl from '@/assets/sounds/chat-notification.mp3'
+import notificationUrl from '@/assets/sounds/notification.mp3'
 
 let audioContext: AudioContext | null = null
 let systemAudioBase: HTMLAudioElement | null = null
@@ -20,8 +19,8 @@ export async function primeNotificationAudio() {
 
   try {
     if (typeof Audio === 'undefined') return
-    systemAudioBase = systemAudioBase ?? Object.assign(new Audio(systemAlertUrl), { preload: 'auto' })
-    chatAudioBase = chatAudioBase ?? Object.assign(new Audio(chatNotificationUrl), { preload: 'auto' })
+    systemAudioBase = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
+    chatAudioBase = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
     systemAudioBase.load()
     chatAudioBase.load()
   } catch {}
@@ -65,7 +64,7 @@ export async function playSystemAlertSound() {
 
   try {
     if (typeof Audio !== 'undefined') {
-      const base = systemAudioBase ?? Object.assign(new Audio(systemAlertUrl), { preload: 'auto' })
+      const base = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       systemAudioBase = base
       base.pause()
       base.currentTime = 0
@@ -115,7 +114,7 @@ export async function playChatMessageSound() {
 
   try {
     if (typeof Audio !== 'undefined') {
-      const base = chatAudioBase ?? Object.assign(new Audio(chatNotificationUrl), { preload: 'auto' })
+      const base = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       chatAudioBase = base
       base.pause()
       base.currentTime = 0

@@ -9,7 +9,7 @@ import { chatService } from '@/services/chat';
 import { useChat } from '@/hooks/useChat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
-import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
 import { Modal } from '@/components/ui';
 import { formatDateBR, formatDateTimeBR, formatTimeBR } from '@/utils/datetime';
@@ -148,9 +148,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   const {
     unreadByRoomId,
-    setActiveRoomId: setActiveUnreadRoomId,
-    markRoomAsRead,
-  } = useChatNotifications()
+    setActiveChatRoomId,
+    markChatRoomAsRead,
+  } = useNotifications()
 
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
@@ -217,14 +217,14 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   }, [activeRoomId, messages, pendingScrollMessageId])
 
   useEffect(() => {
-    setActiveUnreadRoomId(activeRoomId)
-  }, [activeRoomId, setActiveUnreadRoomId])
+    setActiveChatRoomId(activeRoomId)
+  }, [activeRoomId, setActiveChatRoomId])
 
   useEffect(() => {
     return () => {
-      setActiveUnreadRoomId(null)
+      setActiveChatRoomId(null)
     }
-  }, [setActiveUnreadRoomId])
+  }, [setActiveChatRoomId])
 
   useEffect(() => {
     setTypingByUserId({})
@@ -634,9 +634,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   // ... (Keep existing helpers like handleRoomSelect, etc.)
   const handleRoomSelect = (roomId: string) => {
-    void markRoomAsRead(roomId)
+    void markChatRoomAsRead(roomId)
     setActiveRoomId(roomId);
-    setActiveUnreadRoomId(roomId)
+    setActiveChatRoomId(roomId)
     setShowMobileList(false);
   };
 
@@ -1186,9 +1186,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     const now = Date.now()
     if (now - lastSeenMarkAtRef.current < 800) return
     lastSeenMarkAtRef.current = now
-    void markRoomAsRead(activeRoomId)
+    void markChatRoomAsRead(activeRoomId)
     void markActiveRoomAsRead()
-  }, [activeRoomId, activeUnreadCount, isAtBottom, markActiveRoomAsRead, markRoomAsRead])
+  }, [activeRoomId, activeUnreadCount, isAtBottom, markActiveRoomAsRead, markChatRoomAsRead])
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
@@ -2056,7 +2056,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       root?.scrollTo({ top: root.scrollHeight, behavior: 'smooth' })
                       setPendingNewCount(0)
                       if (activeRoomId) {
-                        void markRoomAsRead(activeRoomId)
+                        void markChatRoomAsRead(activeRoomId)
                         void markActiveRoomAsRead()
                       }
                     }}

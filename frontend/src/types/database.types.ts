@@ -1230,6 +1230,26 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
+      chat_clear_room_history: {
+        Args: {
+          room_id: string
+        }
+        Returns: void
+      }
+      chat_hide_room: {
+        Args: {
+          room_id: string
+        }
+        Returns: void
+      }
+      create_group_chat_room: {
+        Args: {
+          room_name: string
+          room_description?: string | null
+          member_ids?: string[] | null
+        }
+        Returns: string
+      }
       get_or_create_direct_chat: {
         Args: {
           other_user_id: string
@@ -1239,6 +1259,12 @@ export interface Database {
       get_unread_chat_notification_count: {
         Args: Record<string, never>
         Returns: number
+      }
+      leave_chat_room: {
+        Args: {
+          room_id: string
+        }
+        Returns: void
       }
       mark_all_delivered: {
         Args: Record<string, never>
@@ -1253,6 +1279,15 @@ export interface Database {
       mark_room_read: {
         Args: {
           room_id: string
+        }
+        Returns: void
+      }
+      update_group_chat_room: {
+        Args: {
+          room_id: string
+          room_name?: string | null
+          room_description?: string | null
+          room_avatar_path?: string | null
         }
         Returns: void
       }

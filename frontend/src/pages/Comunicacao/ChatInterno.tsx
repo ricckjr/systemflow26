@@ -1642,21 +1642,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           <button
                             type="button"
                             onClick={() => {
-                              if (!activeRoomId) return
-                              setIsRoomMenuOpen(false)
-                              setAddParticipantsSearch('')
-                              setAddParticipantsSelected(new Set())
-                              setIsAddParticipantsModalOpen(true)
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
-                            disabled={!canEditActiveGroup}
-                          >
-                            <UserPlus size={16} className="text-cyan-400" />
-                            Adicionar participantes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
                               setIsRoomMenuOpen(false)
                               setIsParticipantsModalOpen(true)
                             }}

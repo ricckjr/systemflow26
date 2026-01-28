@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Profile, ProfilePermissao } from '@/types';
 import { useScrollLock } from '@/hooks/useScrollLock';
+import { RealtimeDebugPanel } from '@/components/infra/RealtimeDebugPanel';
 
 interface LayoutProps {
   profile?: Profile | null;
@@ -149,6 +150,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
           isTvMode ? '' : 'lg:ml-20 pt-16'
         } ${isFullBleed ? 'overflow-x-visible overflow-y-hidden' : 'overflow-hidden'}`}
       >
+        <RealtimeDebugPanel />
         {!isTvMode && (
           <Header
             isMobileMenuOpen={isMobileMenuOpen}

@@ -33,6 +33,8 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
   const [unreadCount, setUnreadCount] = useState(0)
 
   const realtimeSubscribedRef = useRef(false)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const retryTimeoutRef = useRef<number | null>(null)
 
   const refresh = useCallback(async () => {
     if (!authReady || !userId) return
@@ -59,96 +61,137 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
       return
     }
 
-    void refresh()
+    let disposed = false
+    let retryCount = 0
 
-    try {
-      ;(supabase as any).realtime?.setAuth?.(accessToken)
-    } catch {
+    const clearRetry = () => {
+      if (retryTimeoutRef.current) {
+        window.clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
     }
 
-    const channel = supabase
-      .channel(`system_notifications_${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const next = payload.new as Notification
-          if (!next?.id) return
+    const scheduleRetry = () => {
+      if (disposed) return
+      clearRetry()
+      retryCount += 1
+      const delay = Math.min(30000, 800 * Math.pow(2, Math.min(6, retryCount)))
+      retryTimeoutRef.current = window.setTimeout(() => {
+        if (disposed) return
+        subscribeNow()
+      }, delay)
+    }
 
-          setNotifications((prev) => {
-            const filtered = prev.filter((n) => n.id !== next.id)
-            return [next, ...filtered].slice(0, 20)
-          })
-          if (!next.is_read && inAppEnabled) setUnreadCount((c) => c + 1)
-          if (!next.is_read && soundEnabled) void playSystemAlertSound()
-          if (!next.is_read && nativeEnabled && document.visibilityState !== 'visible') {
-            showBrowserNotification({
-              title: next.title || 'Notificação',
-              body: next.content ?? undefined,
-              url: next.link ?? undefined,
-              tag: `system:${next.id}`,
+    const subscribeNow = () => {
+      if (disposed) return
+      clearRetry()
+      realtimeSubscribedRef.current = false
+
+      try {
+        ;(supabase as any).realtime?.setAuth?.(accessToken)
+      } catch {
+      }
+
+      channelRef.current?.unsubscribe()
+      channelRef.current = null
+
+      const channel = supabase
+        .channel(`system_notifications_${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const next = payload.new as Notification
+            if (!next?.id) return
+
+            setNotifications((prev) => {
+              const filtered = prev.filter((n) => n.id !== next.id)
+              return [next, ...filtered].slice(0, 20)
+            })
+            if (!next.is_read && inAppEnabled) setUnreadCount((c) => c + 1)
+            if (!next.is_read && soundEnabled) void playSystemAlertSound()
+            if (!next.is_read && nativeEnabled && document.visibilityState !== 'visible') {
+              showBrowserNotification({
+                title: next.title || 'Notificação',
+                body: next.content ?? undefined,
+                url: next.link ?? undefined,
+                tag: `system:${next.id}`,
+              })
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const next = payload.new as Notification
+            if (!next?.id) return
+
+            setNotifications((prev) => {
+              const idx = prev.findIndex((n) => n.id === next.id)
+              if (idx < 0) return prev
+
+              const prevItem = prev[idx]
+              if (Boolean(prevItem.is_read) !== Boolean(next.is_read)) {
+                if (inAppEnabled) {
+                  setUnreadCount((c) => Math.max(0, c + (next.is_read ? -1 : 1)))
+                }
+              }
+
+              const copy = [...prev]
+              copy[idx] = { ...prevItem, ...next }
+              return copy
             })
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const next = payload.new as Notification
-          if (!next?.id) return
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const oldRow = payload.old as Partial<Notification>
+            const id = oldRow?.id
+            if (!id) return
 
-          setNotifications((prev) => {
-            const idx = prev.findIndex((n) => n.id === next.id)
-            if (idx < 0) return prev
+            setNotifications((prev) => {
+              const existing = prev.find((n) => n.id === id)
+              if (inAppEnabled && existing && !existing.is_read) setUnreadCount((c) => Math.max(0, c - 1))
+              return prev.filter((n) => n.id !== id)
+            })
+          }
+        )
+        .subscribe((status) => {
+          if (disposed) return
+          realtimeSubscribedRef.current = status === 'SUBSCRIBED'
+          if (status === 'SUBSCRIBED') {
+            retryCount = 0
+            void refresh()
+            return
+          }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            scheduleRetry()
+          }
+        })
 
-            const prevItem = prev[idx]
-            if (Boolean(prevItem.is_read) !== Boolean(next.is_read)) {
-              if (inAppEnabled) {
-                setUnreadCount((c) => Math.max(0, c + (next.is_read ? -1 : 1)))
-              }
-            }
+      channelRef.current = channel
+    }
 
-            const copy = [...prev]
-            copy[idx] = { ...prevItem, ...next }
-            return copy
-          })
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const oldRow = payload.old as Partial<Notification>
-          const id = oldRow?.id
-          if (!id) return
-
-          setNotifications((prev) => {
-            const existing = prev.find((n) => n.id === id)
-            if (inAppEnabled && existing && !existing.is_read) setUnreadCount((c) => Math.max(0, c - 1))
-            return prev.filter((n) => n.id !== id)
-          })
-        }
-      )
-      .subscribe((status) => {
-        realtimeSubscribedRef.current = status === 'SUBSCRIBED'
-        if (status === 'SUBSCRIBED') void refresh()
-      })
+    void refresh()
+    subscribeNow()
 
     const pollMs = 25000
     const pollId = window.setInterval(() => {
@@ -165,10 +208,13 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
     document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
+      disposed = true
       realtimeSubscribedRef.current = false
+      clearRetry()
       window.clearInterval(pollId)
       document.removeEventListener('visibilitychange', onVisibility)
-      channel.unsubscribe()
+      channelRef.current?.unsubscribe()
+      channelRef.current = null
     }
   }, [accessToken, authReady, inAppEnabled, nativeEnabled, refresh, soundEnabled, userId])
 

@@ -35,6 +35,8 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const activeRoomIdRef = useRef<string | null>(null)
   const realtimeSubscribedRef = useRef(false)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const retryTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
@@ -49,6 +51,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
     }
 
     let cancelled = false
+    let retryCount = 0
 
     const loadUnread = async () => {
       const pageSize = 1000
@@ -81,9 +84,22 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
 
     void loadUnread()
 
-    try {
-      ;(supabase as any).realtime?.setAuth?.(accessToken)
-    } catch {
+    const clearRetry = () => {
+      if (retryTimeoutRef.current) {
+        window.clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = null
+      }
+    }
+
+    const scheduleRetry = () => {
+      if (cancelled) return
+      clearRetry()
+      retryCount += 1
+      const delay = Math.min(30000, 800 * Math.pow(2, Math.min(6, retryCount)))
+      retryTimeoutRef.current = window.setTimeout(() => {
+        if (cancelled) return
+        subscribeNow()
+      }, delay)
     }
 
     const adjustRoom = (roomId: string, delta: number) => {
@@ -107,68 +123,94 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
         .eq('user_id', userId)
     }
 
-    const channel = supabase
-      .channel(`chat_notifications_store_${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const row = payload.new as any
-          const roomId = row?.room_id as string | undefined
-          const id = row?.id as string | undefined
-          const senderId = row?.sender_id as string | undefined
-          if (!roomId || !id) return
+    const subscribeNow = () => {
+      if (cancelled) return
+      clearRetry()
+      realtimeSubscribedRef.current = false
 
-          if (activeRoomIdRef.current && activeRoomIdRef.current === roomId) {
-            void markNotificationRead(id)
+      try {
+        ;(supabase as any).realtime?.setAuth?.(accessToken)
+      } catch {
+      }
+
+      channelRef.current?.unsubscribe()
+      channelRef.current = null
+
+      const channel = supabase
+        .channel(`chat_notifications_store_${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const row = payload.new as any
+            const roomId = row?.room_id as string | undefined
+            const id = row?.id as string | undefined
+            const senderId = row?.sender_id as string | undefined
+            if (!roomId || !id) return
+
+            if (activeRoomIdRef.current && activeRoomIdRef.current === roomId) {
+              void markNotificationRead(id)
+              return
+            }
+
+            adjustRoom(roomId, +1)
+            if (senderId && senderId !== userId && soundEnabled) {
+              void playChatMessageSound()
+            }
+            if (senderId && senderId !== userId && nativeEnabled && document.visibilityState !== 'visible') {
+              showBrowserNotification({
+                title: 'Nova mensagem',
+                body: 'Você recebeu uma nova mensagem no chat.',
+                url: `/app/comunicacao/chat?room=${roomId}`,
+                tag: `chat:${roomId}`,
+              })
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'chat_notifications',
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => {
+            const nextRow = payload.new as any
+            const prevRow = payload.old as any
+
+            const roomId = (nextRow?.room_id ?? prevRow?.room_id) as string | undefined
+            if (!roomId) return
+
+            const wasRead = Boolean(prevRow?.is_read)
+            const isRead = Boolean(nextRow?.is_read)
+            if (!wasRead && isRead) {
+              adjustRoom(roomId, -1)
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (cancelled) return
+          realtimeSubscribedRef.current = status === 'SUBSCRIBED'
+          if (status === 'SUBSCRIBED') {
+            retryCount = 0
+            void loadUnread()
             return
           }
-
-          adjustRoom(roomId, +1)
-          if (senderId && senderId !== userId && soundEnabled) {
-            void playChatMessageSound()
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            scheduleRetry()
           }
-          if (senderId && senderId !== userId && nativeEnabled && document.visibilityState !== 'visible') {
-            showBrowserNotification({
-              title: 'Nova mensagem',
-              body: 'Você recebeu uma nova mensagem no chat.',
-              url: `/app/comunicacao/chat?room=${roomId}`,
-              tag: `chat:${roomId}`,
-            })
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const nextRow = payload.new as any
-          const prevRow = payload.old as any
+        })
 
-          const roomId = (nextRow?.room_id ?? prevRow?.room_id) as string | undefined
-          if (!roomId) return
+      channelRef.current = channel
+    }
 
-          const wasRead = Boolean(prevRow?.is_read)
-          const isRead = Boolean(nextRow?.is_read)
-          if (!wasRead && isRead) {
-            adjustRoom(roomId, -1)
-          }
-        }
-      )
-      .subscribe((status) => {
-        realtimeSubscribedRef.current = status === 'SUBSCRIBED'
-        if (status === 'SUBSCRIBED') void loadUnread()
-      })
+    subscribeNow()
 
     const pollMs = 45000
     const pollId = window.setInterval(() => {
@@ -187,9 +229,11 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
     return () => {
       cancelled = true
       realtimeSubscribedRef.current = false
+      clearRetry()
       window.clearInterval(pollId)
       document.removeEventListener('visibilitychange', onVisibility)
-      channel.unsubscribe()
+      channelRef.current?.unsubscribe()
+      channelRef.current = null
     }
   }, [accessToken, authReady, nativeEnabled, soundEnabled, userId])
 

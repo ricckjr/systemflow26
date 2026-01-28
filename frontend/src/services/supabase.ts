@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { logInfo, logWarn } from '@/utils/logger'
+import { setupRealtimeAutoRecover } from '@/services/realtime'
 
 /* ------------------------------------------------------------------
  * ENV VALIDATION
@@ -138,6 +139,10 @@ try {
     window.addEventListener('pagehide', () => {
       ;(window as any).__systemflow_unloading = true
     })
+    try {
+      setupRealtimeAutoRecover(supabase)
+    } catch {
+    }
   }
 } catch {
 }

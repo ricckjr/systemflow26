@@ -258,7 +258,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       if (typingSendTimerRef.current) window.clearTimeout(typingSendTimerRef.current)
       typingSendTimerRef.current = null
       typingChannelRef.current = null
-      channel.unsubscribe()
+      void supabase.removeChannel(channel)
       setTypingByUserId({})
     }
   }, [activeRoomId, currentUser?.id])

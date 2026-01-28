@@ -5,6 +5,13 @@ let audioContext: AudioContext | null = null
 let systemAudioBase: HTMLAudioElement | null = null
 let chatAudioBase: HTMLAudioElement | null = null
 
+function emitSoundDebug(detail: { type: 'system' | 'chat'; ok: boolean; at: number; error?: string }) {
+  try {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('systemflow:notificationSound', { detail }))
+  } catch {}
+}
+
 export async function primeNotificationAudio() {
   try {
     audioContext = audioContext ?? new AudioContext()
@@ -64,12 +71,18 @@ export async function playSystemAlertSound() {
       base.currentTime = 0
       base.volume = 0.75
       await base.play()
+      emitSoundDebug({ type: 'system', ok: true, at: Date.now() })
       return
     }
-  } catch {}
+  } catch (err) {
+    emitSoundDebug({ type: 'system', ok: false, at: Date.now(), error: err instanceof Error ? err.message : String(err) })
+  }
 
   const ctx = audioContext
-  if (!ctx) return
+  if (!ctx) {
+    emitSoundDebug({ type: 'system', ok: false, at: Date.now(), error: 'no_audio_context' })
+    return
+  }
 
   try {
     const now = ctx.currentTime
@@ -93,6 +106,7 @@ export async function playSystemAlertSound() {
         { at: now + 0.34, value: 0.0001, ramp: 'exp' },
       ],
     })
+    emitSoundDebug({ type: 'system', ok: true, at: Date.now() })
   } catch {}
 }
 
@@ -107,12 +121,18 @@ export async function playChatMessageSound() {
       base.currentTime = 0
       base.volume = 0.7
       await base.play()
+      emitSoundDebug({ type: 'chat', ok: true, at: Date.now() })
       return
     }
-  } catch {}
+  } catch (err) {
+    emitSoundDebug({ type: 'chat', ok: false, at: Date.now(), error: err instanceof Error ? err.message : String(err) })
+  }
 
   const ctx = audioContext
-  if (!ctx) return
+  if (!ctx) {
+    emitSoundDebug({ type: 'chat', ok: false, at: Date.now(), error: 'no_audio_context' })
+    return
+  }
 
   try {
     const now = ctx.currentTime
@@ -130,5 +150,6 @@ export async function playChatMessageSound() {
         { at: now + 0.16, value: 0.0001, ramp: 'exp' },
       ],
     })
+    emitSoundDebug({ type: 'chat', ok: true, at: Date.now() })
   } catch {}
 }

@@ -199,8 +199,8 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       activityEvents.forEach((ev) => window.removeEventListener(ev, resetIdleTimer as any))
       clearIdleTimer()
-      channel.unsubscribe()
-      notificationsChannel.unsubscribe()
+      void supabase.removeChannel(channel)
+      void supabase.removeChannel(notificationsChannel)
       channelRef.current = null
       setUsersPresence({})
     }

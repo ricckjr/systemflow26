@@ -9,6 +9,7 @@ import React, {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
+import { setRealtimeAuth } from '@/services/realtime'
 import type { Profile, ProfilePermissao } from '@/types'
 
 function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number) {
@@ -136,10 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = nextSession?.access_token ?? null
       if (realtimeAuthedRef.current === token) return
       realtimeAuthedRef.current = token
-      try {
-        ;(supabase as any).realtime?.setAuth?.(token ?? '')
-      } catch {
-      }
+      setRealtimeAuth(supabase, token)
     }
 
     // Cache rápido (não define ready)

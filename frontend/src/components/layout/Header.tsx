@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, X, Check, Inbox } from 'lucide-react';
 import { Profile } from '@/types';
 import { supabase } from '@/services/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
 import { useSystemNotifications } from '@/contexts/SystemNotificationsContext';
 import { formatDateBR, formatTimeBR } from '@/utils/datetime';
@@ -51,6 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { session } = useAuth()
+  const userId = session?.user?.id ?? profile?.id ?? null
   const { totalUnread } = useChatNotifications();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useSystemNotifications()
   
@@ -67,12 +70,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Fetch recent chat notifications for the list
   useEffect(() => {
-    if (isChatNotificationsOpen && profile?.id) {
+    if (isChatNotificationsOpen && userId) {
       ;(async () => {
         const { data: notifRows } = await supabase
           .from('chat_notifications')
           .select('id, room_id, message_id, sender_id, is_read, created_at')
-          .eq('user_id', profile.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(10)
 
@@ -130,61 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
         setChatNotifications(items)
       })()
     }
-  }, [isChatNotificationsOpen, profile?.id, totalUnread]);
-
-  useEffect(() => {
-    if (!isChatNotificationsOpen || !profile?.id) return
-
-    const channel = supabase
-      .channel(`chat_notifications_dropdown_${profile.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_notifications',
-          filter: `user_id=eq.${profile.id}`,
-        },
-        async (payload) => {
-          const row = payload.new as any
-          const id = row?.id as string | undefined
-          const roomId = row?.room_id as string | undefined
-          const messageId = row?.message_id as string | undefined
-          const senderId = row?.sender_id as string | undefined
-          if (!id || !roomId || !messageId || !senderId) return
-
-          const [{ data: sender }, { data: message }] = await Promise.all([
-            supabase.from('profiles').select('id, nome, avatar_url').eq('id', senderId).single(),
-            supabase.from('chat_messages').select('id, content, attachments').eq('id', messageId).single(),
-          ])
-
-          const nextItem: ChatNotifItem = {
-            id,
-            room_id: roomId,
-            message_id: messageId,
-            sender_id: senderId,
-            is_read: Boolean(row?.is_read),
-            created_at: row?.created_at,
-            sender: sender
-              ? { id: sender.id, nome: sender.nome ?? null, avatar_url: sender.avatar_url ?? null }
-              : null,
-            message: message
-              ? { id: message.id, content: typeof message.content === 'string' ? message.content : null, attachments: message.attachments ?? null }
-              : null,
-          }
-
-          setChatNotifications((prev) => {
-            const filtered = prev.filter((x) => x.id !== id)
-            return [nextItem, ...filtered].slice(0, 10)
-          })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      channel.unsubscribe()
-    }
-  }, [isChatNotificationsOpen, profile?.id])
+  }, [isChatNotificationsOpen, totalUnread, userId]);
 
   // Click outside for chat notifications
   useEffect(() => {

@@ -5,6 +5,7 @@ import type { Notification } from '@/types'
 import { playSystemAlertSound } from '@/utils/notificationSound'
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
 import { showBrowserNotification } from '@/utils/browserNotifications'
+import { setRealtimeAuth } from '@/services/realtime'
 
 interface SystemNotificationsContextType {
   notifications: Notification[]
@@ -87,13 +88,11 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
       clearRetry()
       realtimeSubscribedRef.current = false
 
-      try {
-        ;(supabase as any).realtime?.setAuth?.(accessToken)
-      } catch {
+      setRealtimeAuth(supabase, accessToken)
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current)
+        channelRef.current = null
       }
-
-      channelRef.current?.unsubscribe()
-      channelRef.current = null
 
       const channel = supabase
         .channel(`system_notifications_${userId}`)
@@ -213,8 +212,10 @@ export const SystemNotificationsProvider: React.FC<{ children: React.ReactNode }
       clearRetry()
       window.clearInterval(pollId)
       document.removeEventListener('visibilitychange', onVisibility)
-      channelRef.current?.unsubscribe()
-      channelRef.current = null
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [accessToken, authReady, inAppEnabled, nativeEnabled, refresh, soundEnabled, userId])
 

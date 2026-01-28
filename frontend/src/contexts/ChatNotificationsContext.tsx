@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { playChatMessageSound } from '@/utils/notificationSound'
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
 import { showBrowserNotification } from '@/utils/browserNotifications'
+import { setRealtimeAuth } from '@/services/realtime'
 
 type UnreadByRoomId = Record<string, number>
 
@@ -128,13 +129,12 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
       clearRetry()
       realtimeSubscribedRef.current = false
 
-      try {
-        ;(supabase as any).realtime?.setAuth?.(accessToken)
-      } catch {
-      }
+      setRealtimeAuth(supabase, accessToken)
 
-      channelRef.current?.unsubscribe()
-      channelRef.current = null
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
 
       const channel = supabase
         .channel(`chat_notifications_store_${userId}`)
@@ -232,8 +232,10 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
       clearRetry()
       window.clearInterval(pollId)
       document.removeEventListener('visibilitychange', onVisibility)
-      channelRef.current?.unsubscribe()
-      channelRef.current = null
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [accessToken, authReady, nativeEnabled, soundEnabled, userId])
 

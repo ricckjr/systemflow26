@@ -38,19 +38,43 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getPageTitle = () => {
     const map: Record<string, string> = {
-      '/app/comunidade': 'COMUNIDADE FLOW',
-      '/app/comunidade/taskflow': 'TASKFLOW',
-      '/app/comercial/overview': 'VISÃO COMERCIAL',
-      '/app/comercial/vendedores': 'VENDEDORES',
-      '/app/comercial/oportunidades': 'OPORTUNIDADES',
-      '/app/comunicacao/chat': 'COMUNICAÇÃO',
-      '/app/comunicacao/flowsmart': 'FLOWSMART',
+      '/app/comunidade': 'COMUNIDADE',
+      '/app/comunidade/chat': 'CHAT',
+      '/app/comunidade/taskflow': 'TAREFAS',
+      '/app/comunidade/calendario': 'CALENDÁRIO',
+      '/app/dashboard/comercial': 'COMERCIAL',
+
+      '/app/crm/oportunidades-kanban': 'CRM — PIPELINE',
+      '/app/crm/oportunidades': 'CRM — OPORTUNIDADES',
+      '/app/crm/propostas': 'CRM — PROPOSTAS',
+      '/app/crm/vendedores': 'CRM — VENDEDORES',
+
+      '/app/cadastros/clientes': 'CADASTROS — CLIENTES',
+      '/app/cadastros/contatos': 'CADASTROS — CONTATOS',
+      '/app/cadastros/fornecedores': 'CADASTROS — FORNECEDORES',
+
+      '/app/crm/configs/origem-leads': 'CONFIGS CRM — ORIGEM DE LEADS',
+      '/app/crm/configs/motivos': 'CONFIGS CRM — MOTIVOS',
+      '/app/crm/configs/verticais': 'CONFIGS CRM — VERTICAIS',
+      '/app/crm/configs/produtos': 'CONFIGS CRM — PRODUTOS',
+      '/app/crm/configs/servicos': 'CONFIGS CRM — SERVIÇOS',
+
+      '/app/comercial/overview': 'COMERCIAL',
+      '/app/comercial/vendedores': 'CRM — VENDEDORES',
+      '/app/comercial/oportunidades': 'CRM — OPORTUNIDADES',
+      '/app/comunicacao/chat': 'CHAT',
+      '/app/comunicacao/flowsmart': 'SMARTFLOW — ATENDIMENTOS',
       '/app/comunicacao/ia': 'ASSISTENTE FLOW',
+
+      '/app/smartflow/atendimentos': 'SMARTFLOW — ATENDIMENTOS',
+      '/app/smartflow/kanban-fluxos': 'SMARTFLOW — KANBAN DE FLUXOS',
+
       '/app/producao/propostas': 'PRODUÇÃO — PROPOSTAS',
       '/app/producao/omie': 'PRODUÇÃO — PROPOSTAS',
-      '/app/producao/ordens-servico': 'PRODUÇÃO — ORDENS DE SERVIÇO',
-      '/app/producao/servicos': 'PRODUÇÃO — ORDENS DE SERVIÇO',
+      '/app/producao/ordens-servico': 'PRODUÇÃO — KANBAN PRODUÇÃO',
+      '/app/producao/servicos': 'PRODUÇÃO — KANBAN PRODUÇÃO',
       '/app/producao/equipamentos': 'PRODUÇÃO — EQUIPAMENTOS',
+      '/app/producao/certificado-garantia': 'PRODUÇÃO — CERTIFICADO GARANTIA',
       '/app/configuracoes/perfil': 'PERFIL',
       '/app/configuracoes/usuarios': 'USUÁRIOS',
       '/app/configuracoes/permissoes': 'PERMISSÕES',

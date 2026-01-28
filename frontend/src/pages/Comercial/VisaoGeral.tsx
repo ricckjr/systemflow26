@@ -206,7 +206,7 @@ export default function VisaoGeral() {
       {/* HEADER ACTIONS */}
       {!isTvMode && (
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">Visão Geral</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">Comercial</h1>
           
           <div className="flex items-center gap-3">
             <button 

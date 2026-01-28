@@ -5,7 +5,6 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Megaphone,
   ChevronDown,
   X,
   LayoutDashboard,
@@ -24,37 +23,66 @@ interface NavItem {
   icon: React.ElementType;
   path?: string;
   modulo?: string;
+  subItems?: NavSubItem[];
+}
+
+interface NavSubItem {
+  label: string;
+  submodulo: string;
+  path?: string;
   subItems?: { label: string; path: string; submodulo: string }[];
 }
 
 const navItems: NavItem[] = [
   {
+    label: 'DASHBOARD',
+    icon: LayoutDashboard,
+    modulo: 'dashboard',
+    subItems: [
+      { label: 'Comercial', path: '/app/dashboard/comercial', submodulo: 'comercial' },
+    ],
+  },
+  {
     label: 'COMUNIDADE',
     icon: Users,
     modulo: 'comunidade',
     subItems: [
+      { label: 'Chat', path: '/app/comunidade/chat', submodulo: 'chat' },
       { label: 'InstaFlow', path: '/app/comunidade', submodulo: 'instaflow' },
-      { label: 'TaskFlow', path: '/app/comunidade/taskflow', submodulo: 'taskflow' },
+      { label: 'Tarefas', path: '/app/comunidade/taskflow', submodulo: 'taskflow' },
+      { label: 'Calendário', path: '/app/comunidade/calendario', submodulo: 'calendario' },
     ],
   },
   {
-    label: 'COMERCIAL',
+    label: 'CADASTROS',
+    icon: Users,
+    modulo: 'cadastros',
+    subItems: [
+      { label: 'Clientes', path: '/app/cadastros/clientes', submodulo: 'clientes' },
+      { label: 'Contatos', path: '/app/cadastros/contatos', submodulo: 'contatos' },
+      { label: 'Fornecedores', path: '/app/cadastros/fornecedores', submodulo: 'fornecedores' },
+    ],
+  },
+  {
+    label: 'CRM',
     icon: Briefcase,
-    modulo: 'comercial',
+    modulo: 'crm',
     subItems: [
-      { label: 'Visão Geral', path: '/app/comercial/overview', submodulo: 'overview' },
-      { label: 'Vendedores', path: '/app/comercial/vendedores', submodulo: 'vendedores' },
-      { label: 'Oportunidades', path: '/app/comercial/oportunidades', submodulo: 'oportunidades' },
-    ],
-  },
-  {
-    label: 'COMUNICAÇÃO',
-    icon: MessageSquare,
-    modulo: 'comunicacao',
-    subItems: [
-      { label: 'Chat', path: '/app/comunicacao/chat', submodulo: 'chat' },
-      { label: 'FlowSmart', path: '/app/comunicacao/flowsmart', submodulo: 'flowsmart' },
-      { label: 'Assistente Flow', path: '/app/comunicacao/ia', submodulo: 'ia-flow' },
+      { label: 'Pipeline (Kanban)', path: '/app/crm/oportunidades-kanban', submodulo: 'oportunidades-kanban' },
+      { label: 'Oportunidades', path: '/app/crm/oportunidades', submodulo: 'oportunidades' },
+      { label: 'Propostas', path: '/app/crm/propostas', submodulo: 'propostas' },
+      { label: 'Vendedores', path: '/app/crm/vendedores', submodulo: 'vendedores' },
+      {
+        label: 'Configs CRM',
+        submodulo: 'configs-crm',
+        subItems: [
+          { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads' },
+          { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos' },
+          { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais' },
+          { label: 'Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos' },
+          { label: 'Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos' },
+        ]
+      },
     ],
   },
   {
@@ -62,9 +90,9 @@ const navItems: NavItem[] = [
     icon: Factory,
     modulo: 'producao',
     subItems: [
-      { label: 'Propostas', path: '/app/producao/propostas', submodulo: 'omie' },
-      { label: 'Ordens de Serviço', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
+      { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
       { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
+      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia' },
     ],
   },
   {
@@ -85,6 +113,15 @@ const navItems: NavItem[] = [
       { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
       { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
       { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho' },
+    ],
+  },
+  {
+    label: 'SMARTFLOW',
+    icon: MessageSquare,
+    modulo: 'smartflow',
+    subItems: [
+      { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
+      { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
     ],
   },
 ];
@@ -109,19 +146,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { hasAnyChatUnread } = useNotifications();
 
+  const hasActivePath = (item: NavItem, pathname: string) => {
+    return (
+      item.subItems?.some((si) => {
+        if (si.path && si.path === pathname) return true
+        return si.subItems?.some((nested) => nested.path === pathname) ?? false
+      }) ?? false
+    )
+  }
+
   const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
     const active = navItems.find((item) =>
-      item.subItems?.some((si) => si.path === location.pathname)
+      hasActivePath(item, location.pathname)
     );
     return active?.label ?? null;
   });
+  const [expandedSubmenus, setExpandedSubmenus] = useState<Record<string, boolean>>({});
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const showText = !isCollapsed || isMobileMenuOpen;
 
   const activeMenuLabel = useMemo(() => {
     const active = navItems.find((item) =>
-      item.subItems?.some((si) => si.path === location.pathname)
+      hasActivePath(item, location.pathname)
     );
     return active?.label ?? null;
   }, [location.pathname]);
@@ -134,6 +181,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setExpandedMenu(activeMenuLabel);
   }, [activeMenuLabel, showText]);
 
+  useEffect(() => {
+    if (!showText) return
+    const menu = navItems.find((it) => it.label === activeMenuLabel)
+    if (!menu?.subItems) return
+
+    const activeGroup = menu.subItems.find((si) =>
+      si.subItems?.some((nested) => nested.path === location.pathname)
+    )
+    if (!activeGroup) return
+
+    const key = `${menu.label}:${activeGroup.submodulo}`
+    setExpandedSubmenus((prev) => (prev[key] ? prev : { ...prev, [key]: true }))
+  }, [activeMenuLabel, location.pathname, showText]);
+
   const toggleMenu = (label: string) => {
     if (isCollapsed && setIsExpanded) {
       setIsExpanded(true);
@@ -142,6 +203,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     setExpandedMenu((prev) => (prev === label ? null : label));
   };
+
+  const toggleSubmenu = (key: string) => {
+    setExpandedSubmenus((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const openProfilePage = () => navigate('/app/configuracoes/perfil');
   const handleLogoutClick = () => setIsLogoutModalOpen(true);
@@ -187,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         
         {navItems.map((item) => {
           const isExpanded = expandedMenu === item.label;
-          const hasActiveChild = item.subItems?.some((si) => si.path === location.pathname);
+          const hasActiveChild = hasActivePath(item, location.pathname);
           const isActive = hasActiveChild || isExpanded;
 
           return (
@@ -212,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       strokeWidth={1.5}
                       className={isActive ? 'text-cyan-500' : 'text-slate-500 group-hover:text-slate-300'}
                     />
-                    {item.modulo === 'comunicacao' && hasAnyChatUnread && (
+                    {item.modulo === 'comunidade' && hasAnyChatUnread && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
                     )}
                   </div>
@@ -242,25 +307,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {showText && isExpanded && (
                 <div className="mt-1 ml-3 pl-3 border-l border-white/10 space-y-0.5">
                   {item.subItems?.map((sub) => {
-                    const active = location.pathname === sub.path;
+                    const hasNested = !!sub.subItems?.length
+                    const nestedActive = hasNested
+                      ? sub.subItems?.some((nested) => nested.path === location.pathname) ?? false
+                      : false
+
+                    if (!hasNested && sub.path) {
+                      const active = location.pathname === sub.path;
+                      return (
+                        <Link
+                          key={sub.path}
+                          to={sub.path}
+                          className={`block px-3 py-2 rounded-md text-[13px] font-medium transition-colors
+                            ${active
+                              ? 'text-cyan-400 bg-cyan-500/10'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{sub.label}</span>
+                            {sub.path === '/app/comunidade/chat' && hasAnyChatUnread && (
+                              <span className="w-2 h-2 bg-cyan-500 rounded-full" />
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    }
+
+                    const key = `${item.label}:${sub.submodulo}`
+                    const isSubExpanded = !!expandedSubmenus[key]
+
                     return (
-                      <Link
-                        key={sub.path}
-                        to={sub.path}
-                        className={`block px-3 py-2 rounded-md text-[13px] font-medium transition-colors
-                          ${active
-                            ? 'text-cyan-400 bg-cyan-500/10'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                          }`}
-                      >
-                        <div className="flex items-center justify-between">
+                      <div key={key} className="space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleSubmenu(key)}
+                          className={`w-full px-3 py-2 rounded-md text-[13px] font-medium transition-colors flex items-center justify-between
+                            ${nestedActive
+                              ? 'text-cyan-400 bg-cyan-500/10'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                            }`}
+                        >
                           <span>{sub.label}</span>
-                          {sub.path === '/app/comunicacao/chat' && hasAnyChatUnread && (
-                            <span className="w-2 h-2 bg-cyan-500 rounded-full" />
-                          )}
-                        </div>
-                      </Link>
-                    );
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 opacity-60 ${isSubExpanded ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+
+                        {isSubExpanded && (
+                          <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                            {sub.subItems?.map((nested) => {
+                              const active = location.pathname === nested.path
+                              return (
+                                <Link
+                                  key={nested.path}
+                                  to={nested.path}
+                                  className={`block px-3 py-2 rounded-md text-[13px] font-medium transition-colors
+                                    ${active
+                                      ? 'text-cyan-400 bg-cyan-500/10'
+                                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                    }`}
+                                >
+                                  <span>{nested.label}</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
                   })}
                 </div>
               )}

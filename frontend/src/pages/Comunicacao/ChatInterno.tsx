@@ -10,8 +10,8 @@ import { useChat } from '@/hooks/useChat';
 import { ChatRoom, ChatMessage } from '@/types/chat';
 import { usePresence, type UserStatus } from '@/contexts/PresenceContext';
 import { useChatNotifications } from '@/contexts/ChatNotificationsContext';
+import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
 import { Modal } from '@/components/ui';
-import { isNotificationSoundEnabled, setNotificationSoundEnabled } from '@/utils/notificationSound';
 import { formatDateBR, formatDateTimeBR, formatTimeBR } from '@/utils/datetime';
 import { 
   Search, 
@@ -165,7 +165,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const typingChannelRef = useRef<RealtimeChannel | null>(null)
   const typingSendTimerRef = useRef<number | null>(null)
   const lastTypingSentAtRef = useRef<number>(0)
-  const [soundEnabled, setSoundEnabled] = useState(() => isNotificationSoundEnabled())
   const [pinnedItems, setPinnedItems] = useState<Array<{ messageId: string; pinnedAt: string; pinnedBy: string | null; message?: ChatMessage | null }>>([])
   const pinsUnsubscribeRef = useRef<(() => void) | null>(null)
   const [pinBusyByMessageId, setPinBusyByMessageId] = useState<Record<string, boolean>>({})
@@ -179,6 +178,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const reactionsUnsubscribeRef = useRef<(() => void) | null>(null)
   
   const { myStatus, myStatusText, usersPresence, setStatus, setStatusText } = usePresence();
+  const { preferences, setChannelPreferences } = useNotificationPreferences();
+  const soundEnabled = preferences.chat.soundEnabled;
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [statusTextDraft, setStatusTextDraft] = useState('');
   const statusTextTimerRef = useRef<number | null>(null);
@@ -224,23 +225,6 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       setActiveUnreadRoomId(null)
     }
   }, [setActiveUnreadRoomId])
-
-  useEffect(() => {
-    const onCustom = (e: Event) => {
-      const enabled = Boolean((e as any)?.detail)
-      setSoundEnabled(enabled)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== 'systemflow:notificationSound:enabled') return
-      setSoundEnabled(isNotificationSoundEnabled())
-    }
-    window.addEventListener('systemflow:notificationSound', onCustom as any)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener('systemflow:notificationSound', onCustom as any)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
 
   useEffect(() => {
     setTypingByUserId({})
@@ -1529,9 +1513,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 <button
                   type="button"
                   onClick={() => {
-                    const next = !soundEnabled
-                    setNotificationSoundEnabled(next)
-                    setSoundEnabled(next)
+                    void setChannelPreferences('chat', { soundEnabled: !soundEnabled })
                   }}
                   className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-all"
                   title={soundEnabled ? 'Som de notificações: ligado' : 'Som de notificações: desligado'}

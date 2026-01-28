@@ -101,6 +101,7 @@ function isInvalidRefreshTokenError(err: unknown) {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const mounted = useRef(true)
   const sessionRef = useRef<Session | null>(null)
+  const realtimeAuthedRef = useRef<string | null>(null)
 
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -131,6 +132,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ================================ */
   useEffect(() => {
     mounted.current = true
+    const syncRealtimeAuth = (nextSession: Session | null) => {
+      const token = nextSession?.access_token ?? null
+      if (realtimeAuthedRef.current === token) return
+      realtimeAuthedRef.current = token
+      try {
+        ;(supabase as any).realtime?.setAuth?.(token ?? '')
+      } catch {
+      }
+    }
 
     // Cache rápido (não define ready)
     const cachedProfile = normalizeProfile(
@@ -155,6 +165,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentSession = data.session ?? null
         setSession(currentSession)
         sessionRef.current = currentSession
+        // Causa raiz: em alguns cenários o Realtime WebSocket fica sem o access_token até recarregar.
+        // Sincronizar o token aqui garante eventos em tempo real (RLS) sem precisar de reload.
+        syncRealtimeAuth(currentSession)
         setAuthReady(true)
 
         if (currentSession) {
@@ -211,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setSession(newSession)
         sessionRef.current = newSession
+        syncRealtimeAuth(newSession)
 
         if (sessionIdentityChanged) {
           setProfileReady(false)

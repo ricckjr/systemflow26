@@ -23,6 +23,13 @@ import { formatDateTimeBR } from '@/utils/datetime';
 import { searchProfilesByName } from '@/services/profiles';
 import { fetchFeed, fetchPostById, fetchReactionSummary, uploadMedia, createPostWithMedia, setReaction, fetchReactions, fetchComments, addComment, deletePost, editPost, type InstaFlowReaction } from '@/services/instaflow';
 import { isInstaFlowSoundEnabled, playInstaFlowNewPostSound, setInstaFlowSoundEnabled } from '@/utils/instaflowSound';
+import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
+import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
+import {
+  dismissNotificationPromptForCooldown,
+  requestBrowserNotificationPermission,
+  shouldShowNotificationPermissionPrompt,
+} from '@/utils/notificationPermission';
 
 type MediaKind = 'image' | 'video';
 
@@ -240,6 +247,7 @@ const MediaLightbox: React.FC<{
 const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
   const { profile: authProfile } = useAuth();
   const profile = propProfile || authProfile;
+  const { preferences, setChannelPreferences, setPermissionPromptDismissedUntil } = useNotificationPreferences();
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-[var(--text-soft)] animate-pulse">
@@ -265,6 +273,25 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
   const [soundEnabled, setSoundEnabled] = useState(isInstaFlowSoundEnabled());
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const cacheKey = useMemo(() => `systemflow:instaflow:feed:v1:${profile.id}`, [profile.id]);
+  const [showNotificationPermissionPrompt, setShowNotificationPermissionPrompt] = useState(
+    shouldShowNotificationPermissionPrompt
+  );
+  const [requestingNotificationPermission, setRequestingNotificationPermission] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') {
+      setShowNotificationPermissionPrompt(false);
+      return;
+    }
+
+    const dbUntilRaw = preferences.permissionPromptDismissedUntil;
+    const dbUntil = dbUntilRaw ? Date.parse(dbUntilRaw) : NaN;
+    const allowedByDb = !Number.isFinite(dbUntil) || Date.now() >= dbUntil;
+    const allowedByLocal = shouldShowNotificationPermissionPrompt();
+    setShowNotificationPermissionPrompt(allowedByDb && allowedByLocal);
+  }, [preferences.permissionPromptDismissedUntil]);
 
   useEffect(() => {
     (async () => {
@@ -449,6 +476,31 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4 sm:px-0 space-y-8 animate-in fade-in duration-700">
+      {showNotificationPermissionPrompt && (
+        <NotificationPermissionBanner
+          isRequesting={requestingNotificationPermission}
+          onEnable={async () => {
+            setRequestingNotificationPermission(true);
+            const result = await requestBrowserNotificationPermission();
+            setRequestingNotificationPermission(false);
+            if (result && result !== 'default') {
+              setShowNotificationPermissionPrompt(false);
+            }
+            if (result === 'granted') {
+              await Promise.all([
+                setChannelPreferences('system', { nativeEnabled: true }),
+                setChannelPreferences('chat', { nativeEnabled: true }),
+                setPermissionPromptDismissedUntil(null),
+              ]);
+            }
+          }}
+          onLater={() => {
+            const until = dismissNotificationPromptForCooldown();
+            void setPermissionPromptDismissedUntil(new Date(until).toISOString());
+            setShowNotificationPermissionPrompt(false);
+          }}
+        />
+      )}
       
       {/* HEADER */}
       <div className="flex items-center gap-3 pb-4 border-b border-[var(--border)]">

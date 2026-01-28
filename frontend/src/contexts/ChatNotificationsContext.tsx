@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { playNotificationSound } from '@/utils/notificationSound'
+import { playChatMessageSound } from '@/utils/notificationSound'
+import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { showBrowserNotification } from '@/utils/browserNotifications'
 
 type UnreadByRoomId = Record<string, number>
 
@@ -21,7 +23,13 @@ function sumUnread(map: UnreadByRoomId) {
 }
 
 export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile } = useAuth()
+  const { session, authReady } = useAuth()
+  const userId = session?.user?.id ?? null
+  const accessToken = session?.access_token ?? null
+  const { preferences } = useNotificationPreferences()
+  const soundEnabled = preferences.chat.soundEnabled
+  const nativeEnabled = preferences.chat.nativeEnabled
+  const badgeEnabled = preferences.chat.inAppEnabled
 
   const [unreadByRoomId, setUnreadByRoomId] = useState<UnreadByRoomId>({})
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -33,7 +41,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
   }, [activeRoomId])
 
   useEffect(() => {
-    if (!profile?.id) {
+    if (!authReady || !userId || !accessToken) {
       realtimeSubscribedRef.current = false
       setUnreadByRoomId({})
       setActiveRoomId(null)
@@ -51,7 +59,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
         const { data, error } = await supabase
           .from('chat_notifications')
           .select('room_id')
-          .eq('user_id', profile.id)
+          .eq('user_id', userId)
           .eq('is_read', false)
           .range(from, from + pageSize - 1)
 
@@ -73,6 +81,11 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
 
     void loadUnread()
 
+    try {
+      ;(supabase as any).realtime?.setAuth?.(accessToken)
+    } catch {
+    }
+
     const adjustRoom = (roomId: string, delta: number) => {
       setUnreadByRoomId((prev) => {
         const current = prev[roomId] ?? 0
@@ -91,18 +104,18 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
         .from('chat_notifications')
         .update({ is_read: true })
         .eq('id', id)
-        .eq('user_id', profile.id)
+        .eq('user_id', userId)
     }
 
     const channel = supabase
-      .channel(`chat_notifications_store_${profile.id}`)
+      .channel(`chat_notifications_store_${userId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_notifications',
-          filter: `user_id=eq.${profile.id}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const row = payload.new as any
@@ -117,8 +130,16 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
           }
 
           adjustRoom(roomId, +1)
-          if (senderId && senderId !== profile.id) {
-            void playNotificationSound()
+          if (senderId && senderId !== userId && soundEnabled) {
+            void playChatMessageSound()
+          }
+          if (senderId && senderId !== userId && nativeEnabled && document.visibilityState !== 'visible') {
+            showBrowserNotification({
+              title: 'Nova mensagem',
+              body: 'Você recebeu uma nova mensagem no chat.',
+              url: `/app/comunicacao/chat?room=${roomId}`,
+              tag: `chat:${roomId}`,
+            })
           }
         }
       )
@@ -128,7 +149,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
           event: 'UPDATE',
           schema: 'public',
           table: 'chat_notifications',
-          filter: `user_id=eq.${profile.id}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const nextRow = payload.new as any
@@ -170,13 +191,13 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
       document.removeEventListener('visibilitychange', onVisibility)
       channel.unsubscribe()
     }
-  }, [profile?.id])
+  }, [accessToken, authReady, nativeEnabled, soundEnabled, userId])
 
-  const totalUnread = useMemo(() => sumUnread(unreadByRoomId), [unreadByRoomId])
+  const totalUnread = useMemo(() => (badgeEnabled ? sumUnread(unreadByRoomId) : 0), [badgeEnabled, unreadByRoomId])
   const hasAnyUnread = totalUnread > 0
 
   const markRoomAsRead = async (roomId: string) => {
-    if (!profile?.id) return
+    if (!authReady || !userId) return
 
     setUnreadByRoomId((prev) => {
       if (!(roomId in prev)) return prev
@@ -187,7 +208,7 @@ export const ChatNotificationsProvider: React.FC<{ children: React.ReactNode }> 
     await supabase
       .from('chat_notifications')
       .update({ is_read: true })
-      .eq('user_id', profile.id)
+      .eq('user_id', userId)
       .eq('room_id', roomId)
       .eq('is_read', false)
   }

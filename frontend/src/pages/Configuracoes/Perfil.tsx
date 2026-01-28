@@ -6,14 +6,49 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Bell,
+  MessageSquare,
 } from 'lucide-react'
 import { useProfileForm } from '@/hooks/useProfileForm'
+import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="block text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mb-1">
     {children}
   </label>
 )
+
+const ToggleRow = ({
+  title,
+  description,
+  enabled,
+  onToggle,
+}: {
+  title: string
+  description: string
+  enabled: boolean
+  onToggle: () => void
+}) => {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="text-[13px] font-semibold text-[var(--text-main)]">{title}</div>
+        <div className="mt-0.5 text-[12px] text-[var(--text-soft)]">{description}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`shrink-0 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
+          enabled
+            ? 'border-cyan-500/25 bg-cyan-600 text-white hover:bg-cyan-500'
+            : 'border-[var(--border)] bg-white/5 text-[var(--text-soft)] hover:bg-white/10 hover:text-[var(--text-main)]'
+        }`}
+      >
+        {enabled ? 'Ativo' : 'Desativado'}
+      </button>
+    </div>
+  )
+}
 
 export default function Perfil() {
   const {
@@ -40,6 +75,7 @@ export default function Perfil() {
     saveProfile,
     changePassword
   } = useProfileForm()
+  const { preferences, setChannelPreferences } = useNotificationPreferences()
 
   /* ===========================
      LOADING STATE
@@ -223,6 +259,41 @@ export default function Perfil() {
       </div>
 
       {/* SECURITY */}
+      <div className="card-panel">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-semibold">Notificações</h2>
+            <p className="text-[13px] text-[var(--text-soft)]">Preferências separadas para Sistema e Mensagens</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+            <Bell size={14} className="text-cyan-400" />
+            Sistema
+          </div>
+          <ToggleRow
+            title="Som de alertas do sistema"
+            description="Toca um alerta sutil ao chegar uma notificação do sininho."
+            enabled={preferences.system.soundEnabled}
+            onToggle={() =>
+              void setChannelPreferences('system', { soundEnabled: !preferences.system.soundEnabled })
+            }
+          />
+
+          <div className="pt-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+            <MessageSquare size={14} className="text-cyan-400" />
+            Mensagens
+          </div>
+          <ToggleRow
+            title="Som de mensagens"
+            description="Toca um som sutil ao receber novas mensagens no chat."
+            enabled={preferences.chat.soundEnabled}
+            onToggle={() => void setChannelPreferences('chat', { soundEnabled: !preferences.chat.soundEnabled })}
+          />
+        </div>
+      </div>
+
       <div className="card-panel">
         <h2 className="font-semibold mb-4">Segurança</h2>
 

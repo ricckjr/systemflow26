@@ -76,6 +76,7 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null)
   const activeChatRoomIdRef = useRef<string | null>(null)
+  const lastSoundAtRef = useRef<number>(0)
 
   const realtimeSubscribedRef = useRef(false)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -264,9 +265,15 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
             const isFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true
             const inFocus = isVisible && isFocused
 
-            if (!Boolean(next.is_read) && inFocus) {
+            if (!Boolean(next.is_read)) {
               const soundEnabled = isChatNotification(next) ? chatSoundEnabled : systemSoundEnabled
-              if (soundEnabled) void playSystemAlertSound()
+              if (soundEnabled) {
+                const now = Date.now()
+                if (now - (lastSoundAtRef.current || 0) > 900) {
+                  lastSoundAtRef.current = now
+                  void playSystemAlertSound()
+                }
+              }
             }
 
             if (!Boolean(next.is_read) && isVisible) {

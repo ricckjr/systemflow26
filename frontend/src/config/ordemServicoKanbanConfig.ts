@@ -26,19 +26,11 @@ export const OS_KANBAN_CONFIG: Record<string, OsKanbanColumnConfig> = {
   },
   'CALIBRACAO': {
     id: 'CALIBRACAO',
-    label: 'Laboratorio',
+    label: 'Calibração',
     color: 'text-indigo-400',
     bg: 'bg-indigo-500/5',
     border: 'border-indigo-500/20',
     iconColor: 'text-indigo-500'
-  },
-  'OFICINA': {
-    id: 'OFICINA',
-    label: 'Oficina',
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/5',
-    border: 'border-sky-500/20',
-    iconColor: 'text-sky-500'
   },
   'Serviço Terceirizado': {
     id: 'Serviço Terceirizado',
@@ -102,12 +94,11 @@ export const OS_PHASES = [
   'ANALISE',
   'AGUARDANDO CLIENTE',
   'CALIBRACAO',
+  'Serviço Terceirizado',
   'LAVADOR',
-  'OFICINA',
   'PREPARO-PINTURA',
   'ELETRONICA',
   'SERVICO_EXTERNO',
-  'Serviço Terceirizado',
   'PREPARO FINAL',
   'FINALIZADO'
 ] as const
@@ -116,10 +107,6 @@ export const normalizeOsPhase = (phase: string) => {
   const p = (phase || '').trim()
   if (!p) return ''
   if (p === 'CALIBRACAO_EXTERNA') return 'Serviço Terceirizado'
-  if (p === 'LABORATORIO') return 'CALIBRACAO'
-  if (p === 'CONCLUIDO' || p === 'CONCLUÍDO') return 'FINALIZADO'
-  if (p === 'OFICINA_REPARO' || p === 'OFICINA DE REPARO') return 'OFICINA'
-  if (p === 'CALIBRAÇÃO') return 'CALIBRACAO'
   return p
 }
 

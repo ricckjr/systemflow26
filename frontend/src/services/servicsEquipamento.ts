@@ -249,11 +249,11 @@ export async function updateServicEquipamentoDetalhes(
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoImagens(id: string, imagens: string[] | null): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoAnexos(id: string, anexos: unknown[] | null): Promise<ServicEquipamento> {
   const { data, error } = await supabase
     .from('servics_equipamento')
-    .update({ 
-      imagens,
+    .update({
+      anexos,
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
@@ -264,11 +264,11 @@ export async function updateServicEquipamentoImagens(id: string, imagens: string
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoAnexos(id: string, anexos: unknown[] | null): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoImagens(id: string, imagens: string[] | null): Promise<ServicEquipamento> {
   const { data, error } = await supabase
     .from('servics_equipamento')
-    .update({
-      anexos,
+    .update({ 
+      imagens,
       updated_at: new Date().toISOString()
     })
     .eq('id', id)

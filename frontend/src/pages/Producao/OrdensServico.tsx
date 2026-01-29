@@ -5,12 +5,20 @@ import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
-import { ETAPAS_SERVICOS, getServicHistorico } from '@/services/servicsEquipamento'
+import { ETAPAS_SERVICOS, getServicHistorico, updateServicEquipamentoAnexos, updateServicEquipamentoDetalhes } from '@/services/servicsEquipamento'
 import { getOsPhaseConfig, normalizeOsPhase } from '@/config/ordemServicoKanbanConfig'
 import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 import { formatDateBR, formatDateTimeBR, toDateInputValue } from '@/utils/datetime'
 import { useTvMode } from '@/hooks/useTvMode'
+
+type ServicAnexo = {
+  name: string
+  url: string
+  mimeType?: string
+  size?: number
+  uploaded_at?: string
+}
 
 const OrdensServico: React.FC = () => {
   const { isTvMode, toggleTvMode } = useTvMode()
@@ -36,6 +44,15 @@ const OrdensServico: React.FC = () => {
   const [nextDescricao, setNextDescricao] = useState<string>('')
   const [showFaseModal, setShowFaseModal] = useState(false)
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'warning' | 'error' | 'success' }>({ isOpen: false, title: '', message: '', type: 'warning' })
+  const [editingEquipFields, setEditingEquipFields] = useState(false)
+  const [savingEquipFields, setSavingEquipFields] = useState(false)
+  const [equipTag, setEquipTag] = useState('')
+  const [equipSerie1, setEquipSerie1] = useState('')
+  const [equipSerie2, setEquipSerie2] = useState('')
+  const [equipFaixa, setEquipFaixa] = useState('')
+  const [anexos, setAnexos] = useState<ServicAnexo[]>([])
+  const [uploadingAnexos, setUploadingAnexos] = useState(false)
+  const [draggingAnexos, setDraggingAnexos] = useState(false)
   const [showCreateInternalOsModal, setShowCreateInternalOsModal] = useState(false)
   const [creatingInternalOs, setCreatingInternalOs] = useState(false)
   const [uploadingInternalOsImages, setUploadingInternalOsImages] = useState(false)
@@ -83,6 +100,19 @@ const OrdensServico: React.FC = () => {
     setGalleryEditMode(false)
     setPreviewImageUrl(null)
     setConfirmRemoveImageUrl(null)
+    setEditingEquipFields(false)
+    setSavingEquipFields(false)
+    setEquipTag(selectedService.tag || '')
+    setEquipSerie1(selectedService.numero_serie || '')
+    setEquipSerie2((selectedService as any)?.numero_serie2 || '')
+    setEquipFaixa(selectedService.faixa || '')
+
+    const raw = (selectedService as any)?.anexos
+    if (Array.isArray(raw)) {
+      setAnexos(raw.filter(Boolean) as ServicAnexo[])
+    } else {
+      setAnexos([])
+    }
     
     // Carregar histórico
     setLoadingHistorico(true)
@@ -91,6 +121,116 @@ const OrdensServico: React.FC = () => {
       .catch(console.error)
       .finally(() => setLoadingHistorico(false))
   }, [selectedService?.id])
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return ''
+    const units = ['B', 'KB', 'MB', 'GB']
+    let value = bytes
+    let idx = 0
+    while (value >= 1024 && idx < units.length - 1) {
+      value /= 1024
+      idx++
+    }
+    const formatted = idx === 0 ? String(Math.round(value)) : value.toFixed(value >= 10 ? 1 : 2)
+    return `${formatted} ${units[idx]}`
+  }
+
+  const handleAddAnexosFiles = async (files: FileList | File[]) => {
+    if (!selectedService) return
+    const list = Array.isArray(files) ? files : Array.from(files)
+    if (list.length === 0) return
+    setUploadingAnexos(true)
+    try {
+      const uploaded = await Promise.all(
+        list.map(async (file) => {
+          const url = await uploadImage(file)
+          const anexo: ServicAnexo = {
+            name: file.name || 'arquivo',
+            url,
+            mimeType: file.type || undefined,
+            size: typeof file.size === 'number' ? file.size : undefined,
+            uploaded_at: new Date().toISOString()
+          }
+          return anexo
+        })
+      )
+
+      const next = [...anexos, ...uploaded]
+      setAnexos(next)
+      const updated = await updateServicEquipamentoAnexos(selectedService.id, next as any)
+      setSelectedService(updated)
+      refresh()
+    } catch (err: any) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Erro ao Anexar',
+        type: 'error',
+        message: err?.message || String(err)
+      })
+    } finally {
+      setUploadingAnexos(false)
+    }
+  }
+
+  const handleRemoveAnexo = async (index: number) => {
+    if (!selectedService) return
+    const prev = anexos
+    const next = prev.filter((_, i) => i !== index)
+    setAnexos(next)
+    try {
+      const updated = await updateServicEquipamentoAnexos(selectedService.id, next as any)
+      setSelectedService(updated)
+      refresh()
+    } catch (err: any) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Erro ao Remover',
+        type: 'error',
+        message: err?.message || String(err)
+      })
+      setAnexos(prev)
+    }
+  }
+
+  const equipFieldsDirty = useMemo(() => {
+    if (!selectedService) return false
+    return (
+      (equipTag || '') !== (selectedService.tag || '') ||
+      (equipSerie1 || '') !== (selectedService.numero_serie || '') ||
+      (equipSerie2 || '') !== (((selectedService as any)?.numero_serie2 as string | null | undefined) || '') ||
+      (equipFaixa || '') !== (selectedService.faixa || '')
+    )
+  }, [equipTag, equipSerie1, equipSerie2, equipFaixa, selectedService])
+
+  const handleSaveEquipFields = async () => {
+    if (!selectedService) return
+    if (!equipFieldsDirty) {
+      setEditingEquipFields(false)
+      return
+    }
+    setSavingEquipFields(true)
+    try {
+      const updated = await updateServicEquipamentoDetalhes(selectedService.id, {
+        tag: equipTag.trim() || null,
+        numero_serie: equipSerie1.trim() || null,
+        numero_serie2: equipSerie2.trim() || null,
+        faixa: equipFaixa.trim() || null
+      })
+
+      setSelectedService(updated)
+      setEditingEquipFields(false)
+      refresh()
+    } catch (err: any) {
+      setAlertModal({
+        isOpen: true,
+        title: 'Erro ao Salvar',
+        type: 'error',
+        message: err?.message || String(err)
+      })
+    } finally {
+      setSavingEquipFields(false)
+    }
+  }
 
   const handleCloseModal = () => {
     setSelectedService(null)
@@ -108,6 +248,15 @@ const OrdensServico: React.FC = () => {
     setGalleryEditMode(false)
     setPreviewImageUrl(null)
     setConfirmRemoveImageUrl(null)
+    setEditingEquipFields(false)
+    setSavingEquipFields(false)
+    setEquipTag('')
+    setEquipSerie1('')
+    setEquipSerie2('')
+    setEquipFaixa('')
+    setAnexos([])
+    setUploadingAnexos(false)
+    setDraggingAnexos(false)
   }
 
   const handleOpenFaseModal = () => {
@@ -787,9 +936,49 @@ const OrdensServico: React.FC = () => {
 
                     {/* Card Equipamento */}
                     <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm flex-1">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Layers size={16} className="text-[var(--primary)]" />
-                            <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Equipamento</h3>
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-2">
+                                <Layers size={16} className="text-[var(--primary)]" />
+                                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Equipamento</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {editingEquipFields ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingEquipFields(false)
+                                        setEquipTag(selectedService.tag || '')
+                                        setEquipSerie1(selectedService.numero_serie || '')
+                                        setEquipSerie2(((selectedService as any)?.numero_serie2 as string | null | undefined) || '')
+                                        setEquipFaixa(selectedService.faixa || '')
+                                      }}
+                                      disabled={savingEquipFields}
+                                      className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] transition disabled:opacity-50"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveEquipFields}
+                                      disabled={savingEquipFields}
+                                      className="h-9 px-3 rounded-xl bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20"
+                                    >
+                                      {savingEquipFields ? 'Salvando...' : 'Salvar'}
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingEquipFields(true)}
+                                    className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] transition flex items-center gap-2"
+                                    title="Editar TAG / Séries / Faixa"
+                                  >
+                                    <Pencil size={14} />
+                                    Editar
+                                  </button>
+                                )}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -802,12 +991,60 @@ const OrdensServico: React.FC = () => {
                                 <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.fabricante || '-'}</div>
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série</label>
-                                <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.numero_serie || '-'}</div>
+                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 1</label>
+                                {editingEquipFields ? (
+                                  <input
+                                    value={equipSerie1}
+                                    onChange={(e) => setEquipSerie1(e.target.value)}
+                                    className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
+                                    placeholder="---"
+                                    disabled={savingEquipFields}
+                                  />
+                                ) : (
+                                  <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.numero_serie || '-'}</div>
+                                )}
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
                                 <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">TAG</label>
-                                <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.tag || '-'}</div>
+                                {editingEquipFields ? (
+                                  <input
+                                    value={equipTag}
+                                    onChange={(e) => setEquipTag(e.target.value)}
+                                    className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
+                                    placeholder="---"
+                                    disabled={savingEquipFields}
+                                  />
+                                ) : (
+                                  <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.tag || '-'}</div>
+                                )}
+                            </div>
+                            <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 2</label>
+                                {editingEquipFields ? (
+                                  <input
+                                    value={equipSerie2}
+                                    onChange={(e) => setEquipSerie2(e.target.value)}
+                                    className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
+                                    placeholder="---"
+                                    disabled={savingEquipFields}
+                                  />
+                                ) : (
+                                  <div className="text-sm font-medium text-[var(--text-main)] truncate">{((selectedService as any)?.numero_serie2 as string | null | undefined) || '-'}</div>
+                                )}
+                            </div>
+                            <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Faixa</label>
+                                {editingEquipFields ? (
+                                  <input
+                                    value={equipFaixa}
+                                    onChange={(e) => setEquipFaixa(e.target.value)}
+                                    className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
+                                    placeholder="---"
+                                    disabled={savingEquipFields}
+                                  />
+                                ) : (
+                                  <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.faixa || '-'}</div>
+                                )}
                             </div>
                              <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
                                 <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Garantia</label>
@@ -1035,6 +1272,121 @@ const OrdensServico: React.FC = () => {
                                 <p className="text-sm font-medium text-[var(--text-muted)]">Nenhuma imagem anexada a este serviço</p>
                               </div>
                             )}
+                        </div>
+
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                          <div className="flex items-center justify-between mb-4 gap-3">
+                            <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
+                              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                                <FileText size={18} />
+                              </div>
+                              Documentos
+                            </label>
+
+                            <label className={`h-10 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingAnexos ? 'opacity-60 pointer-events-none' : ''}`}>
+                              <Upload size={14} />
+                              {uploadingAnexos ? 'Enviando...' : 'Adicionar arquivos'}
+                              <input
+                                type="file"
+                                multiple
+                                className="hidden"
+                                disabled={uploadingAnexos}
+                                onChange={(e) => {
+                                  if (e.target.files) handleAddAnexosFiles(e.target.files)
+                                  e.currentTarget.value = ''
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          <div
+                            tabIndex={0}
+                            onPaste={(e) => {
+                              const files = e.clipboardData?.files
+                              if (files && files.length > 0) {
+                                e.preventDefault()
+                                handleAddAnexosFiles(files)
+                              }
+                            }}
+                            onDragEnter={(e) => {
+                              e.preventDefault()
+                              setDraggingAnexos(true)
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault()
+                              setDraggingAnexos(true)
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault()
+                              setDraggingAnexos(false)
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              setDraggingAnexos(false)
+                              const files = e.dataTransfer?.files
+                              if (files && files.length > 0) handleAddAnexosFiles(files)
+                            }}
+                            className={`rounded-2xl border-2 border-dashed p-5 outline-none transition-all ${
+                              draggingAnexos
+                                ? 'border-[var(--primary)] bg-[var(--primary)]/5 ring-2 ring-[var(--primary)]/20'
+                                : 'border-[var(--border)] bg-[var(--bg-main)]/30 hover:bg-[var(--bg-main)]/40'
+                            } ${uploadingAnexos ? 'opacity-70 pointer-events-none' : ''}`}
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-muted)]">
+                                <Upload size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-sm font-bold text-[var(--text-main)]">Arraste e solte aqui</div>
+                                <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+                                  Ou cole (Ctrl+V) com este campo selecionado.
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {anexos.length === 0 ? (
+                            <div className="mt-4 text-sm text-[var(--text-muted)]">Nenhum documento anexado.</div>
+                          ) : (
+                            <div className="mt-4 space-y-2">
+                              {anexos.map((a, idx) => (
+                                <div key={`${a.url}-${idx}`} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2 rounded-lg bg-white/5 border border-[var(--border)] text-[var(--text-muted)] shrink-0">
+                                      <FileText size={16} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-semibold text-[var(--text-main)] truncate" title={a.name}>{a.name}</div>
+                                      <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                                        {a.mimeType ? a.mimeType : 'arquivo'}{a.size ? ` • ${formatBytes(a.size)}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <a
+                                      href={a.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="h-9 px-3 rounded-xl bg-white/5 border border-[var(--border)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
+                                      title="Abrir"
+                                    >
+                                      <ExternalLink size={14} />
+                                      Abrir
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveAnexo(idx)}
+                                      disabled={uploadingAnexos}
+                                      className="h-9 px-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500/15 transition text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                                      title="Remover"
+                                    >
+                                      Remover
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                     </div>
                 </div>

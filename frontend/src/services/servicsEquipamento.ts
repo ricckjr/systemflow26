@@ -264,6 +264,21 @@ export async function updateServicEquipamentoImagens(id: string, imagens: string
   return data as ServicEquipamento
 }
 
+export async function updateServicEquipamentoAnexos(id: string, anexos: unknown[] | null): Promise<ServicEquipamento> {
+  const { data, error } = await supabase
+    .from('servics_equipamento')
+    .update({
+      anexos,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as ServicEquipamento
+}
+
 export async function uploadEquipmentImage(file: File): Promise<string> {
   const fileExt = file.name.split('.').pop()
   const safeBaseName = (file.name || 'arquivo')

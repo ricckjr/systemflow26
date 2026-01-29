@@ -41,7 +41,8 @@ const OrdensServico: React.FC = () => {
   const [confirmRemoveImageUrl, setConfirmRemoveImageUrl] = useState<string | null>(null)
   const [nextFase, setNextFase] = useState<string>('')
   const [nextResponsavel, setNextResponsavel] = useState<string>('')
-  const [nextDescricao, setNextDescricao] = useState<string>('')
+  const [nextServicosRealizados, setNextServicosRealizados] = useState<string>('')
+  const [nextObservacoes, setNextObservacoes] = useState<string>('')
   const [showFaseModal, setShowFaseModal] = useState(false)
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'warning' | 'error' | 'success' }>({ isOpen: false, title: '', message: '', type: 'warning' })
   const [editingEquipFields, setEditingEquipFields] = useState(false)
@@ -262,7 +263,8 @@ const OrdensServico: React.FC = () => {
   const handleOpenFaseModal = () => {
       setNextFase(normalizeOsPhase(selectedService?.fase || ''))
       setNextResponsavel(selectedService?.responsavel || '')
-      setNextDescricao('')
+      setNextServicosRealizados('')
+      setNextObservacoes('')
       setShowFaseModal(true)
   }
 
@@ -442,20 +444,27 @@ const OrdensServico: React.FC = () => {
       }
 
       try {
-          if (!nextDescricao.trim()) {
+          if (!nextServicosRealizados.trim()) {
             setAlertModal({
                 isOpen: true,
                 title: 'Campo Obrigatório',
                 type: 'error',
-                message: 'Por favor, descreva o motivo da movimentação no campo "Descrição".'
+                message: 'Por favor, preencha o campo "Serviços realizados".'
             })
             return
           }
-          await moveService(selectedService.id, nextFase, nextResponsavel, nextDescricao)
+          const responsavelParam = nextResponsavel.trim() ? nextResponsavel.trim() : undefined
+          await moveService(
+            selectedService.id,
+            nextFase,
+            responsavelParam,
+            nextServicosRealizados,
+            nextObservacoes
+          )
           setSelectedService(prev => prev ? { 
               ...prev, 
               fase: nextFase, 
-              responsavel: nextResponsavel,
+              responsavel: responsavelParam !== undefined ? responsavelParam : prev.responsavel,
               updated_at: new Date().toISOString()
           } : prev)
           setShowFaseModal(false)
@@ -630,7 +639,6 @@ const OrdensServico: React.FC = () => {
         <ServiceKanbanBoard 
             services={services} 
             loading={loading} 
-            usuarios={usuarios}
             onDragEnd={onDragEnd}
             onCardClick={setSelectedService}
             isTvMode={isTvMode}
@@ -827,7 +835,7 @@ const OrdensServico: React.FC = () => {
                  <span className="w-px h-3 bg-[var(--border)]"></span>
                  <button 
                     onClick={() => setShowHistorico(true)}
-                    className="flex items-center gap-1.5 hover:text-[var(--primary)] transition-colors"
+                    className="h-9 px-4 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 hover:bg-[var(--primary)]/15 transition flex items-center gap-2 font-semibold"
                  >
                     <History size={14}/> Histórico
                  </button>
@@ -1490,65 +1498,117 @@ const OrdensServico: React.FC = () => {
         isOpen={showHistorico}
         onClose={() => setShowHistorico(false)}
         title={
-          <div className="flex items-center gap-3">
-             <History size={24} className="text-[var(--primary)]" />
-             <span className="font-bold text-lg">Histórico de Movimentação</span>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+              <History size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Auditoria</div>
+              <div className="font-bold text-lg text-[var(--text-main)] truncate">Histórico de Movimentação</div>
+            </div>
           </div>
         }
-        size="lg"
+        size="full"
+        className="md:max-w-5xl"
         zIndex={120}
+        footer={
+          <div className="flex items-center justify-end w-full">
+            <button
+              onClick={() => setShowHistorico(false)}
+              className="h-11 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all shadow-lg shadow-[var(--primary)]/20"
+            >
+              Fechar
+            </button>
+          </div>
+        }
       >
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-            {loadingHistorico ? (
-                <div className="flex justify-center py-8">
-                    <RefreshCw className="animate-spin text-[var(--text-muted)]" size={24} />
-                </div>
-            ) : historico.length === 0 ? (
-                <div className="text-center py-8 text-[var(--text-muted)]">
-                    Nenhum registro de movimentação encontrado.
-                </div>
-            ) : (
-                <div className="relative border-l-2 border-[var(--border)] ml-3 my-2 space-y-8">
-                    {historico.map((h, i) => (
-                        <div key={h.id} className="relative pl-6">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[var(--bg-main)] border-2 border-[var(--primary)]" />
-                            <div className="flex flex-col gap-1">
-                                <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
-                                    <Clock size={12} />
-                                    {formatDateTimeBR(h.data_movimentacao)}
-                                    <span className="text-[var(--text-soft)]">•</span>
-                                    <span>{h.profiles?.nome || 'Sistema'}</span>
-                                </div>
-                                <div className="p-3 rounded-lg bg-[var(--bg-panel)] border border-[var(--border)] space-y-2">
-                                    {h.fase_origem !== h.fase_destino && (
-                                        <div className="flex items-center gap-2 text-sm">
-                                            <span className="font-medium text-[var(--text-soft)]">{h.fase_origem ? getOsPhaseConfig(h.fase_origem).label : ''}</span>
-                                            <ArrowRight size={14} className="text-[var(--text-muted)]" />
-                                            <span className="font-bold text-[var(--text-main)]">{h.fase_destino ? getOsPhaseConfig(h.fase_destino).label : ''}</span>
-                                        </div>
-                                    )}
-                                    {h.responsavel_origem !== h.responsavel_destino && (
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <User size={12} className="text-[var(--text-muted)]" />
-                                            <span className="text-[var(--text-soft)]">{h.responsavel_origem || 'Sem resp.'}</span>
-                                            <ArrowRight size={12} className="text-[var(--text-muted)]" />
-                                            <span className="text-[var(--text-main)] font-medium">{h.responsavel_destino || 'Sem resp.'}</span>
-                                        </div>
-                                    )}
-                                    {String(h.descricao || '').trim().length > 0 && (
-                                        <div className="flex items-start gap-2 text-xs">
-                                            <FileText size={12} className="text-[var(--text-muted)] mt-0.5 shrink-0" />
-                                            <span className="text-[var(--text-soft)] leading-relaxed whitespace-pre-wrap">
-                                              {String(h.descricao).trim()}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+        <div className="space-y-4">
+          {loadingHistorico ? (
+            <div className="flex justify-center py-10">
+              <RefreshCw className="animate-spin text-[var(--text-muted)]" size={24} />
+            </div>
+          ) : historico.length === 0 ? (
+            <div className="text-center py-12 text-[var(--text-muted)]">
+              Nenhum registro de movimentação encontrado.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {historico.map((h) => {
+                const userName = h.profiles?.nome || 'Sistema'
+                const when = formatDateTimeBR(h.data_movimentacao)
+                const faseOrigem = h.fase_origem ? getOsPhaseConfig(h.fase_origem).label : '—'
+                const faseDestino = h.fase_destino ? getOsPhaseConfig(h.fase_destino).label : '—'
+                const respOrigem = h.responsavel_origem || 'Sem responsável'
+                const respDestino = h.responsavel_destino || 'Sem responsável'
+                const servicos = String((h as any)?.servicos_realizados || '').trim() || String(h.descricao || '').trim()
+                const obs = String((h as any)?.observacoes || '').trim()
+
+                return (
+                  <div key={h.id} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 md:px-5 md:py-4 border-b border-[var(--border)] bg-[var(--bg-panel)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="h-8 w-8 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
+                          <User size={14} />
                         </div>
-                    ))}
-                </div>
-            )}
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Quem fez</div>
+                          <div className="text-sm font-bold text-[var(--text-main)] truncate">{userName}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                        <Clock size={14} />
+                        <span className="font-medium">{when}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 md:p-5 space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Fase</div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-[var(--text-soft)]">{faseOrigem}</span>
+                            <ArrowRight size={14} className="text-[var(--text-muted)]" />
+                            <span className="font-black text-[var(--text-main)]">{faseDestino}</span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Responsável</div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-[var(--text-soft)] truncate">{respOrigem}</span>
+                            <ArrowRight size={14} className="text-[var(--text-muted)]" />
+                            <span className="font-black text-[var(--text-main)] truncate">{respDestino}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Wrench size={14} className="text-[var(--text-muted)]" />
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Serviços realizados</div>
+                          </div>
+                          <div className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
+                            {servicos.length ? servicos : '—'}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <FileText size={14} className="text-[var(--text-muted)]" />
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Observações</div>
+                          </div>
+                          <div className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
+                            {obs.length ? obs : '—'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -1567,7 +1627,8 @@ const OrdensServico: React.FC = () => {
              </div>
           </div>
         }
-        size="lg"
+        size="full"
+        className="md:max-w-4xl"
         zIndex={130}
         footer={
             <div className="flex justify-end gap-3 w-full">
@@ -1579,7 +1640,7 @@ const OrdensServico: React.FC = () => {
                 </button>
                 <button
                   onClick={handleSaveFase}
-                  disabled={!nextDescricao.trim()}
+                  disabled={!nextServicosRealizados.trim()}
                   className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20 flex items-center gap-2"
                 >
                   Confirmar Movimentação
@@ -1588,75 +1649,100 @@ const OrdensServico: React.FC = () => {
             </div>
         }
       >
-        <div className="space-y-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-3 block flex items-center gap-2">
-                        <Layers size={14} />
-                        Selecione a Nova Fase
-                    </label>
-                    <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2 p-1">
-                        {ETAPAS_SERVICOS.map(fase => {
-                            const config = getOsPhaseConfig(fase)
-                            const isSelected = nextFase === fase
-                            return (
-                            <button
-                                key={fase}
-                                onClick={() => setNextFase(fase)}
-                                className={`group relative p-3 rounded-xl border text-left text-sm transition-all duration-200 ${
-                                    isSelected 
-                                    ? `${config.bg} ${config.border} ring-1 ring-[var(--primary)] shadow-md` 
-                                    : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-[var(--text-muted)] hover:shadow-sm'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className={`font-bold ${isSelected ? config.color : 'text-[var(--text-main)]'}`}>
-                                        {config.label}
-                                    </span>
-                                    {isSelected && <div className={`w-2 h-2 rounded-full ${config.color.replace('text-', 'bg-')}`} />}
-                                </div>
-                            </button>
-                        )})}
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <div>
-                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
-                            <User size={14} />
-                            Responsável pela Fase
-                        </label>
-                        <select
-                            value={nextResponsavel}
-                            onChange={(e) => setNextResponsavel(e.target.value)}
-                            className="w-full h-11 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all cursor-pointer"
-                        >
-                            <option value="">Selecione um responsável...</option>
-                            {usuarios.map(u => (
-                                <option key={u.id} value={u.nome}>
-                                    {u.nome} {u.cargo ? `(${u.cargo})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="mt-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
-                            Selecione quem será o responsável técnico ou administrativo por acompanhar o equipamento nesta nova etapa.
-                        </p>
-                    </div>
-
-                    <div>
-                        <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
-                            <History size={14} />
-                            Descrição da Movimentação <span className="text-rose-500">*</span>
-                        </label>
-                        <textarea
-                            value={nextDescricao}
-                            onChange={(e) => setNextDescricao(e.target.value)}
-                            placeholder="Descreva o que foi realizado, motivo da mudança ou observações importantes para o histórico..."
-                            className="w-full h-[140px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none leading-relaxed"
-                        />
-                    </div>
-                </div>
+        <div className="py-2">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-5">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase block flex items-center gap-2">
+                  <Layers size={14} />
+                  Selecione a Nova Fase
+                </label>
+                {selectedService?.fase && (
+                  <div className="text-[10px] text-[var(--text-muted)]">
+                    Atual: <span className="text-[var(--text-main)] font-semibold">{getOsPhaseConfig(selectedService.fase).label}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-2 p-1">
+                {ETAPAS_SERVICOS.map(fase => {
+                  const config = getOsPhaseConfig(fase)
+                  const isSelected = nextFase === fase
+                  return (
+                    <button
+                      key={fase}
+                      onClick={() => setNextFase(fase)}
+                      className={`group relative p-3 rounded-xl border text-left text-sm transition-all duration-200 ${
+                        isSelected
+                          ? `${config.bg} ${config.border} ring-1 ring-[var(--primary)] shadow-md`
+                          : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-[var(--text-muted)] hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-bold ${isSelected ? config.color : 'text-[var(--text-main)]'}`}>
+                          {config.label}
+                        </span>
+                        {isSelected && <div className={`w-2 h-2 rounded-full ${config.color.replace('text-', 'bg-')}`} />}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
+
+            <div className="lg:col-span-7 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
+                    <User size={14} />
+                    Responsável pela Fase
+                  </label>
+                  <select
+                    value={nextResponsavel}
+                    onChange={(e) => setNextResponsavel(e.target.value)}
+                    className="w-full h-11 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all cursor-pointer"
+                  >
+                    <option value="">Selecione um responsável...</option>
+                    {usuarios.map(u => (
+                      <option key={u.id} value={u.nome}>
+                        {u.nome} {u.cargo ? `(${u.cargo})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
+                    Define quem acompanha esta etapa. Se ficar em branco, mantém o responsável atual.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
+                    <Wrench size={14} />
+                    Serviços realizados <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={nextServicosRealizados}
+                    onChange={(e) => setNextServicosRealizados(e.target.value)}
+                    placeholder="Descreva objetivamente o que foi feito nesta movimentação..."
+                    className="w-full h-[140px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none leading-relaxed"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-2 block flex items-center gap-2">
+                    <FileText size={14} />
+                    Observações
+                  </label>
+                  <textarea
+                    value={nextObservacoes}
+                    onChange={(e) => setNextObservacoes(e.target.value)}
+                    placeholder="Opcional: detalhes, alertas, pendências, contexto para o próximo responsável..."
+                    className="w-full h-[110px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all resize-none leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </Modal>
 

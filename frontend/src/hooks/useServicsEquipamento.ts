@@ -24,7 +24,7 @@ export function useServicsEquipamento() {
     refresh()
   }, [refresh])
 
-  const moveService = useCallback(async (serviceId: string, newFase: string, responsavel?: string, descricao?: string) => {
+  const moveService = useCallback(async (serviceId: string, newFase: string, responsavel?: string, servicosRealizados?: string, observacoes?: string) => {
     // Optimistic update
     setServices(prev => prev.map(s => s.id === serviceId ? { 
       ...s, 
@@ -34,7 +34,7 @@ export function useServicsEquipamento() {
     } : s))
     
     try {
-      await updateServicEquipamentoFase(serviceId, newFase, responsavel, descricao)
+      await updateServicEquipamentoFase(serviceId, newFase, responsavel, servicosRealizados, observacoes)
     } catch (err: any) {
       setError(err.message)
       // Revert on error

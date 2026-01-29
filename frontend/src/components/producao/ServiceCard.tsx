@@ -8,11 +8,10 @@ interface ServiceCardProps {
   service: ServicEquipamento
   index: number
   onClick: (service: ServicEquipamento) => void
-  responsavelAvatar?: string | null
   isTvMode?: boolean
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, responsavelAvatar, isTvMode = false }) => {
+export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, isTvMode = false }) => {
   if (isTvMode) {
     return (
       <Draggable draggableId={service.id} index={index}>
@@ -142,7 +141,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                 </div>
 
                 {/* Avatar & Badges (Right) */}
-                <div className="flex items-center gap-[-8px]">
+                <div className="flex items-center gap-2">
                      {service.garantia && (
                         <div className="mr-2" title="Em Garantia">
                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
@@ -150,14 +149,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                      )}
                      
                      {service.responsavel ? (
-                        <div className="w-7 h-7 rounded-full ring-2 ring-[var(--bg-panel)] overflow-hidden bg-[var(--bg-main)] flex items-center justify-center shadow-sm" title={`Responsável: ${service.responsavel}`}>
-                            {responsavelAvatar ? (
-                                <img src={responsavelAvatar} alt={service.responsavel} className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-[9px] font-bold text-[var(--text-muted)]">
-                                    {service.responsavel.substring(0, 2).toUpperCase()}
-                                </span>
-                            )}
+                        <div
+                          className="max-w-[160px] px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 text-[10px] font-black tracking-wide truncate"
+                          title={`Responsável: ${service.responsavel}`}
+                        >
+                          {service.responsavel}
                         </div>
                      ) : (
                         <div className="w-7 h-7 rounded-full ring-2 ring-[var(--bg-panel)] bg-[var(--bg-main)] border border-dashed border-[var(--border)] flex items-center justify-center" title="Sem responsável">

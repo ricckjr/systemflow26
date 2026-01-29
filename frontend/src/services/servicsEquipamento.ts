@@ -48,7 +48,13 @@ export async function createServicEquipamento(service: Omit<ServicEquipamento, '
   return data as ServicEquipamento
 }
 
-export async function updateServicEquipamentoFase(id: string, fase: string, responsavel?: string, descricao?: string): Promise<ServicEquipamento> {
+export async function updateServicEquipamentoFase(
+  id: string,
+  fase: string,
+  responsavel?: string,
+  servicosRealizados?: string,
+  observacoes?: string
+): Promise<ServicEquipamento> {
   const normalizedFase = normalizeOsPhase(fase)
   const { data: currentService } = await supabase
     .from('servics_equipamento')
@@ -88,7 +94,7 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
   // Registrar histórico se houve mudança
   if (currentService && (currentService.fase !== normalizedFase || (responsavel !== undefined && currentService.responsavel !== responsavel))) {
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('servics_historico').insert({
+    const payload = {
       service_id: id,
       fase_origem: currentService.fase,
       fase_destino: normalizedFase,
@@ -96,30 +102,75 @@ export async function updateServicEquipamentoFase(id: string, fase: string, resp
       responsavel_destino: responsavel !== undefined ? responsavel : currentService.responsavel,
       alterado_por: user?.id,
       data_movimentacao: new Date().toISOString(),
-      descricao: descricao || null // Add description to history
-    })
+      servicos_realizados: servicosRealizados?.trim() ? servicosRealizados.trim() : null,
+      observacoes: observacoes?.trim() ? observacoes.trim() : null,
+      descricao: servicosRealizados?.trim() ? servicosRealizados.trim() : null
+    }
 
-    // Send notification if responsible user changed or phase changed and responsible user is set
-    const nextResponsavel = responsavel !== undefined ? responsavel : currentService.responsavel
-    if (nextResponsavel) {
-      // Find user ID by name (since we store name in responsavel column)
-      const { data: responsibleUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('nome', nextResponsavel)
-        .single()
+    const { error: historicoError } = await supabase.from('servics_historico').insert(payload)
+    if (historicoError) {
+      const code = (historicoError as any)?.code as string | undefined
+      const message = (historicoError as any)?.message as string | undefined
+      if (code === 'PGRST204' && message?.toLowerCase().includes('schema cache')) {
+        throw new Error(
+          `Seu Supabase ainda não reconhece uma ou mais colunas do histórico (schema cache desatualizado). ` +
+            `Aplique a migration mais recente em public.servics_historico e recarregue o schema do PostgREST (ou aguarde alguns minutos). ` +
+            `Detalhe: ${message}`
+        )
+      }
+      throw historicoError
+    }
 
-      if (responsibleUser) {
-        const faseLabel = getOsPhaseConfig(normalizedFase).label
-        await supabase.from('notifications').insert({
-          user_id: responsibleUser.id,
-          title: `OS ${currentService.id_rst} - Nova Movimentação`,
-          content: `A OS foi movida para ${faseLabel} por ${user?.email}. ${descricao ? `\nObs: ${descricao}` : ''}`,
+    const resolveProfileId = async (nome?: string | null, email?: string | null): Promise<string | null> => {
+      const cleanName = String(nome || '').trim()
+      if (cleanName.length) {
+        const { data: byName } = await supabase.from('profiles').select('id').eq('nome', cleanName).maybeSingle()
+        if (byName?.id) return byName.id
+      }
+
+      const cleanEmail = String(email || '').trim()
+      if (!cleanEmail.length) return null
+
+      const { data: byEmailLogin } = await supabase.from('profiles').select('id').eq('email_login', cleanEmail).maybeSingle()
+      if (byEmailLogin?.id) return byEmailLogin.id
+
+      const { data: byEmailCorporate } = await supabase.from('profiles').select('id').eq('email_corporativo', cleanEmail).maybeSingle()
+      if (byEmailCorporate?.id) return byEmailCorporate.id
+
+      return null
+    }
+
+    const faseLabel = getOsPhaseConfig(normalizedFase).label
+    const respNome = responsavel !== undefined ? responsavel : currentService.responsavel
+    const sellerNome = (data as any)?.vendedor as string | null | undefined
+    const sellerEmail = (data as any)?.email_vendedor as string | null | undefined
+
+    const recipientIds = new Set<string>()
+
+    const responsibleId = await resolveProfileId(respNome ?? null, null)
+    if (responsibleId) recipientIds.add(responsibleId)
+
+    const sellerId = await resolveProfileId(sellerNome ?? null, sellerEmail ?? null)
+    if (sellerId) recipientIds.add(sellerId)
+
+    if (recipientIds.size > 0) {
+      const obsText = observacoes?.trim() ? `\nObservações: ${observacoes.trim()}` : ''
+      const content =
+        `A OS ${currentService.id_rst} foi movida para ${faseLabel}.\n` +
+        `Responsável: ${String(respNome || '-').trim() || '-'}\n` +
+        `Serviços: ${servicosRealizados?.trim() || '-'}` +
+        obsText
+
+      await supabase.from('notifications').insert(
+        Array.from(recipientIds).map((user_id) => ({
+          user_id,
+          title: `OS ${currentService.id_rst} - Nova Fase`,
+          content,
           link: '/app/producao/ordens-servico',
           type: 'info',
           is_read: false
-        })
-      }
+        }))
+      )
     }
   }
 

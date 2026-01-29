@@ -65,12 +65,12 @@ export const router = createBrowserRouter([
       { path: 'comunidade/chat', element: lazyElement(() => import('@/pages/Comunicacao/ChatInterno'), 'Carregando Chat...') },
       { path: 'comunidade/calendario', element: lazyElement(() => import('@/pages/Comunidade/Calendario'), 'Carregando Calendário...') },
 
-      { path: 'dashboard/comercial', element: lazyElement(() => import('@/pages/Comercial/VisaoGeral'), 'Carregando Comercial...') },
+      { path: 'dashboard/comercial', element: lazyElement(() => import('@/pages/dashboard/VisaoGeral'), 'Carregando Comercial...') },
 
       { path: 'crm/oportunidades-kanban', element: lazyElement(() => import('@/pages/CRM/OportunidadesKanban'), 'Carregando Kanban...') },
-      { path: 'crm/oportunidades', element: lazyElement(() => import('@/pages/Comercial/Oportunidades'), 'Carregando Oportunidades...') },
-      { path: 'crm/vendedores', element: lazyElement(() => import('@/pages/Comercial/Vendedores'), 'Carregando Vendedores...') },
-      { path: 'crm/propostas', element: lazyElement(() => import('@/pages/Producao/Propostas'), 'Carregando Propostas...') },
+      { path: 'crm/oportunidades', element: lazyElement(() => import('@/pages/CRM/Oportunidades'), 'Carregando Oportunidades...') },
+      { path: 'crm/vendedores', element: lazyElement(() => import('@/pages/CRM/Vendedores'), 'Carregando Vendedores...') },
+      { path: 'crm/propostas', element: lazyElement(() => import('@/pages/CRM/Propostas'), 'Carregando Propostas...') },
 
       { path: 'cadastros/clientes', element: lazyElement(() => import('@/pages/Cadastros/Clientes'), 'Carregando Clientes...') },
       { path: 'cadastros/contatos', element: lazyElement(() => import('@/pages/Cadastros/Contatos'), 'Carregando Contatos...') },
@@ -127,7 +127,7 @@ export const router = createBrowserRouter([
 
       { path: 'producao/omie', element: <Navigate to="/app/producao/propostas" replace /> },
       { path: 'producao/servicos-vendas', element: <Navigate to="/app/producao/propostas" replace /> },
-      { path: 'producao/propostas', element: lazyElement(() => import('@/pages/Producao/Propostas'), 'Carregando Propostas...') },
+      { path: 'producao/propostas', element: lazyElement(() => import('@/pages/CRM/Propostas'), 'Carregando Propostas...') },
       { path: 'producao/servicos', element: <Navigate to="/app/producao/ordens-servico" replace /> },
       { path: 'producao/ordens-servico', element: lazyElement(() => import('@/pages/Producao/OrdensServico'), 'Carregando Ordens de Serviço...') },
       { path: 'producao/equipamentos', element: lazyElement(() => import('@/pages/Producao/Equipamentos'), 'Carregando Equipamentos...') },

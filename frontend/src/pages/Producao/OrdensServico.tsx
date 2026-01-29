@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor, Pencil, ExternalLink, ZoomIn, Trash2, FileText } from 'lucide-react'
+import { RefreshCw, Tag, User, Calendar, MapPin, Building2, Layers, AlertCircle, Wrench, Upload, X, Maximize2, ArrowRight, History, Clock, AlertTriangle, CheckCircle2, Hourglass, Timer, Monitor, Pencil, ExternalLink, ZoomIn, Trash2, FileText, Plus } from 'lucide-react'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
 import { ServiceKanbanBoard } from '@/components/producao/ServiceKanbanBoard'
 import { DropResult } from '@hello-pangea/dnd'
@@ -14,7 +14,7 @@ import { useTvMode } from '@/hooks/useTvMode'
 
 const OrdensServico: React.FC = () => {
   const { isTvMode, toggleTvMode } = useTvMode()
-  const { services, loading, refresh, moveService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
+  const { services, loading, refresh, moveService, addService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
   const { usuarios } = useUsuarios()
   const [selectedService, setSelectedService] = useState<ServicEquipamento | null>(null)
   const [analiseVisual, setAnaliseVisual] = useState('')
@@ -36,6 +36,25 @@ const OrdensServico: React.FC = () => {
   const [nextDescricao, setNextDescricao] = useState<string>('')
   const [showFaseModal, setShowFaseModal] = useState(false)
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'warning' | 'error' | 'success' }>({ isOpen: false, title: '', message: '', type: 'warning' })
+  const [showCreateInternalOsModal, setShowCreateInternalOsModal] = useState(false)
+  const [creatingInternalOs, setCreatingInternalOs] = useState(false)
+  const [uploadingInternalOsImages, setUploadingInternalOsImages] = useState(false)
+  const [createInternalOsError, setCreateInternalOsError] = useState<string | null>(null)
+  const [internalOsForm, setInternalOsForm] = useState({
+    modelo: '',
+    fabricante: '',
+    numero_serie: '',
+    numero_serie2: '',
+    tag: '',
+    faixa: '',
+    servicos_a_fazer: '',
+    imagens: [] as string[]
+  })
+
+  const inputBase =
+    'w-full h-10 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors'
+  const textareaBase =
+    'w-full min-h-[96px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors resize-none'
 
   const vendedorUser = useMemo(() => {
     if (!selectedService?.vendedor) return null
@@ -96,6 +115,107 @@ const OrdensServico: React.FC = () => {
       setNextResponsavel(selectedService?.responsavel || '')
       setNextDescricao('')
       setShowFaseModal(true)
+  }
+
+  const handleOpenCreateInternalOs = () => {
+    setCreateInternalOsError(null)
+    setInternalOsForm({
+      modelo: '',
+      fabricante: '',
+      numero_serie: '',
+      numero_serie2: '',
+      tag: '',
+      faixa: '',
+      servicos_a_fazer: '',
+      imagens: []
+    })
+    setShowCreateInternalOsModal(true)
+  }
+
+  const handleCloseCreateInternalOs = () => {
+    if (creatingInternalOs || uploadingInternalOsImages) return
+    setShowCreateInternalOsModal(false)
+    setCreateInternalOsError(null)
+  }
+
+  const handleInternalOsFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return
+    setCreateInternalOsError(null)
+    setUploadingInternalOsImages(true)
+    try {
+      const files = Array.from(e.target.files)
+      const urls = await Promise.all(files.map(file => uploadImage(file)))
+      setInternalOsForm(prev => ({
+        ...prev,
+        imagens: [...prev.imagens, ...urls]
+      }))
+    } catch (err: any) {
+      setCreateInternalOsError(err?.message || 'Erro ao fazer upload das imagens.')
+    } finally {
+      setUploadingInternalOsImages(false)
+      e.target.value = ''
+    }
+  }
+
+  const removeInternalOsImage = (index: number) => {
+    setInternalOsForm(prev => ({
+      ...prev,
+      imagens: prev.imagens.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleCreateInternalOs = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (creatingInternalOs || uploadingInternalOsImages) return
+    setCreateInternalOsError(null)
+
+    const modelo = internalOsForm.modelo.trim()
+    const fabricante = internalOsForm.fabricante.trim()
+    const numeroSerie = internalOsForm.numero_serie.trim()
+    const numeroSerie2 = internalOsForm.numero_serie2.trim()
+    const tag = internalOsForm.tag.trim()
+    const faixa = internalOsForm.faixa.trim()
+    const servicosAFazer = internalOsForm.servicos_a_fazer.trim()
+
+    if (!modelo || !fabricante || !numeroSerie || !numeroSerie2 || !tag || !faixa || !servicosAFazer) {
+      setCreateInternalOsError('Preencha todos os campos obrigatórios para criar a OS interna.')
+      return
+    }
+
+    setCreatingInternalOs(true)
+    try {
+      const payload: Omit<ServicEquipamento, 'id' | 'id_rst' | 'created_at' | 'updated_at'> = {
+        cod_proposta: 'INTERNA',
+        etapa_omie: 'APROVADO',
+        cliente: 'Apliflow Equipamentos Industriais',
+        cnpj: 'Serviço Interno',
+        endereco: 'Serviço Interno',
+        modelo,
+        fabricante,
+        numero_serie: numeroSerie,
+        numero_serie2: numeroSerie2,
+        tag,
+        faixa,
+        solucao: 'Serviço Interno',
+        servicos_a_fazer: servicosAFazer,
+        numero_nf: 'Serviço Interno',
+        numero_pedido: 'Serviço Interno',
+        garantia: false,
+        data_entrada: new Date().toISOString(),
+        fase: 'ANALISE',
+        responsavel: null,
+        vendedor: 'Serviço Interno',
+        imagens: internalOsForm.imagens
+      }
+
+      const created = await addService(payload)
+      setShowCreateInternalOsModal(false)
+      setSelectedService(created)
+    } catch (err: any) {
+      setCreateInternalOsError(err?.message || 'Erro ao criar OS interna.')
+    } finally {
+      setCreatingInternalOs(false)
+    }
   }
 
   const handleSaveFase = async () => {
@@ -324,6 +444,14 @@ const OrdensServico: React.FC = () => {
 
           <div className="flex gap-2">
             <button
+              onClick={handleOpenCreateInternalOs}
+              className="h-9 px-4 rounded-xl bg-[var(--primary)] text-white text-sm font-bold hover:brightness-110 transition flex items-center justify-center gap-2 shadow-lg shadow-[var(--primary)]/20"
+              title="Adicionar OS Interna"
+            >
+              <Plus size={14} />
+              Adicionar OS
+            </button>
+            <button
               onClick={() => toggleTvMode()}
               className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2"
               title="Entrar em Modo TV"
@@ -359,6 +487,160 @@ const OrdensServico: React.FC = () => {
             isTvMode={isTvMode}
         />
       </div>
+
+      <Modal
+        isOpen={showCreateInternalOsModal}
+        onClose={handleCloseCreateInternalOs}
+        size="xl"
+        title={
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 border border-[var(--primary)]/20">
+              <FileText size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">OS Interna</div>
+              <div className="text-base font-bold text-[var(--text-main)] truncate">Adicionar Ordem de Serviço</div>
+              <div className="text-xs text-[var(--text-muted)] truncate">Cliente padrão: Apliflow Equipamentos Industriais</div>
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCloseCreateInternalOs}
+              disabled={creatingInternalOs}
+              className="h-10 px-5 rounded-xl border border-[var(--border)] text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              form="create-internal-os-form"
+              type="submit"
+              disabled={creatingInternalOs || uploadingInternalOsImages}
+              className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20"
+            >
+              {creatingInternalOs ? 'Criando...' : 'Criar OS'}
+            </button>
+          </div>
+        }
+      >
+        <form id="create-internal-os-form" onSubmit={handleCreateInternalOs} className="space-y-4">
+          {createInternalOsError && (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 flex items-start gap-2">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span className="leading-relaxed">{createInternalOsError}</span>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+            <div className="text-xs font-bold text-[var(--text-main)] mb-3">Dados do equipamento</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Modelo *</label>
+                <input
+                  value={internalOsForm.modelo}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, modelo: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: CM-2000"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Fabricante *</label>
+                <input
+                  value={internalOsForm.fabricante}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, fabricante: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: Fluke"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número de Série *</label>
+                <input
+                  value={internalOsForm.numero_serie}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, numero_serie: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: SN123456"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número de Série 2 *</label>
+                <input
+                  value={internalOsForm.numero_serie2}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, numero_serie2: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: SN654321"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">TAG *</label>
+                <input
+                  value={internalOsForm.tag}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, tag: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: TAG-001"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Faixa *</label>
+                <input
+                  value={internalOsForm.faixa}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, faixa: e.target.value }))}
+                  className={inputBase}
+                  placeholder="Ex: 0-10 bar"
+                />
+              </div>
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Solução Solicitada</label>
+                <div className="h-10 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] flex items-center justify-between">
+                  <span className="text-sm font-semibold">Serviço Interno</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">fixo</span>
+                </div>
+              </div>
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Serviços a Serem Executados *</label>
+                <textarea
+                  value={internalOsForm.servicos_a_fazer}
+                  onChange={e => setInternalOsForm(prev => ({ ...prev, servicos_a_fazer: e.target.value }))}
+                  className={textareaBase}
+                  placeholder="Descreva os serviços que serão executados..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-xs font-bold text-[var(--text-main)]">Imagens</div>
+              <label className={`h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingInternalOsImages ? 'opacity-60 pointer-events-none' : ''}`}>
+                <Upload size={14} />
+                {uploadingInternalOsImages ? 'Enviando...' : 'Adicionar imagens'}
+                <input type="file" multiple accept="image/*" className="hidden" onChange={handleInternalOsFileChange} />
+              </label>
+            </div>
+
+            {internalOsForm.imagens.length === 0 ? (
+              <div className="text-sm text-[var(--text-muted)]">Nenhuma imagem adicionada.</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {internalOsForm.imagens.map((url, idx) => (
+                  <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)]">
+                    <img src={url} alt={`Imagem ${idx + 1}`} className="w-full h-24 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeInternalOsImage(idx)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/60 text-white hover:bg-black/75 transition flex items-center justify-center"
+                      title="Remover"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </form>
+      </Modal>
 
       {/* Detalhes do Serviço Modal */}
       <Modal

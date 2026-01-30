@@ -87,6 +87,28 @@ export const api = {
         body: JSON.stringify({ novaSenha })
       })
   },
+  rbac: {
+    listPerfis: () => request('/admin/rbac/perfis'),
+    createPerfil: (payload: { perfil_nome: string; perfil_descricao?: string | null }) =>
+      request('/admin/rbac/perfis', { method: 'POST', body: JSON.stringify(payload) }),
+    updatePerfil: (perfilId: string, payload: { perfil_nome?: string; perfil_descricao?: string | null }) =>
+      request(`/admin/rbac/perfis/${perfilId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+    deletePerfil: (perfilId: string) =>
+      request(`/admin/rbac/perfis/${perfilId}`, { method: 'DELETE' }),
+
+    listPermissoes: () => request('/admin/rbac/permissoes'),
+    createPermissao: (payload: { modulo: string; acao: string; descricao?: string | null }) =>
+      request('/admin/rbac/permissoes', { method: 'POST', body: JSON.stringify(payload) }),
+    deletePermissao: (permissaoId: string) =>
+      request(`/admin/rbac/permissoes/${permissaoId}`, { method: 'DELETE' }),
+
+    getPerfilPermissoes: (perfilId: string) => request(`/admin/rbac/perfis/${perfilId}/permissoes`),
+    setPerfilPermissoes: (perfilId: string, permissao_ids: string[]) =>
+      request(`/admin/rbac/perfis/${perfilId}/permissoes`, { method: 'PUT', body: JSON.stringify({ permissao_ids }) }),
+
+    assignUserPerfil: (userId: string, perfil_id: string) =>
+      request(`/admin/users/${userId}/perfil`, { method: 'PATCH', body: JSON.stringify({ perfil_id }) })
+  },
   taskflow: {
     fixBoard: () => request('/taskflow/fix-board', { method: 'POST' })
   }

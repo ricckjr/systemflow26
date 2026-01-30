@@ -45,6 +45,36 @@ const authenticate = async (req, res, next) => {
   }
 };
 
+const requirePermission = (modulo, acao) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { data, error } = await supabaseAdmin.rpc('has_permission', {
+        user_id: req.user.id,
+        modulo,
+        acao
+      });
+
+      if (error) {
+        console.error('Permission check error:', error);
+        return res.status(500).json({ error: 'Permission check failed' });
+      }
+
+      if (!data) {
+        return res.status(403).json({ error: 'Permission denied' });
+      }
+
+      next();
+    } catch (err) {
+      console.error('Permission middleware error:', err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
+};
+
 const requireAdmin = (req, res, next) => {
   // Check 'cargo' instead of non-existent 'is_admin' column
   if (!req.profile || req.profile.cargo !== 'ADMIN') {
@@ -53,4 +83,4 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireAdmin };
+module.exports = { authenticate, requireAdmin, requirePermission };

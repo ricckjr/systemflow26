@@ -1388,7 +1388,35 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_public: {
+        Row: {
+          id: string
+          nome: string
+          avatar_url: string | null
+          cargo: string | null
+          status: string | null
+          last_seen: string | null
+        }
+        Relationships: []
+      }
+      profiles_private: {
+        Row: {
+          id: string
+          nome: string
+          email_login: string
+          email_corporativo: string | null
+          telefone: string | null
+          ramal: string | null
+          ativo: boolean
+          avatar_url: string | null
+          cargo: string | null
+          status: string | null
+          last_seen: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       chat_clear_room_history: {
@@ -1457,6 +1485,21 @@ export interface Database {
           new_status: string
         }
         Returns: void
+      }
+      has_permission: {
+        Args: {
+          user_id: string
+          modulo: string
+          acao: string
+        }
+        Returns: boolean
+      }
+      get_my_permissions: {
+        Args: Record<string, never>
+        Returns: {
+          modulo: string
+          acao: string
+        }[]
       }
     }
     Enums: {

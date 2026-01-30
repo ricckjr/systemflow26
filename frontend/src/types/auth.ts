@@ -1,5 +1,6 @@
 export type Cargo =
   | 'ADMIN'
+  | 'COMERCIAL'
   | 'VENDEDOR'
   | 'MARKETING'
   | 'ADMINISTRATIVO'
@@ -7,6 +8,8 @@ export type Cargo =
   | 'RECURSOS_HUMANOS'
   | 'DEPARTAMENTO_PESSOAL'
   | 'LOGISTICA'
+  | 'ELETRONICA'
+  | 'LABORATORIO'
   | 'OFICINA'
   | 'TECNICO';
 
@@ -38,4 +41,9 @@ export interface ProfilePermissao {
   editar: boolean;
   excluir: boolean;
   permissoes?: Permissao; // Joined data
+}
+
+export interface RbacPermission {
+  modulo: string
+  acao: string
 }

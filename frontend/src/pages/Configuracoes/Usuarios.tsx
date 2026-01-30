@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '@/services/api'
-import { Profile, Cargo } from '@/types'
-import { CARGO_OPTIONS } from '@/constants/cargo'
+import { Profile } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useScrollLock } from '@/hooks/useScrollLock'
 import { HorizontalScrollArea } from '@/components/ui'
@@ -34,12 +33,19 @@ interface UsuariosProps {
   profile?: Profile
 }
 
+type Perfil = {
+  perfil_id: string
+  perfil_nome: string
+  perfil_descricao?: string | null
+}
+
 export default function Usuarios({ profile: propProfile }: UsuariosProps) {
-  const { profile: authProfile, authReady, profileReady } = useAuth()
+  const { profile: authProfile, authReady, profileReady, isAdmin } = useAuth()
   const profile = propProfile || authProfile
   const authLoading = !authReady || !profileReady
 
   const [usuarios, setUsuarios] = useState<Profile[]>([])
+  const [perfis, setPerfis] = useState<Perfil[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -57,7 +63,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       telefone: '',
       ramal: '',
       senha: '',
-      cargo: 'VENDEDOR' as Cargo,
+      perfil_id: '',
       ativo: true
   })
   const [formLoading, setFormLoading] = useState(false)
@@ -65,7 +71,29 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
   useScrollLock(isModalOpen)
 
-  const isAdmin = profile?.cargo === 'ADMIN'
+  const getPerfilNomeById = (perfilId: string) => perfis.find(p => p.perfil_id === perfilId)?.perfil_nome
+
+  const perfilToCargo = (perfilNome?: string | null) => {
+    const nome = (perfilNome || '').trim().toUpperCase()
+    if (nome === 'ADMIN' || nome === 'ADMINISTRADOR') return 'ADMIN'
+    if (nome === 'FINANCEIRO') return 'FINANCEIRO'
+    if (nome === 'COMERCIAL' || nome === 'VENDEDOR') return 'COMERCIAL'
+    if (nome === 'ADMINISTRATIVO') return 'ADMINISTRATIVO'
+    if (nome === 'LOGISTICA') return 'LOGISTICA'
+    if (nome === 'ELETRONICA') return 'ELETRONICA'
+    if (nome === 'LABORATORIO' || nome === 'LABORATÓRIO') return 'LABORATORIO'
+    if (nome === 'OFICINA' || nome === 'PRODUCAO') return 'OFICINA'
+    return 'COMERCIAL'
+  }
+
+  const loadPerfis = async () => {
+    try {
+      const { perfis: data } = await api.rbac.listPerfis()
+      setPerfis(data || [])
+    } catch {
+      setPerfis([])
+    }
+  }
 
   // Load users
   const loadUsers = async () => {
@@ -83,6 +111,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
   }
 
   useEffect(() => {
+    loadPerfis()
     loadUsers()
   }, [debouncedSearch]) // Recarrega quando a busca muda (debounced)
 
@@ -93,6 +122,11 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
   // Actions
   const handleOpenCreate = () => {
+      const defaultPerfilId =
+        perfis.find(p => p.perfil_nome === 'COMERCIAL')?.perfil_id ||
+        perfis.find(p => p.perfil_nome === 'VENDEDOR')?.perfil_id ||
+        perfis[0]?.perfil_id ||
+        ''
       setEditingUser(null)
       setFormData({
           nome: '',
@@ -101,7 +135,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
           telefone: '',
           ramal: '',
           senha: '',
-          cargo: 'VENDEDOR',
+          perfil_id: defaultPerfilId,
           ativo: true
       })
       setFormError(null)
@@ -109,6 +143,12 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
   }
 
   const handleOpenEdit = (user: Profile) => {
+      const currentPerfilId =
+        (user as any)?.rbac_perfil?.perfil_id ||
+        perfis.find(p => p.perfil_nome === 'COMERCIAL')?.perfil_id ||
+        perfis.find(p => p.perfil_nome === 'VENDEDOR')?.perfil_id ||
+        perfis[0]?.perfil_id ||
+        ''
       setEditingUser(user)
       setFormData({
           nome: user.nome,
@@ -117,7 +157,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
           telefone: user.telefone || '',
           ramal: user.ramal || '',
           senha: '', // Senha vazia na edição (só preenche se quiser alterar)
-          cargo: user.cargo || 'VENDEDOR',
+          perfil_id: currentPerfilId,
           ativo: user.ativo
       })
       setFormError(null)
@@ -151,15 +191,27 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       setFormLoading(true)
 
       try {
+          const perfilNome = getPerfilNomeById(formData.perfil_id)
+          const cargo = perfilToCargo(perfilNome)
+
           if (editingUser) {
               // Edit Mode
               await api.users.update(editingUser.id, {
                   ...formData,
+                  cargo,
                   senha: formData.senha || undefined // Só envia se tiver valor
               })
+
+              if (formData.perfil_id) {
+                await api.rbac.assignUserPerfil(editingUser.id, formData.perfil_id)
+              }
           } else {
               // Create Mode
-              await api.users.create(formData)
+              const resp = await api.users.create({ ...formData, cargo })
+              const userId = resp?.user?.id
+              if (userId && formData.perfil_id) {
+                await api.rbac.assignUserPerfil(userId, formData.perfil_id)
+              }
           }
 
           // Refresh list
@@ -275,7 +327,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                 <th className="px-6 py-4 text-left">Colaborador</th>
                 <th className="px-6 py-4">Contato</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Cargo</th>
+                <th className="px-6 py-4">Perfil</th>
                 <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
             </thead>
@@ -333,7 +385,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
                     <td className="px-6 py-4 text-center">
                         <span className="text-white font-medium bg-industrial-bg px-3 py-1 rounded-lg border border-industrial-border text-xs tracking-wide">
-                            {user.cargo || 'N/A'}
+                            {(user as any)?.rbac_perfil?.perfil_nome || 'N/A'}
                         </span>
                     </td>
 
@@ -422,15 +474,15 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Cargo *</label>
+                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Perfil de Acesso *</label>
                                 <div className="relative">
                                     <select 
                                         className="w-full bg-[#0B0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all appearance-none cursor-pointer"
-                                        value={formData.cargo}
-                                        onChange={e => setFormData({...formData, cargo: e.target.value as Cargo})}
+                                        value={formData.perfil_id}
+                                        onChange={e => setFormData({...formData, perfil_id: e.target.value})}
                                     >
-                                        {CARGO_OPTIONS.map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
+                                        {perfis.map(p => (
+                                            <option key={p.perfil_id} value={p.perfil_id}>{p.perfil_nome}</option>
                                         ))}
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">

@@ -162,7 +162,7 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
         </div>
         <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
           <Settings size={14} className="text-cyan-400" />
-          Configs CRM
+          Config Gerais
         </div>
       </div>
 
@@ -402,4 +402,3 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
     </div>
   )
 }
-

@@ -12,7 +12,7 @@ import {
   Copy,
   Check
 } from 'lucide-react';
-import { Profile, ProfilePermissao } from '@/types';
+import { Profile, RbacPermission } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatTimeBR } from '@/utils/datetime';
 
@@ -24,7 +24,7 @@ const SUGGESTIONS = [
   { icon: <Bot size={16} />, text: "Analisar a performance do time comercial" },
 ];
 
-const IAFlow: React.FC<{ profile?: Profile; perms?: ProfilePermissao[] }> = ({ profile: propProfile, perms: propPerms }) => {
+const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ profile: propProfile, perms: propPerms }) => {
   const { profile: authProfile, permissions: authPerms } = useAuth();
   const profile = propProfile || authProfile;
   const perms = propPerms || authPerms;
@@ -78,11 +78,8 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: ProfilePermissao[] }> = ({ p
 
     try {
       const permissions = (perms || []).map(p => ({
-        modulo: p.permissoes?.modulo ?? undefined,
-        submodulo: p.permissoes?.submodulo ?? undefined,
-        visualizar: p.visualizar,
-        editar: p.editar,
-        excluir: p.excluir,
+        modulo: p.modulo,
+        acao: p.acao
       }));
 
       const payload = {

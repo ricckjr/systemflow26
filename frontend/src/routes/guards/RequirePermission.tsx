@@ -1,11 +1,20 @@
 import React from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { Navigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
-export default function RequireAdmin({ children }: { children: React.ReactNode }) {
+export default function RequirePermission({
+  children,
+  modulo,
+  acao,
+  fallbackTo = '/app/comunidade'
+}: {
+  children: React.ReactNode
+  modulo: string
+  acao: string
+  fallbackTo?: string
+}) {
   const { profile, authReady, profileReady, permissions, can } = useAuth()
-  const location = useLocation()
 
   if ((!authReady || !profileReady) && !profile) {
     return (
@@ -23,10 +32,10 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
     )
   }
 
-  if (!profile || (!can('CONFIGURACOES', 'MANAGE') && profile.cargo !== 'ADMIN')) {
-    // Redireciona para uma rota segura padrão se não tiver permissão
-    return <Navigate to="/app/comunidade" replace state={{ message: 'Acesso negado. Área restrita a administradores.' }} />
+  if (!can(modulo, acao)) {
+    return <Navigate to={fallbackTo} replace state={{ message: 'Acesso negado.' }} />
   }
 
   return <>{children}</>
 }
+

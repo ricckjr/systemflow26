@@ -4,11 +4,12 @@ import {
   Briefcase,
   MessageSquare,
   Settings,
+  Sparkles,
+  User,
   LogOut,
   ChevronDown,
   X,
   LayoutDashboard,
-  Users,
   Factory,
   GraduationCap,
   Car
@@ -44,7 +45,7 @@ const navItems: NavItem[] = [
   },
   {
     label: 'COMUNIDADE',
-    icon: Users,
+    icon: Sparkles,
     modulo: 'comunidade',
     subItems: [
       { label: 'Chat', path: '/app/comunidade/chat', submodulo: 'chat' },
@@ -54,13 +55,14 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'CADASTROS',
-    icon: Users,
-    modulo: 'cadastros',
+    label: 'UNIVERSIDADE',
+    icon: GraduationCap,
+    modulo: 'universidade',
     subItems: [
-      { label: 'Clientes', path: '/app/cadastros/clientes', submodulo: 'clientes' },
-      { label: 'Contatos', path: '/app/cadastros/contatos', submodulo: 'contatos' },
-      { label: 'Fornecedores', path: '/app/cadastros/fornecedores', submodulo: 'fornecedores' },
+      { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
+      { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
+      { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
+      { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho' },
     ],
   },
   {
@@ -68,21 +70,9 @@ const navItems: NavItem[] = [
     icon: Briefcase,
     modulo: 'crm',
     subItems: [
-      { label: 'Pipeline (Kanban)', path: '/app/crm/oportunidades-kanban', submodulo: 'oportunidades-kanban' },
-      { label: 'Oportunidades', path: '/app/crm/oportunidades', submodulo: 'oportunidades' },
-      { label: 'Propostas', path: '/app/crm/propostas', submodulo: 'propostas' },
-      { label: 'Vendedores', path: '/app/crm/vendedores', submodulo: 'vendedores' },
-      {
-        label: 'Configs CRM',
-        submodulo: 'configs-crm',
-        subItems: [
-          { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads' },
-          { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos' },
-          { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais' },
-          { label: 'Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos' },
-          { label: 'Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos' },
-        ]
-      },
+      { label: 'Oportunidades (Kanban)', path: '/app/crm/oportunidades-kanban', submodulo: 'oportunidades-kanban' },
+      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
+      { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes' },
     ],
   },
   {
@@ -105,23 +95,27 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'UNIVERSIDADE',
-    icon: GraduationCap,
-    modulo: 'universidade',
-    subItems: [
-      { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
-      { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
-      { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
-      { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho' },
-    ],
-  },
-  {
     label: 'SMARTFLOW',
     icon: MessageSquare,
     modulo: 'smartflow',
     subItems: [
       { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
       { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
+    ],
+  },
+  {
+    label: 'CONFIG GERAIS',
+    icon: Settings,
+    modulo: 'config-gerais',
+    subItems: [
+      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios' },
+      { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes' },
+      { label: 'Transportadora', path: '/app/config-gerais/transportadora', submodulo: 'transportadora' },
+      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos' },
+      { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos' },
+      { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos' },
+      { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais' },
+      { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads' },
     ],
   },
 ];
@@ -424,17 +418,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className={`flex items-center ${showText ? 'gap-2 mt-2' : 'flex-col gap-3 w-full'}`}>
            <button
-             onClick={() => navigate('/app/configuracoes/usuarios')}
+             onClick={() => navigate('/app/configuracoes/perfil')}
              className={`group relative flex items-center justify-center rounded-lg border border-white/5 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200
                ${showText ? 'flex-1 h-8 gap-2' : 'w-10 h-10 hover:scale-105 active:scale-95'}`}
            >
-             <Settings size={showText ? 14 : 18} />
-             {showText && <span className="text-[11px] font-medium">Ajustes</span>}
+             <User size={showText ? 14 : 18} />
+             {showText && <span className="text-[11px] font-medium">Perfil</span>}
              
              {/* Tooltip */}
              {!showText && (
                <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
-                 Configurações
+                 Perfil
                </div>
              )}
            </button>

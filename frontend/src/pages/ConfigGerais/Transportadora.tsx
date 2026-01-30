@@ -1,5 +1,5 @@
 import React from 'react'
-import { Building, FileText } from 'lucide-react'
+import { Truck, FileText } from 'lucide-react'
 
 const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">
@@ -7,19 +7,19 @@ const Card = ({ children }: { children: React.ReactNode }) => (
   </div>
 )
 
-export default function Fornecedores() {
+export default function Transportadora() {
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Fornecedores</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Transportadora</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Gestão de fornecedores e parceiros.
+            Cadastro e gestão de transportadoras.
           </p>
         </div>
         <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Building size={14} className="text-cyan-400" />
-          Cadastros
+          <Truck size={14} className="text-cyan-400" />
+          Config Gerais
         </div>
       </div>
 
@@ -31,7 +31,7 @@ export default function Fornecedores() {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-200">Em breve</p>
             <p className="text-sm text-slate-400">
-              Aqui vamos cadastrar e consultar fornecedores.
+              Aqui você vai cadastrar transportadoras, contatos e regras de frete.
             </p>
           </div>
         </div>

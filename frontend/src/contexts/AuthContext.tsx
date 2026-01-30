@@ -10,7 +10,7 @@ import React, {
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/services/supabase'
 import { setRealtimeAuth } from '@/services/realtime'
-import type { Profile, ProfilePermissao } from '@/types'
+import type { Profile, RbacPermission } from '@/types'
 
 function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number) {
   const promise = Promise.resolve(promiseLike)
@@ -29,7 +29,7 @@ function withTimeout<T>(promiseLike: PromiseLike<T>, timeoutMs: number) {
 interface AuthContextType {
   session: Session | null
   profile: Profile | null
-  permissions: ProfilePermissao[] | null
+  permissions: RbacPermission[] | null
 
   authReady: boolean
   profileReady: boolean
@@ -39,6 +39,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
 
   isAdmin: boolean
+  can: (modulo: string, acao: string) => boolean
 }
 
 /* ================================
@@ -74,9 +75,9 @@ function normalizeProfile(p: any): Profile | null {
   if (p.role && !p.cargo) {
     const map: Record<string, string> = {
       admin: 'ADMIN',
-      user: 'VENDEDOR'
+      user: 'COMERCIAL'
     }
-    p.cargo = map[p.role.toLowerCase()] ?? 'VENDEDOR'
+    p.cargo = map[p.role.toLowerCase()] ?? 'COMERCIAL'
   }
 
   return p as Profile
@@ -106,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [permissions, setPermissions] = useState<ProfilePermissao[] | null>(null)
+  const [permissions, setPermissions] = useState<RbacPermission[] | null>(null)
 
   const [authReady, setAuthReady] = useState(false)
   const [profileReady, setProfileReady] = useState(false)
@@ -283,9 +284,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const { data, error } = await withTimeout(supabase
-        .from('profiles')
+        .from('profiles_private')
         .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
-        .eq('id', activeSession.user.id)
         .maybeSingle(), 8000)
 
       if (error) throw error
@@ -296,6 +296,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (normalized) {
         localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(normalized))
       }
+
+      const cachedPerms = safeParse<RbacPermission[]>(
+        localStorage.getItem(PERMS_CACHE_KEY)
+      )
+      if (cachedPerms) setPermissions(cachedPerms)
+
+      const { data: permsData } = await withTimeout(
+        supabase.rpc('get_my_permissions'),
+        8000
+      )
+
+      if (!mounted.current) return
+
+      const list = (permsData || []) as unknown as RbacPermission[]
+      setPermissions(list)
+      localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(list))
     } catch (err) {
       console.error('[AUTH] profile load failed', err)
       setProfile(null)
@@ -310,22 +326,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadPermissions = useCallback(async () => {
     if (!session) return
 
-    const cached = safeParse<ProfilePermissao[]>(
+    const cached = safeParse<RbacPermission[]>(
       localStorage.getItem(PERMS_CACHE_KEY)
     )
     if (cached) setPermissions(cached)
 
-    const { data } = await withTimeout(supabase
-      .from('profile_permissoes')
-      .select('*, permissoes(*)')
-      .eq('profile_id', session.user.id), 8000)
+    const { data, error } = await withTimeout(
+      supabase.rpc('get_my_permissions'),
+      8000
+    )
 
     if (!mounted.current) return
 
-    if (data) {
-      setPermissions(data)
-      localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(data))
-    }
+    if (error) return
+
+    const list = (data || []) as unknown as RbacPermission[]
+    setPermissions(list)
+    localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(list))
   }, [session])
 
   /* ================================
@@ -389,7 +406,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadPermissions,
     signOut,
 
-    isAdmin: profile?.cargo === 'ADMIN'
+    can: (modulo: string, acao: string) =>
+      !!permissions?.some(p => p.modulo === modulo && p.acao === acao),
+    isAdmin:
+      profile?.cargo === 'ADMIN' ||
+      !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && p.acao === 'MANAGE')
   }), [
     session,
     profile,

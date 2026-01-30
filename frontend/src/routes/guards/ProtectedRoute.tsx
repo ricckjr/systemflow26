@@ -2,7 +2,6 @@ import React from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import Layout from '@/components/layout/MainLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { ProfilePermissao } from '@/types'
 
 export default function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   const {
@@ -92,7 +91,7 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
   return (
     <Layout
       profile={profile}
-      perms={permissions as ProfilePermissao[]}
+      perms={undefined}
     >
       {children || <Outlet />}
     </Layout>

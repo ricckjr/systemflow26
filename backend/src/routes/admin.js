@@ -1,11 +1,37 @@
 const express = require('express');
 const { supabaseAdmin } = require('../supabase');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
-router.use(requireAdmin);
+router.use(requirePermission('CONFIGURACOES', 'MANAGE'));
+
+async function attachPerfisToUsers(users) {
+  const userIds = (users || []).map((u) => u.id).filter(Boolean);
+  if (userIds.length === 0) return users;
+
+  const { data, error } = await supabaseAdmin
+    .from('profile_perfis')
+    .select('user_id, perfil_id, perfis(perfil_nome, perfil_descricao)')
+    .in('user_id', userIds);
+
+  if (error) throw error;
+
+  const map = new Map();
+  (data || []).forEach((row) => {
+    map.set(row.user_id, {
+      perfil_id: row.perfil_id,
+      perfil_nome: row.perfis?.perfil_nome ?? null,
+      perfil_descricao: row.perfis?.perfil_descricao ?? null
+    });
+  });
+
+  return (users || []).map((u) => ({
+    ...u,
+    rbac_perfil: map.get(u.id) ?? null
+  }));
+}
 
 // === 1. LIST USERS ===
 router.get('/users', async (req, res) => {
@@ -27,8 +53,10 @@ router.get('/users', async (req, res) => {
 
     if (error) throw error;
 
+    const users = await attachPerfisToUsers(data);
+
     res.json({
-      users: data,
+      users,
       total: count,
       page: parseInt(page),
       totalPages: Math.ceil(count / limit)
@@ -50,7 +78,8 @@ router.get('/users/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    res.json(data);
+    const users = await attachPerfisToUsers([data]);
+    res.json(users[0] ?? data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -112,6 +141,31 @@ router.post('/users', async (req, res) => {
       // Clean up auth user to maintain consistency
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       throw profileError;
+    }
+
+    const perfilNome =
+      cargo === 'ADMIN'
+        ? 'ADMIN'
+        : cargo === 'FINANCEIRO'
+        ? 'FINANCEIRO'
+        : cargo === 'OFICINA' || cargo === 'TECNICO'
+        ? 'PRODUCAO'
+        : 'VENDEDOR';
+
+    const { data: perfilRow, error: perfilError } = await supabaseAdmin
+      .from('perfis')
+      .select('perfil_id')
+      .eq('perfil_nome', perfilNome)
+      .maybeSingle();
+
+    if (perfilError) throw perfilError;
+
+    if (perfilRow?.perfil_id) {
+      const { error: assignError } = await supabaseAdmin
+        .from('profile_perfis')
+        .upsert({ user_id: authData.user.id, perfil_id: perfilRow.perfil_id });
+
+      if (assignError) throw assignError;
     }
 
     res.status(201).json({ 
@@ -240,6 +294,181 @@ router.delete('/users/:id', async (req, res) => {
     // await supabaseAdmin.from('profiles').delete().eq('id', id);
 
     res.json({ message: 'Usuário excluído permanentemente' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/rbac/perfis', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('perfis')
+      .select('*')
+      .order('perfil_nome', { ascending: true });
+
+    if (error) throw error;
+    res.json({ perfis: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/rbac/perfis', async (req, res) => {
+  const { perfil_nome, perfil_descricao } = req.body || {};
+  if (!perfil_nome) return res.status(400).json({ error: 'perfil_nome é obrigatório' });
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('perfis')
+      .insert({ perfil_nome, perfil_descricao: perfil_descricao ?? null })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/rbac/perfis/:perfilId', async (req, res) => {
+  const { perfilId } = req.params;
+  const { perfil_nome, perfil_descricao } = req.body || {};
+
+  try {
+    const payload = {};
+    if (perfil_nome !== undefined) payload.perfil_nome = perfil_nome;
+    if (perfil_descricao !== undefined) payload.perfil_descricao = perfil_descricao;
+
+    const { data, error } = await supabaseAdmin
+      .from('perfis')
+      .update(payload)
+      .eq('perfil_id', perfilId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/rbac/perfis/:perfilId', async (req, res) => {
+  const { perfilId } = req.params;
+  try {
+    const { error } = await supabaseAdmin
+      .from('perfis')
+      .delete()
+      .eq('perfil_id', perfilId);
+
+    if (error) throw error;
+    res.json({ message: 'Perfil removido' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/rbac/permissoes', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('permissoes')
+      .select('*')
+      .order('modulo', { ascending: true })
+      .order('acao', { ascending: true });
+
+    if (error) throw error;
+    res.json({ permissoes: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/rbac/permissoes', async (req, res) => {
+  const { modulo, acao, descricao } = req.body || {};
+  if (!modulo || !acao) return res.status(400).json({ error: 'modulo e acao são obrigatórios' });
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('permissoes')
+      .insert({ modulo, acao, descricao: descricao ?? null })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/rbac/permissoes/:permissaoId', async (req, res) => {
+  const { permissaoId } = req.params;
+  try {
+    const { error } = await supabaseAdmin
+      .from('permissoes')
+      .delete()
+      .eq('permissao_id', permissaoId);
+
+    if (error) throw error;
+    res.json({ message: 'Permissão removida' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
+  const { perfilId } = req.params;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('perfil_permissoes')
+      .select('permissao_id, permissoes(modulo, acao, descricao)')
+      .eq('perfil_id', perfilId);
+
+    if (error) throw error;
+    res.json({ itens: data ?? [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
+  const { perfilId } = req.params;
+  const { permissao_ids } = req.body || {};
+  if (!Array.isArray(permissao_ids)) return res.status(400).json({ error: 'permissao_ids deve ser um array' });
+
+  try {
+    const { error: delError } = await supabaseAdmin
+      .from('perfil_permissoes')
+      .delete()
+      .eq('perfil_id', perfilId);
+
+    if (delError) throw delError;
+
+    const inserts = permissao_ids.map((permissao_id) => ({ perfil_id: perfilId, permissao_id }));
+    const { error: insError } = await supabaseAdmin
+      .from('perfil_permissoes')
+      .insert(inserts);
+
+    if (insError) throw insError;
+    res.json({ message: 'Permissões atualizadas' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/users/:id/perfil', async (req, res) => {
+  const { id } = req.params;
+  const { perfil_id } = req.body || {};
+  if (!perfil_id) return res.status(400).json({ error: 'perfil_id é obrigatório' });
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('profile_perfis')
+      .upsert({ user_id: id, perfil_id });
+
+    if (error) throw error;
+    res.json({ message: 'Perfil atribuído' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

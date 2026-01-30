@@ -4,6 +4,7 @@ import ProtectedRoute from './guards/ProtectedRoute'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import AuthCallback from '@/pages/AuthCallback'
 import RequireAdmin from './guards/RequireAdmin'
+import RequirePermission from './guards/RequirePermission'
 
 // Auth Pages
 import Login from '@/pages/Login'
@@ -68,20 +69,24 @@ export const router = createBrowserRouter([
       { path: 'dashboard/comercial', element: lazyElement(() => import('@/pages/dashboard/VisaoGeral'), 'Carregando Comercial...') },
 
       { path: 'crm/oportunidades-kanban', element: lazyElement(() => import('@/pages/CRM/OportunidadesKanban'), 'Carregando Kanban...') },
-      { path: 'crm/oportunidades', element: lazyElement(() => import('@/pages/CRM/Oportunidades'), 'Carregando Oportunidades...') },
-      { path: 'crm/vendedores', element: lazyElement(() => import('@/pages/CRM/Vendedores'), 'Carregando Vendedores...') },
-      { path: 'crm/propostas', element: lazyElement(() => import('@/pages/CRM/Propostas'), 'Carregando Propostas...') },
+      { path: 'crm/ranking', element: lazyElement(() => import('@/pages/CRM/Vendedores'), 'Carregando Ranking...') },
+      { path: 'crm/oportunidades', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
+      { path: 'crm/propostas', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
+      { path: 'crm/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
+      { path: 'crm/clientes', element: lazyElement(() => import('@/pages/Cadastros/Clientes'), 'Carregando Clientes...') },
 
-      { path: 'cadastros/clientes', element: lazyElement(() => import('@/pages/Cadastros/Clientes'), 'Carregando Clientes...') },
-      { path: 'cadastros/contatos', element: lazyElement(() => import('@/pages/Cadastros/Contatos'), 'Carregando Contatos...') },
-      { path: 'cadastros/fornecedores', element: lazyElement(() => import('@/pages/Cadastros/Fornecedores'), 'Carregando Fornecedores...') },
+      { path: 'cadastros/clientes', element: <Navigate to="/app/crm/clientes" replace /> },
+      { path: 'cadastros/contatos', element: <Navigate to="/app/crm/clientes" replace /> },
+      { path: 'cadastros/fornecedores', element: <Navigate to="/app/crm/clientes" replace /> },
+
+      { path: 'config-gerais/transportadora', element: lazyElement(() => import('@/pages/ConfigGerais/Transportadora'), 'Carregando Transportadora...') },
 
       {
         path: 'crm/configs/origem-leads',
         element: lazyElement(
           () => import('@/pages/CRM/Configs/OrigemLeads'),
           'Carregando Origem de Leads...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
         )
       },
       {
@@ -89,7 +94,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Motivos'),
           'Carregando Motivos...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
         )
       },
       {
@@ -97,7 +102,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Verticais'),
           'Carregando Verticais...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
         )
       },
       {
@@ -105,7 +110,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Produtos'),
           'Carregando Produtos...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
         )
       },
       {
@@ -113,13 +118,13 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Servicos'),
           'Carregando Serviços...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
         )
       },
 
       { path: 'comercial/overview', element: <Navigate to="/app/dashboard/comercial" replace /> },
-      { path: 'comercial/vendedores', element: <Navigate to="/app/crm/vendedores" replace /> },
-      { path: 'comercial/oportunidades', element: <Navigate to="/app/crm/oportunidades" replace /> },
+      { path: 'comercial/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
+      { path: 'comercial/oportunidades', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
 
       { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
       { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
@@ -142,18 +147,18 @@ export const router = createBrowserRouter([
       {
         path: 'configuracoes/usuarios',
         element: lazyElement(
-          () => import('@/pages/Configuracoes/Usuarios'),
+          () => import('@/pages/Configuracoes/UsuariosPage'),
           'Carregando Usuários...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="MANAGE">{node}</RequirePermission>
         )
       },
       { path: 'configuracoes/perfil', element: lazyElement(() => import('@/pages/Configuracoes/Perfil'), 'Carregando Perfil...') },
       {
         path: 'configuracoes/permissoes',
         element: lazyElement(
-          () => import('@/pages/Configuracoes/Permissoes'),
+          () => import('@/pages/Configuracoes/PermissoesPage'),
           'Carregando Permissões...',
-          (node) => <RequireAdmin>{node}</RequireAdmin>
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="MANAGE">{node}</RequirePermission>
         )
       },
 

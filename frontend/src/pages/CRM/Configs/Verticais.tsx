@@ -11,22 +11,22 @@ export default function Verticais() {
       fetchItems={async () => {
         const data = await fetchCrmVerticais()
         return data.map(v => ({
-          id: v.id_vert,
-          id_integ: v.id_integ,
+          id: v.vert_id,
+          id_integ: v.integ_id,
           descricao: v.descricao_vert,
           obs: v.obs_ver
         }))
       }}
       createItem={async payload => {
         await createCrmVertical({
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_vert: payload.descricao,
           obs_ver: payload.obs
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmVertical(id, {
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_vert: payload.descricao,
           obs_ver: payload.obs
         })

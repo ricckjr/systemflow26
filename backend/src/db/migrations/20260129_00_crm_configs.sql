@@ -6,8 +6,8 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS public.crm_motivos (
-  id_motiv UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_integ TEXT UNIQUE,
+  motiv_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integ_id TEXT UNIQUE,
   descricao_motiv TEXT NOT NULL,
   obs_motiv TEXT,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS public.crm_motivos (
 );
 
 CREATE TABLE IF NOT EXISTS public.crm_origem_leads (
-  id_orig UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_integ TEXT UNIQUE,
+  orig_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integ_id TEXT UNIQUE,
   descricao_orig TEXT NOT NULL,
   obs_orig TEXT,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -24,26 +24,28 @@ CREATE TABLE IF NOT EXISTS public.crm_origem_leads (
 );
 
 CREATE TABLE IF NOT EXISTS public.crm_produtos (
-  id_prod UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_integ TEXT UNIQUE,
+  prod_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integ_id TEXT UNIQUE,
   descricao_prod TEXT NOT NULL,
   obs_prod TEXT,
+  produto_valor NUMERIC(15, 2) NOT NULL DEFAULT 0,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.crm_servicos (
-  id_serv UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_integ TEXT UNIQUE,
+  serv_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integ_id TEXT UNIQUE,
   descricao_serv TEXT NOT NULL,
   obs_serv TEXT,
+  servicos_valor NUMERIC(15, 2) NOT NULL DEFAULT 0,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.crm_verticais (
-  id_vert UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  id_integ TEXT UNIQUE,
+  vert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  integ_id TEXT UNIQUE,
   descricao_vert TEXT NOT NULL,
   obs_ver TEXT,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -121,4 +123,3 @@ CREATE INDEX IF NOT EXISTS idx_crm_servicos_descricao ON public.crm_servicos(des
 CREATE INDEX IF NOT EXISTS idx_crm_verticais_descricao ON public.crm_verticais(descricao_vert);
 
 COMMIT;
-

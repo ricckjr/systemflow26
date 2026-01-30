@@ -11,22 +11,22 @@ export default function Motivos() {
       fetchItems={async () => {
         const data = await fetchCrmMotivos()
         return data.map(m => ({
-          id: m.id_motiv,
-          id_integ: m.id_integ,
+          id: m.motiv_id,
+          id_integ: m.integ_id,
           descricao: m.descricao_motiv,
           obs: m.obs_motiv
         }))
       }}
       createItem={async payload => {
         await createCrmMotivo({
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_motiv: payload.descricao,
           obs_motiv: payload.obs
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmMotivo(id, {
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_motiv: payload.descricao,
           obs_motiv: payload.obs
         })

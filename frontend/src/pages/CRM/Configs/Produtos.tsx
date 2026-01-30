@@ -11,22 +11,23 @@ export default function Produtos() {
       fetchItems={async () => {
         const data = await fetchCrmProdutos()
         return data.map(p => ({
-          id: p.id_prod,
-          id_integ: p.id_integ,
+          id: p.prod_id,
+          id_integ: p.integ_id,
           descricao: p.descricao_prod,
           obs: p.obs_prod
         }))
       }}
       createItem={async payload => {
         await createCrmProduto({
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_prod: payload.descricao,
-          obs_prod: payload.obs
+          obs_prod: payload.obs,
+          produto_valor: 0
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmProduto(id, {
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_prod: payload.descricao,
           obs_prod: payload.obs
         })

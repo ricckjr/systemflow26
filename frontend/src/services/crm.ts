@@ -152,6 +152,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     .order('data_inclusao', { ascending: !orderDesc })
 
   if (error) {
+    if (error.code === '42P01') return []
     console.error('Erro ao buscar oportunidades:', error)
     return []
   }
@@ -167,7 +168,10 @@ export async function updateOportunidade(id: string, updates: Partial<CRM_Oportu
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
+    throw error
+  }
   return data as CRM_Oportunidade
 }
 
@@ -310,8 +314,8 @@ export async function updateMeta(
 }
 
 export interface CRM_Motivo {
-  id_motiv: string
-  id_integ: string | null
+  motiv_id: string
+  integ_id: string | null
   descricao_motiv: string
   obs_motiv: string | null
   criado_em: string | null
@@ -319,8 +323,8 @@ export interface CRM_Motivo {
 }
 
 export interface CRM_OrigemLead {
-  id_orig: string
-  id_integ: string | null
+  orig_id: string
+  integ_id: string | null
   descricao_orig: string
   obs_orig: string | null
   criado_em: string | null
@@ -328,26 +332,28 @@ export interface CRM_OrigemLead {
 }
 
 export interface CRM_Produto {
-  id_prod: string
-  id_integ: string | null
+  prod_id: string
+  integ_id: string | null
   descricao_prod: string
   obs_prod: string | null
+  produto_valor: number | null
   criado_em: string | null
   atualizado_em: string | null
 }
 
 export interface CRM_Servico {
-  id_serv: string
-  id_integ: string | null
+  serv_id: string
+  integ_id: string | null
   descricao_serv: string
   obs_serv: string | null
+  servicos_valor: number | null
   criado_em: string | null
   atualizado_em: string | null
 }
 
 export interface CRM_Vertical {
-  id_vert: string
-  id_integ: string | null
+  vert_id: string
+  integ_id: string | null
   descricao_vert: string
   obs_ver: string | null
   criado_em: string | null
@@ -360,7 +366,7 @@ const sb = supabase as any
 export async function fetchCrmMotivos() {
   const { data, error } = await sb
     .from('crm_motivos')
-    .select('id_motiv, id_integ, descricao_motiv, obs_motiv, criado_em, atualizado_em')
+    .select('motiv_id, integ_id, descricao_motiv, obs_motiv, criado_em, atualizado_em')
     .order('descricao_motiv', { ascending: true })
 
   if (error) {
@@ -372,27 +378,27 @@ export async function fetchCrmMotivos() {
   return data as CRM_Motivo[]
 }
 
-export async function createCrmMotivo(payload: Pick<CRM_Motivo, 'id_integ' | 'descricao_motiv' | 'obs_motiv'>) {
+export async function createCrmMotivo(payload: Pick<CRM_Motivo, 'integ_id' | 'descricao_motiv' | 'obs_motiv'>) {
   const { data, error } = await sb
     .from('crm_motivos')
     .insert({
-      id_integ: payload.id_integ || null,
+      integ_id: payload.integ_id || null,
       descricao_motiv: payload.descricao_motiv,
       obs_motiv: payload.obs_motiv || null
     })
-    .select('id_motiv, id_integ, descricao_motiv, obs_motiv, criado_em, atualizado_em')
+    .select('motiv_id, integ_id, descricao_motiv, obs_motiv, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
   return data as CRM_Motivo
 }
 
-export async function updateCrmMotivo(id: string, updates: Partial<Pick<CRM_Motivo, 'id_integ' | 'descricao_motiv' | 'obs_motiv'>>) {
+export async function updateCrmMotivo(id: string, updates: Partial<Pick<CRM_Motivo, 'integ_id' | 'descricao_motiv' | 'obs_motiv'>>) {
   const { data, error } = await sb
     .from('crm_motivos')
     .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('id_motiv', id)
-    .select('id_motiv, id_integ, descricao_motiv, obs_motiv, criado_em, atualizado_em')
+    .eq('motiv_id', id)
+    .select('motiv_id, integ_id, descricao_motiv, obs_motiv, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
@@ -400,14 +406,14 @@ export async function updateCrmMotivo(id: string, updates: Partial<Pick<CRM_Moti
 }
 
 export async function deleteCrmMotivo(id: string) {
-  const { error } = await sb.from('crm_motivos').delete().eq('id_motiv', id)
+  const { error } = await sb.from('crm_motivos').delete().eq('motiv_id', id)
   if (error) throw error
 }
 
 export async function fetchCrmOrigensLead() {
   const { data, error } = await sb
     .from('crm_origem_leads')
-    .select('id_orig, id_integ, descricao_orig, obs_orig, criado_em, atualizado_em')
+    .select('orig_id, integ_id, descricao_orig, obs_orig, criado_em, atualizado_em')
     .order('descricao_orig', { ascending: true })
 
   if (error) {
@@ -419,27 +425,27 @@ export async function fetchCrmOrigensLead() {
   return data as CRM_OrigemLead[]
 }
 
-export async function createCrmOrigemLead(payload: Pick<CRM_OrigemLead, 'id_integ' | 'descricao_orig' | 'obs_orig'>) {
+export async function createCrmOrigemLead(payload: Pick<CRM_OrigemLead, 'integ_id' | 'descricao_orig' | 'obs_orig'>) {
   const { data, error } = await sb
     .from('crm_origem_leads')
     .insert({
-      id_integ: payload.id_integ || null,
+      integ_id: payload.integ_id || null,
       descricao_orig: payload.descricao_orig,
       obs_orig: payload.obs_orig || null
     })
-    .select('id_orig, id_integ, descricao_orig, obs_orig, criado_em, atualizado_em')
+    .select('orig_id, integ_id, descricao_orig, obs_orig, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
   return data as CRM_OrigemLead
 }
 
-export async function updateCrmOrigemLead(id: string, updates: Partial<Pick<CRM_OrigemLead, 'id_integ' | 'descricao_orig' | 'obs_orig'>>) {
+export async function updateCrmOrigemLead(id: string, updates: Partial<Pick<CRM_OrigemLead, 'integ_id' | 'descricao_orig' | 'obs_orig'>>) {
   const { data, error } = await sb
     .from('crm_origem_leads')
     .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('id_orig', id)
-    .select('id_orig, id_integ, descricao_orig, obs_orig, criado_em, atualizado_em')
+    .eq('orig_id', id)
+    .select('orig_id, integ_id, descricao_orig, obs_orig, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
@@ -447,14 +453,14 @@ export async function updateCrmOrigemLead(id: string, updates: Partial<Pick<CRM_
 }
 
 export async function deleteCrmOrigemLead(id: string) {
-  const { error } = await sb.from('crm_origem_leads').delete().eq('id_orig', id)
+  const { error } = await sb.from('crm_origem_leads').delete().eq('orig_id', id)
   if (error) throw error
 }
 
 export async function fetchCrmProdutos() {
   const { data, error } = await sb
     .from('crm_produtos')
-    .select('id_prod, id_integ, descricao_prod, obs_prod, criado_em, atualizado_em')
+    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
     .order('descricao_prod', { ascending: true })
 
   if (error) {
@@ -466,27 +472,31 @@ export async function fetchCrmProdutos() {
   return data as CRM_Produto[]
 }
 
-export async function createCrmProduto(payload: Pick<CRM_Produto, 'id_integ' | 'descricao_prod' | 'obs_prod'>) {
+export async function createCrmProduto(payload: Pick<CRM_Produto, 'integ_id' | 'descricao_prod' | 'obs_prod' | 'produto_valor'>) {
   const { data, error } = await sb
     .from('crm_produtos')
     .insert({
-      id_integ: payload.id_integ || null,
+      integ_id: payload.integ_id || null,
       descricao_prod: payload.descricao_prod,
-      obs_prod: payload.obs_prod || null
+      obs_prod: payload.obs_prod || null,
+      produto_valor: payload.produto_valor ?? 0
     })
-    .select('id_prod, id_integ, descricao_prod, obs_prod, criado_em, atualizado_em')
+    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
   return data as CRM_Produto
 }
 
-export async function updateCrmProduto(id: string, updates: Partial<Pick<CRM_Produto, 'id_integ' | 'descricao_prod' | 'obs_prod'>>) {
+export async function updateCrmProduto(
+  id: string,
+  updates: Partial<Pick<CRM_Produto, 'integ_id' | 'descricao_prod' | 'obs_prod' | 'produto_valor'>>
+) {
   const { data, error } = await sb
     .from('crm_produtos')
     .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('id_prod', id)
-    .select('id_prod, id_integ, descricao_prod, obs_prod, criado_em, atualizado_em')
+    .eq('prod_id', id)
+    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
@@ -494,14 +504,14 @@ export async function updateCrmProduto(id: string, updates: Partial<Pick<CRM_Pro
 }
 
 export async function deleteCrmProduto(id: string) {
-  const { error } = await sb.from('crm_produtos').delete().eq('id_prod', id)
+  const { error } = await sb.from('crm_produtos').delete().eq('prod_id', id)
   if (error) throw error
 }
 
 export async function fetchCrmServicos() {
   const { data, error } = await sb
     .from('crm_servicos')
-    .select('id_serv, id_integ, descricao_serv, obs_serv, criado_em, atualizado_em')
+    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
     .order('descricao_serv', { ascending: true })
 
   if (error) {
@@ -513,27 +523,31 @@ export async function fetchCrmServicos() {
   return data as CRM_Servico[]
 }
 
-export async function createCrmServico(payload: Pick<CRM_Servico, 'id_integ' | 'descricao_serv' | 'obs_serv'>) {
+export async function createCrmServico(payload: Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor'>) {
   const { data, error } = await sb
     .from('crm_servicos')
     .insert({
-      id_integ: payload.id_integ || null,
+      integ_id: payload.integ_id || null,
       descricao_serv: payload.descricao_serv,
-      obs_serv: payload.obs_serv || null
+      obs_serv: payload.obs_serv || null,
+      servicos_valor: payload.servicos_valor ?? 0
     })
-    .select('id_serv, id_integ, descricao_serv, obs_serv, criado_em, atualizado_em')
+    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
   return data as CRM_Servico
 }
 
-export async function updateCrmServico(id: string, updates: Partial<Pick<CRM_Servico, 'id_integ' | 'descricao_serv' | 'obs_serv'>>) {
+export async function updateCrmServico(
+  id: string,
+  updates: Partial<Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor'>>
+) {
   const { data, error } = await sb
     .from('crm_servicos')
     .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('id_serv', id)
-    .select('id_serv, id_integ, descricao_serv, obs_serv, criado_em, atualizado_em')
+    .eq('serv_id', id)
+    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
@@ -541,14 +555,14 @@ export async function updateCrmServico(id: string, updates: Partial<Pick<CRM_Ser
 }
 
 export async function deleteCrmServico(id: string) {
-  const { error } = await sb.from('crm_servicos').delete().eq('id_serv', id)
+  const { error } = await sb.from('crm_servicos').delete().eq('serv_id', id)
   if (error) throw error
 }
 
 export async function fetchCrmVerticais() {
   const { data, error } = await sb
     .from('crm_verticais')
-    .select('id_vert, id_integ, descricao_vert, obs_ver, criado_em, atualizado_em')
+    .select('vert_id, integ_id, descricao_vert, obs_ver, criado_em, atualizado_em')
     .order('descricao_vert', { ascending: true })
 
   if (error) {
@@ -560,27 +574,27 @@ export async function fetchCrmVerticais() {
   return data as CRM_Vertical[]
 }
 
-export async function createCrmVertical(payload: Pick<CRM_Vertical, 'id_integ' | 'descricao_vert' | 'obs_ver'>) {
+export async function createCrmVertical(payload: Pick<CRM_Vertical, 'integ_id' | 'descricao_vert' | 'obs_ver'>) {
   const { data, error } = await sb
     .from('crm_verticais')
     .insert({
-      id_integ: payload.id_integ || null,
+      integ_id: payload.integ_id || null,
       descricao_vert: payload.descricao_vert,
       obs_ver: payload.obs_ver || null
     })
-    .select('id_vert, id_integ, descricao_vert, obs_ver, criado_em, atualizado_em')
+    .select('vert_id, integ_id, descricao_vert, obs_ver, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
   return data as CRM_Vertical
 }
 
-export async function updateCrmVertical(id: string, updates: Partial<Pick<CRM_Vertical, 'id_integ' | 'descricao_vert' | 'obs_ver'>>) {
+export async function updateCrmVertical(id: string, updates: Partial<Pick<CRM_Vertical, 'integ_id' | 'descricao_vert' | 'obs_ver'>>) {
   const { data, error } = await sb
     .from('crm_verticais')
     .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('id_vert', id)
-    .select('id_vert, id_integ, descricao_vert, obs_ver, criado_em, atualizado_em')
+    .eq('vert_id', id)
+    .select('vert_id, integ_id, descricao_vert, obs_ver, criado_em, atualizado_em')
     .single()
 
   if (error) throw error
@@ -588,6 +602,6 @@ export async function updateCrmVertical(id: string, updates: Partial<Pick<CRM_Ve
 }
 
 export async function deleteCrmVertical(id: string) {
-  const { error } = await sb.from('crm_verticais').delete().eq('id_vert', id)
+  const { error } = await sb.from('crm_verticais').delete().eq('vert_id', id)
   if (error) throw error
 }

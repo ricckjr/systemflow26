@@ -11,22 +11,23 @@ export default function Servicos() {
       fetchItems={async () => {
         const data = await fetchCrmServicos()
         return data.map(s => ({
-          id: s.id_serv,
-          id_integ: s.id_integ,
+          id: s.serv_id,
+          id_integ: s.integ_id,
           descricao: s.descricao_serv,
           obs: s.obs_serv
         }))
       }}
       createItem={async payload => {
         await createCrmServico({
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_serv: payload.descricao,
-          obs_serv: payload.obs
+          obs_serv: payload.obs,
+          servicos_valor: 0
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmServico(id, {
-          id_integ: payload.id_integ,
+          integ_id: payload.id_integ,
           descricao_serv: payload.descricao,
           obs_serv: payload.obs
         })

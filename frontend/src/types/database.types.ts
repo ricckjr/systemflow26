@@ -114,6 +114,167 @@ export interface Database {
         }
         Relationships: []
       }
+      clientes: {
+        Row: {
+          cliente_id: string
+          integ_id: string | null
+          cliente_nome_razao_social: string
+          cliente_nome_fantasia: string | null
+          cliente_documento: string | null
+          cliente_tipo_pessoa: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
+          cliente_vertical: string | null
+          cliente_email: string | null
+          cliente_telefone: string | null
+          cliente_cep: string | null
+          cliente_endereco: string | null
+          cliente_numero: string | null
+          cliente_complemento: string | null
+          cliente_bairro: string | null
+          cliente_cidade: string | null
+          cliente_uf: string | null
+          cliente_pais: string
+          cliente_inscricao_estadual: string | null
+          cliente_inscricao_municipal: string | null
+          cliente_optante_simples_nacional: boolean
+          cliente_regime_tributario: Database["public"]["Enums"]["cliente_regime_tributario_enum"] | null
+          cliente_website: string | null
+          cliente_instagram: string | null
+          cliente_facebook: string | null
+          cliente_linkedin: string | null
+          cliente_origem_lead: string | null
+          cliente_tags: string[]
+          cliente_observacoes: string | null
+          user_id: string | null
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          cliente_id?: string
+          integ_id?: string | null
+          cliente_nome_razao_social: string
+          cliente_nome_fantasia?: string | null
+          cliente_documento?: string | null
+          cliente_tipo_pessoa: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
+          cliente_vertical?: string | null
+          cliente_email?: string | null
+          cliente_telefone?: string | null
+          cliente_cep?: string | null
+          cliente_endereco?: string | null
+          cliente_numero?: string | null
+          cliente_complemento?: string | null
+          cliente_bairro?: string | null
+          cliente_cidade?: string | null
+          cliente_uf?: string | null
+          cliente_pais?: string
+          cliente_inscricao_estadual?: string | null
+          cliente_inscricao_municipal?: string | null
+          cliente_optante_simples_nacional?: boolean
+          cliente_regime_tributario?: Database["public"]["Enums"]["cliente_regime_tributario_enum"] | null
+          cliente_website?: string | null
+          cliente_instagram?: string | null
+          cliente_facebook?: string | null
+          cliente_linkedin?: string | null
+          cliente_origem_lead?: string | null
+          cliente_tags?: string[]
+          cliente_observacoes?: string | null
+          user_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          integ_id?: string | null
+          cliente_nome_razao_social?: string
+          cliente_nome_fantasia?: string | null
+          cliente_documento?: string | null
+          cliente_tipo_pessoa?: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
+          cliente_vertical?: string | null
+          cliente_email?: string | null
+          cliente_telefone?: string | null
+          cliente_cep?: string | null
+          cliente_endereco?: string | null
+          cliente_numero?: string | null
+          cliente_complemento?: string | null
+          cliente_bairro?: string | null
+          cliente_cidade?: string | null
+          cliente_uf?: string | null
+          cliente_pais?: string
+          cliente_inscricao_estadual?: string | null
+          cliente_inscricao_municipal?: string | null
+          cliente_optante_simples_nacional?: boolean
+          cliente_regime_tributario?: Database["public"]["Enums"]["cliente_regime_tributario_enum"] | null
+          cliente_website?: string | null
+          cliente_instagram?: string | null
+          cliente_facebook?: string | null
+          cliente_linkedin?: string | null
+          cliente_origem_lead?: string | null
+          cliente_tags?: string[]
+          cliente_observacoes?: string | null
+          user_id?: string | null
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
+      clientes_contatos: {
+        Row: {
+          contato_id: string
+          integ_id: string | null
+          cliente_id: string
+          contato_nome: string
+          contato_cargo: string | null
+          contato_telefone01: string | null
+          contato_telefone02: string | null
+          contato_email: string | null
+          user_id: string | null
+          contato_obs: string | null
+          data_inclusao: string
+          data_atualizacao: string
+          deleted_at: string | null
+        }
+        Insert: {
+          contato_id?: string
+          integ_id?: string | null
+          cliente_id: string
+          contato_nome: string
+          contato_cargo?: string | null
+          contato_telefone01?: string | null
+          contato_telefone02?: string | null
+          contato_email?: string | null
+          user_id?: string | null
+          contato_obs?: string | null
+          data_inclusao?: string
+          data_atualizacao?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          contato_id?: string
+          integ_id?: string | null
+          cliente_id?: string
+          contato_nome?: string
+          contato_cargo?: string | null
+          contato_telefone01?: string | null
+          contato_telefone02?: string | null
+          contato_email?: string | null
+          user_id?: string | null
+          contato_obs?: string | null
+          data_inclusao?: string
+          data_atualizacao?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_contatos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["cliente_id"]
+          },
+        ]
+      }
       crm_pabx_ligacoes: {
         Row: {
           id_user: string
@@ -1299,7 +1460,8 @@ export interface Database {
       }
     }
     Enums: {
-      [_ in never]: never
+      cliente_regime_tributario_enum: "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL"
+      cliente_tipo_pessoa_enum: "FISICA" | "JURIDICA"
     }
     CompositeTypes: {
       [_ in never]: never

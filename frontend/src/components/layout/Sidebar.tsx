@@ -24,6 +24,7 @@ interface NavItem {
   icon: React.ElementType;
   path?: string;
   modulo?: string;
+  requires?: { modulo: string; acao: string };
   subItems?: NavSubItem[];
 }
 
@@ -31,6 +32,7 @@ interface NavSubItem {
   label: string;
   submodulo: string;
   path?: string;
+  requires?: { modulo: string; acao: string };
   subItems?: { label: string; path: string; submodulo: string }[];
 }
 
@@ -39,6 +41,7 @@ const navItems: NavItem[] = [
     label: 'DASHBOARD',
     icon: LayoutDashboard,
     modulo: 'dashboard',
+    requires: { modulo: 'DASHBOARD', acao: 'VIEW' },
     subItems: [
       { label: 'Comercial', path: '/app/dashboard/comercial', submodulo: 'comercial' },
     ],
@@ -58,6 +61,7 @@ const navItems: NavItem[] = [
     label: 'UNIVERSIDADE',
     icon: GraduationCap,
     modulo: 'universidade',
+    requires: { modulo: 'UNIVERSIDADE', acao: 'VIEW' },
     subItems: [
       { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
       { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
@@ -69,6 +73,7 @@ const navItems: NavItem[] = [
     label: 'CRM',
     icon: Briefcase,
     modulo: 'crm',
+    requires: { modulo: 'CRM', acao: 'VIEW' },
     subItems: [
       { label: 'Oportunidades (Kanban)', path: '/app/crm/oportunidades-kanban', submodulo: 'oportunidades-kanban' },
       { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
@@ -79,6 +84,7 @@ const navItems: NavItem[] = [
     label: 'PRODUÇÃO',
     icon: Factory,
     modulo: 'producao',
+    requires: { modulo: 'PRODUCAO', acao: 'VIEW' },
     subItems: [
       { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
       { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
@@ -89,6 +95,7 @@ const navItems: NavItem[] = [
     label: 'FROTA',
     icon: Car,
     modulo: 'frota',
+    requires: { modulo: 'FROTA', acao: 'VIEW' },
     subItems: [
       { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
       { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
@@ -98,6 +105,7 @@ const navItems: NavItem[] = [
     label: 'SMARTFLOW',
     icon: MessageSquare,
     modulo: 'smartflow',
+    requires: { modulo: 'SMARTFLOW', acao: 'VIEW' },
     subItems: [
       { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
       { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
@@ -107,15 +115,16 @@ const navItems: NavItem[] = [
     label: 'CONFIG GERAIS',
     icon: Settings,
     modulo: 'config-gerais',
+    requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' },
     subItems: [
-      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios' },
-      { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes' },
+      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Transportadora', path: '/app/config-gerais/transportadora', submodulo: 'transportadora' },
-      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos' },
-      { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos' },
-      { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos' },
-      { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais' },
-      { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads' },
+      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },
     ],
   },
 ];
@@ -135,10 +144,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsExpanded,
   profile,
 }) => {
-  const { signOut } = useAuth();
+  const { signOut, permissions, can } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { hasAnyChatUnread } = useNotifications();
+
+  const canSee = useMemo(() => {
+    if (!permissions) return (_modulo: string, _acao: string) => false
+    return (modulo: string, acao: string) => can(modulo, acao)
+  }, [can, permissions])
+
+  const visibleNavItems = useMemo(() => {
+    return navItems
+      .filter((item) => {
+        if (!item.requires) return true
+        return canSee(item.requires.modulo, item.requires.acao)
+      })
+      .map((item) => {
+        if (!item.subItems?.length) return item
+        const subItems = item.subItems.filter((sub) => {
+          if (!sub.requires) return true
+          return canSee(sub.requires.modulo, sub.requires.acao)
+        })
+        return { ...item, subItems }
+      })
+      .filter((item) => (item.subItems?.length ?? 0) > 0)
+  }, [canSee])
 
   const hasActivePath = (item: NavItem, pathname: string) => {
     return (
@@ -150,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>(() => {
-    const active = navItems.find((item) =>
+    const active = visibleNavItems.find((item) =>
       hasActivePath(item, location.pathname)
     );
     return active?.label ?? null;
@@ -161,11 +192,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const showText = !isCollapsed || isMobileMenuOpen;
 
   const activeMenuLabel = useMemo(() => {
-    const active = navItems.find((item) =>
+    const active = visibleNavItems.find((item) =>
       hasActivePath(item, location.pathname)
     );
     return active?.label ?? null;
-  }, [location.pathname]);
+  }, [location.pathname, visibleNavItems]);
 
   useEffect(() => {
     if (!showText) {
@@ -177,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     if (!showText) return
-    const menu = navItems.find((it) => it.label === activeMenuLabel)
+    const menu = visibleNavItems.find((it) => it.label === activeMenuLabel)
     if (!menu?.subItems) return
 
     const activeGroup = menu.subItems.find((si) =>
@@ -244,7 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <nav className={`flex-1 py-6 overflow-y-auto custom-scrollbar space-y-1 bg-[#0F172A]
         ${showText ? 'px-4' : 'px-2'}`}>
         
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isExpanded = expandedMenu === item.label;
           const hasActiveChild = hasActivePath(item, location.pathname);
           const isActive = hasActiveChild || isExpanded;

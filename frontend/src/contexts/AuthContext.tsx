@@ -406,11 +406,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadPermissions,
     signOut,
 
-    can: (modulo: string, acao: string) =>
-      !!permissions?.some(p => p.modulo === modulo && p.acao === acao),
+    can: (modulo: string, acao: string) => {
+      const list = permissions ?? []
+      if (acao === 'VIEW') {
+        return list.some(p => p.modulo === modulo && (p.acao === 'VIEW' || p.acao === 'EDIT' || p.acao === 'CONTROL'))
+      }
+      if (acao === 'EDIT') {
+        return list.some(p => p.modulo === modulo && (p.acao === 'EDIT' || p.acao === 'CONTROL'))
+      }
+      if (acao === 'CONTROL') {
+        return list.some(p => p.modulo === modulo && p.acao === 'CONTROL')
+      }
+      return list.some(p => p.modulo === modulo && p.acao === acao)
+    },
     isAdmin:
       profile?.cargo === 'ADMIN' ||
-      !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && p.acao === 'MANAGE')
+      !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && p.acao === 'CONTROL')
   }), [
     session,
     profile,

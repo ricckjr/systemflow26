@@ -66,27 +66,62 @@ export const router = createBrowserRouter([
       { path: 'comunidade/chat', element: lazyElement(() => import('@/pages/Comunicacao/ChatInterno'), 'Carregando Chat...') },
       { path: 'comunidade/calendario', element: lazyElement(() => import('@/pages/Comunidade/Calendario'), 'Carregando Calendário...') },
 
-      { path: 'dashboard/comercial', element: lazyElement(() => import('@/pages/dashboard/VisaoGeral'), 'Carregando Comercial...') },
+      {
+        path: 'dashboard/comercial',
+        element: lazyElement(
+          () => import('@/pages/dashboard/VisaoGeral'),
+          'Carregando Comercial...',
+          (node) => <RequirePermission modulo="DASHBOARD" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
-      { path: 'crm/oportunidades-kanban', element: lazyElement(() => import('@/pages/CRM/OportunidadesKanban'), 'Carregando Kanban...') },
-      { path: 'crm/ranking', element: lazyElement(() => import('@/pages/CRM/Vendedores'), 'Carregando Ranking...') },
+      {
+        path: 'crm/oportunidades-kanban',
+        element: lazyElement(
+          () => import('@/pages/CRM/OportunidadesKanban'),
+          'Carregando Kanban...',
+          (node) => <RequirePermission modulo="CRM" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'crm/ranking',
+        element: lazyElement(
+          () => import('@/pages/CRM/Vendedores'),
+          'Carregando Ranking...',
+          (node) => <RequirePermission modulo="CRM" acao="VIEW">{node}</RequirePermission>
+        )
+      },
       { path: 'crm/oportunidades', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
       { path: 'crm/propostas', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
       { path: 'crm/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
-      { path: 'crm/clientes', element: lazyElement(() => import('@/pages/Cadastros/Clientes'), 'Carregando Clientes...') },
+      {
+        path: 'crm/clientes',
+        element: lazyElement(
+          () => import('@/pages/Cadastros/Clientes'),
+          'Carregando Clientes...',
+          (node) => <RequirePermission modulo="CRM" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
       { path: 'cadastros/clientes', element: <Navigate to="/app/crm/clientes" replace /> },
       { path: 'cadastros/contatos', element: <Navigate to="/app/crm/clientes" replace /> },
       { path: 'cadastros/fornecedores', element: <Navigate to="/app/crm/clientes" replace /> },
 
-      { path: 'config-gerais/transportadora', element: lazyElement(() => import('@/pages/ConfigGerais/Transportadora'), 'Carregando Transportadora...') },
+      {
+        path: 'config-gerais/transportadora',
+        element: lazyElement(
+          () => import('@/pages/ConfigGerais/Transportadora'),
+          'Carregando Transportadora...',
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
       {
         path: 'crm/configs/origem-leads',
         element: lazyElement(
           () => import('@/pages/CRM/Configs/OrigemLeads'),
           'Carregando Origem de Leads...',
-          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
       {
@@ -94,7 +129,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Motivos'),
           'Carregando Motivos...',
-          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
       {
@@ -102,7 +137,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Verticais'),
           'Carregando Verticais...',
-          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
       {
@@ -110,7 +145,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Produtos'),
           'Carregando Produtos...',
-          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
       {
@@ -118,7 +153,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/CRM/Configs/Servicos'),
           'Carregando Serviços...',
-          (node) => <RequirePermission modulo="CRM" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
 
@@ -132,24 +167,80 @@ export const router = createBrowserRouter([
 
       { path: 'producao/omie', element: <Navigate to="/app/producao/propostas" replace /> },
       { path: 'producao/servicos-vendas', element: <Navigate to="/app/producao/propostas" replace /> },
-      { path: 'producao/propostas', element: lazyElement(() => import('@/pages/CRM/Propostas'), 'Carregando Propostas...') },
+      {
+        path: 'producao/propostas',
+        element: lazyElement(
+          () => import('@/pages/CRM/Propostas'),
+          'Carregando Propostas...',
+          (node) => <RequirePermission modulo="PRODUCAO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
       { path: 'producao/servicos', element: <Navigate to="/app/producao/ordens-servico" replace /> },
-      { path: 'producao/ordens-servico', element: lazyElement(() => import('@/pages/Producao/OrdensServico'), 'Carregando Ordens de Serviço...') },
-      { path: 'producao/equipamentos', element: lazyElement(() => import('@/pages/Producao/Equipamentos'), 'Carregando Equipamentos...') },
-      { path: 'producao/certificado-garantia', element: lazyElement(() => import('@/pages/Producao/CertificadoGarantia'), 'Carregando Certificado garantia...') },
+      {
+        path: 'producao/ordens-servico',
+        element: lazyElement(
+          () => import('@/pages/Producao/OrdensServico'),
+          'Carregando Ordens de Serviço...',
+          (node) => <RequirePermission modulo="PRODUCAO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'producao/equipamentos',
+        element: lazyElement(
+          () => import('@/pages/Producao/Equipamentos'),
+          'Carregando Equipamentos...',
+          (node) => <RequirePermission modulo="PRODUCAO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'producao/certificado-garantia',
+        element: lazyElement(
+          () => import('@/pages/Producao/CertificadoGarantia'),
+          'Carregando Certificado garantia...',
+          (node) => <RequirePermission modulo="PRODUCAO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
-      { path: 'frota/veiculos', element: lazyElement(() => import('@/pages/Frota/Veiculos.tsx'), 'Carregando Veículos...') },
-      { path: 'frota/diario-de-bordo', element: lazyElement(() => import('@/pages/Frota/DiarioBordo.tsx'), 'Carregando Diário de Bordo...') },
+      {
+        path: 'frota/veiculos',
+        element: lazyElement(
+          () => import('@/pages/Frota/Veiculos.tsx'),
+          'Carregando Veículos...',
+          (node) => <RequirePermission modulo="FROTA" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'frota/diario-de-bordo',
+        element: lazyElement(
+          () => import('@/pages/Frota/DiarioBordo.tsx'),
+          'Carregando Diário de Bordo...',
+          (node) => <RequirePermission modulo="FROTA" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
-      { path: 'smartflow/atendimentos', element: lazyElement(() => import('@/pages/Comunicacao/FlowSmart'), 'Carregando Atendimentos...') },
-      { path: 'smartflow/kanban-fluxos', element: lazyElement(() => import('@/pages/SmartFlow/KanbanFluxos'), 'Carregando Kanban de Fluxos...') },
+      {
+        path: 'smartflow/atendimentos',
+        element: lazyElement(
+          () => import('@/pages/Comunicacao/FlowSmart'),
+          'Carregando Atendimentos...',
+          (node) => <RequirePermission modulo="SMARTFLOW" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'smartflow/kanban-fluxos',
+        element: lazyElement(
+          () => import('@/pages/SmartFlow/KanbanFluxos'),
+          'Carregando Kanban de Fluxos...',
+          (node) => <RequirePermission modulo="SMARTFLOW" acao="VIEW">{node}</RequirePermission>
+        )
+      },
 
       {
         path: 'configuracoes/usuarios',
         element: lazyElement(
           () => import('@/pages/Configuracoes/UsuariosPage'),
           'Carregando Usuários...',
-          (node) => <RequirePermission modulo="CONFIGURACOES" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="CONTROL">{node}</RequirePermission>
         )
       },
       { path: 'configuracoes/perfil', element: lazyElement(() => import('@/pages/Configuracoes/Perfil'), 'Carregando Perfil...') },
@@ -158,20 +249,42 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/Configuracoes/PermissoesPage'),
           'Carregando Permissões...',
-          (node) => <RequirePermission modulo="CONFIGURACOES" acao="MANAGE">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="CONTROL">{node}</RequirePermission>
         )
       },
 
       { path: 'infra/supabase', element: lazyElement(() => import('@/pages/Infra/SupabaseHealth'), 'Carregando Monitoramento...') },
 
-      { path: 'universidade/catalogos', element: lazyElement(() => import('@/pages/Universidade/Catalogos.tsx'), 'Carregando Catálogos...') },
-      { path: 'universidade/manuais', element: lazyElement(() => import('@/pages/Universidade/Manuais.tsx'), 'Carregando Manuais...') },
-      { path: 'universidade/treinamentos', element: lazyElement(() => import('@/pages/Universidade/Treinamentos.tsx'), 'Carregando Treinamentos...') },
+      {
+        path: 'universidade/catalogos',
+        element: lazyElement(
+          () => import('@/pages/Universidade/Catalogos.tsx'),
+          'Carregando Catálogos...',
+          (node) => <RequirePermission modulo="UNIVERSIDADE" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'universidade/manuais',
+        element: lazyElement(
+          () => import('@/pages/Universidade/Manuais.tsx'),
+          'Carregando Manuais...',
+          (node) => <RequirePermission modulo="UNIVERSIDADE" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'universidade/treinamentos',
+        element: lazyElement(
+          () => import('@/pages/Universidade/Treinamentos.tsx'),
+          'Carregando Treinamentos...',
+          (node) => <RequirePermission modulo="UNIVERSIDADE" acao="VIEW">{node}</RequirePermission>
+        )
+      },
       {
         path: 'universidade/instrucoes-de-trabalho',
         element: lazyElement(
           () => import('@/pages/Universidade/InstrucoesTrabalho.tsx'),
-          'Carregando Instruções de Trabalho...'
+          'Carregando Instruções de Trabalho...',
+          (node) => <RequirePermission modulo="UNIVERSIDADE" acao="VIEW">{node}</RequirePermission>
         ),
       },
       { path: 'universidade/it-servicos', element: <Navigate to="/app/universidade/instrucoes-de-trabalho" replace /> },

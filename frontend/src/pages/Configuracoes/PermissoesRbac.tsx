@@ -15,6 +15,25 @@ type Permissao = {
   descricao?: string | null
 }
 
+const APPLICABLE_MODULES = [
+  'DASHBOARD',
+  'UNIVERSIDADE',
+  'CRM',
+  'PRODUCAO',
+  'FROTA',
+  'SMARTFLOW',
+  'CONFIGURACOES'
+] as const
+
+const ACTIONS = ['VIEW', 'EDIT', 'CONTROL'] as const
+
+function prettyActionLabel(acao: string) {
+  if (acao === 'VIEW') return 'View'
+  if (acao === 'EDIT') return 'Criar-Editar'
+  if (acao === 'CONTROL') return 'Control'
+  return acao
+}
+
 export default function PermissoesRbac() {
   const [perfis, setPerfis] = useState<Perfil[]>([])
   const [permissoes, setPermissoes] = useState<Permissao[]>([])
@@ -34,15 +53,30 @@ export default function PermissoesRbac() {
     [perfis, activePerfilId]
   )
 
+  const filteredPermissoes = useMemo(() => {
+    const allowedModules = new Set<string>(APPLICABLE_MODULES as unknown as string[])
+    const allowedActions = new Set<string>(ACTIONS as unknown as string[])
+    return (permissoes || []).filter(p => allowedModules.has(p.modulo) && allowedActions.has(p.acao))
+  }, [permissoes])
+
+  const permIdByKey = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of filteredPermissoes) {
+      map.set(`${p.modulo}:${p.acao}`, p.permissao_id)
+    }
+    return map
+  }, [filteredPermissoes])
+
   const grouped = useMemo(() => {
     const map = new Map<string, Permissao[]>()
-    for (const p of permissoes) {
+    for (const p of filteredPermissoes) {
       const list = map.get(p.modulo) || []
       list.push(p)
       map.set(p.modulo, list)
     }
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [permissoes])
+    const order = new Map<string, number>((APPLICABLE_MODULES as unknown as string[]).map((m, i) => [m, i]))
+    return Array.from(map.entries()).sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999))
+  }, [filteredPermissoes])
 
   const loadBase = async () => {
     setLoading(true)
@@ -83,11 +117,55 @@ export default function PermissoesRbac() {
     loadPerfilPerms(activePerfilId)
   }, [activePerfilId])
 
-  const toggle = (permissaoId: string) => {
+  const setModuleAction = (modulo: string, acao: string, checked: boolean) => {
+    const viewId = permIdByKey.get(`${modulo}:VIEW`)
+    const editId = permIdByKey.get(`${modulo}:EDIT`)
+    const controlId = permIdByKey.get(`${modulo}:CONTROL`)
+
     setSelected(prev => {
       const next = new Set(prev)
-      if (next.has(permissaoId)) next.delete(permissaoId)
-      else next.add(permissaoId)
+
+      const add = (id?: string) => {
+        if (id) next.add(id)
+      }
+      const del = (id?: string) => {
+        if (id) next.delete(id)
+      }
+
+      if (acao === 'CONTROL') {
+        if (checked) {
+          add(controlId)
+          add(editId)
+          add(viewId)
+        } else {
+          del(controlId)
+        }
+      } else if (acao === 'EDIT') {
+        if (checked) {
+          add(editId)
+          add(viewId)
+        } else {
+          del(editId)
+          del(controlId)
+        }
+      } else if (acao === 'VIEW') {
+        if (checked) {
+          add(viewId)
+        } else {
+          del(viewId)
+          del(editId)
+          del(controlId)
+        }
+      }
+
+      if (controlId && next.has(controlId)) {
+        add(editId)
+        add(viewId)
+      }
+      if (editId && next.has(editId)) {
+        add(viewId)
+      }
+
       return next
     })
   }
@@ -97,7 +175,21 @@ export default function PermissoesRbac() {
     setSaving(true)
     setError(null)
     try {
-      await api.rbac.setPerfilPermissoes(activePerfilId, Array.from(selected))
+      const final = new Set(selected)
+      for (const modulo of APPLICABLE_MODULES as unknown as string[]) {
+        const viewId = permIdByKey.get(`${modulo}:VIEW`)
+        const editId = permIdByKey.get(`${modulo}:EDIT`)
+        const controlId = permIdByKey.get(`${modulo}:CONTROL`)
+        if (controlId && final.has(controlId)) {
+          if (editId) final.add(editId)
+          if (viewId) final.add(viewId)
+        }
+        if (editId && final.has(editId)) {
+          if (viewId) final.add(viewId)
+        }
+      }
+
+      await api.rbac.setPerfilPermissoes(activePerfilId, Array.from(final))
     } catch (e: any) {
       setError(e?.message || 'Erro ao salvar permissões.')
     } finally {
@@ -129,7 +221,7 @@ export default function PermissoesRbac() {
   const deletePerfil = async (perfilId: string) => {
     const p = perfis.find(x => x.perfil_id === perfilId)
     if (!p) return
-    if (p.perfil_nome === 'ADMIN') return
+    if (p.perfil_nome === 'ADMIN' || p.perfil_nome === 'ADMINISTRADOR') return
     if (!confirm(`Remover o perfil ${p.perfil_nome}?`)) return
 
     setError(null)
@@ -178,7 +270,7 @@ export default function PermissoesRbac() {
               </button>
               <button
                 type="button"
-                disabled={p.perfil_nome === 'ADMIN'}
+                disabled={p.perfil_nome === 'ADMIN' || p.perfil_nome === 'ADMINISTRADOR'}
                 onClick={() => deletePerfil(p.perfil_id)}
                 className="p-2 rounded-lg text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 disabled:hover:bg-transparent"
                 title="Excluir perfil"
@@ -224,7 +316,7 @@ export default function PermissoesRbac() {
               {activePerfil ? `Permissões: ${activePerfil.perfil_nome}` : 'Permissões'}
             </div>
             <div className="text-xs text-industrial-text-secondary">
-              Selecione as ações permitidas por módulo
+              Selecione View / Criar-Editar / Control por módulo
             </div>
           </div>
           <button
@@ -249,28 +341,34 @@ export default function PermissoesRbac() {
             <div key={modulo} className="rounded-2xl border border-industrial-border bg-industrial-bg/20 p-4">
               <div className="text-xs font-black text-[#38BDF8] uppercase tracking-wider mb-3">{modulo}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {list
-                  .slice()
-                  .sort((a, b) => a.acao.localeCompare(b.acao))
-                  .map(p => (
+                {ACTIONS.map((acao) => {
+                  const p = list.find(x => x.acao === acao) || null
+                  const permissaoId = p?.permissao_id || ''
+                  const checked = permissaoId ? selected.has(permissaoId) : false
+                  const disabled = !p
+                  return (
                     <label
-                      key={p.permissao_id}
-                      className="flex items-center gap-3 rounded-xl border border-industrial-border bg-industrial-surface px-3 py-2 hover:bg-industrial-surface/80 cursor-pointer"
+                      key={`${modulo}:${acao}`}
+                      className={`flex items-center gap-3 rounded-xl border border-industrial-border bg-industrial-surface px-3 py-2 ${
+                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-industrial-surface/80 cursor-pointer'
+                      }`}
                     >
                       <input
                         type="checkbox"
-                        checked={selected.has(p.permissao_id)}
-                        onChange={() => toggle(p.permissao_id)}
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={(e) => setModuleAction(modulo, acao, e.target.checked)}
                         className="h-4 w-4 accent-[#38BDF8]"
                       />
                       <div className="min-w-0">
-                        <div className="text-sm font-bold text-white">{p.acao}</div>
+                        <div className="text-sm font-bold text-white">{prettyActionLabel(acao)}</div>
                         <div className="text-xs text-industrial-text-secondary truncate">
-                          {p.descricao || ''}
+                          {p?.descricao || ''}
                         </div>
                       </div>
                     </label>
-                  ))}
+                  )
+                })}
               </div>
             </div>
           ))}

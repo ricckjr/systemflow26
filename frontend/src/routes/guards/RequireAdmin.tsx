@@ -23,7 +23,7 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
     )
   }
 
-  if (!profile || (!can('CONFIGURACOES', 'MANAGE') && profile.cargo !== 'ADMIN')) {
+  if (!profile || (!can('CONFIGURACOES', 'CONTROL') && profile.cargo !== 'ADMIN')) {
     // Redireciona para uma rota segura padrão se não tiver permissão
     return <Navigate to="/app/comunidade" replace state={{ message: 'Acesso negado. Área restrita a administradores.' }} />
   }

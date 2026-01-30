@@ -5,7 +5,7 @@ const { authenticate, requirePermission } = require('../middleware/auth');
 const router = express.Router();
 
 router.use(authenticate);
-router.use(requirePermission('CONFIGURACOES', 'MANAGE'));
+router.use(requirePermission('CONFIGURACOES', 'CONTROL'));
 
 async function attachPerfisToUsers(users) {
   const userIds = (users || []).map((u) => u.id).filter(Boolean);

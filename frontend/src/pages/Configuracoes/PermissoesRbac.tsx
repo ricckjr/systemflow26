@@ -309,7 +309,7 @@ export default function PermissoesRbac() {
         </div>
       </div>
 
-      <div className="lg:col-span-8 bg-industrial-surface rounded-2xl border border-industrial-border p-4">
+      <div className="lg:col-span-8 bg-industrial-surface rounded-2xl border border-industrial-border p-4 flex flex-col min-h-[calc(100vh-12rem)]">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0">
             <div className="text-sm font-black text-white truncate">
@@ -319,15 +319,6 @@ export default function PermissoesRbac() {
               Selecione View / Criar-Editar / Control por módulo
             </div>
           </div>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!activePerfilId || saving}
-            className="h-10 px-4 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-bold flex items-center gap-2 disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Salvar
-          </button>
         </div>
 
         {error && (
@@ -336,7 +327,7 @@ export default function PermissoesRbac() {
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
           {grouped.map(([modulo, list]) => (
             <div key={modulo} className="rounded-2xl border border-industrial-border bg-industrial-bg/20 p-4">
               <div className="text-xs font-black text-[#38BDF8] uppercase tracking-wider mb-3">{modulo}</div>
@@ -372,6 +363,18 @@ export default function PermissoesRbac() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="sticky bottom-0 pt-4 bg-industrial-surface">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!activePerfilId || saving}
+            className="w-full h-10 px-4 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+            Salvar
+          </button>
         </div>
       </div>
     </div>

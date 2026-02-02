@@ -3,7 +3,7 @@ import { Users, Plus, Search, Pencil, ArrowRightLeft, History, Loader2, Building
 import { Modal } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { Cliente, ClienteRegimeTributario, ClienteTipoPessoa, createCliente, fetchClientes, updateCliente } from '@/services/clientes'
-import { fetchCrmOrigensLead, fetchCrmVerticais, fetchOportunidadesByClienteId } from '@/services/crm'
+import { fetchCrmCnaeCodigos, fetchCrmIbgeCodigos, fetchCrmOrigensLead, fetchCrmVerticais, fetchOportunidadesByClienteId } from '@/services/crm'
 import { ClienteContato, createClienteContato, fetchClienteContatos, updateClienteContato } from '@/services/clienteContatos'
 import { useUsuarios } from '@/hooks/useUsuarios'
 
@@ -32,6 +32,8 @@ export default function Clientes() {
 
   const [origensLead, setOrigensLead] = useState<{ id: string; label: string }[]>([])
   const [verticais, setVerticais] = useState<{ id: string; label: string }[]>([])
+  const [ibgeCodigos, setIbgeCodigos] = useState<{ id: string; codigo: string; descricao: string | null }[]>([])
+  const [cnaeCodigos, setCnaeCodigos] = useState<{ id: string; codigo: string; descricao: string | null }[]>([])
 
   const [contatos, setContatos] = useState<ClienteContato[]>([])
   const [contatosLoading, setContatosLoading] = useState(false)
@@ -56,6 +58,8 @@ export default function Clientes() {
     cliente_cidade: '',
     cliente_uf: '',
     cliente_pais: 'BR',
+    cliente_ibge: '',
+    cliente_cnae: '',
     cliente_inscricao_estadual: '',
     cliente_inscricao_municipal: '',
     cliente_optante_simples_nacional: false,
@@ -128,7 +132,7 @@ export default function Clientes() {
   useEffect(() => {
     const run = async () => {
       try {
-        const [origens, verts] = await Promise.all([fetchCrmOrigensLead(), fetchCrmVerticais()])
+        const [origens, verts, ibge, cnae] = await Promise.all([fetchCrmOrigensLead(), fetchCrmVerticais(), fetchCrmIbgeCodigos(), fetchCrmCnaeCodigos()])
         setOrigensLead(
           origens.map(o => ({
             id: (o as any).orig_id,
@@ -141,9 +145,13 @@ export default function Clientes() {
             label: (v as any).descricao_vert
           }))
         )
+        setIbgeCodigos((ibge as any[]).map(x => ({ id: x.ibge_id, codigo: x.codigo_ibge, descricao: x.descricao_ibge })))
+        setCnaeCodigos((cnae as any[]).map(x => ({ id: x.cnae_id, codigo: x.codigo_cnae, descricao: x.descricao_cnae })))
       } catch {
         setOrigensLead([])
         setVerticais([])
+        setIbgeCodigos([])
+        setCnaeCodigos([])
       }
     }
     run()
@@ -176,6 +184,8 @@ export default function Clientes() {
         cliente_cidade: active.cliente_cidade || '',
         cliente_uf: active.cliente_uf || '',
         cliente_pais: active.cliente_pais || 'BR',
+        cliente_ibge: active.cliente_ibge || '',
+        cliente_cnae: active.cliente_cnae || '',
         cliente_inscricao_estadual: active.cliente_inscricao_estadual || '',
         cliente_inscricao_municipal: active.cliente_inscricao_municipal || '',
         cliente_optante_simples_nacional: !!active.cliente_optante_simples_nacional,
@@ -199,6 +209,8 @@ export default function Clientes() {
       cliente_email: '',
       cliente_telefone: '',
       cliente_observacoes: '',
+      cliente_ibge: '',
+      cliente_cnae: '',
       user_id: userId
     }))
   }, [isFormOpen, active])
@@ -291,6 +303,8 @@ export default function Clientes() {
         cliente_cidade: draft.cliente_cidade.trim() || null,
         cliente_uf: draft.cliente_uf.trim().toUpperCase() || null,
         cliente_pais: draft.cliente_pais.trim().toUpperCase() || 'BR',
+        cliente_ibge: draft.cliente_ibge.trim() || null,
+        cliente_cnae: draft.cliente_cnae.trim() || null,
         cliente_inscricao_estadual: draft.cliente_inscricao_estadual.trim() || null,
         cliente_inscricao_municipal: draft.cliente_inscricao_municipal.trim() || null,
         cliente_optante_simples_nacional: !!draft.cliente_optante_simples_nacional,
@@ -820,6 +834,36 @@ export default function Clientes() {
               Fiscal / Tributário
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">CNAE</label>
+                <select
+                  value={draft.cliente_cnae}
+                  onChange={e => setDraft(prev => ({ ...prev, cliente_cnae: e.target.value }))}
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                >
+                  <option value="">Não informado</option>
+                  {cnaeCodigos.map(x => (
+                    <option key={x.id} value={x.codigo}>
+                      {x.codigo}{x.descricao ? ` - ${x.descricao}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">IBGE</label>
+                <select
+                  value={draft.cliente_ibge}
+                  onChange={e => setDraft(prev => ({ ...prev, cliente_ibge: e.target.value }))}
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                >
+                  <option value="">Não informado</option>
+                  {ibgeCodigos.map(x => (
+                    <option key={x.id} value={x.codigo}>
+                      {x.codigo}{x.descricao ? ` - ${x.descricao}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Inscrição Estadual</label>
                 <input

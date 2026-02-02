@@ -134,6 +134,8 @@ export interface Database {
           cliente_cidade: string | null
           cliente_uf: string | null
           cliente_pais: string
+          cliente_ibge: string | null
+          cliente_cnae: string | null
           cliente_inscricao_estadual: string | null
           cliente_inscricao_municipal: string | null
           cliente_optante_simples_nacional: boolean
@@ -169,6 +171,8 @@ export interface Database {
           cliente_cidade?: string | null
           cliente_uf?: string | null
           cliente_pais?: string
+          cliente_ibge?: string | null
+          cliente_cnae?: string | null
           cliente_inscricao_estadual?: string | null
           cliente_inscricao_municipal?: string | null
           cliente_optante_simples_nacional?: boolean
@@ -204,6 +208,8 @@ export interface Database {
           cliente_cidade?: string | null
           cliente_uf?: string | null
           cliente_pais?: string
+          cliente_ibge?: string | null
+          cliente_cnae?: string | null
           cliente_inscricao_estadual?: string | null
           cliente_inscricao_municipal?: string | null
           cliente_optante_simples_nacional?: boolean

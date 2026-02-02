@@ -139,6 +139,22 @@ export interface CRM_Meta {
   meta_geral: string | null
 }
 
+export interface CRM_IbgeCodigo {
+  ibge_id: string
+  codigo_ibge: string
+  descricao_ibge: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export interface CRM_CnaeCodigo {
+  cnae_id: string
+  codigo_cnae: string
+  descricao_cnae: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
 export async function fetchOportunidadesByClienteId(clienteId: string) {
   if (!clienteId) return []
   const { data, error } = await (supabase as any)
@@ -153,6 +169,78 @@ export async function fetchOportunidadesByClienteId(clienteId: string) {
   }
 
   return (data ?? []) as CRM_Oportunidade[]
+}
+
+export async function fetchCrmIbgeCodigos() {
+  const { data, error } = await sb
+    .from('crm_ibge_codigos')
+    .select('ibge_id, codigo_ibge, descricao_ibge, criado_em, atualizado_em')
+    .order('codigo_ibge', { ascending: true })
+
+  if (error) return []
+  return (data ?? []) as CRM_IbgeCodigo[]
+}
+
+export async function createCrmIbgeCodigo(payload: { codigo: string; descricao: string | null }) {
+  const { data, error } = await sb
+    .from('crm_ibge_codigos')
+    .insert({ codigo_ibge: payload.codigo, descricao_ibge: payload.descricao || null })
+    .select('ibge_id, codigo_ibge, descricao_ibge, criado_em, atualizado_em')
+    .single()
+  if (error) throw error
+  return data as CRM_IbgeCodigo
+}
+
+export async function updateCrmIbgeCodigo(id: string, payload: { codigo: string; descricao: string | null }) {
+  const { data, error } = await sb
+    .from('crm_ibge_codigos')
+    .update({ codigo_ibge: payload.codigo, descricao_ibge: payload.descricao || null, atualizado_em: new Date().toISOString() })
+    .eq('ibge_id', id)
+    .select('ibge_id, codigo_ibge, descricao_ibge, criado_em, atualizado_em')
+    .single()
+  if (error) throw error
+  return data as CRM_IbgeCodigo
+}
+
+export async function deleteCrmIbgeCodigo(id: string) {
+  const { error } = await sb.from('crm_ibge_codigos').delete().eq('ibge_id', id)
+  if (error) throw error
+}
+
+export async function fetchCrmCnaeCodigos() {
+  const { data, error } = await sb
+    .from('crm_cnae_codigos')
+    .select('cnae_id, codigo_cnae, descricao_cnae, criado_em, atualizado_em')
+    .order('codigo_cnae', { ascending: true })
+
+  if (error) return []
+  return (data ?? []) as CRM_CnaeCodigo[]
+}
+
+export async function createCrmCnaeCodigo(payload: { codigo: string; descricao: string | null }) {
+  const { data, error } = await sb
+    .from('crm_cnae_codigos')
+    .insert({ codigo_cnae: payload.codigo, descricao_cnae: payload.descricao || null })
+    .select('cnae_id, codigo_cnae, descricao_cnae, criado_em, atualizado_em')
+    .single()
+  if (error) throw error
+  return data as CRM_CnaeCodigo
+}
+
+export async function updateCrmCnaeCodigo(id: string, payload: { codigo: string; descricao: string | null }) {
+  const { data, error } = await sb
+    .from('crm_cnae_codigos')
+    .update({ codigo_cnae: payload.codigo, descricao_cnae: payload.descricao || null, atualizado_em: new Date().toISOString() })
+    .eq('cnae_id', id)
+    .select('cnae_id, codigo_cnae, descricao_cnae, criado_em, atualizado_em')
+    .single()
+  if (error) throw error
+  return data as CRM_CnaeCodigo
+}
+
+export async function deleteCrmCnaeCodigo(id: string) {
+  const { error } = await sb.from('crm_cnae_codigos').delete().eq('cnae_id', id)
+  if (error) throw error
 }
 
 /* ======================================================

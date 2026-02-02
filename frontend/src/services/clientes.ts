@@ -22,6 +22,8 @@ export interface Cliente {
   cliente_cidade: string | null
   cliente_uf: string | null
   cliente_pais: string | null
+  cliente_ibge: string | null
+  cliente_cnae: string | null
   cliente_inscricao_estadual: string | null
   cliente_inscricao_municipal: string | null
   cliente_optante_simples_nacional: boolean | null
@@ -77,6 +79,8 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
       cliente_cidade,
       cliente_uf,
       cliente_pais,
+      cliente_ibge,
+      cliente_cnae,
       cliente_inscricao_estadual,
       cliente_inscricao_municipal,
       cliente_optante_simples_nacional,
@@ -154,6 +158,8 @@ export async function createCliente(payload: CreateClientePayload) {
       cliente_cidade,
       cliente_uf,
       cliente_pais,
+      cliente_ibge,
+      cliente_cnae,
       cliente_inscricao_estadual,
       cliente_inscricao_municipal,
       cliente_optante_simples_nacional,
@@ -208,6 +214,8 @@ export async function updateCliente(clienteId: string, updates: UpdateClientePay
       cliente_cidade,
       cliente_uf,
       cliente_pais,
+      cliente_ibge,
+      cliente_cnae,
       cliente_inscricao_estadual,
       cliente_inscricao_municipal,
       cliente_optante_simples_nacional,

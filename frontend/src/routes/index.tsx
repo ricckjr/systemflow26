@@ -115,6 +115,47 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="CONFIGURACOES" acao="VIEW">{node}</RequirePermission>
         )
       },
+      {
+        path: 'config-gerais/ibge',
+        element: <Navigate to="/app/financeiro/ibge" replace />
+      },
+      {
+        path: 'config-gerais/cnae',
+        element: <Navigate to="/app/financeiro/cnae" replace />
+      },
+      { path: 'financeiro/clientes', element: <Navigate to="/app/crm/clientes" replace /> },
+      {
+        path: 'financeiro/contas-receber',
+        element: lazyElement(
+          () => import('@/pages/Financeiro/ContaReceber'),
+          'Carregando Contas a Receber...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'financeiro/contas-pagar',
+        element: lazyElement(
+          () => import('@/pages/Financeiro/ContaPagar'),
+          'Carregando Contas a Pagar...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'financeiro/ibge',
+        element: lazyElement(
+          () => import('@/pages/ConfigGerais/Ibge'),
+          'Carregando IBGE...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'financeiro/cnae',
+        element: lazyElement(
+          () => import('@/pages/ConfigGerais/Cnae'),
+          'Carregando CNAE...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
 
       {
         path: 'crm/configs/origem-leads',

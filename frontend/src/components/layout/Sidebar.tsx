@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Briefcase,
   MessageSquare,
+  Wallet,
   Settings,
   Sparkles,
   User,
@@ -109,6 +110,19 @@ const navItems: NavItem[] = [
     subItems: [
       { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
       { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
+    ],
+  },
+  {
+    label: 'FINANCEIRO',
+    icon: Wallet,
+    modulo: 'financeiro',
+    requires: { modulo: 'FINANCEIRO', acao: 'VIEW' },
+    subItems: [
+      { label: 'Clientes', path: '/app/financeiro/clientes', submodulo: 'clientes', requires: { modulo: 'CRM', acao: 'VIEW' } },
+      { label: 'Conta a Receber', path: '/app/financeiro/contas-receber', submodulo: 'contas-receber', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
+      { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
+      { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
     ],
   },
   {

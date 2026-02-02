@@ -77,13 +77,13 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
     const nome = (perfilNome || '').trim().toUpperCase()
     if (nome === 'ADMIN' || nome === 'ADMINISTRADOR') return 'ADMIN'
     if (nome === 'FINANCEIRO') return 'FINANCEIRO'
-    if (nome === 'COMERCIAL' || nome === 'VENDEDOR') return 'COMERCIAL'
+    if (nome === 'COMERCIAL' || nome === 'VENDEDOR') return 'VENDEDOR'
     if (nome === 'ADMINISTRATIVO') return 'ADMINISTRATIVO'
     if (nome === 'LOGISTICA') return 'LOGISTICA'
-    if (nome === 'ELETRONICA') return 'ELETRONICA'
-    if (nome === 'LABORATORIO' || nome === 'LABORATÓRIO') return 'LABORATORIO'
+    if (nome === 'ELETRONICA') return 'TECNICO'
+    if (nome === 'LABORATORIO' || nome === 'LABORATÓRIO') return 'TECNICO'
     if (nome === 'OFICINA' || nome === 'PRODUCAO') return 'OFICINA'
-    return 'COMERCIAL'
+    return 'VENDEDOR'
   }
 
   const loadPerfis = async () => {

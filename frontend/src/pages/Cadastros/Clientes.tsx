@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Users, Plus, Search, Pencil, Archive, Loader2, Building2, User, Mail, Phone, MapPin, BadgeCheck, Globe2, Tags, UserPlus, Briefcase, AtSign } from 'lucide-react'
+import { Users, Plus, Search, Pencil, ArrowRightLeft, History, Loader2, Building2, User, Mail, Phone, MapPin, BadgeCheck, Globe2, Tags, UserPlus, Briefcase, AtSign } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-import { Cliente, ClienteRegimeTributario, ClienteTipoPessoa, createCliente, fetchClientes, softDeleteCliente, updateCliente } from '@/services/clientes'
-import { fetchCrmOrigensLead, fetchCrmVerticais } from '@/services/crm'
+import { Cliente, ClienteRegimeTributario, ClienteTipoPessoa, createCliente, fetchClientes, updateCliente } from '@/services/clientes'
+import { fetchCrmOrigensLead, fetchCrmVerticais, fetchOportunidadesByClienteId } from '@/services/crm'
 import { ClienteContato, createClienteContato, fetchClienteContatos, updateClienteContato } from '@/services/clienteContatos'
+import { useUsuarios } from '@/hooks/useUsuarios'
 
 export default function Clientes() {
   const { session, profile } = useAuth()
   const userId = session?.user?.id || ''
   const isAdmin = profile?.cargo === 'ADMIN'
+  const { usuarios, loading: usuariosLoading } = useUsuarios()
   const [items, setItems] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -19,9 +21,14 @@ export default function Clientes() {
   const active = useMemo(() => items.find(i => i.cliente_id === activeId) || null, [items, activeId])
 
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [isTransferOpen, setIsTransferOpen] = useState(false)
+  const [transferUserId, setTransferUserId] = useState<string>('')
+  const [transferring, setTransferring] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyContatos, setHistoryContatos] = useState<ClienteContato[]>([])
+  const [historyOportunidades, setHistoryOportunidades] = useState<any[]>([])
 
   const [origensLead, setOrigensLead] = useState<{ id: string; label: string }[]>([])
   const [verticais, setVerticais] = useState<{ id: string; label: string }[]>([])
@@ -59,7 +66,8 @@ export default function Clientes() {
     cliente_linkedin: '',
     cliente_origem_lead: '',
     cliente_tags: ['CLIENTE'] as string[],
-    cliente_observacoes: ''
+    cliente_observacoes: '',
+    user_id: '' as string
   }))
 
   const [contatoDraft, setContatoDraft] = useState(() => ({
@@ -73,15 +81,19 @@ export default function Clientes() {
   }))
 
   const normalizeDigits = (v: string) => (v || '').replace(/\D/g, '')
+  const initials = (nome: string) => {
+    const parts = (nome || '').trim().split(/\s+/).filter(Boolean)
+    const first = parts[0]?.[0] || ''
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : ''
+    return (first + last).toUpperCase() || '?'
+  }
 
   const validateDraft = () => {
     const nome = draft.cliente_nome_razao_social.trim()
     if (!nome) return 'Nome/Razão Social é obrigatório.'
     const docDigits = normalizeDigits(draft.cliente_documento)
     if (!docDigits) return 'Documento (CPF/CNPJ) é obrigatório.'
-    if (draft.cliente_tipo_pessoa === 'FISICA' && docDigits.length !== 11) return 'CPF deve ter 11 dígitos.'
-    if (draft.cliente_tipo_pessoa === 'JURIDICA' && docDigits.length !== 14) return 'CNPJ deve ter 14 dígitos.'
-    if (draft.cliente_uf.trim() && draft.cliente_uf.trim().length !== 2) return 'UF deve ter 2 letras.'
+    if (docDigits.length !== 11 && docDigits.length !== 14) return 'Documento inválido: precisa ter 11 (CPF) ou 14 (CNPJ) dígitos.'
     if (!userId) return 'Sessão não encontrada. Faça login novamente.'
     return null
   }
@@ -139,12 +151,19 @@ export default function Clientes() {
 
   useEffect(() => {
     if (!isFormOpen) return
+    if (!draft.cliente_origem_lead) return
+    if (origensLead.some(o => o.label === draft.cliente_origem_lead)) return
+    setDraft(prev => ({ ...prev, cliente_origem_lead: '' }))
+  }, [draft.cliente_origem_lead, isFormOpen, origensLead])
+
+  useEffect(() => {
+    if (!isFormOpen) return
     setError(null)
     if (active) {
       setDraft({
         cliente_nome_razao_social: active.cliente_nome_razao_social || '',
         cliente_nome_fantasia: active.cliente_nome_fantasia || '',
-        cliente_documento: active.cliente_documento || '',
+        cliente_documento: active.cliente_documento_formatado || active.cliente_documento || '',
         cliente_tipo_pessoa: active.cliente_tipo_pessoa,
         cliente_vertical: active.cliente_vertical || '',
         cliente_email: active.cliente_email || '',
@@ -167,11 +186,21 @@ export default function Clientes() {
         cliente_linkedin: active.cliente_linkedin || '',
         cliente_origem_lead: active.cliente_origem_lead || '',
         cliente_tags: (active.cliente_tags || ['CLIENTE']) as any,
-        cliente_observacoes: active.cliente_observacoes || ''
+        cliente_observacoes: active.cliente_observacoes || '',
+        user_id: active.user_id || userId
       })
       return
     }
-    setDraft(d => ({ ...d, cliente_nome_razao_social: '', cliente_nome_fantasia: '', cliente_documento: '', cliente_email: '', cliente_telefone: '', cliente_observacoes: '' }))
+    setDraft(d => ({
+      ...d,
+      cliente_nome_razao_social: '',
+      cliente_nome_fantasia: '',
+      cliente_documento: '',
+      cliente_email: '',
+      cliente_telefone: '',
+      cliente_observacoes: '',
+      user_id: userId
+    }))
   }, [isFormOpen, active])
 
   useEffect(() => {
@@ -212,9 +241,27 @@ export default function Clientes() {
     setIsFormOpen(true)
   }
 
-  const askDelete = (id: string) => {
+  const openTransfer = (id: string) => {
     setActiveId(id)
-    setIsDeleteOpen(true)
+    const current = items.find(i => i.cliente_id === id) || null
+    setTransferUserId(current?.user_id || '')
+    setIsTransferOpen(true)
+  }
+
+  const openHistory = async (id: string) => {
+    setActiveId(id)
+    setIsHistoryOpen(true)
+    setHistoryLoading(true)
+    try {
+      const [contatosData, oportunidadesData] = await Promise.all([
+        fetchClienteContatos(id),
+        fetchOportunidadesByClienteId(id)
+      ])
+      setHistoryContatos(contatosData)
+      setHistoryOportunidades(oportunidadesData as any[])
+    } finally {
+      setHistoryLoading(false)
+    }
   }
 
   const onSave = async () => {
@@ -226,11 +273,13 @@ export default function Clientes() {
     setSaving(true)
     setError(null)
     try {
+      const docDigits = normalizeDigits(draft.cliente_documento)
+      const inferredTipo = (docDigits.length === 11 ? 'FISICA' : 'JURIDICA') as ClienteTipoPessoa
       const payloadBase = {
         cliente_nome_razao_social: draft.cliente_nome_razao_social.trim(),
         cliente_nome_fantasia: draft.cliente_nome_fantasia.trim() || null,
-        cliente_documento: normalizeDigits(draft.cliente_documento) || null,
-        cliente_tipo_pessoa: draft.cliente_tipo_pessoa,
+        cliente_documento: docDigits || null,
+        cliente_tipo_pessoa: inferredTipo,
         cliente_vertical: draft.cliente_vertical.trim() || null,
         cliente_email: draft.cliente_email.trim() || null,
         cliente_telefone: draft.cliente_telefone.trim() || null,
@@ -252,44 +301,47 @@ export default function Clientes() {
         cliente_linkedin: draft.cliente_linkedin.trim() || null,
         cliente_origem_lead: draft.cliente_origem_lead.trim() || null,
         cliente_tags: Array.from(new Set((draft.cliente_tags || []).filter(Boolean))),
-        cliente_observacoes: draft.cliente_observacoes.trim() || null
+        cliente_observacoes: draft.cliente_observacoes.trim() || null,
+        ...(isAdmin ? { user_id: draft.user_id || null } : {})
       }
 
       if (activeId) {
         await updateCliente(activeId, payloadBase)
       } else {
-        await createCliente({
-          ...payloadBase,
-          user_id: userId
-        } as any)
+        await createCliente(payloadBase as any)
       }
       setIsFormOpen(false)
       setActiveId(null)
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao salvar cliente.')
+      const err = e as any
+      if (err?.code === '23505') {
+        setError('Documento já cadastrado. Use outro documento ou edite o cliente existente.')
+      } else {
+        setError(e instanceof Error ? e.message : 'Falha ao salvar cliente.')
+      }
     } finally {
       setSaving(false)
     }
   }
 
-  const onDelete = async () => {
+  const onTransfer = async () => {
     if (!activeId) return
-    if (!isAdmin) {
-      setError('Apenas administradores podem arquivar clientes.')
+    if (!transferUserId) {
+      setError('Selecione um vendedor para transferir.')
       return
     }
-    setDeleting(true)
+    setTransferring(true)
     setError(null)
     try {
-      await softDeleteCliente(activeId)
-      setIsDeleteOpen(false)
+      await updateCliente(activeId, { user_id: transferUserId })
+      setIsTransferOpen(false)
       setActiveId(null)
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao arquivar cliente.')
+      setError(e instanceof Error ? e.message : 'Falha ao transferir cliente.')
     } finally {
-      setDeleting(false)
+      setTransferring(false)
     }
   }
 
@@ -457,25 +509,35 @@ export default function Clientes() {
           ) : (
             <div className="overflow-hidden rounded-2xl border border-white/5">
               <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-                <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</div>
+                <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</div>
                 <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Documento</div>
-                <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Contato</div>
+                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Vendedor</div>
                 <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
-                {items.map(i => (
-                  <div key={i.cliente_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
-                    <div className="col-span-5 min-w-0">
+                {items.map(i => {
+                  const vendedor = usuarios.find(u => u.id === i.user_id) || null
+                  const isFornecedor = (i.cliente_tags || []).includes('FORNECEDOR')
+                  return (
+                    <div key={i.cliente_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
+                      <div className="col-span-6 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                          <User size={14} className="text-cyan-300" />
+                        <div
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                            isFornecedor ? 'bg-amber-500/10 border-amber-500/20' : 'bg-cyan-500/10 border-cyan-500/20'
+                          }`}
+                        >
+                          {isFornecedor ? (
+                            <Building2 size={14} className="text-amber-300" />
+                          ) : (
+                            <User size={14} className="text-cyan-300" />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-slate-200 truncate" title={i.cliente_nome_razao_social}>
                             {i.cliente_nome_razao_social}
                           </div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
-                            <span className="font-mono">#{i.cliente_id.split('-')[0]}</span>
                             {(i.cliente_tags || []).slice(0, 2).map(t => (
                               <span key={t} className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-slate-300">
                                 {t}
@@ -486,18 +548,32 @@ export default function Clientes() {
                       </div>
                     </div>
                     <div className="col-span-3 min-w-0">
-                      <div className="text-sm text-slate-200 font-mono truncate">{i.cliente_documento || '-'}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{i.cliente_tipo_pessoa}</div>
+                      <div className="text-sm text-slate-200 font-mono truncate">{i.cliente_documento_formatado || i.cliente_documento || '-'}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{i.cliente_tipo_pessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</div>
                     </div>
-                    <div className="col-span-3 min-w-0">
-                      <div className="flex items-center gap-2 text-sm text-slate-300 truncate">
-                        <Mail size={14} className="text-slate-500" />
-                        <span className="truncate">{i.cliente_email || '-'}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-400 truncate mt-1">
-                        <Phone size={14} className="text-slate-500" />
-                        <span className="truncate">{i.cliente_telefone || '-'}</span>
-                      </div>
+                    <div className="col-span-2 min-w-0">
+                      {vendedor ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          {vendedor.avatar_url ? (
+                            <img
+                              src={vendedor.avatar_url}
+                              alt={vendedor.nome}
+                              className="w-8 h-8 rounded-full object-cover border border-white/10"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-slate-200">
+                              {initials(vendedor.nome)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-sm text-slate-200 truncate">{vendedor.nome}</div>
+                            <div className="text-[10px] text-slate-500 mt-0.5 truncate">{vendedor.cargo || ''}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-400">-</div>
+                      )}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
@@ -508,19 +584,28 @@ export default function Clientes() {
                       >
                         <Pencil size={14} />
                       </button>
-                      {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => openHistory(i.cliente_id)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
+                        title="Histórico"
+                      >
+                        <History size={14} />
+                      </button>
+                      {(isAdmin || i.user_id === userId) && (
                         <button
                           type="button"
-                          onClick={() => askDelete(i.cliente_id)}
+                          onClick={() => openTransfer(i.cliente_id)}
                           className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors"
-                          title="Arquivar"
+                          title="Transferir para vendedor"
                         >
-                          <Archive size={14} />
+                          <ArrowRightLeft size={14} />
                         </button>
                       )}
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -567,6 +652,26 @@ export default function Clientes() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {isAdmin && (
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Vendedor</label>
+                <select
+                  value={draft.user_id}
+                  onChange={e => setDraft(prev => ({ ...prev, user_id: e.target.value }))}
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  disabled={usuariosLoading}
+                >
+                  <option value="" disabled>
+                    {usuariosLoading ? 'Carregando...' : 'Selecione'}
+                  </option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="md:col-span-2 space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome Fantasia</label>
               <input
@@ -591,9 +696,17 @@ export default function Clientes() {
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Documento</label>
               <input
                 value={draft.cliente_documento}
-                onChange={e => setDraft(prev => ({ ...prev, cliente_documento: e.target.value }))}
+                onChange={e =>
+                  setDraft(prev => {
+                    const nextValue = e.target.value
+                    const digits = normalizeDigits(nextValue)
+                    const nextTipo =
+                      digits.length === 11 ? ('FISICA' as ClienteTipoPessoa) : digits.length === 14 ? ('JURIDICA' as ClienteTipoPessoa) : prev.cliente_tipo_pessoa
+                    return { ...prev, cliente_documento: nextValue, cliente_tipo_pessoa: nextTipo }
+                  })
+                }
                 className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-                placeholder={draft.cliente_tipo_pessoa === 'FISICA' ? 'CPF (11 dígitos)' : 'CNPJ (14 dígitos)'}
+                placeholder="CPF (11) ou CNPJ (14)"
               />
             </div>
           </div>
@@ -803,9 +916,6 @@ export default function Clientes() {
                     className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                   >
                     <option value="">Não informado</option>
-                    {draft.cliente_origem_lead && !origensLead.some(o => o.label === draft.cliente_origem_lead) && (
-                      <option value={draft.cliente_origem_lead}>{draft.cliente_origem_lead}</option>
-                    )}
                     {origensLead.map(o => (
                       <option key={o.id} value={o.label}>
                         {o.label}
@@ -1102,17 +1212,17 @@ export default function Clientes() {
       </Modal>
 
       <Modal
-        isOpen={isDeleteOpen}
+        isOpen={isTransferOpen}
         onClose={() => {
-          if (deleting) return
-          setIsDeleteOpen(false)
+          if (transferring) return
+          setIsTransferOpen(false)
         }}
         title={
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Archive size={18} className="text-amber-300" />
+              <ArrowRightLeft size={18} className="text-amber-300" />
             </div>
-            Arquivar Cliente
+            Transferir Cliente
           </div>
         }
         size="sm"
@@ -1120,41 +1230,131 @@ export default function Clientes() {
           <>
             <button
               type="button"
-              onClick={() => setIsDeleteOpen(false)}
-              disabled={deleting}
+              onClick={() => setIsTransferOpen(false)}
+              disabled={transferring}
               className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
             <button
               type="button"
-              onClick={onDelete}
-              disabled={deleting}
+              onClick={onTransfer}
+              disabled={transferring}
               className="px-7 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow-lg shadow-amber-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
-              {deleting ? (
+              {transferring ? (
                 <>
                   <Loader2 className="animate-spin" size={16} />
-                  Arquivando...
+                  Transferindo...
                 </>
               ) : (
-                'Arquivar'
+                'Transferir'
               )}
             </button>
           </>
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Arquivar remove o cliente das listas sem apagar o histórico (soft delete).</p>
           {active && (
             <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
               <div className="text-sm font-semibold text-slate-100 truncate">{active.cliente_nome_razao_social}</div>
-              <div className="text-xs text-slate-500 font-mono mt-1">{active.cliente_documento || '-'}</div>
+              <div className="text-xs text-slate-500 font-mono mt-1">{active.cliente_documento_formatado || active.cliente_documento || '-'}</div>
             </div>
           )}
-          {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
-              {error}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Novo vendedor</label>
+            <select
+              value={transferUserId}
+              onChange={e => setTransferUserId(e.target.value)}
+              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              disabled={usuariosLoading}
+            >
+              <option value="" disabled>
+                {usuariosLoading ? 'Carregando...' : 'Selecione'}
+              </option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isHistoryOpen}
+        onClose={() => {
+          if (historyLoading) return
+          setIsHistoryOpen(false)
+        }}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <History size={18} className="text-slate-200" />
+            </div>
+            Histórico do Cliente
+          </div>
+        }
+        size="xl"
+      >
+        <div className="space-y-5">
+          {active && (
+            <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+              <div className="text-sm font-semibold text-slate-100">{active.cliente_nome_razao_social}</div>
+              <div className="text-xs text-slate-400 mt-1">
+                Documento:{' '}
+                <span className="font-mono text-slate-200">{active.cliente_documento_formatado || active.cliente_documento || '-'}</span>
+              </div>
+            </div>
+          )}
+
+          {historyLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="animate-spin text-slate-500" size={28} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Oportunidades</div>
+                {historyOportunidades.length === 0 ? (
+                  <div className="text-sm text-slate-400">Nenhuma oportunidade vinculada.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {historyOportunidades.slice(0, 12).map((o: any) => (
+                      <div key={o.id_oport} className="rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm font-semibold text-slate-200 truncate">
+                            {o.cod_oport || o.id_oport?.slice?.(0, 8) || 'Oportunidade'}
+                          </div>
+                          <div className="text-[10px] text-slate-500">{o.data_inclusao ? new Date(o.data_inclusao).toLocaleDateString() : ''}</div>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1 truncate">
+                          {o.fase || o.id_fase || '-'} · {o.status || o.id_status || '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Contatos</div>
+                {historyContatos.length === 0 ? (
+                  <div className="text-sm text-slate-400">Nenhum contato vinculado.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {historyContatos.slice(0, 12).map(c => (
+                      <div key={c.contato_id} className="rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2">
+                        <div className="text-sm font-semibold text-slate-200 truncate">{c.contato_nome}</div>
+                        <div className="text-xs text-slate-400 mt-1 truncate">
+                          {(c.contato_email || '-') + ' · ' + (c.contato_telefone01 || '-')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -121,6 +121,7 @@ export interface Database {
           cliente_nome_razao_social: string
           cliente_nome_fantasia: string | null
           cliente_documento: string | null
+          cliente_documento_formatado: string | null
           cliente_tipo_pessoa: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
           cliente_vertical: string | null
           cliente_email: string | null
@@ -155,6 +156,7 @@ export interface Database {
           cliente_nome_razao_social: string
           cliente_nome_fantasia?: string | null
           cliente_documento?: string | null
+          cliente_documento_formatado?: string | null
           cliente_tipo_pessoa: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
           cliente_vertical?: string | null
           cliente_email?: string | null
@@ -189,6 +191,7 @@ export interface Database {
           cliente_nome_razao_social?: string
           cliente_nome_fantasia?: string | null
           cliente_documento?: string | null
+          cliente_documento_formatado?: string | null
           cliente_tipo_pessoa?: Database["public"]["Enums"]["cliente_tipo_pessoa_enum"]
           cliente_vertical?: string | null
           cliente_email?: string | null

@@ -9,6 +9,7 @@ export interface Cliente {
   cliente_nome_razao_social: string
   cliente_nome_fantasia: string | null
   cliente_documento: string | null
+  cliente_documento_formatado: string | null
   cliente_tipo_pessoa: ClienteTipoPessoa
   cliente_vertical: string | null
   cliente_email: string | null
@@ -40,11 +41,11 @@ export interface Cliente {
 
 export type CreateClientePayload = Omit<
   Cliente,
-  'cliente_id' | 'created_at' | 'updated_at' | 'deleted_at'
-> & { deleted_at?: null }
+  'cliente_id' | 'created_at' | 'updated_at' | 'deleted_at' | 'cliente_documento_formatado' | 'user_id'
+> & { deleted_at?: null; user_id?: string | null }
 
 export type UpdateClientePayload = Partial<
-  Omit<Cliente, 'cliente_id' | 'created_at' | 'updated_at' | 'user_id'>
+  Omit<Cliente, 'cliente_id' | 'created_at' | 'updated_at' | 'cliente_documento_formatado'>
 >
 
 const normalizeDigits = (value: string) => (value || '').replace(/\D/g, '').trim()
@@ -63,6 +64,7 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
       cliente_nome_razao_social,
       cliente_nome_fantasia,
       cliente_documento,
+      cliente_documento_formatado,
       cliente_tipo_pessoa,
       cliente_vertical,
       cliente_email,
@@ -124,14 +126,14 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
 export async function createCliente(payload: CreateClientePayload) {
   const { data, error } = await (supabase as any)
     .from('crm_clientes')
-    .insert({
+    .upsert({
       ...payload,
       cliente_documento: payload.cliente_documento ? normalizeDigits(payload.cliente_documento) : null,
       cliente_email: payload.cliente_email ? payload.cliente_email.trim().toLowerCase() : null,
       cliente_uf: payload.cliente_uf ? payload.cliente_uf.trim().toUpperCase() : null,
       cliente_pais: payload.cliente_pais ? payload.cliente_pais.trim().toUpperCase() : 'BR',
       deleted_at: null
-    })
+    }, { onConflict: 'cliente_documento' })
     .select(
       `
       cliente_id,
@@ -139,6 +141,7 @@ export async function createCliente(payload: CreateClientePayload) {
       cliente_nome_razao_social,
       cliente_nome_fantasia,
       cliente_documento,
+      cliente_documento_formatado,
       cliente_tipo_pessoa,
       cliente_vertical,
       cliente_email,
@@ -192,6 +195,7 @@ export async function updateCliente(clienteId: string, updates: UpdateClientePay
       cliente_nome_razao_social,
       cliente_nome_fantasia,
       cliente_documento,
+      cliente_documento_formatado,
       cliente_tipo_pessoa,
       cliente_vertical,
       cliente_email,

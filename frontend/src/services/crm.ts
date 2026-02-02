@@ -139,6 +139,22 @@ export interface CRM_Meta {
   meta_geral: string | null
 }
 
+export async function fetchOportunidadesByClienteId(clienteId: string) {
+  if (!clienteId) return []
+  const { data, error } = await (supabase as any)
+    .from('crm_oportunidades')
+    .select('id_oport, cod_oport, id_cliente, id_fase, id_status, fase, status, data_inclusao')
+    .eq('id_cliente', clienteId)
+    .order('data_inclusao', { ascending: false })
+
+  if (error) {
+    if (error.code === '42P01') return []
+    return []
+  }
+
+  return (data ?? []) as CRM_Oportunidade[]
+}
+
 /* ======================================================
    OPORTUNIDADES (LEVE E RÁPIDO)
 ====================================================== */

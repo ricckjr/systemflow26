@@ -33,6 +33,28 @@ async function attachPerfisToUsers(users) {
   }));
 }
 
+function normalizeCargo(input) {
+  const raw = String(input ?? '').trim();
+  const normalized = raw
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_');
+
+  if (normalized === 'ADMIN' || normalized === 'ADMINISTRADOR' || normalized === 'ADMINISTRADORA') return 'ADMIN';
+  if (normalized === 'FINANCEIRO') return 'FINANCEIRO';
+  if (normalized === 'MARKETING') return 'MARKETING';
+  if (normalized === 'ADMINISTRATIVO') return 'ADMINISTRATIVO';
+  if (normalized === 'RECURSOS_HUMANOS' || normalized === 'RECURSOS_HUMANO' || normalized === 'RH') return 'RECURSOS_HUMANOS';
+  if (normalized === 'DEPARTAMENTO_PESSOAL' || normalized === 'DP') return 'DEPARTAMENTO_PESSOAL';
+  if (normalized === 'LOGISTICA') return 'LOGISTICA';
+  if (normalized === 'OFICINA' || normalized === 'PRODUCAO') return 'OFICINA';
+  if (normalized === 'TECNICO' || normalized === 'ELETRONICA' || normalized === 'LABORATORIO') return 'TECNICO';
+  if (normalized === 'VENDEDOR' || normalized === 'COMERCIAL') return 'VENDEDOR';
+
+  return 'VENDEDOR';
+}
+
 // === 1. LIST USERS ===
 router.get('/users', async (req, res) => {
   const { page = 1, limit = 50, search } = req.query;
@@ -105,12 +127,13 @@ router.post('/users', async (req, res) => {
   }
 
   try {
+    const normalizedCargo = normalizeCargo(cargo);
     // A. Create in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email_login,
       password: senha,
       email_confirm: true,
-      user_metadata: { nome, cargo }
+      user_metadata: { nome, cargo: normalizedCargo }
     });
 
     if (authError) throw authError;
@@ -125,7 +148,7 @@ router.post('/users', async (req, res) => {
         email_corporativo: email_corporativo || email_login, // Fallback if needed
         telefone,
         ramal,
-        cargo,
+        cargo: normalizedCargo,
         ativo: ativo !== undefined ? ativo : true,
         // is_admin defaults to false usually, or handled by a separate logic. 
         // Requirement didn't explicitly ask for is_admin in the POST body for creation, 
@@ -144,11 +167,11 @@ router.post('/users', async (req, res) => {
     }
 
     const perfilNome =
-      cargo === 'ADMIN'
+      normalizedCargo === 'ADMIN'
         ? 'ADMIN'
-        : cargo === 'FINANCEIRO'
+        : normalizedCargo === 'FINANCEIRO'
         ? 'FINANCEIRO'
-        : cargo === 'OFICINA' || cargo === 'TECNICO'
+        : normalizedCargo === 'OFICINA' || normalizedCargo === 'TECNICO'
         ? 'PRODUCAO'
         : 'VENDEDOR';
 
@@ -201,7 +224,7 @@ router.patch('/users/:id', async (req, res) => {
     if (nome !== undefined) updates.nome = nome;
     if (email_login !== undefined) updates.email_login = email_login;
     if (email_corporativo !== undefined) updates.email_corporativo = email_corporativo;
-    if (cargo !== undefined) updates.cargo = cargo;
+    if (cargo !== undefined) updates.cargo = normalizeCargo(cargo);
     if (telefone !== undefined) updates.telefone = telefone;
     if (ramal !== undefined) updates.ramal = ramal;
     if (ativo !== undefined) updates.ativo = ativo;
@@ -220,12 +243,12 @@ router.patch('/users/:id', async (req, res) => {
 
     // B. Update Auth (if sensitive fields changed)
     const authUpdates = {};
-    if (email_login) authUpdates.email = email_login;
-    if (senha) authUpdates.password = senha;
-    if (nome || cargo) {
+    if (email_login !== undefined) authUpdates.email = email_login;
+    if (senha !== undefined) authUpdates.password = senha;
+    if (nome !== undefined || cargo !== undefined) {
       authUpdates.user_metadata = {};
-      if (nome) authUpdates.user_metadata.nome = nome;
-      if (cargo) authUpdates.user_metadata.cargo = cargo;
+      if (nome !== undefined) authUpdates.user_metadata.nome = nome;
+      if (cargo !== undefined) authUpdates.user_metadata.cargo = normalizeCargo(cargo);
     }
 
     if (Object.keys(authUpdates).length > 0) {

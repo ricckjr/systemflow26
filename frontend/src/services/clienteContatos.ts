@@ -24,7 +24,7 @@ const normalizeDigits = (value: string) => (value || '').replace(/\D/g, '').trim
 export async function fetchClienteContatos(clienteId: string) {
   const sb = supabase as any
   const { data, error } = await sb
-    .from('clientes_contatos')
+    .from('crm_contatos')
     .select(
       `
       contato_id,
@@ -58,7 +58,7 @@ export async function fetchClienteContatos(clienteId: string) {
 export async function createClienteContato(payload: CreateClienteContatoPayload) {
   const sb = supabase as any
   const { data, error } = await sb
-    .from('clientes_contatos')
+    .from('crm_contatos')
     .insert({
       ...payload,
       contato_email: payload.contato_email ? payload.contato_email.trim().toLowerCase() : null,
@@ -91,7 +91,7 @@ export async function createClienteContato(payload: CreateClienteContatoPayload)
 export async function updateClienteContato(contatoId: string, updates: UpdateClienteContatoPayload) {
   const sb = supabase as any
   const { data, error } = await sb
-    .from('clientes_contatos')
+    .from('crm_contatos')
     .update({
       ...updates,
       contato_email: updates.contato_email ? String(updates.contato_email).trim().toLowerCase() : updates.contato_email,

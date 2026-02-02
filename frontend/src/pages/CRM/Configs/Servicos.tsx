@@ -1,35 +1,37 @@
 import React from 'react'
-import { ConfigCrudPage } from './ConfigCrudPage'
+import { ValueCrudPage } from './ValueCrudPage'
 import { createCrmServico, deleteCrmServico, fetchCrmServicos, updateCrmServico } from '@/services/crm'
 
 export default function Servicos() {
   return (
-    <ConfigCrudPage
+    <ValueCrudPage
       title="Cadastrar Serviços"
       subtitle="Serviços e ofertas configuráveis do CRM."
       singularLabel="Serviço"
+      accent="sky"
       fetchItems={async () => {
         const data = await fetchCrmServicos()
         return data.map(s => ({
           id: s.serv_id,
-          id_integ: s.integ_id,
           descricao: s.descricao_serv,
-          obs: s.obs_serv
+          obs: s.obs_serv,
+          valor: s.servicos_valor ?? 0
         }))
       }}
       createItem={async payload => {
         await createCrmServico({
-          integ_id: payload.id_integ,
+          integ_id: null,
           descricao_serv: payload.descricao,
           obs_serv: payload.obs,
-          servicos_valor: 0
+          servicos_valor: payload.valor ?? 0
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmServico(id, {
-          integ_id: payload.id_integ,
+          integ_id: null,
           descricao_serv: payload.descricao,
-          obs_serv: payload.obs
+          obs_serv: payload.obs,
+          servicos_valor: payload.valor ?? 0
         })
       }}
       deleteItem={async id => {

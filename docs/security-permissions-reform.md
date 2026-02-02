@@ -30,12 +30,12 @@
   - Funções:
     - `public.has_permission(user_id, modulo, acao)` para enforcement no banco.
     - `public.get_my_permissions()` (RPC) para o frontend carregar permissões do usuário autenticado.
-- `public.clientes`
+- `public.crm_clientes`
   - SELECT: dono (`user_id=auth.uid()`) ou `CLIENTES:MANAGE`.
   - INSERT: dono ou `CLIENTES:MANAGE`.
   - UPDATE: dono ou `CLIENTES:MANAGE`, e soft delete só com `CLIENTES:DELETE`.
   - DELETE físico: bloqueado por trigger (soft delete via `deleted_at`).
-- `public.clientes_contatos`
+- `public.crm_contatos`
   - SELECT/INSERT/UPDATE: limitado ao vínculo com clientes do usuário; `CLIENTES:MANAGE` tem acesso global.
   - Soft delete: somente com `CLIENTES:DELETE`.
   - DELETE físico: bloqueado por trigger (soft delete via `deleted_at`).
@@ -57,4 +57,3 @@
 - UI
   - Rotas protegidas por `RequirePermission`.
   - Ações proibidas não aparecem e, mesmo forçando requisição, banco/backend bloqueiam.
-

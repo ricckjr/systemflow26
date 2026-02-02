@@ -125,6 +125,8 @@ const navItems: NavItem[] = [
       { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Fase CRM', path: '/app/crm/configs/fases', submodulo: 'fases', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Status CRM', path: '/app/crm/configs/status', submodulo: 'status', requires: { modulo: 'CRM', acao: 'CONTROL' } },
     ],
   },
 ];

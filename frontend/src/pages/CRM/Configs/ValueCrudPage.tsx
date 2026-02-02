@@ -2,20 +2,21 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from '@/components/ui'
 import { Loader2, Plus, Search, Pencil, Trash2, Settings } from 'lucide-react'
 
-export type ConfigCrudItem = {
+export type ValueCrudItem = {
   id: string
   descricao: string
   obs: string | null
+  valor: number | null
 }
 
-type ConfigCrudPageProps = {
+type ValueCrudPageProps = {
   title: string
   subtitle: string
   singularLabel: string
   accent?: 'cyan' | 'orange' | 'sky'
-  fetchItems: () => Promise<ConfigCrudItem[]>
-  createItem: (payload: Pick<ConfigCrudItem, 'descricao' | 'obs'>) => Promise<unknown>
-  updateItem: (id: string, payload: Pick<ConfigCrudItem, 'descricao' | 'obs'>) => Promise<unknown>
+  fetchItems: () => Promise<ValueCrudItem[]>
+  createItem: (payload: Pick<ValueCrudItem, 'descricao' | 'obs' | 'valor'>) => Promise<unknown>
+  updateItem: (id: string, payload: Pick<ValueCrudItem, 'descricao' | 'obs' | 'valor'>) => Promise<unknown>
   deleteItem: (id: string) => Promise<unknown>
 }
 
@@ -24,7 +25,7 @@ const HeaderCard = ({ children }: { children: React.ReactNode }) => (
 )
 
 const ACCENTS: Record<
-  NonNullable<ConfigCrudPageProps['accent']>,
+  NonNullable<ValueCrudPageProps['accent']>,
   {
     primaryBg: string
     primaryHover: string
@@ -72,7 +73,30 @@ const ACCENTS: Record<
   }
 }
 
-export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
+const formatCurrency = (value: number | null) => {
+  const num = Number(value ?? 0)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
+}
+
+const parseMoneyInput = (input: string) => {
+  const raw = (input || '').trim()
+  if (!raw) return null
+  const cleaned = raw.replace(/[^\d,.-]/g, '')
+  if (!cleaned) return null
+  const hasComma = cleaned.includes(',')
+  const hasDot = cleaned.includes('.')
+  let normalized = cleaned
+  if (hasComma && hasDot) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.')
+  } else {
+    normalized = cleaned.replace(',', '.')
+  }
+  const value = Number.parseFloat(normalized)
+  if (!Number.isFinite(value)) return null
+  return value
+}
+
+export const ValueCrudPage: React.FC<ValueCrudPageProps> = ({
   title,
   subtitle,
   singularLabel,
@@ -83,7 +107,7 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
   deleteItem
 }) => {
   const colors = ACCENTS[accent]
-  const [items, setItems] = useState<ConfigCrudItem[]>([])
+  const [items, setItems] = useState<ValueCrudItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -92,11 +116,12 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  const active = useMemo(() => items.find(i => i.id === activeId) || null, [items, activeId])
+  const active = useMemo(() => items.find((i) => i.id === activeId) || null, [items, activeId])
   const isEditing = !!active
 
   const [draftDescricao, setDraftDescricao] = useState('')
   const [draftObs, setDraftObs] = useState('')
+  const [draftValor, setDraftValor] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -123,19 +148,21 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
     if (active) {
       setDraftDescricao(active.descricao || '')
       setDraftObs(active.obs || '')
+      setDraftValor(active.valor === null || active.valor === undefined ? '' : String(active.valor))
       return
     }
     setDraftDescricao('')
     setDraftObs('')
+    setDraftValor('')
   }, [isFormOpen, active])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return items
-    return items.filter(i => {
+    return items.filter((i) => {
       const a = (i.descricao || '').toLowerCase()
-      const c = (i.obs || '').toLowerCase()
-      return a.includes(term) || c.includes(term)
+      const b = (i.obs || '').toLowerCase()
+      return a.includes(term) || b.includes(term)
     })
   }, [items, search])
 
@@ -155,9 +182,11 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
       setError('A descrição é obrigatória.')
       return
     }
+
     const payload = {
       descricao,
-      obs: draftObs.trim() ? draftObs.trim() : null
+      obs: draftObs.trim() ? draftObs.trim() : null,
+      valor: parseMoneyInput(draftValor)
     }
 
     setSaving(true)
@@ -218,7 +247,7 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
             <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 ${colors.searchFocusText} transition-colors`} />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder={`Buscar ${singularLabel.toLowerCase()}...`}
               className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all`}
             />
@@ -254,11 +283,12 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
             <div className="overflow-hidden rounded-2xl border border-white/5">
               <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
                 <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição</div>
-                <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Observação</div>
+                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Valor</div>
+                <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Observação</div>
                 <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
-                {filtered.map(i => (
+                {filtered.map((i) => (
                   <div key={i.id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
                     <div className="col-span-6 min-w-0">
                       <div className="text-sm font-semibold text-slate-200 truncate" title={i.descricao}>
@@ -266,7 +296,10 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
                       </div>
                       <div className="text-[10px] text-slate-500 font-mono mt-0.5">#{i.id.split('-')[0]}</div>
                     </div>
-                    <div className="col-span-5 min-w-0">
+                    <div className="col-span-2 min-w-0">
+                      <div className="text-sm text-slate-300 truncate">{formatCurrency(i.valor)}</div>
+                    </div>
+                    <div className="col-span-3 min-w-0">
                       <div className="text-sm text-slate-400 truncate">{i.obs || '-'}</div>
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
@@ -354,7 +387,7 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição</label>
             <input
               value={draftDescricao}
-              onChange={e => setDraftDescricao(e.target.value)}
+              onChange={(e) => setDraftDescricao(e.target.value)}
               className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
               placeholder={`Ex: ${singularLabel} A`}
               autoFocus
@@ -362,10 +395,21 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
           </div>
 
           <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor (R$)</label>
+            <input
+              value={draftValor}
+              onChange={(e) => setDraftValor(e.target.value)}
+              inputMode="decimal"
+              className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+              placeholder="Ex: 199,90"
+            />
+          </div>
+
+          <div className="space-y-2">
             <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observação (opcional)</label>
             <textarea
               value={draftObs}
-              onChange={e => setDraftObs(e.target.value)}
+              onChange={(e) => setDraftObs(e.target.value)}
               className={`w-full h-28 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none resize-none placeholder:text-slate-500`}
               placeholder="Notas internas, regras, classificação..."
             />
@@ -434,3 +478,4 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
     </div>
   )
 }
+

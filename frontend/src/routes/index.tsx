@@ -156,6 +156,26 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
+      {
+        path: 'crm/configs/etapas',
+        element: <Navigate to="/app/crm/configs/fases" replace />
+      },
+      {
+        path: 'crm/configs/fases',
+        element: lazyElement(
+          () => import('@/pages/CRM/Configs/Fases'),
+          'Carregando Fases CRM...',
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'crm/configs/status',
+        element: lazyElement(
+          () => import('@/pages/CRM/Configs/Status'),
+          'Carregando Status CRM...',
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
 
       { path: 'comercial/overview', element: <Navigate to="/app/dashboard/comercial" replace /> },
       { path: 'comercial/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },

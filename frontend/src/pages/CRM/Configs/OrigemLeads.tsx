@@ -12,21 +12,20 @@ export default function OrigemLeads() {
         const data = await fetchCrmOrigensLead()
         return data.map(o => ({
           id: o.orig_id,
-          id_integ: o.integ_id,
           descricao: o.descricao_orig,
           obs: o.obs_orig
         }))
       }}
       createItem={async payload => {
         await createCrmOrigemLead({
-          integ_id: payload.id_integ,
+          integ_id: null,
           descricao_orig: payload.descricao,
           obs_orig: payload.obs
         })
       }}
       updateItem={async (id, payload) => {
         await updateCrmOrigemLead(id, {
-          integ_id: payload.id_integ,
+          integ_id: null,
           descricao_orig: payload.descricao,
           obs_orig: payload.obs
         })

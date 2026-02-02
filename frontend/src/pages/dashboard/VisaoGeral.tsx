@@ -115,7 +115,10 @@ export default function VisaoGeral() {
     const lastData = filterData(data, prevStart, prevEnd)
     
     const calculateMetrics = (dataset: CRM_Oportunidade[]) => {
-      const vendaValue = dataset.reduce((a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta) : 0), 0)
+      const vendaValue = dataset.reduce(
+        (a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta ?? (o.ticket_valor == null ? null : String(o.ticket_valor))) : 0),
+        0
+      )
       const vendaCount = dataset.reduce((a, o) => a + (isVenda(o.status) ? 1 : 0), 0)
       
       const ativoItems = dataset.filter(o => isAtivo(o.status))
@@ -125,11 +128,11 @@ export default function VisaoGeral() {
       return {
         vendaValue,
         vendaCount,
-        ativoValue: ativoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta), 0),
+        ativoValue: ativoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
         ativoCount: ativoItems.length,
-        perdidoValue: perdidoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta), 0),
+        perdidoValue: perdidoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
         perdidoCount: perdidoItems.length,
-        canceladoValue: canceladoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta), 0),
+        canceladoValue: canceladoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
         canceladoCount: canceladoItems.length
       }
     }
@@ -464,7 +467,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
 
     const grouped = data.reduce((acc, item) => {
       // Normalização robusta: usa etapa
-      const raw = (item.etapa || '').toUpperCase()
+      const raw = (item.fase || '').toUpperCase()
       const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Ç/g, 'C').replace(/[^A-Z]/g, '')
       
       let stageId = ''
@@ -478,7 +481,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
       if (stageId) {
         if (!acc[stageId]) acc[stageId] = { count: 0, value: 0 }
         acc[stageId].count += 1
-        acc[stageId].value += parseValorProposta(item.valor_proposta)
+        acc[stageId].value += parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
       }
       return acc
     }, {} as Record<string, { count: number, value: number }>)
@@ -498,7 +501,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
     <div className="card-panel p-6 h-full flex flex-col">
       <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
         <TrendingUp size={16} className="text-indigo-400" />
-        Funil de Vendas (Etapas)
+        Funil de Vendas (Fases)
       </h3>
       
       <div className="flex-1 w-full min-h-[450px]">
@@ -592,7 +595,7 @@ const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
 
     const grouped = vendasDoMes.reduce((acc, item) => {
       const vendedor = item.vendedor || 'Não Identificado'
-      const valor = parseValorProposta(item.valor_proposta)
+      const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
       if (!acc[vendedor]) acc[vendedor] = 0
       acc[vendedor] += valor
       return acc

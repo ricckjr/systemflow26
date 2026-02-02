@@ -128,7 +128,7 @@ const Vendedores: React.FC = () => {
       sellerMap[sellerName].ops.push(op);
 
       if (isVenda(op.status)) {
-        const valor = parseValorProposta(op.valor_proposta);
+        const valor = parseValorProposta(op.valor_proposta ?? (op.ticket_valor == null ? null : String(op.ticket_valor)));
         sellerMap[sellerName].totalVendas += valor;
         sellerMap[sellerName].countVendas += 1;
       }
@@ -140,7 +140,7 @@ const Vendedores: React.FC = () => {
         const sellerName = op.vendedor || 'Não Atribuído';
         
         if (sellerMap[sellerName]) {
-           const valor = parseValorProposta(op.valor_proposta);
+           const valor = parseValorProposta(op.valor_proposta ?? (op.ticket_valor == null ? null : String(op.ticket_valor)));
            sellerMap[sellerName].prevTotalVendas += valor;
         }
       }
@@ -222,7 +222,7 @@ const Vendedores: React.FC = () => {
         const full = formatDateBR(o.data_inclusao);
         if (!full) return;
         const day = full.slice(0, 5);
-        const val = parseValorProposta(o.valor_proposta);
+        const val = parseValorProposta(o.valor_proposta ?? (o.ticket_valor == null ? null : String(o.ticket_valor)));
         salesByDayMap[day] = (salesByDayMap[day] || 0) + val;
       });
       const vendasPorDia = Object.entries(salesByDayMap).map(([dia, valor]) => ({ dia, valor })).sort((a, b) => a.dia.localeCompare(b.dia));

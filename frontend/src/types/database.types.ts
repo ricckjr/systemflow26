@@ -114,7 +114,7 @@ export interface Database {
         }
         Relationships: []
       }
-      clientes: {
+      crm_clientes: {
         Row: {
           cliente_id: string
           integ_id: string | null
@@ -219,7 +219,7 @@ export interface Database {
         }
         Relationships: []
       }
-      clientes_contatos: {
+      crm_contatos: {
         Row: {
           contato_id: string
           integ_id: string | null
@@ -270,7 +270,7 @@ export interface Database {
             foreignKeyName: "clientes_contatos_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clientes"
+            referencedRelation: "crm_clientes"
             referencedColumns: ["cliente_id"]
           },
         ]

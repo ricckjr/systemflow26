@@ -55,7 +55,7 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
   const search = (opts?.search || '').trim()
 
   let q = sb
-    .from('clientes')
+    .from('crm_clientes')
     .select(
       `
       cliente_id,
@@ -123,7 +123,7 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
 
 export async function createCliente(payload: CreateClientePayload) {
   const { data, error } = await (supabase as any)
-    .from('clientes')
+    .from('crm_clientes')
     .insert({
       ...payload,
       cliente_documento: payload.cliente_documento ? normalizeDigits(payload.cliente_documento) : null,
@@ -176,7 +176,7 @@ export async function createCliente(payload: CreateClientePayload) {
 
 export async function updateCliente(clienteId: string, updates: UpdateClientePayload) {
   const { data, error } = await (supabase as any)
-    .from('clientes')
+    .from('crm_clientes')
     .update({
       ...updates,
       cliente_documento: updates.cliente_documento ? normalizeDigits(String(updates.cliente_documento)) : updates.cliente_documento,
@@ -229,7 +229,7 @@ export async function updateCliente(clienteId: string, updates: UpdateClientePay
 
 export async function softDeleteCliente(clienteId: string) {
   const { error } = await (supabase as any)
-    .from('clientes')
+    .from('crm_clientes')
     .update({ deleted_at: new Date().toISOString() })
     .eq('cliente_id', clienteId)
 

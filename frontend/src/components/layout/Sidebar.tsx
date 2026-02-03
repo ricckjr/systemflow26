@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   Factory,
   GraduationCap,
-  Car
+  Car,
+  Box
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,7 +77,7 @@ const navItems: NavItem[] = [
     modulo: 'crm',
     requires: { modulo: 'CRM', acao: 'VIEW' },
     subItems: [
-      { label: 'Oportunidades (Kanban)', path: '/app/crm/oportunidades-kanban', submodulo: 'oportunidades-kanban' },
+      { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban' },
       { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
       { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes' },
     ],
@@ -100,6 +101,18 @@ const navItems: NavItem[] = [
     subItems: [
       { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
       { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
+    ],
+  },
+  {
+    label: 'COMPRAS E ESTOQUE',
+    icon: Box,
+    modulo: 'compras-estoque',
+    subItems: [
+      { label: 'Visão Geral', path: '/app/compras-estoque', submodulo: 'visao-geral' },
+      { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
+      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Cadastro NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'CRM', acao: 'CONTROL' } },
     ],
   },
   {
@@ -134,8 +147,6 @@ const navItems: NavItem[] = [
       { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Transportadora', path: '/app/config-gerais/transportadora', submodulo: 'transportadora' },
-      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },

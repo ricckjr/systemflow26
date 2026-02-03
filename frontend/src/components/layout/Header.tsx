@@ -44,9 +44,11 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/comunidade/calendario': 'CALENDÁRIO',
       '/app/dashboard/comercial': 'COMERCIAL',
 
-      '/app/crm/oportunidades-kanban': 'CRM — OPORTUNIDADES (KANBAN)',
-      '/app/crm/oportunidades': 'CRM — OPORTUNIDADES (KANBAN)',
-      '/app/crm/propostas': 'CRM — OPORTUNIDADES (KANBAN)',
+      '/app/crm/propostas-comerciais-kanban': 'CRM — PROPOSTA COMERCIAL',
+      '/app/crm/oportunidades-kanban': 'CRM — PROPOSTA COMERCIAL',
+      '/app/crm/oportunidades': 'CRM — PROPOSTA COMERCIAL',
+      '/app/crm/propostas': 'CRM — PROPOSTA COMERCIAL',
+      '/app/crm/propostas-comerciais': 'CRM — PROPOSTA COMERCIAL',
       '/app/crm/ranking': 'CRM — RANKING',
       '/app/crm/vendedores': 'CRM — RANKING',
       '/app/crm/clientes': 'CRM — CLIENTES',
@@ -64,13 +66,17 @@ export const Header: React.FC<HeaderProps> = ({
 
       '/app/comercial/overview': 'COMERCIAL',
       '/app/comercial/vendedores': 'CRM — RANKING',
-      '/app/comercial/oportunidades': 'CRM — OPORTUNIDADES (KANBAN)',
+      '/app/comercial/oportunidades': 'CRM — PROPOSTA COMERCIAL',
       '/app/comunicacao/chat': 'CHAT',
       '/app/comunicacao/flowsmart': 'SMARTFLOW — ATENDIMENTOS',
       '/app/comunicacao/ia': 'ASSISTENTE FLOW',
 
       '/app/smartflow/atendimentos': 'SMARTFLOW — ATENDIMENTOS',
       '/app/smartflow/kanban-fluxos': 'SMARTFLOW — KANBAN DE FLUXOS',
+
+      '/app/compras-estoque': 'COMPRAS E ESTOQUE',
+      '/app/compras-estoque/compras': 'COMPRAS — KANBAN',
+      '/app/compras-estoque/ncm': 'COMPRAS E ESTOQUE — NCM',
 
       '/app/producao/propostas': 'PRODUÇÃO — PROPOSTAS',
       '/app/producao/omie': 'PRODUÇÃO — PROPOSTAS',

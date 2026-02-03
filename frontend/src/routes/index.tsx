@@ -76,7 +76,7 @@ export const router = createBrowserRouter([
       },
 
       {
-        path: 'crm/oportunidades-kanban',
+        path: 'crm/propostas-comerciais-kanban',
         element: lazyElement(
           () => import('@/pages/CRM/OportunidadesKanban'),
           'Carregando Kanban...',
@@ -91,8 +91,10 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="CRM" acao="VIEW">{node}</RequirePermission>
         )
       },
-      { path: 'crm/oportunidades', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
-      { path: 'crm/propostas', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
+      { path: 'crm/oportunidades-kanban', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
+      { path: 'crm/oportunidades', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
+      { path: 'crm/propostas', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
+      { path: 'crm/propostas-comerciais', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
       { path: 'crm/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
       {
         path: 'crm/clientes',
@@ -220,7 +222,8 @@ export const router = createBrowserRouter([
 
       { path: 'comercial/overview', element: <Navigate to="/app/dashboard/comercial" replace /> },
       { path: 'comercial/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
-      { path: 'comercial/oportunidades', element: <Navigate to="/app/crm/oportunidades-kanban" replace /> },
+      { path: 'comercial/oportunidades', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
+      { path: 'comercial/propostas-comerciais', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
 
       { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
       { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
@@ -293,6 +296,17 @@ export const router = createBrowserRouter([
           () => import('@/pages/SmartFlow/KanbanFluxos'),
           'Carregando Kanban de Fluxos...',
           (node) => <RequirePermission modulo="SMARTFLOW" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+
+      { path: 'compras-estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/VisaoGeral'), 'Carregando Compras e Estoque...') },
+      { path: 'compras-estoque/compras', element: lazyElement(() => import('@/pages/ComprasEstoque/ComprasKanban'), 'Carregando Compras...') },
+      {
+        path: 'compras-estoque/ncm',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/CadastroNcm'),
+          'Carregando Cadastro NCM...',
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
         )
       },
 

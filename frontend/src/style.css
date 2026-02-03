@@ -36,6 +36,16 @@ html, body {
   background: var(--primary-600);
 }
 
+.kanban-hide-native-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.kanban-hide-native-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
 /* =========================================================
    CARD / PANEL
 ========================================================= */

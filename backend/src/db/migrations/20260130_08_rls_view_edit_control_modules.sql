@@ -8,6 +8,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_motivos_write_manage ON public.crm_motivos';
     EXECUTE 'DROP POLICY IF EXISTS crm_motivos_update_manage ON public.crm_motivos';
     EXECUTE 'DROP POLICY IF EXISTS crm_motivos_delete_manage ON public.crm_motivos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_motivos_select ON public.crm_motivos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_motivos_insert ON public.crm_motivos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_motivos_update ON public.crm_motivos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_motivos_delete ON public.crm_motivos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_motivos_service_role_all ON public.crm_motivos';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_motivos_select
@@ -47,6 +52,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_origem_leads_write_manage ON public.crm_origem_leads';
     EXECUTE 'DROP POLICY IF EXISTS crm_origem_leads_update_manage ON public.crm_origem_leads';
     EXECUTE 'DROP POLICY IF EXISTS crm_origem_leads_delete_manage ON public.crm_origem_leads';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_origem_leads_select ON public.crm_origem_leads';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_origem_leads_insert ON public.crm_origem_leads';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_origem_leads_update ON public.crm_origem_leads';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_origem_leads_delete ON public.crm_origem_leads';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_origem_leads_service_role_all ON public.crm_origem_leads';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_origem_leads_select
@@ -86,6 +96,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_produtos_write_manage ON public.crm_produtos';
     EXECUTE 'DROP POLICY IF EXISTS crm_produtos_update_manage ON public.crm_produtos';
     EXECUTE 'DROP POLICY IF EXISTS crm_produtos_delete_manage ON public.crm_produtos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_produtos_select ON public.crm_produtos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_produtos_insert ON public.crm_produtos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_produtos_update ON public.crm_produtos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_produtos_delete ON public.crm_produtos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_produtos_service_role_all ON public.crm_produtos';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_produtos_select
@@ -125,6 +140,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_servicos_write_manage ON public.crm_servicos';
     EXECUTE 'DROP POLICY IF EXISTS crm_servicos_update_manage ON public.crm_servicos';
     EXECUTE 'DROP POLICY IF EXISTS crm_servicos_delete_manage ON public.crm_servicos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_servicos_select ON public.crm_servicos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_servicos_insert ON public.crm_servicos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_servicos_update ON public.crm_servicos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_servicos_delete ON public.crm_servicos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_servicos_service_role_all ON public.crm_servicos';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_servicos_select
@@ -164,6 +184,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_verticais_write_manage ON public.crm_verticais';
     EXECUTE 'DROP POLICY IF EXISTS crm_verticais_update_manage ON public.crm_verticais';
     EXECUTE 'DROP POLICY IF EXISTS crm_verticais_delete_manage ON public.crm_verticais';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_verticais_select ON public.crm_verticais';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_verticais_insert ON public.crm_verticais';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_verticais_update ON public.crm_verticais';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_verticais_delete ON public.crm_verticais';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_verticais_service_role_all ON public.crm_verticais';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_verticais_select
@@ -202,6 +227,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS crm_oportunidades_select_owner_or_manage ON public.crm_oportunidades';
     EXECUTE 'DROP POLICY IF EXISTS crm_oportunidades_update_owner_or_manage ON public.crm_oportunidades';
     EXECUTE 'DROP POLICY IF EXISTS crm_oportunidades_service_role_all ON public.crm_oportunidades';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_oportunidades_select ON public.crm_oportunidades';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_oportunidades_insert ON public.crm_oportunidades';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_oportunidades_update ON public.crm_oportunidades';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_oportunidades_delete ON public.crm_oportunidades';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_crm_oportunidades_service_role_all ON public.crm_oportunidades';
 
     EXECUTE $p$
       CREATE POLICY rbac_crm_oportunidades_select
@@ -210,7 +240,7 @@ BEGIN
       USING (
         public.has_permission(auth.uid(), 'CRM', 'VIEW')
         AND (
-          id_vendedor = auth.uid()::text
+          id_vendedor::text = auth.uid()::text
           OR public.has_permission(auth.uid(), 'CRM', 'CONTROL')
         )
       )
@@ -224,7 +254,7 @@ BEGIN
         public.has_permission(auth.uid(), 'CRM', 'EDIT')
         AND (
           public.has_permission(auth.uid(), 'CRM', 'CONTROL')
-          OR id_vendedor = auth.uid()::text
+          OR id_vendedor::text = auth.uid()::text
         )
       )
     $p$;
@@ -236,7 +266,7 @@ BEGIN
       USING (
         public.has_permission(auth.uid(), 'CRM', 'EDIT')
         AND (
-          id_vendedor = auth.uid()::text
+          id_vendedor::text = auth.uid()::text
           OR public.has_permission(auth.uid(), 'CRM', 'CONTROL')
         )
       )
@@ -244,7 +274,7 @@ BEGIN
         public.has_permission(auth.uid(), 'CRM', 'EDIT')
         AND (
           public.has_permission(auth.uid(), 'CRM', 'CONTROL')
-          OR id_vendedor = auth.uid()::text
+          OR id_vendedor::text = auth.uid()::text
         )
       )
     $p$;
@@ -273,6 +303,9 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS clientes_select_final ON public.clientes';
     EXECUTE 'DROP POLICY IF EXISTS clientes_insert_final ON public.clientes';
     EXECUTE 'DROP POLICY IF EXISTS clientes_update_final ON public.clientes';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_select ON public.clientes';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_insert ON public.clientes';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_update ON public.clientes';
 
     EXECUTE $p$
       CREATE POLICY rbac_clientes_select
@@ -339,6 +372,9 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS clientes_contatos_select_final ON public.clientes_contatos';
     EXECUTE 'DROP POLICY IF EXISTS clientes_contatos_insert_final ON public.clientes_contatos';
     EXECUTE 'DROP POLICY IF EXISTS clientes_contatos_update_final ON public.clientes_contatos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_contatos_select ON public.clientes_contatos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_contatos_insert ON public.clientes_contatos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_clientes_contatos_update ON public.clientes_contatos';
 
     EXECUTE $p$
       CREATE POLICY rbac_clientes_contatos_select
@@ -433,6 +469,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS dashboard_meta_write_auth ON public.crm_meta_comercial';
     EXECUTE 'DROP POLICY IF EXISTS dashboard_meta_update_auth ON public.crm_meta_comercial';
     EXECUTE 'DROP POLICY IF EXISTS dashboard_meta_delete_auth ON public.crm_meta_comercial';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_dashboard_meta_select ON public.crm_meta_comercial';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_dashboard_meta_insert ON public.crm_meta_comercial';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_dashboard_meta_update ON public.crm_meta_comercial';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_dashboard_meta_delete ON public.crm_meta_comercial';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_dashboard_meta_service_role_all ON public.crm_meta_comercial';
 
     EXECUTE $p$
       CREATE POLICY rbac_dashboard_meta_select
@@ -476,6 +517,11 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS "Usuários autenticados podem criar catálogos" ON public.universidade_catalogos';
     EXECUTE 'DROP POLICY IF EXISTS "Criadores podem atualizar seus catálogos" ON public.universidade_catalogos';
     EXECUTE 'DROP POLICY IF EXISTS "Criadores podem deletar seus catálogos" ON public.universidade_catalogos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_universidade_catalogos_select ON public.universidade_catalogos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_universidade_catalogos_insert ON public.universidade_catalogos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_universidade_catalogos_update ON public.universidade_catalogos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_universidade_catalogos_delete ON public.universidade_catalogos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_universidade_catalogos_service_role_all ON public.universidade_catalogos';
 
     EXECUTE $p$
       CREATE POLICY rbac_universidade_catalogos_select
@@ -522,6 +568,10 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS producao_servics_insert ON public.servics_equipamento';
     EXECUTE 'DROP POLICY IF EXISTS producao_servics_update ON public.servics_equipamento';
     EXECUTE 'DROP POLICY IF EXISTS producao_servics_delete ON public.servics_equipamento';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_servics_select ON public.servics_equipamento';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_servics_insert ON public.servics_equipamento';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_servics_update ON public.servics_equipamento';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_servics_delete ON public.servics_equipamento';
 
     EXECUTE $p$
       CREATE POLICY rbac_producao_servics_select
@@ -559,6 +609,10 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS producao_historico_insert ON public.servics_historico';
     EXECUTE 'DROP POLICY IF EXISTS producao_historico_update ON public.servics_historico';
     EXECUTE 'DROP POLICY IF EXISTS producao_historico_delete ON public.servics_historico';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_historico_select ON public.servics_historico';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_historico_insert ON public.servics_historico';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_historico_update ON public.servics_historico';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_historico_delete ON public.servics_historico';
 
     EXECUTE $p$
       CREATE POLICY rbac_producao_historico_select
@@ -596,6 +650,10 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS producao_omie_insert ON public.omie_servics';
     EXECUTE 'DROP POLICY IF EXISTS producao_omie_update ON public.omie_servics';
     EXECUTE 'DROP POLICY IF EXISTS producao_omie_delete ON public.omie_servics';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_omie_select ON public.omie_servics';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_omie_insert ON public.omie_servics';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_omie_update ON public.omie_servics';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_producao_omie_delete ON public.omie_servics';
 
     EXECUTE $p$
       CREATE POLICY rbac_producao_omie_select
@@ -633,6 +691,10 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS frota_veiculos_insert ON public.frota_veiculos';
     EXECUTE 'DROP POLICY IF EXISTS frota_veiculos_update ON public.frota_veiculos';
     EXECUTE 'DROP POLICY IF EXISTS frota_veiculos_delete ON public.frota_veiculos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_veiculos_select ON public.frota_veiculos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_veiculos_insert ON public.frota_veiculos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_veiculos_update ON public.frota_veiculos';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_veiculos_delete ON public.frota_veiculos';
 
     EXECUTE $p$
       CREATE POLICY rbac_frota_veiculos_select
@@ -667,6 +729,10 @@ BEGIN
     EXECUTE 'DROP POLICY IF EXISTS frota_diario_insert ON public.frota_diario_bordo';
     EXECUTE 'DROP POLICY IF EXISTS frota_diario_update ON public.frota_diario_bordo';
     EXECUTE 'DROP POLICY IF EXISTS frota_diario_delete ON public.frota_diario_bordo';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_diario_select ON public.frota_diario_bordo';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_diario_insert ON public.frota_diario_bordo';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_diario_update ON public.frota_diario_bordo';
+    EXECUTE 'DROP POLICY IF EXISTS rbac_frota_diario_delete ON public.frota_diario_bordo';
 
     EXECUTE $p$
       CREATE POLICY rbac_frota_diario_select

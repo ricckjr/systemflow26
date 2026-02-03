@@ -1395,6 +1395,30 @@ export interface Database {
           }
         ]
       }
+      ncm: {
+        Row: {
+          ncm_id: string
+          codigo: string
+          descricao: string
+          created_at: string
+          cod_sem_mascara: number | null
+        }
+        Insert: {
+          ncm_id?: string
+          codigo: string
+          descricao: string
+          created_at?: string
+          cod_sem_mascara?: number | null
+        }
+        Update: {
+          ncm_id?: string
+          codigo?: string
+          descricao?: string
+          created_at?: string
+          cod_sem_mascara?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       profiles_public: {

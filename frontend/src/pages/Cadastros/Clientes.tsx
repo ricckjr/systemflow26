@@ -1360,16 +1360,16 @@ export default function Clientes() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Oportunidades</div>
+                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Propostas Comerciais</div>
                 {historyOportunidades.length === 0 ? (
-                  <div className="text-sm text-slate-400">Nenhuma oportunidade vinculada.</div>
+                  <div className="text-sm text-slate-400">Nenhuma proposta comercial vinculada.</div>
                 ) : (
                   <div className="space-y-2">
                     {historyOportunidades.slice(0, 12).map((o: any) => (
                       <div key={o.id_oport} className="rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm font-semibold text-slate-200 truncate">
-                            {o.cod_oport || o.id_oport?.slice?.(0, 8) || 'Oportunidade'}
+                            {o.cod_oport || o.id_oport?.slice?.(0, 8) || 'Proposta Comercial'}
                           </div>
                           <div className="text-[10px] text-slate-500">{o.data_inclusao ? new Date(o.data_inclusao).toLocaleDateString() : ''}</div>
                         </div>

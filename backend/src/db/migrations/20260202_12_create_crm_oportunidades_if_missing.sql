@@ -73,9 +73,7 @@ BEGIN
   ALTER TABLE public.crm_oportunidades
     DROP CONSTRAINT IF EXISTS chk_crm_oportunidades_solucao;
   ALTER TABLE public.crm_oportunidades
-    ADD CONSTRAINT chk_crm_oportunidades_solucao CHECK (
-      solucao IS NULL OR solucao IN ('PRODUTO','SERVICO','PRODUTO_SERVICO')
-    );
+    ADD CONSTRAINT chk_crm_oportunidades_solucao CHECK (solucao IS NULL OR solucao IN ('PRODUTO','SERVICO','PRODUTO_SERVICO'));
 END $$;
 
 DO $$
@@ -163,6 +161,10 @@ ALTER TABLE public.crm_oportunidades ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+  IF to_regprocedure('public.has_permission(uuid,text,text)') IS NULL THEN
+    RETURN;
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'crm_oportunidades' AND policyname = 'rbac_crm_oportunidades_select'
   ) THEN
@@ -208,5 +210,10 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_crm_oportunidades_id_cliente ON public.crm_oportunidades(id_cliente);
 CREATE INDEX IF NOT EXISTS idx_crm_oportunidades_id_fase ON public.crm_oportunidades(id_fase);
 CREATE INDEX IF NOT EXISTS idx_crm_oportunidades_id_status ON public.crm_oportunidades(id_status);
+
+DO $$
+BEGIN
+  PERFORM pg_notify('pgrst', 'reload schema');
+END $$;
 
 COMMIT;

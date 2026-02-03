@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { fetchOportunidades, fetchLigacoes, fetchPabxLigacoes, fetchVendedoresPerformance, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
+import { fetchOportunidades, fetchPropostasComerciais, fetchLigacoes, fetchPabxLigacoes, fetchVendedoresPerformance, fetchMeta, updateMeta, createMeta, CRM_Meta } from '../services/crm'
 
 export const CRM_KEYS = {
   all: ['crm'] as const,
   oportunidades: () => [...CRM_KEYS.all, 'oportunidades'] as const,
+  propostasComerciais: () => [...CRM_KEYS.all, 'oportunidades'] as const,
   ligacoes: () => [...CRM_KEYS.all, 'ligacoes'] as const,
   pabxLigacoes: () => [...CRM_KEYS.all, 'pabxLigacoes'] as const,
   vendedoresPerformance: (idData?: string) => [...CRM_KEYS.all, 'vendedoresPerformance', idData] as const,
@@ -19,6 +20,18 @@ export function useOportunidades() {
     refetchInterval: 1000 * 60 * 5, // Auto-refresh a cada 5 min
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Backoff: 1s, 2s, 4s... max 10s
+  })
+}
+
+export function usePropostasComerciais() {
+  return useQuery({
+    queryKey: CRM_KEYS.propostasComerciais(),
+    queryFn: () => fetchPropostasComerciais({ orderDesc: true }),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchInterval: 1000 * 60 * 5,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   })
 }
 

@@ -6,7 +6,7 @@ export default function Fases() {
   return (
     <OrderedColorCrudPage
       title="Fase CRM"
-      subtitle="Configuração das fases (colunas) do Kanban de oportunidades."
+      subtitle="Configuração das fases (colunas) do Kanban de propostas comerciais."
       singularLabel="Fase"
       fetchItems={async () => {
         const data = await fetchCrmFases()
@@ -42,4 +42,3 @@ export default function Fases() {
     />
   )
 }
-

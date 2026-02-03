@@ -14,7 +14,7 @@ export interface CRM_Oportunidade {
   id_status: string | null
   id_motivo: string | null
   id_origem: string | null
-  solucao: 'PRODUTO' | 'SERVICO' | null
+  solucao: 'PRODUTO' | 'SERVICO' | 'PRODUTO_SERVICO' | null
   obs_oport: string | null
   descricao_oport: string | null
   qts_item: number | null
@@ -55,6 +55,8 @@ export interface CRM_Oportunidade {
   atualizado_em?: string | null
   system_nota?: string | null
 }
+
+export type CRM_PropostaComercial = CRM_Oportunidade
 
 export interface CRM_Ligacao {
   id: string
@@ -157,18 +159,27 @@ export interface CRM_CnaeCodigo {
 
 export async function fetchOportunidadesByClienteId(clienteId: string) {
   if (!clienteId) return []
-  const { data, error } = await (supabase as any)
+  const r1 = await (supabase as any)
     .from('crm_oportunidades')
     .select('id_oport, cod_oport, id_cliente, id_fase, id_status, fase, status, data_inclusao')
     .eq('id_cliente', clienteId)
     .order('data_inclusao', { ascending: false })
 
-  if (error) {
-    if (error.code === '42P01') return []
+  if (r1.error) {
+    if (r1.error.code === '42P01') return []
+    if (isMissingColumn(r1.error)) {
+      const r2 = await (supabase as any)
+        .from('crm_oportunidades')
+        .select('id_oport, cod_oport, id_cliente, id_fase, id_status, data_inclusao')
+        .eq('id_cliente', clienteId)
+        .order('data_inclusao', { ascending: false })
+      if (r2.error) return []
+      return (r2.data ?? []) as CRM_Oportunidade[]
+    }
     return []
   }
 
-  return (data ?? []) as CRM_Oportunidade[]
+  return (r1.data ?? []) as CRM_Oportunidade[]
 }
 
 export async function fetchCrmIbgeCodigos() {
@@ -244,7 +255,7 @@ export async function deleteCrmCnaeCodigo(id: string) {
 }
 
 /* ======================================================
-   OPORTUNIDADES (LEVE E RÁPIDO)
+   PROPOSTAS COMERCIAIS (LEVE E RÁPIDO)
 ====================================================== */
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
@@ -434,79 +445,110 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
 }
 
 export async function updateOportunidade(id: string, updates: Partial<CRM_Oportunidade>) {
-  const q = (supabase as any)
+  let sanitized: any = { ...(updates as any) }
+  for (let i = 0; i < 6; i++) {
+    const q = (supabase as any)
+      .from('crm_oportunidades')
+      .update(sanitized)
+      .eq('id_oport', id)
+      .select()
+      .single()
+
+    const { data, error } = await q
+    if (!error) return data as CRM_Oportunidade
+    if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing && Object.prototype.hasOwnProperty.call(sanitized, missing)) {
+        delete sanitized[missing]
+        continue
+      }
+
+      const missingFromFilter =
+        missing === 'id_oport' ||
+        String(error?.message || '').toLowerCase().includes("id_oport") ||
+        String(error?.message || '').toLowerCase().includes("id_oportunidade")
+
+      if (!missingFromFilter) throw toUserFacingError(error, 'Falha ao salvar a proposta comercial.')
+      break
+    }
+
+    throw toUserFacingError(error, 'Falha ao salvar a proposta comercial.')
+  }
+
+  const { id_fase, id_status, id_motivo, id_origem, fase, ...rest } = updates as any
+  const stageLabel = fase
+  const fallbackBase: any = { ...rest }
+  if (stageLabel !== undefined) fallbackBase.fase = stageLabel
+
+  const q2 = (supabase as any)
     .from('crm_oportunidades')
-    .update(updates)
-    .eq('id_oport', id)
+    .update(fallbackBase)
+    .eq('id_oportunidade', id)
     .select()
     .single()
-
-  const { data, error } = await q
-
-  if (error) {
-    if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
-    const msg = String(error.message || '')
-    const isMissingColumn =
-      error.code === 'PGRST204' ||
-      error.code === '42703' ||
-      (msg.includes('Could not find') && msg.toLowerCase().includes('column')) ||
-      (msg.toLowerCase().includes('column') && msg.toLowerCase().includes('schema cache'))
-    if (isMissingColumn) {
-      const { id_fase, id_status, id_motivo, id_origem, fase, ...rest } = updates as any
-      const stageLabel = fase
-      const fallbackBase: any = { ...rest }
-      if (stageLabel !== undefined) fallbackBase.fase = stageLabel
-
-      const q2 = (supabase as any)
-        .from('crm_oportunidades')
-        .update(fallbackBase)
-        .eq('id_oportunidade', id)
-        .select()
-        .single()
-      const r2 = await q2
-      if (!r2.error) {
-        return { ...(r2.data as any), fase: (r2.data as any)?.fase ?? (r2.data as any)?.etapa ?? null } as CRM_Oportunidade
-      }
-
-      const msg2 = String(r2.error?.message || '')
-      const isMissingColumn2 =
-        r2.error?.code === 'PGRST204' ||
-        r2.error?.code === '42703' ||
-        (msg2.includes('Could not find') && msg2.toLowerCase().includes('column')) ||
-        (msg2.toLowerCase().includes('column') && msg2.toLowerCase().includes('schema cache'))
-
-      if (isMissingColumn2 && stageLabel !== undefined) {
-        const q3 = (supabase as any)
-          .from('crm_oportunidades')
-          .update({ ...rest, etapa: stageLabel })
-          .eq('id_oportunidade', id)
-          .select()
-          .single()
-        const r3 = await q3
-        if (r3.error) throw r3.error
-        return { ...(r3.data as any), fase: (r3.data as any)?.etapa ?? null } as CRM_Oportunidade
-      }
-
-      throw r2.error
-    }
-    throw error
+  const r2 = await q2
+  if (!r2.error) {
+    return { ...(r2.data as any), fase: (r2.data as any)?.fase ?? (r2.data as any)?.etapa ?? null } as CRM_Oportunidade
   }
-  return data as CRM_Oportunidade
+
+  if (isMissingColumn(r2.error) && stageLabel !== undefined) {
+    const q3 = (supabase as any)
+      .from('crm_oportunidades')
+      .update({ ...rest, etapa: stageLabel })
+      .eq('id_oportunidade', id)
+      .select()
+      .single()
+    const r3 = await q3
+    if (r3.error) throw toUserFacingError(r3.error, 'Falha ao salvar a proposta comercial.')
+    return { ...(r3.data as any), fase: (r3.data as any)?.etapa ?? null } as CRM_Oportunidade
+  }
+
+  throw toUserFacingError(r2.error, 'Falha ao salvar a proposta comercial.')
 }
 
 export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
-  const q = (supabase as any)
-    .from('crm_oportunidades')
-    .insert(payload)
-    .select()
-    .single()
+  let sanitized: any = { ...(payload as any) }
+  for (let i = 0; i < 6; i++) {
+    const q = (supabase as any)
+      .from('crm_oportunidades')
+      .insert(sanitized)
+      .select()
+      .single()
 
-  const { data, error } = await q
-  if (error) {
+    const { data, error } = await q
+    if (!error) return data as CRM_Oportunidade
     if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
-    throw error
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing && Object.prototype.hasOwnProperty.call(sanitized, missing)) {
+        delete sanitized[missing]
+        continue
+      }
+    }
+
+    throw toUserFacingError(error, 'Falha ao criar a proposta comercial.')
   }
-  return data as CRM_Oportunidade
+
+  throw new Error('Falha ao criar a proposta comercial.')
+}
+
+export async function fetchPropostasComerciais(opts?: { orderDesc?: boolean }) {
+  return fetchOportunidades(opts)
+}
+
+export async function fetchPropostasComerciaisByClienteId(clienteId: string) {
+  return fetchOportunidadesByClienteId(clienteId)
+}
+
+export async function updatePropostaComercial(id: string, updates: Partial<CRM_Oportunidade>) {
+  return updateOportunidade(id, updates)
+}
+
+export async function createPropostaComercial(payload: Partial<CRM_Oportunidade>) {
+  return createOportunidade(payload)
 }
 
 /* ======================================================
@@ -668,7 +710,14 @@ export interface CRM_OrigemLead {
 export interface CRM_Produto {
   prod_id: string
   integ_id: string | null
+  codigo_prod: string | null
+  situacao_prod: boolean
+  marca_prod: string | null
+  modelo_prod: string | null
   descricao_prod: string
+  unidade_prod?: string | null
+  ncm_codigo?: string | null
+  local_estoque?: 'PADRAO' | 'INTERNO' | string | null
   obs_prod: string | null
   produto_valor: number | null
   criado_em: string | null
@@ -678,6 +727,8 @@ export interface CRM_Produto {
 export interface CRM_Servico {
   serv_id: string
   integ_id: string | null
+  codigo_serv: string | null
+  situacao_serv: boolean
   descricao_serv: string
   obs_serv: string | null
   servicos_valor: number | null
@@ -716,12 +767,80 @@ export interface CRM_Status {
   atualizado_em: string | null
 }
 
+export interface CRM_OportunidadeItem {
+  item_id: string
+  id_oport: string
+  tipo: 'PRODUTO' | 'SERVICO'
+  produto_id: string | null
+  servico_id: string | null
+  descricao_item: string | null
+  quantidade: number
+  desconto_percent: number
+  valor_unitario: number
+  valor_total: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CRM_OportunidadeComentario {
+  comentario_id: string
+  id_oport: string
+  comentario: string
+  created_at: string
+}
+
+export interface CRM_OportunidadeAtividade {
+  atividade_id: string
+  id_oport: string
+  tipo: string
+  payload: any
+  created_at: string
+}
+
 const isMissingTable = (error: any) => {
   const code = error?.code
   if (code === '42P01') return true
   if (code === 'PGRST205') return true
   const msg = String(error?.message || '')
   return msg.includes('schema cache') && msg.includes('Could not find the table')
+}
+
+const isMissingColumn = (error: any) => {
+  const code = String(error?.code || '')
+  const msg = String(error?.message || '')
+  return (
+    code === 'PGRST204' ||
+    code === '42703' ||
+    (msg.includes('Could not find') && msg.toLowerCase().includes('column')) ||
+    (msg.toLowerCase().includes('column') && msg.toLowerCase().includes('schema cache'))
+  )
+}
+
+const extractMissingColumnName = (error: any) => {
+  const msg = String(error?.message || '')
+  const m1 = msg.match(/Could not find the '([^']+)' column/i)
+  if (m1?.[1]) return m1[1]
+  const m2 = msg.match(/column "([^"]+)"/i)
+  if (m2?.[1]) return m2[1]
+  return null
+}
+
+const toUserFacingError = (error: any, fallback: string) => {
+  if (error instanceof Error) return error
+  const msg = String(error?.message || '').trim()
+  const details = String(error?.details || '').trim()
+  const code = String(error?.code || '').trim()
+
+  const combined = `${msg}\n${details}`.trim()
+  const lc = combined.toLowerCase()
+
+  if (lc.includes('row level security') || lc.includes('violates row-level security policy')) {
+    return new Error('Sem permissão para realizar esta ação no CRM (exige CRM:EDIT).')
+  }
+
+  const best = msg || details
+  const withCode = best ? (code ? `${best} (${code})` : best) : fallback
+  return new Error(withCode)
 }
 
 const missingTableError = (table: string) =>
@@ -785,6 +904,112 @@ const mapCrmStatusConstraintError = (error: any) => {
   return new Error('Não foi possível salvar o Status CRM por violação de regra (nome/ordem/cor).')
 }
 const sb = supabase as any
+
+export async function fetchOportunidadeItens(oportunidadeId: string) {
+  if (!oportunidadeId) return []
+  const { data, error } = await sb
+    .from('crm_oportunidade_itens')
+    .select(
+      'item_id, id_oport, tipo, produto_id, servico_id, descricao_item, quantidade, desconto_percent, valor_unitario, valor_total, created_at, updated_at'
+    )
+    .eq('id_oport', oportunidadeId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    if (isMissingTable(error)) return []
+    console.error('Erro ao buscar itens da proposta comercial:', error)
+    return []
+  }
+  return (data ?? []) as CRM_OportunidadeItem[]
+}
+
+export async function replaceOportunidadeItens(
+  oportunidadeId: string,
+  items: Array<
+    Pick<
+      CRM_OportunidadeItem,
+      'tipo' | 'produto_id' | 'servico_id' | 'descricao_item' | 'quantidade' | 'desconto_percent' | 'valor_unitario' | 'valor_total'
+    >
+  >
+) {
+  if (!oportunidadeId) throw new Error('ID da proposta comercial inválido.')
+
+  const del = await sb.from('crm_oportunidade_itens').delete().eq('id_oport', oportunidadeId)
+  if (del.error) {
+    if (!isMissingTable(del.error)) throw del.error
+    return
+  }
+
+  const payload = (items || []).map((i) => ({
+    id_oport: oportunidadeId,
+    tipo: i.tipo,
+    produto_id: i.produto_id ?? null,
+    servico_id: i.servico_id ?? null,
+    descricao_item: i.descricao_item ?? null,
+    quantidade: i.quantidade ?? 1,
+    desconto_percent: i.desconto_percent ?? 0,
+    valor_unitario: i.valor_unitario ?? 0,
+    valor_total: i.valor_total ?? 0
+  }))
+
+  if (payload.length === 0) return
+
+  const ins = await sb.from('crm_oportunidade_itens').insert(payload)
+  if (ins.error) {
+    if (isMissingTable(ins.error)) return
+    throw ins.error
+  }
+}
+
+export async function fetchOportunidadeComentarios(oportunidadeId: string) {
+  if (!oportunidadeId) return []
+  const { data, error } = await sb
+    .from('crm_oportunidade_comentarios')
+    .select('comentario_id, id_oport, comentario, created_at')
+    .eq('id_oport', oportunidadeId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    if (isMissingTable(error)) return []
+    console.error('Erro ao buscar comentários da proposta comercial:', error)
+    return []
+  }
+  return (data ?? []) as CRM_OportunidadeComentario[]
+}
+
+export async function createOportunidadeComentario(oportunidadeId: string, comentario: string) {
+  const text = (comentario || '').trim()
+  if (!oportunidadeId) throw new Error('ID da proposta comercial inválido.')
+  if (!text) throw new Error('Comentário vazio.')
+
+  const { data, error } = await sb
+    .from('crm_oportunidade_comentarios')
+    .insert({ id_oport: oportunidadeId, comentario: text })
+    .select('comentario_id, id_oport, comentario, created_at')
+    .single()
+
+  if (error) {
+    if (isMissingTable(error)) return null
+    throw error
+  }
+  return data as CRM_OportunidadeComentario
+}
+
+export async function fetchOportunidadeAtividades(oportunidadeId: string) {
+  if (!oportunidadeId) return []
+  const { data, error } = await sb
+    .from('crm_oportunidade_atividades')
+    .select('atividade_id, id_oport, tipo, payload, created_at')
+    .eq('id_oport', oportunidadeId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    if (isMissingTable(error)) return []
+    console.error('Erro ao buscar histórico da proposta comercial:', error)
+    return []
+  }
+  return (data ?? []) as CRM_OportunidadeAtividade[]
+}
 
 export async function fetchCrmMotivos() {
   const { data, error } = await sb
@@ -881,49 +1106,185 @@ export async function deleteCrmOrigemLead(id: string) {
 }
 
 export async function fetchCrmProdutos() {
-  const { data, error } = await sb
-    .from('crm_produtos')
-    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
-    .order('descricao_prod', { ascending: true })
+  const table = 'crm_produtos'
+  const cols = [
+    'prod_id',
+    'integ_id',
+    'codigo_prod',
+    'situacao_prod',
+    'marca_prod',
+    'modelo_prod',
+    'descricao_prod',
+    'unidade_prod',
+    'ncm_codigo',
+    'local_estoque',
+    'obs_prod',
+    'produto_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
 
-  if (error) {
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .select(cols.join(', '))
+      .order('descricao_prod', { ascending: true })
+
+    if (!error) return data as CRM_Produto[]
     if (isMissingTable(error)) return []
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) {
+          cols.splice(idx, 1)
+          continue
+        }
+      }
+    }
+
     console.error('Erro ao buscar produtos:', error)
     return []
   }
 
-  return data as CRM_Produto[]
+  return []
 }
 
-export async function createCrmProduto(payload: Pick<CRM_Produto, 'integ_id' | 'descricao_prod' | 'obs_prod' | 'produto_valor'>) {
-  const { data, error } = await sb
-    .from('crm_produtos')
-    .insert({
-      integ_id: payload.integ_id || null,
-      descricao_prod: payload.descricao_prod,
-      obs_prod: payload.obs_prod || null,
-      produto_valor: payload.produto_valor ?? 0
-    })
-    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
-    .single()
+export async function createCrmProduto(
+  payload: Pick<
+    CRM_Produto,
+    | 'integ_id'
+    | 'descricao_prod'
+    | 'obs_prod'
+    | 'produto_valor'
+    | 'situacao_prod'
+    | 'marca_prod'
+    | 'modelo_prod'
+    | 'unidade_prod'
+    | 'ncm_codigo'
+    | 'local_estoque'
+  >
+) {
+  const table = 'crm_produtos'
+  const cols = [
+    'prod_id',
+    'integ_id',
+    'codigo_prod',
+    'situacao_prod',
+    'marca_prod',
+    'modelo_prod',
+    'descricao_prod',
+    'unidade_prod',
+    'ncm_codigo',
+    'local_estoque',
+    'obs_prod',
+    'produto_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
+  const insertPayload: any = {
+    integ_id: payload.integ_id || null,
+    situacao_prod: payload.situacao_prod ?? true,
+    marca_prod: payload.marca_prod || null,
+    modelo_prod: payload.modelo_prod || null,
+    descricao_prod: payload.descricao_prod,
+    unidade_prod: payload.unidade_prod || null,
+    ncm_codigo: payload.ncm_codigo || null,
+    local_estoque: payload.local_estoque || 'PADRAO',
+    obs_prod: payload.obs_prod || null,
+    produto_valor: payload.produto_valor ?? 0
+  }
 
-  if (error) throw error
-  return data as CRM_Produto
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .insert(insertPayload)
+      .select(cols.join(', '))
+      .single()
+
+    if (!error) return data as CRM_Produto
+
+    if (isMissingTable(error)) throw missingTableError(table)
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (Object.prototype.hasOwnProperty.call(insertPayload, missing)) delete insertPayload[missing]
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) cols.splice(idx, 1)
+        continue
+      }
+    }
+
+    throw error
+  }
+
+  throw new Error('Falha ao criar o produto.')
 }
 
 export async function updateCrmProduto(
   id: string,
-  updates: Partial<Pick<CRM_Produto, 'integ_id' | 'descricao_prod' | 'obs_prod' | 'produto_valor'>>
+  updates: Partial<
+    Pick<
+      CRM_Produto,
+      | 'integ_id'
+      | 'descricao_prod'
+      | 'obs_prod'
+      | 'produto_valor'
+      | 'situacao_prod'
+      | 'marca_prod'
+      | 'modelo_prod'
+      | 'unidade_prod'
+      | 'ncm_codigo'
+      | 'local_estoque'
+    >
+  >
 ) {
-  const { data, error } = await sb
-    .from('crm_produtos')
-    .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('prod_id', id)
-    .select('prod_id, integ_id, descricao_prod, obs_prod, produto_valor, criado_em, atualizado_em')
-    .single()
+  const table = 'crm_produtos'
+  const cols = [
+    'prod_id',
+    'integ_id',
+    'codigo_prod',
+    'situacao_prod',
+    'marca_prod',
+    'modelo_prod',
+    'descricao_prod',
+    'unidade_prod',
+    'ncm_codigo',
+    'local_estoque',
+    'obs_prod',
+    'produto_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
+  const updatePayload: any = { ...updates, atualizado_em: new Date().toISOString() }
 
-  if (error) throw error
-  return data as CRM_Produto
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .update(updatePayload)
+      .eq('prod_id', id)
+      .select(cols.join(', '))
+      .single()
+
+    if (!error) return data as CRM_Produto
+    if (isMissingTable(error)) throw missingTableError(table)
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (Object.prototype.hasOwnProperty.call(updatePayload, missing)) delete updatePayload[missing]
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) cols.splice(idx, 1)
+        continue
+      }
+    }
+
+    throw error
+  }
+
+  throw new Error('Falha ao atualizar o produto.')
 }
 
 export async function deleteCrmProduto(id: string) {
@@ -932,49 +1293,138 @@ export async function deleteCrmProduto(id: string) {
 }
 
 export async function fetchCrmServicos() {
-  const { data, error } = await sb
-    .from('crm_servicos')
-    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
-    .order('descricao_serv', { ascending: true })
+  const table = 'crm_servicos'
+  const cols = [
+    'serv_id',
+    'integ_id',
+    'codigo_serv',
+    'situacao_serv',
+    'descricao_serv',
+    'obs_serv',
+    'servicos_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
 
-  if (error) {
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .select(cols.join(', '))
+      .order('descricao_serv', { ascending: true })
+
+    if (!error) return data as CRM_Servico[]
     if (isMissingTable(error)) return []
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) {
+          cols.splice(idx, 1)
+          continue
+        }
+      }
+    }
+
     console.error('Erro ao buscar serviços:', error)
     return []
   }
 
-  return data as CRM_Servico[]
+  return []
 }
 
-export async function createCrmServico(payload: Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor'>) {
-  const { data, error } = await sb
-    .from('crm_servicos')
-    .insert({
-      integ_id: payload.integ_id || null,
-      descricao_serv: payload.descricao_serv,
-      obs_serv: payload.obs_serv || null,
-      servicos_valor: payload.servicos_valor ?? 0
-    })
-    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
-    .single()
+export async function createCrmServico(
+  payload: Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor' | 'situacao_serv'>
+) {
+  const table = 'crm_servicos'
+  const cols = [
+    'serv_id',
+    'integ_id',
+    'codigo_serv',
+    'situacao_serv',
+    'descricao_serv',
+    'obs_serv',
+    'servicos_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
+  const insertPayload: any = {
+    integ_id: payload.integ_id || null,
+    situacao_serv: payload.situacao_serv ?? true,
+    descricao_serv: payload.descricao_serv,
+    obs_serv: payload.obs_serv || null,
+    servicos_valor: payload.servicos_valor ?? 0
+  }
 
-  if (error) throw error
-  return data as CRM_Servico
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .insert(insertPayload)
+      .select(cols.join(', '))
+      .single()
+
+    if (!error) return data as CRM_Servico
+    if (isMissingTable(error)) throw missingTableError(table)
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (Object.prototype.hasOwnProperty.call(insertPayload, missing)) delete insertPayload[missing]
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) cols.splice(idx, 1)
+        continue
+      }
+    }
+
+    throw error
+  }
+
+  throw new Error('Falha ao criar o serviço.')
 }
 
 export async function updateCrmServico(
   id: string,
-  updates: Partial<Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor'>>
+  updates: Partial<Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor' | 'situacao_serv'>>
 ) {
-  const { data, error } = await sb
-    .from('crm_servicos')
-    .update({ ...updates, atualizado_em: new Date().toISOString() })
-    .eq('serv_id', id)
-    .select('serv_id, integ_id, descricao_serv, obs_serv, servicos_valor, criado_em, atualizado_em')
-    .single()
+  const table = 'crm_servicos'
+  const cols = [
+    'serv_id',
+    'integ_id',
+    'codigo_serv',
+    'situacao_serv',
+    'descricao_serv',
+    'obs_serv',
+    'servicos_valor',
+    'criado_em',
+    'atualizado_em'
+  ]
+  const updatePayload: any = { ...updates, atualizado_em: new Date().toISOString() }
 
-  if (error) throw error
-  return data as CRM_Servico
+  for (let i = 0; i < cols.length; i++) {
+    const { data, error } = await sb
+      .from(table)
+      .update(updatePayload)
+      .eq('serv_id', id)
+      .select(cols.join(', '))
+      .single()
+
+    if (!error) return data as CRM_Servico
+    if (isMissingTable(error)) throw missingTableError(table)
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (Object.prototype.hasOwnProperty.call(updatePayload, missing)) delete updatePayload[missing]
+        const idx = cols.indexOf(missing)
+        if (idx >= 0) cols.splice(idx, 1)
+        continue
+      }
+    }
+
+    throw error
+  }
+
+  throw new Error('Falha ao atualizar o serviço.')
 }
 
 export async function deleteCrmServico(id: string) {

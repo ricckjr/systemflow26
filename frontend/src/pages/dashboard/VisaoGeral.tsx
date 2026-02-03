@@ -784,11 +784,11 @@ const MetaModal = ({
             </div>
           </div>
 
-          {/* Row 2: Oportunidades & Ligações */}
+          {/* Row 2: Propostas Comerciais & Ligações */}
           <div className="grid grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1.5">
-                Meta Novas Oportunidades
+                Meta Novas Propostas Comerciais
               </label>
               <input 
                 type="number"

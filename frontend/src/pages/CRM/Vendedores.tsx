@@ -592,7 +592,7 @@ const Vendedores: React.FC = () => {
                         </div>
 
                         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
-                          <div className="text-xs font-black text-amber-400">Novas Oportunidades</div>
+                          <div className="text-xs font-black text-amber-400">Novas Propostas Comerciais</div>
                           <div className="mt-1 text-sm text-[var(--text-soft)]">{perf.novas_meta_feita}</div>
                           <div className="mt-3 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border)]">
                             <div className="h-full bg-amber-400 rounded-full" style={{ width: `${progressoNovas}%` }} />
@@ -632,7 +632,7 @@ const Vendedores: React.FC = () => {
                         </div>
 
                         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-5">
-                          <div className="text-xs font-black text-[var(--text-soft)]">Novas Oportunidades</div>
+                          <div className="text-xs font-black text-[var(--text-soft)]">Novas Propostas Comerciais</div>
                           <div className="mt-2 text-3xl font-black text-amber-400">{perf.novas_meta_diaria}</div>
                           <div className="mt-3 text-xs text-[var(--text-soft)]">
                             Meta Mensal: <span className="text-[var(--text-main)] font-bold">{perf.novas_meta_total_mes}</span>

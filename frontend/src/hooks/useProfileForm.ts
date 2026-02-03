@@ -62,6 +62,9 @@ export function useProfileForm() {
   const baselineRef = useRef<ProfileFormState>(emptyForm)
   const baselineProfileIdRef = useRef<string | null>(null)
 
+  const userId = profile?.id ?? session?.user?.id ?? null
+  const emailLogin = profile?.email_login ?? session?.user?.email ?? ''
+
   useEffect(() => {
     if (!profileReady) return
 
@@ -97,15 +100,15 @@ export function useProfileForm() {
   }, [avatarPreview])
 
   const isDirty = useMemo(() => {
-    if (!profile || !profileReady) return false
+    if (!profileReady) return false
 
     return (
-      form.nome !== (profile.nome ?? '') ||
-      form.email_corporativo !== (profile.email_corporativo ?? '') ||
-      form.telefone !== (profile.telefone ?? '') ||
-      form.ramal !== (profile.ramal ?? '') ||
+      form.nome !== (profile?.nome ?? '') ||
+      form.email_corporativo !== (profile?.email_corporativo ?? '') ||
+      form.telefone !== (profile?.telefone ?? '') ||
+      form.ramal !== (profile?.ramal ?? '') ||
       (avatarFile !== null) ||
-      form.avatar_url !== (profile.avatar_url ?? '')
+      form.avatar_url !== (profile?.avatar_url ?? '')
     )
   }, [form, profile, profileReady, avatarFile])
 
@@ -120,7 +123,7 @@ export function useProfileForm() {
   }, [])
 
   const uploadAvatar = useCallback(async (file: File) => {
-    if (!profile) throw new Error('Perfil não carregado')
+    if (!userId) throw new Error('Usuário não identificado')
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
       throw new Error('Imagem inválida. Use JPG ou PNG.')
     }
@@ -131,7 +134,7 @@ export function useProfileForm() {
     setUploadingAvatar(true)
     try {
       const ext = file.type === 'image/png' ? 'png' : 'jpg'
-      const path = `avatars/${profile.id}-${Date.now()}.${ext}`
+      const path = `avatars/${userId}-${Date.now()}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -144,11 +147,12 @@ export function useProfileForm() {
     } finally {
       setUploadingAvatar(false)
     }
-  }, [profile])
+  }, [userId])
 
   const saveProfile = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (!profile || !profileReady) return
+    if (!profileReady) return
+    if (!userId) return
     if (savingRef.current) return
 
     setError(null)
@@ -162,16 +166,22 @@ export function useProfileForm() {
         avatarUrl = await uploadAvatar(avatarFile)
       }
 
+      if (!emailLogin) {
+        throw new Error('E-mail de login não disponível')
+      }
+
+      const nome = form.nome.trim() || profile?.nome || 'Novo Usuário'
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
-          id: profile.id,
-          nome: form.nome.trim(),
+          id: userId,
+          nome,
           email_corporativo: form.email_corporativo || null,
           telefone: form.telefone || null,
           ramal: form.ramal || null,
           avatar_url: avatarUrl || null,
-          email_login: profile.email_login,
+          email_login: emailLogin,
           updated_at: new Date().toISOString(),
         } as any)
 
@@ -188,7 +198,7 @@ export function useProfileForm() {
       setSaving(false)
       savingRef.current = false
     }
-  }, [avatarFile, form, profile, profileReady, refreshProfile, uploadAvatar])
+  }, [avatarFile, emailLogin, form, profile?.nome, profileReady, refreshProfile, uploadAvatar, userId])
 
   const changePassword = useCallback(async () => {
     if (changingPassword) return
@@ -245,5 +255,6 @@ export function useProfileForm() {
     handleAvatarChange,
     saveProfile,
     changePassword,
+    emailLogin,
   }
 }

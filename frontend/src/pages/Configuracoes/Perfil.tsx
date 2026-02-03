@@ -54,6 +54,7 @@ export default function Perfil() {
   const {
     form,
     profile,
+    emailLogin,
     authLoading,
     isDirty,
     avatarPreview,
@@ -80,7 +81,7 @@ export default function Perfil() {
   /* ===========================
      LOADING STATE
   ============================ */
-  if (authLoading && !profile) {
+  if (authLoading && !profile && !emailLogin) {
     return (
       <div className="min-h-[300px] flex flex-col items-center justify-center text-[var(--text-soft)]">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)] mb-2" />
@@ -89,7 +90,7 @@ export default function Perfil() {
     )
   }
 
-  if (!profile) {
+  if (!profile && !emailLogin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
         <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4">
@@ -199,7 +200,7 @@ export default function Perfil() {
             <div>
               <Label>E-mail de login</Label>
               <input
-                value={profile.email_login || ''}
+                value={emailLogin || ''}
                 readOnly
                 className="input-primary opacity-50 cursor-not-allowed"
               />
@@ -241,7 +242,7 @@ export default function Perfil() {
             <div>
               <Label>Cargo</Label>
               <div className="input-primary opacity-50 cursor-not-allowed flex items-center h-[42px]">
-                  {profile.cargo || 'Sem Cargo Definido'}
+                  {profile?.cargo || 'Sem Cargo Definido'}
               </div>
             </div>
           </div>

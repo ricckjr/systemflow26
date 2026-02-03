@@ -283,12 +283,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { data, error } = await withTimeout(supabase
+      let { data, error } = await withTimeout(supabase
         .from('profiles_private')
         .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
         .maybeSingle(), 8000)
 
       if (error) throw error
+
+      if (!data) {
+        const user = activeSession.user
+        const email = user?.email ?? null
+        const nome = (user?.user_metadata as any)?.nome ?? 'Novo Usuário'
+
+        if (user?.id && email) {
+          await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              nome,
+              email_login: email,
+              email_corporativo: email,
+              ativo: true,
+            } as any)
+            .throwOnError()
+
+          ;({ data, error } = await withTimeout(supabase
+            .from('profiles_private')
+            .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
+            .maybeSingle(), 8000))
+
+          if (error) throw error
+        }
+      }
 
       const normalized = normalizeProfile(data)
       setProfile(normalized)

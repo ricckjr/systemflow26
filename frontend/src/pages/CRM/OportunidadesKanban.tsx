@@ -429,19 +429,27 @@ export default function OportunidadesKanban() {
     try {
       setLoading(true)
       const [data, fases, sts] = await Promise.all([fetchOportunidades({ orderDesc: true }), fetchCrmFases(), fetchCrmStatus()])
-      setOpportunities(data)
+      const nextData =
+        !canCrmControl && myUserId
+          ? (data || []).filter((o) => {
+              const createdBy = String((o as any)?.created_by || '').trim()
+              const vendedorId = String((o as any)?.id_vendedor || '').trim()
+              return createdBy === myUserId || vendedorId === myUserId
+            })
+          : data
+      setOpportunities(nextData)
       setStatuses(sts)
       try {
         const clienteIds = Array.from(
           new Set(
-            (data || [])
+            (nextData || [])
               .map((o) => (o as any)?.id_cliente)
               .filter((x) => typeof x === 'string' && x.trim().length > 0)
           )
         )
         const contatoIds = Array.from(
           new Set(
-            (data || [])
+            (nextData || [])
               .map((o) => (o as any)?.id_contato)
               .filter((x) => typeof x === 'string' && x.trim().length > 0)
           )
@@ -503,7 +511,7 @@ export default function OportunidadesKanban() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [canCrmControl, myUserId])
 
   useEffect(() => {
     loadData()

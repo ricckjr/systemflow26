@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import ProtectedRoute from './guards/ProtectedRoute'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import AuthCallback from '@/pages/AuthCallback'
-import RequireAdmin from './guards/RequireAdmin'
 import RequirePermission from './guards/RequirePermission'
 
 // Auth Pages
@@ -220,8 +219,6 @@ export const router = createBrowserRouter([
       { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
       { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
 
-      { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
-      { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
       { path: 'comunicacao/ia', element: lazyElement(() => import('@/pages/Comunicacao/IAFlow'), 'Carregando IA...') },
 
       { path: 'producao/omie', element: <Navigate to="/app/producao/propostas" replace /> },
@@ -320,7 +317,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/ComprasEstoque/Servicos'),
           'Carregando Serviços...',
-          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
         )
       },
       {
@@ -328,7 +325,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/ComprasEstoque/CadastrarProdutos'),
           'Carregando Produtos...',
-          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
         )
       },
       {
@@ -336,7 +333,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/ComprasEstoque/CadastroNcm'),
           'Carregando Cadastro NCM...',
-          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
         )
       },
 

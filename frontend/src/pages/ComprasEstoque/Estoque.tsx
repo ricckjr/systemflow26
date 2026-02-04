@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Box, ChevronDown, Image as ImageIcon, Loader2, Plus, Search } from 'lucide-react'
 import { createCrmProduto, fetchCrmProdutos, updateCrmProduto, type CRM_Produto } from '@/services/crm'
 import { supabase } from '@/services/supabase'
@@ -65,13 +66,6 @@ type MovimentoEstoque = {
   observacao: string
 }
 
-type PropostaReferente = {
-  id_oport: string
-  cod_oport: string | null
-  descricao_oport: string | null
-  cliente: string | null
-}
-
 const PRODUTO_TABS: { key: ProdutoTab; label: string }[] = [
   { key: 'estoque', label: 'Estoque' },
   { key: 'custo_estoque', label: 'Custo do Estoque' },
@@ -104,6 +98,8 @@ const randomId = () => {
 }
 
 const Estoque: React.FC = () => {
+  const location = useLocation()
+  const isConsultaEstoque = location.pathname.includes('/compras-estoque/consultar-estoque')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<CRM_Produto[]>([])
@@ -122,7 +118,6 @@ const Estoque: React.FC = () => {
   const [draftSituacao, setDraftSituacao] = useState(true)
   const [draftDescricao, setDraftDescricao] = useState('')
   const [draftGtinEan, setDraftGtinEan] = useState('')
-  const [draftCodPropostaRef, setDraftCodPropostaRef] = useState('')
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('UN')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
@@ -152,9 +147,6 @@ const Estoque: React.FC = () => {
   const [movValorUnitario, setMovValorUnitario] = useState('')
   const [movMotivo, setMovMotivo] = useState(MOV_MOTIVOS[0] || 'Ajuste por Inventário')
   const [movObservacao, setMovObservacao] = useState('')
-
-  const [propostasLoading, setPropostasLoading] = useState(false)
-  const [propostasReferentes, setPropostasReferentes] = useState<PropostaReferente[]>([])
 
   const getSaldoLocal = (prodId: string, local: LocalCode) => {
     const list = movimentosByProdutoId[prodId] || []
@@ -222,67 +214,6 @@ const Estoque: React.FC = () => {
     setProdutoTab('historicos')
   }
 
-  useEffect(() => {
-    const prodId = savedProduto?.prod_id
-    if (!prodId) {
-      setPropostasReferentes([])
-      return
-    }
-
-    let cancelled = false
-    const run = async () => {
-      setPropostasLoading(true)
-      try {
-        const baseCols = 'id_oport,cod_oport,descricao_oport,cliente'
-        const direct = await (supabase as any)
-          .from('crm_oportunidades')
-          .select(baseCols)
-          .eq('cod_produto', prodId)
-          .order('data_inclusao', { ascending: false })
-
-        const directList: PropostaReferente[] = (direct?.data || []) as any[]
-
-        const itens = await (supabase as any)
-          .from('crm_oportunidade_itens')
-          .select('id_oport')
-          .eq('tipo', 'PRODUTO')
-          .eq('produto_id', prodId)
-
-        const ids = Array.from(new Set(((itens?.data || []) as any[]).map((r) => r?.id_oport).filter(Boolean)))
-        const directIds = new Set((directList || []).map((r) => r.id_oport))
-        const missingIds = ids.filter((id) => !directIds.has(id))
-
-        let fromItens: PropostaReferente[] = []
-        if (missingIds.length > 0) {
-          const opps = await (supabase as any).from('crm_oportunidades').select(baseCols).in('id_oport', missingIds)
-          fromItens = (opps?.data || []) as any[]
-        }
-
-        const merged = [...directList, ...fromItens].reduce<PropostaReferente[]>((acc, cur) => {
-          if (!cur?.id_oport) return acc
-          if (acc.some((x) => x.id_oport === cur.id_oport)) return acc
-          acc.push({
-            id_oport: cur.id_oport,
-            cod_oport: cur.cod_oport ?? null,
-            descricao_oport: cur.descricao_oport ?? null,
-            cliente: cur.cliente ?? null
-          })
-          return acc
-        }, [])
-
-        if (!cancelled) setPropostasReferentes(merged)
-      } catch {
-        if (!cancelled) setPropostasReferentes([])
-      } finally {
-        if (!cancelled) setPropostasLoading(false)
-      }
-    }
-
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [savedProduto?.prod_id])
 
   const getProdutoImagemUrl = (p: CRM_Produto | null) => {
     const path = p?.imagem_path
@@ -329,7 +260,6 @@ const Estoque: React.FC = () => {
     setDraftSituacao(!!p.situacao_prod)
     setDraftDescricao(p.descricao_prod || '')
     setDraftGtinEan(p.gtin_ean || '')
-    setDraftCodPropostaRef(p.cod_proposta_ref || '')
     setDraftPreco(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
     setDraftUnidade(p.unidade_prod || 'UN')
     setDraftNcmCodigo(p.ncm_codigo || '')
@@ -551,12 +481,11 @@ const Estoque: React.FC = () => {
       const valor = parseMoneyInput(draftPreco) ?? 0
       const gtinDigits = draftGtinEan.replace(/\D/g, '')
       const gtinEan = gtinDigits ? gtinDigits : null
-      const codPropostaRef = draftCodPropostaRef.trim() || null
       if (savedProduto && editing) {
         const updated = await updateCrmProduto(savedProduto.prod_id, {
           descricao_prod: descricao,
           gtin_ean: gtinEan,
-          cod_proposta_ref: codPropostaRef,
+          cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_codigo: maskedNcm,
           local_estoque: draftLocalEstoque,
@@ -574,7 +503,7 @@ const Estoque: React.FC = () => {
           modelo_prod: null,
           descricao_prod: descricao,
           gtin_ean: gtinEan,
-          cod_proposta_ref: codPropostaRef,
+          cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_codigo: maskedNcm,
           local_estoque: draftLocalEstoque,
@@ -598,7 +527,9 @@ const Estoque: React.FC = () => {
     return items
       .filter((p) => {
         if (!term) return true
-        return String(p.descricao_prod || '').toLowerCase().includes(term)
+        const desc = String(p.descricao_prod || '').toLowerCase()
+        const cod = String(p.codigo_prod || '').toLowerCase()
+        return desc.includes(term) || cod.includes(term)
       })
       .filter((p) => {
         if (localFilter === 'TODOS') return true
@@ -620,33 +551,34 @@ const Estoque: React.FC = () => {
           Estoque
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setSavedProduto(null)
-            setEditing(false)
-            setProdutoTab('estoque')
-            setCreateError(null)
-            setDraftSituacao(true)
-            setDraftDescricao('')
-            setDraftGtinEan('')
-            setDraftCodPropostaRef('')
-            setDraftPreco('')
-            setDraftUnidade('UN')
-            setDraftNcmCodigo('')
-            setDraftLocalEstoque(localFilter === 'TODOS' ? '03' : localFilter)
-            setDraftFamiliaId('')
-            setDraftFamiliaNova('')
-            setNcmSearch('')
-            setNcmOptions([])
-            setIsNcmOpen(false)
-            setIsCreateOpen(true)
-          }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95"
-        >
-          <Plus size={16} />
-          Adicionar Produto
-        </button>
+        {!isConsultaEstoque && (
+          <button
+            type="button"
+            onClick={() => {
+              setSavedProduto(null)
+              setEditing(false)
+              setProdutoTab('estoque')
+              setCreateError(null)
+              setDraftSituacao(true)
+              setDraftDescricao('')
+              setDraftGtinEan('')
+              setDraftPreco('')
+              setDraftUnidade('UN')
+              setDraftNcmCodigo('')
+              setDraftLocalEstoque(localFilter === 'TODOS' ? '03' : localFilter)
+              setDraftFamiliaId('')
+              setDraftFamiliaNova('')
+              setNcmSearch('')
+              setNcmOptions([])
+              setIsNcmOpen(false)
+              setIsCreateOpen(true)
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95"
+          >
+            <Plus size={16} />
+            Adicionar Produto
+          </button>
+        )}
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:p-6 space-y-4">
@@ -656,7 +588,7 @@ const Estoque: React.FC = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filtrar por descrição do produto..."
+              placeholder="Buscar por código ou descrição..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
             />
           </div>
@@ -737,22 +669,22 @@ const Estoque: React.FC = () => {
                 <div className="min-w-[980px]">
                   <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)]">
                     <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
-                    <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                    <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
                     <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Local</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
+                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
                   </div>
 
                   <div className="divide-y divide-[var(--border)]">
                     {filteredSorted.map((p) => {
                       const loc = normalizeLocal(p.local_estoque)
                       return (
-                        <button
+                        <div
                           key={p.prod_id}
-                          type="button"
                           onClick={() => openProdutoModal(p)}
-                          className="grid grid-cols-12 gap-3 px-4 py-3 text-left w-full hover:bg-white/5 transition-colors"
+                          className="grid grid-cols-12 gap-3 px-4 py-3 text-left w-full hover:bg-white/5 transition-colors cursor-pointer"
                         >
                           <div className="col-span-2 min-w-0">
                             <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
@@ -760,7 +692,7 @@ const Estoque: React.FC = () => {
                             </div>
                             <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">#{p.prod_id.split('-')[0]}</div>
                           </div>
-                          <div className="col-span-5 min-w-0">
+                          <div className="col-span-3 min-w-0">
                             <div className="text-sm text-[var(--text)] truncate" title={p.descricao_prod}>
                               {p.descricao_prod}
                             </div>
@@ -782,7 +714,19 @@ const Estoque: React.FC = () => {
                           <div className="col-span-1 min-w-0 text-right">
                             <div className="text-sm text-[var(--text)] truncate">{formatCurrency(p.produto_valor)}</div>
                           </div>
-                        </button>
+                          <div className="col-span-2 min-w-0 flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openMovimentoModal(p)
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                            >
+                              Nova Movimentação
+                            </button>
+                          </div>
+                        </div>
                       )
                     })}
                   </div>
@@ -875,19 +819,21 @@ const Estoque: React.FC = () => {
                 >
                   Novo Movimento
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!savedProduto) return
-                    setCreateError(null)
-                    fillDraftFromProduto(savedProduto)
-                    setEditing(true)
-                  }}
-                  disabled={creating || familiaSaving}
-                  className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
-                >
-                  Editar
-                </button>
+                {!isConsultaEstoque && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!savedProduto) return
+                      setCreateError(null)
+                      fillDraftFromProduto(savedProduto)
+                      setEditing(true)
+                    }}
+                    disabled={creating || familiaSaving}
+                    className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                  >
+                    Editar
+                  </button>
+                )}
               </>
             )
           ) : (
@@ -977,7 +923,7 @@ const Estoque: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
                     <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
@@ -992,16 +938,6 @@ const Estoque: React.FC = () => {
                       }`}
                     >
                       {savedProduto.gtin_ean || 'Opcional'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cod de Proposta referente</label>
-                    <div
-                      className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium font-mono ${
-                        savedProduto.cod_proposta_ref ? 'text-slate-100' : 'text-slate-500'
-                      }`}
-                    >
-                      {savedProduto.cod_proposta_ref || 'Opcional'}
                     </div>
                   </div>
                 </div>
@@ -1090,36 +1026,6 @@ const Estoque: React.FC = () => {
                         )
                       })()}
                     </div>
-                  </div>
-
-                  <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Propostas referentes</div>
-                    {propostasLoading ? (
-                      <div className="mt-2 inline-flex items-center gap-2 text-xs text-slate-400">
-                        <Loader2 className="animate-spin" size={14} />
-                        Carregando...
-                      </div>
-                    ) : propostasReferentes.length === 0 ? (
-                      <div className="mt-2 text-xs text-slate-400">Nenhuma proposta encontrada.</div>
-                    ) : (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {propostasReferentes.map((p) => (
-                          <div
-                            key={p.id_oport}
-                            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-2"
-                            title={p.descricao_oport || p.id_oport}
-                          >
-                            <span className="text-xs font-mono text-slate-100">{p.cod_oport || p.id_oport}</span>
-                            {(p.cliente || p.descricao_oport) && (
-                              <span className="text-xs text-slate-400 max-w-[360px] truncate">
-                                {p.cliente ? `${p.cliente}${p.descricao_oport ? ' • ' : ''}` : ''}
-                                {p.descricao_oport || ''}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -1234,7 +1140,7 @@ const Estoque: React.FC = () => {
                 </div>
 
                 {savedProduto ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
                       <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
@@ -1250,32 +1156,14 @@ const Estoque: React.FC = () => {
                         placeholder="Opcional"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cod de Proposta referente</label>
-                      <input
-                        value={draftCodPropostaRef}
-                        onChange={(e) => setDraftCodPropostaRef(e.target.value)}
-                        className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono"
-                        placeholder="Opcional"
-                      />
-                    </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código EAN (GTIN)</label>
                       <input
                         value={draftGtinEan}
                         onChange={(e) => setDraftGtinEan(e.target.value)}
-                        className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono"
-                        placeholder="Opcional"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cod de Proposta referente</label>
-                      <input
-                        value={draftCodPropostaRef}
-                        onChange={(e) => setDraftCodPropostaRef(e.target.value)}
                         className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono"
                         placeholder="Opcional"
                       />
@@ -1483,36 +1371,6 @@ const Estoque: React.FC = () => {
                             )
                           })()}
                         </div>
-                      </div>
-
-                      <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Propostas referentes</div>
-                        {propostasLoading ? (
-                          <div className="mt-2 inline-flex items-center gap-2 text-xs text-slate-400">
-                            <Loader2 className="animate-spin" size={14} />
-                            Carregando...
-                          </div>
-                        ) : propostasReferentes.length === 0 ? (
-                          <div className="mt-2 text-xs text-slate-400">Nenhuma proposta encontrada.</div>
-                        ) : (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {propostasReferentes.map((p) => (
-                              <div
-                                key={p.id_oport}
-                                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-2"
-                                title={p.descricao_oport || p.id_oport}
-                              >
-                                <span className="text-xs font-mono text-slate-100">{p.cod_oport || p.id_oport}</span>
-                                {(p.cliente || p.descricao_oport) && (
-                                  <span className="text-xs text-slate-400 max-w-[360px] truncate">
-                                    {p.cliente ? `${p.cliente}${p.descricao_oport ? ' • ' : ''}` : ''}
-                                    {p.descricao_oport || ''}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

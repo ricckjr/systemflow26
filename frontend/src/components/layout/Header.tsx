@@ -77,7 +77,9 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/compras-estoque': 'COMPRAS E ESTOQUE',
       '/app/compras-estoque/compras': 'COMPRAS — KANBAN',
       '/app/compras-estoque/estoque': 'COMPRAS E ESTOQUE — ESTOQUE',
+      '/app/compras-estoque/consultar-estoque': 'COMPRAS E ESTOQUE — CONSULTAR ESTOQUE',
       '/app/compras-estoque/servicos': 'COMPRAS E ESTOQUE — SERVIÇOS',
+      '/app/compras-estoque/produtos': 'COMPRAS E ESTOQUE — PRODUTOS',
       '/app/compras-estoque/ncm': 'COMPRAS E ESTOQUE — NCM',
 
       '/app/producao/propostas': 'PRODUÇÃO — PROPOSTAS',

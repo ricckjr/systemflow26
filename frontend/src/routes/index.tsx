@@ -185,7 +185,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'crm/configs/produtos',
-        element: <Navigate to="/app/compras-estoque/estoque" replace />
+        element: <Navigate to="/app/compras-estoque/produtos" replace />
       },
       {
         path: 'crm/configs/servicos',
@@ -294,15 +294,41 @@ export const router = createBrowserRouter([
         )
       },
 
-      { path: 'compras-estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/VisaoGeral'), 'Carregando Compras e Estoque...') },
-      { path: 'compras-estoque/compras', element: lazyElement(() => import('@/pages/ComprasEstoque/ComprasKanban'), 'Carregando Compras...') },
-      { path: 'compras-estoque/estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/Estoque'), 'Carregando Estoque...') },
+      {
+        path: 'compras-estoque',
+        element: <Navigate to="/app/compras-estoque/consultar-estoque" replace />
+      },
+      {
+        path: 'compras-estoque/compras',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/ComprasKanban'),
+          'Carregando Compras...',
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      { path: 'compras-estoque/estoque', element: <Navigate to="/app/compras-estoque/consultar-estoque" replace /> },
+      {
+        path: 'compras-estoque/consultar-estoque',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/ConsultarEstoque'),
+          'Carregando Estoque...',
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="VIEW">{node}</RequirePermission>
+        )
+      },
       {
         path: 'compras-estoque/servicos',
         element: lazyElement(
           () => import('@/pages/ComprasEstoque/Servicos'),
           'Carregando Serviços...',
-          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'compras-estoque/produtos',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/CadastrarProdutos'),
+          'Carregando Produtos...',
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
         )
       },
       {
@@ -310,7 +336,7 @@ export const router = createBrowserRouter([
         element: lazyElement(
           () => import('@/pages/ComprasEstoque/CadastroNcm'),
           'Carregando Cadastro NCM...',
-          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="CONTROL">{node}</RequirePermission>
         )
       },
 

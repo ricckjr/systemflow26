@@ -107,12 +107,13 @@ const navItems: NavItem[] = [
     label: 'COMPRAS E ESTOQUE',
     icon: Box,
     modulo: 'compras-estoque',
+    requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'VIEW' },
     subItems: [
-      { label: 'Visão Geral', path: '/app/compras-estoque', submodulo: 'visao-geral' },
+      { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque' },
       { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
-      { label: 'Estoque', path: '/app/compras-estoque/estoque', submodulo: 'estoque' },
-      { label: 'Cadastrar Serviços', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Cadastro NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Cadastrar Serviço', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'CONTROL' } },
+      { label: 'Cadastrar Produto', path: '/app/compras-estoque/produtos', submodulo: 'produtos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'CONTROL' } },
+      { label: 'Cadastrar NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'CONTROL' } },
     ],
   },
   {

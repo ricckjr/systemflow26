@@ -55,6 +55,42 @@ export async function fetchClienteContatos(clienteId: string) {
   return data as ClienteContato[]
 }
 
+export async function fetchContatoById(contatoId: string) {
+  const id = (contatoId || '').trim()
+  if (!id) return null
+  const sb = supabase as any
+  const { data, error } = await sb
+    .from('crm_contatos')
+    .select(
+      `
+      contato_id,
+      integ_id,
+      cliente_id,
+      contato_nome,
+      contato_cargo,
+      contato_telefone01,
+      contato_telefone02,
+      contato_email,
+      user_id,
+      contato_obs,
+      data_inclusao,
+      data_atualizacao,
+      deleted_at
+    `
+    )
+    .eq('contato_id', id)
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '42P01') return null
+    console.error('Erro ao buscar contato por ID:', error)
+    return null
+  }
+  if (!data) return null
+  if (data.deleted_at) return null
+  return data as ClienteContato
+}
+
 export async function createClienteContato(payload: CreateClienteContatoPayload) {
   const sb = supabase as any
   const { data, error } = await sb

@@ -5,8 +5,11 @@ import {
   Plus, 
   Search, 
   Calendar, 
+  Clock,
   Loader2,
-  Trash2
+  Trash2,
+  Pencil,
+  UserPlus
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import {
@@ -34,8 +37,8 @@ import {
   createOportunidade,
   replaceOportunidadeItens
 } from '@/services/crm'
-import { fetchClientes, Cliente } from '@/services/clientes'
-import { fetchClienteContatos, ClienteContato, createClienteContato } from '@/services/clienteContatos'
+import { fetchClienteById, fetchClientes, Cliente } from '@/services/clientes'
+import { fetchClienteContatos, fetchContatoById, ClienteContato, createClienteContato } from '@/services/clienteContatos'
 import { HorizontalScrollArea, Modal } from '@/components/ui'
 import { useUsuarios, UsuarioSimples } from '@/hooks/useUsuarios'
 import { useAuth } from '@/contexts/AuthContext'
@@ -119,6 +122,22 @@ const formatMonthYear = (dateString: string | null) => {
   return fmt.replace(' ', '')
 }
 
+const calcDaysSince = (dateString: string | null) => {
+  if (!dateString) return null
+  const dt = new Date(dateString)
+  if (Number.isNaN(dt.getTime())) return null
+  const now = new Date()
+  const diffMs = now.getTime() - dt.getTime()
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Number.isFinite(days) && days >= 0 ? days : null
+}
+
+const formatDias = (days: number | null) => {
+  if (days === null) return '-'
+  const d = Math.max(0, Math.floor(days))
+  return `${d} dia${d === 1 ? '' : 's'}`
+}
+
 const getInitials = (name: string) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -147,23 +166,27 @@ const OpportunityCard = ({
   const id = opportunity.id_oport || (opportunity as any).id_oportunidade
   const cod = opportunity.cod_oport || (opportunity as any).cod_oportunidade || null
   const clienteLabel =
+    (opportunity as any).cliente_nome ||
     opportunity.cliente ||
     clienteNome ||
     (opportunity.id_cliente ? `Cliente #${String(opportunity.id_cliente).split('-')[0]}` : null) ||
     'Novo Cliente'
   const contatoLabel =
+    (opportunity as any).contato_nome ||
     opportunity.nome_contato ||
     contatoNome ||
     (opportunity.id_contato ? `Contato #${String(opportunity.id_contato).split('-')[0]}` : null) ||
     null
-  const valor = opportunity.ticket_valor ?? (opportunity.valor_proposta ? Number.parseFloat(String(opportunity.valor_proposta).replace(',', '.')) : null)
-  const previsao = opportunity.prev_entrega || null
-  const vendedorLabel = (opportunity.vendedor || vendedorNome || '').trim() || null
+  const vendedorLabel = ((opportunity as any).vendedor_nome || opportunity.vendedor || vendedorNome || '').trim() || null
   const temperatura = Number(opportunity.temperatura || 0) || 0
   const tempBucket =
     temperatura > 0 && temperatura <= 40 ? 'FRIO' : temperatura <= 60 ? 'MORNO' : temperatura > 0 ? 'QUENTE' : null
   const tempLevel = tempBucket === 'FRIO' ? 1 : tempBucket === 'MORNO' ? 2 : tempBucket === 'QUENTE' ? 3 : 0
   const tempColor = tempBucket === 'FRIO' ? 'bg-sky-500' : tempBucket === 'MORNO' ? 'bg-amber-500' : 'bg-rose-500'
+  const diasParado =
+    typeof (opportunity as any).dias_parado === 'number'
+      ? (opportunity as any).dias_parado
+      : calcDaysSince((opportunity as any).data_parado ?? (opportunity as any).data_alteracao ?? (opportunity as any).atualizado_em ?? null)
 
   return (
     <Draggable draggableId={id} index={index}>
@@ -178,49 +201,40 @@ const OpportunityCard = ({
             ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-cyan-500 rotate-2 scale-105 z-50 bg-[#1E293B]' : 'bg-[#0F172A] border-white/5 shadow-sm hover:shadow-md hover:border-white/10'}
           `}
         >
-          {/* Header: Cliente/Código e Valor */}
-          <div className="flex justify-between items-start gap-2">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <h4 className="text-sm font-bold text-slate-100 truncate" title={clienteLabel}>
-                  {clienteLabel}
-                </h4>
-                {cod ? (
-                  <span className="shrink-0 text-[10px] font-black text-slate-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                    #{cod}
-                  </span>
-                ) : null}
-              </div>
+              <h4 className="text-sm font-bold text-slate-100 leading-snug line-clamp-2" title={clienteLabel}>
+                {clienteLabel}
+              </h4>
             </div>
-            <div className="shrink-0 flex flex-col items-end">
-               <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                 {formatCurrency(valor)}
-               </span>
+            {cod ? (
+              <span className="shrink-0 text-[10px] font-black text-slate-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                #{cod}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-xs text-slate-300">
+              <span className="text-slate-500">Contato: </span>
+              {contatoLabel || '-'}
+            </div>
+            <div className="text-[11px] text-slate-400">
+              <span className="text-slate-500">Solução: </span>
+              {opportunity.solucao || '-'}
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Data de inclusão">
+              <Calendar size={12} className="text-slate-500" />
+              <span>{formatDate(opportunity.data_inclusao)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Parado (dias)">
+              <Clock size={12} className="text-slate-500" />
+              <span>{`Parado: ${formatDias(diasParado)}`}</span>
             </div>
           </div>
 
-          {/* Body: Detalhes */}
-          {(opportunity.solucao || vendedorLabel || contatoLabel) && (
-             <div className="text-xs text-slate-400 line-clamp-2 bg-white/5 p-2 rounded-lg border border-white/5">
-               {contatoLabel && <div className="font-medium text-slate-300 mb-1">{`Contato: ${contatoLabel}`}</div>}
-               {vendedorLabel && <div className="text-[10px] text-slate-500">{`Vendedor: ${vendedorLabel}`}</div>}
-               {opportunity.solucao && <div className="text-[10px] text-slate-500">{`Solução: ${opportunity.solucao}`}</div>}
-             </div>
-          )}
-
-          {/* Footer: Datas e Responsável */}
           <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
-             <div className="min-w-0">
-               <div className="flex items-center gap-1.5 text-[10px] text-slate-500" title="Data de inclusão">
-                  <Calendar size={12} />
-                  <span>{`Incl.: ${formatDate(opportunity.data_inclusao)}`}</span>
-               </div>
-               <div className="mt-0.5 text-[10px] font-bold text-slate-500 truncate">
-                 {`Fech.: ${formatMonthYear(previsao)}`}
-               </div>
-             </div>
-
-             <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {tempBucket && (
                 <div className="flex items-center gap-2" title={`Temperatura: ${temperatura}% (${tempBucket})`}>
                   <div className="flex items-end gap-1">
@@ -244,18 +258,22 @@ const OpportunityCard = ({
                   </span>
                 </div>
               )}
+            </div>
 
-              <div
-                className="w-8 h-8 rounded-full border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[10px] font-black text-cyan-100"
-                title={vendedorLabel || 'Vendedor'}
-              >
-                {vendedorAvatarUrl ? (
-                  <img src={vendedorAvatarUrl} alt={vendedorLabel || 'Vendedor'} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{getInitials(vendedorLabel || String(opportunity.id_vendedor || ''))}</span>
-                )}
-              </div>
-             </div>
+            <div
+              className="w-8 h-8 rounded-full border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[10px] font-black text-cyan-100"
+              title={vendedorLabel || 'Vendedor'}
+            >
+              {vendedorAvatarUrl || (opportunity as any).vendedor_avatar_url ? (
+                <img
+                  src={vendedorAvatarUrl || (opportunity as any).vendedor_avatar_url}
+                  alt={vendedorLabel || 'Vendedor'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{getInitials(vendedorLabel || String(opportunity.id_vendedor || ''))}</span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -288,14 +306,22 @@ export default function OportunidadesKanban() {
   const [createContatoOptions, setCreateContatoOptions] = useState<ClienteContato[]>([])
   const [createOrigemId, setCreateOrigemId] = useState('')
   const [createVendedorId, setCreateVendedorId] = useState('')
+  const [createEmpresaCorrespondente, setCreateEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
   const [createSolucao, setCreateSolucao] = useState<'PRODUTO' | 'SERVICO' | 'PRODUTO_SERVICO'>('PRODUTO')
   const [createTicket, setCreateTicket] = useState('')
   const [createPrevFechamento, setCreatePrevFechamento] = useState('')
   const [createSolicitacao, setCreateSolicitacao] = useState('')
   const [createContatoModalOpen, setCreateContatoModalOpen] = useState(false)
-  const [createContatoNome, setCreateContatoNome] = useState('')
-  const [createContatoEmail, setCreateContatoEmail] = useState('')
-  const [createContatoTelefone, setCreateContatoTelefone] = useState('')
+  const [createContatoError, setCreateContatoError] = useState<string | null>(null)
+  const [createContatoDraft, setCreateContatoDraft] = useState({
+    integ_id: '',
+    contato_nome: '',
+    contato_cargo: '',
+    contato_telefone01: '',
+    contato_telefone02: '',
+    contato_email: '',
+    contato_obs: ''
+  })
   const [createContatoSaving, setCreateContatoSaving] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -303,10 +329,14 @@ export default function OportunidadesKanban() {
   const [formError, setFormError] = useState<string | null>(null)
   const [draftCod, setDraftCod] = useState('')
   const [draftVendedorId, setDraftVendedorId] = useState('')
+  const [draftEmpresaCorrespondente, setDraftEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
   const [draftClienteId, setDraftClienteId] = useState('')
+  const [draftClienteDocumento, setDraftClienteDocumento] = useState<string | null>(null)
   const [draftContatoId, setDraftContatoId] = useState('')
+  const [draftContatoDetails, setDraftContatoDetails] = useState<ClienteContato | null>(null)
   const [draftFaseId, setDraftFaseId] = useState('')
   const [draftStatusId, setDraftStatusId] = useState('')
+  const [baselineStatusId, setBaselineStatusId] = useState<string | null>(null)
   const [draftMotivoId, setDraftMotivoId] = useState('')
   const [draftOrigemId, setDraftOrigemId] = useState('')
   const [draftSolucao, setDraftSolucao] = useState<'PRODUTO' | 'SERVICO' | 'PRODUTO_SERVICO'>('PRODUTO')
@@ -327,6 +357,10 @@ export default function OportunidadesKanban() {
   const [itemSelectedId, setItemSelectedId] = useState<string>('')
   const [itemQuantidade, setItemQuantidade] = useState('1')
   const [itemDesconto, setItemDesconto] = useState('0')
+
+  const [statusObsOpen, setStatusObsOpen] = useState(false)
+  const [statusObsText, setStatusObsText] = useState('')
+  const [statusObsError, setStatusObsError] = useState<string | null>(null)
 
   const [comentarios, setComentarios] = useState<CRM_OportunidadeComentario[]>([])
   const [comentariosDraft, setComentariosDraft] = useState<Array<{ localId: string; comentario: string; createdAt: string }>>([])
@@ -534,8 +568,12 @@ export default function OportunidadesKanban() {
       setDraftVendedorId(active.id_vendedor || '')
       setDraftClienteId(active.id_cliente || '')
       setDraftContatoId(active.id_contato || '')
+      setDraftContatoDetails(null)
+      setDraftClienteDocumento((active as any).cliente_documento ?? null)
+      setDraftEmpresaCorrespondente(((active as any).empresa_correspondente as any) || 'Apliflow')
       setDraftFaseId(active.id_fase || '')
       setDraftStatusId(active.id_status || '')
+      setBaselineStatusId(active.id_status || null)
       setDraftMotivoId(active.id_motivo || '')
       setDraftOrigemId(active.id_origem || '')
       setDraftSolucao((active.solucao as any) || 'PRODUTO')
@@ -549,9 +587,9 @@ export default function OportunidadesKanban() {
       setDraftDescricao(active.descricao_oport || '')
       setDraftItens([])
 
-      setClienteQuery(active.cliente || '')
-      setContatoQuery(active.nome_contato || '')
-      setVendedorQuery(active.vendedor || '')
+      setClienteQuery((active as any).cliente_nome || active.cliente || '')
+      setContatoQuery((active as any).contato_nome || active.nome_contato || '')
+      setVendedorQuery((active as any).vendedor_nome || active.vendedor || '')
       setOrigemQuery(active.origem || '')
       setComentarios([])
       setComentariosDraft([])
@@ -562,8 +600,12 @@ export default function OportunidadesKanban() {
       setDraftVendedorId(canCrmControl ? '' : myUserId)
       setDraftClienteId('')
       setDraftContatoId('')
+      setDraftContatoDetails(null)
+      setDraftClienteDocumento(null)
+      setDraftEmpresaCorrespondente('Apliflow')
       setDraftFaseId(leadStageId || '')
       setDraftStatusId(andamentoStatusId || '')
+      setBaselineStatusId(andamentoStatusId || null)
       setDraftMotivoId('')
       setDraftOrigemId('')
       setDraftSolucao('PRODUTO')
@@ -611,6 +653,11 @@ export default function OportunidadesKanban() {
     if (!draftFaseId && leadStageId) setDraftFaseId(leadStageId)
     if (!draftStatusId && andamentoStatusId) setDraftStatusId(andamentoStatusId)
   }, [formOpen, activeId, draftFaseId, draftStatusId, leadStageId, andamentoStatusId])
+
+  useEffect(() => {
+    if (!formOpen) return
+    if (!baselineStatusId && draftStatusId) setBaselineStatusId(draftStatusId)
+  }, [formOpen, baselineStatusId, draftStatusId])
 
   useEffect(() => {
     if (!formOpen) return
@@ -735,6 +782,7 @@ export default function OportunidadesKanban() {
       setContatoOptions([])
       setDraftContatoId('')
       setContatoQuery('')
+      setDraftContatoDetails(null)
       return
     }
     setContatoLoading(true)
@@ -744,6 +792,95 @@ export default function OportunidadesKanban() {
       })
       .finally(() => setContatoLoading(false))
   }, [formOpen, draftClienteId])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const contatoId = draftContatoId.trim()
+    if (!contatoId) {
+      setDraftContatoDetails(null)
+      return
+    }
+    if (draftContatoDetails?.contato_id === contatoId) return
+    const fromList = contatoOptions.find((c) => c.contato_id === contatoId) || null
+    if (fromList) {
+      setDraftContatoDetails(fromList)
+      if (!contatoQuery.trim() && fromList.contato_nome) setContatoQuery(fromList.contato_nome)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const c = await fetchContatoById(contatoId)
+      if (cancelled) return
+      if (!c) return
+      setDraftContatoDetails(c)
+      if (!contatoQuery.trim() && c.contato_nome) setContatoQuery(c.contato_nome)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, draftContatoId, contatoQuery, draftContatoDetails])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = draftClienteId.trim()
+    if (!id) {
+      setDraftClienteDocumento(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const c = await fetchClienteById(id)
+      if (cancelled) return
+      setDraftClienteDocumento((c as any)?.cliente_documento_formatado || (c as any)?.cliente_documento || null)
+      if (!clienteQuery.trim() && c?.cliente_nome_razao_social) setClienteQuery(c.cliente_nome_razao_social)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, draftClienteId, clienteQuery])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = draftOrigemId.trim()
+    if (!id) return
+    if (origemQuery.trim()) return
+    const label = origens.find((o) => o.orig_id === id)?.descricao_orig
+    if (label) setOrigemQuery(label)
+  }, [formOpen, draftOrigemId, origens, origemQuery])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = draftVendedorId.trim()
+    if (!id) return
+    if (vendedorQuery.trim()) return
+    const label = usuarios.find((u) => u.id === id)?.nome
+    if (label) setVendedorQuery(label)
+  }, [formOpen, draftVendedorId, usuarios, vendedorQuery])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = draftContatoId.trim()
+    if (!id) return
+    if (contatoQuery.trim()) return
+    const label = contatoOptions.find((c) => c.contato_id === id)?.contato_nome
+    if (label) setContatoQuery(label)
+  }, [formOpen, draftContatoId, contatoOptions, contatoQuery])
+
+  const selectedContato = useMemo(() => {
+    const id = draftContatoId.trim()
+    if (!id) return null
+    return (
+      contatoOptions.find((c) => c.contato_id === id) ||
+      (draftContatoDetails?.contato_id === id ? draftContatoDetails : null) ||
+      null
+    )
+  }, [draftContatoId, contatoOptions, draftContatoDetails])
+
+  const dataInclusao = active?.data_inclusao ?? (active as any)?.criado_em ?? null
+  const dataAlteracao = (active as any)?.data_parado ?? active?.data_alteracao ?? (active as any)?.atualizado_em ?? null
+  const diasParado =
+    typeof (active as any)?.dias_parado === 'number' ? (active as any).dias_parado : calcDaysSince(dataAlteracao)
+  const vendedorAvatarUrl = draftVendedorId.trim() ? (vendedorAvatarById[draftVendedorId.trim()] || null) : null
 
   const ticketCalculado = useMemo(() => {
     const total = (draftItens || []).reduce((acc, item) => acc + calcItemTotal(item), 0)
@@ -817,13 +954,21 @@ export default function OportunidadesKanban() {
     setCreateContatoOptions([])
     setCreateOrigemId('')
     setCreateVendedorId(canCrmControl ? '' : myUserId)
+    setCreateEmpresaCorrespondente('Apliflow')
     setCreateSolucao('PRODUTO')
     setCreateTicket('')
     setCreatePrevFechamento('')
     setCreateSolicitacao('')
-    setCreateContatoNome('')
-    setCreateContatoEmail('')
-    setCreateContatoTelefone('')
+    setCreateContatoError(null)
+    setCreateContatoDraft({
+      integ_id: '',
+      contato_nome: '',
+      contato_cargo: '',
+      contato_telefone01: '',
+      contato_telefone02: '',
+      contato_email: '',
+      contato_obs: ''
+    })
     setCreateContatoModalOpen(false)
     setCreateOpen(true)
   }
@@ -841,6 +986,7 @@ export default function OportunidadesKanban() {
     const ticketValor = parseMoney(createTicket)
     const prevEntrega = createPrevFechamento.trim() ? `${createPrevFechamento.trim()}-01` : null
     const solicitacao = createSolicitacao.trim()
+    const empresa = (createEmpresaCorrespondente || '').trim()
 
     if (!clienteId) {
       setCreateError('Selecione um cliente.')
@@ -856,6 +1002,10 @@ export default function OportunidadesKanban() {
     }
     if (!vendedorId) {
       setCreateError('Selecione um vendedor.')
+      return
+    }
+    if (!empresa) {
+      setCreateError('Selecione a empresa correspondente.')
       return
     }
     if (createTicket.trim() && (!Number.isFinite(ticketValor) || (ticketValor as number) <= 0)) {
@@ -882,6 +1032,7 @@ export default function OportunidadesKanban() {
         id_fase: faseId,
         id_status: statusId,
         id_motivo: null,
+        empresa_correspondente: empresa,
         solucao: createSolucao,
         qts_item: null,
         prev_entrega: prevEntrega,
@@ -931,14 +1082,16 @@ export default function OportunidadesKanban() {
     return Number.isFinite(v) ? v : null
   }
 
-  const handleSave = async () => {
+  const handleSave = async (opts?: { skipStatusObsCheck?: boolean; statusObs?: string | null }) => {
     const clienteId = draftClienteId.trim()
     const vendedorId = (canCrmControl ? draftVendedorId : (myUserId || draftVendedorId)).trim()
-    if (!clienteId) {
+    const lockedClienteId = activeId ? ((active?.id_cliente || clienteId).trim()) : clienteId
+    const lockedVendedorId = activeId ? ((active?.id_vendedor || vendedorId).trim()) : vendedorId
+    if (!lockedClienteId) {
       setFormError('Selecione um cliente.')
       return
     }
-    if (!vendedorId) {
+    if (!lockedVendedorId) {
       setFormError('Selecione um vendedor.')
       return
     }
@@ -950,18 +1103,19 @@ export default function OportunidadesKanban() {
       : null
     const prev_entrega = draftPrevEntrega ? `${draftPrevEntrega}-01` : null
     const finalFaseId = activeId ? draftFaseId : (leadStageId || draftFaseId)
-    const finalStatusId = activeId ? draftStatusId : (andamentoStatusId || draftStatusId)
+    const finalStatusId = draftStatusId || andamentoStatusId || ''
     const faseLabel = stages.find(s => s.id === finalFaseId)?.label || null
     const solucao = draftSolucao
 
     const payload: any = {
-      id_cliente: clienteId || null,
-      id_vendedor: vendedorId || null,
+      id_cliente: lockedClienteId || null,
+      id_vendedor: lockedVendedorId || null,
       id_contato: draftContatoId.trim() || null,
       id_fase: finalFaseId || null,
       id_status: finalStatusId || null,
       id_motivo: draftMotivoId || null,
       id_origem: draftOrigemId || null,
+      empresa_correspondente: draftEmpresaCorrespondente || null,
       solucao,
       qts_item,
       prev_entrega,
@@ -972,6 +1126,17 @@ export default function OportunidadesKanban() {
       obs_oport: draftObs.trim() || null,
       descricao_oport: draftDescricao.trim() || null,
       fase: faseLabel
+    }
+
+    const baseline = (baselineStatusId || '').trim()
+    const next = (finalStatusId || '').trim()
+    const statusChanged = !!baseline && !!next && baseline !== next
+    const statusObs = (opts?.statusObs || '').trim()
+    if (statusChanged && !opts?.skipStatusObsCheck) {
+      setStatusObsError(null)
+      setStatusObsText('')
+      setStatusObsOpen(true)
+      return
     }
 
     setSaving(true)
@@ -1000,6 +1165,11 @@ export default function OportunidadesKanban() {
           const rows = await fetchOportunidadeComentarios(activeId)
           setComentarios(rows)
         }
+        if (statusChanged && statusObs) {
+          const fromDesc = statuses.find((s) => s.status_id === baseline)?.status_desc || '—'
+          const toDesc = statuses.find((s) => s.status_id === next)?.status_desc || '—'
+          await createOportunidadeComentario(activeId, `Status alterado: ${fromDesc} → ${toDesc}\nObs: ${statusObs}`)
+        }
       } else {
         const created = await createOportunidade(payload)
         const newId = (created as any)?.id_oport || (created as any)?.id_oportunidade
@@ -1023,8 +1193,14 @@ export default function OportunidadesKanban() {
             }
             setComentariosDraft([])
           }
+          if (statusChanged && statusObs) {
+            const fromDesc = statuses.find((s) => s.status_id === baseline)?.status_desc || '—'
+            const toDesc = statuses.find((s) => s.status_id === next)?.status_desc || '—'
+            await createOportunidadeComentario(String(newId), `Status alterado: ${fromDesc} → ${toDesc}\nObs: ${statusObs}`)
+          }
         }
       }
+      if (statusChanged) setBaselineStatusId(next)
       setFormOpen(false)
       setActiveId(null)
       await loadData()
@@ -1281,6 +1457,22 @@ export default function OportunidadesKanban() {
           )}
 
           <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Empresa Correspondente</label>
+                <select
+                  value={createEmpresaCorrespondente}
+                  onChange={(e) => setCreateEmpresaCorrespondente(e.target.value as any)}
+                  disabled={createSaving}
+                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
+                >
+                  <option value="Apliflow">Apliflow</option>
+                  <option value="Automaflow">Automaflow</option>
+                  <option value="Tecnotron">Tecnotron</option>
+                </select>
+              </div>
+            </div>
+
             <div className="relative">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cliente</label>
               <div className="relative mt-2">
@@ -1357,15 +1549,22 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => {
-                  setCreateContatoNome('')
-                  setCreateContatoEmail('')
-                  setCreateContatoTelefone('')
+                  setCreateContatoError(null)
+                  setCreateContatoDraft({
+                    integ_id: '',
+                    contato_nome: '',
+                    contato_cargo: '',
+                    contato_telefone01: '',
+                    contato_telefone02: '',
+                    contato_email: '',
+                    contato_obs: ''
+                  })
                   setCreateContatoModalOpen(true)
                 }}
                 disabled={!createClienteId}
                 className="h-[46px] px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs transition-colors disabled:opacity-40 disabled:pointer-events-none"
               >
-                Adicionar contato
+                Novo Contato
               </button>
             </div>
 
@@ -1438,8 +1637,15 @@ export default function OportunidadesKanban() {
           if (createContatoSaving) return
           setCreateContatoModalOpen(false)
         }}
-        title="Adicionar contato"
-        size="md"
+        title={
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+              <UserPlus size={18} className="text-cyan-300" />
+            </div>
+            Novo Contato
+          </div>
+        }
+        size="xl"
         zIndex={160}
         footer={
           <>
@@ -1454,69 +1660,144 @@ export default function OportunidadesKanban() {
             <button
               type="button"
               onClick={async () => {
-                const nome = createContatoNome.trim()
-                if (!createClienteId) return
-                if (!nome) return
+                const clienteId = createClienteId.trim()
+                const nome = createContatoDraft.contato_nome.trim()
+                const email = createContatoDraft.contato_email.trim()
+                if (!clienteId) return
+                if (!nome) {
+                  setCreateContatoError('Nome do contato é obrigatório.')
+                  return
+                }
+                if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+                  setCreateContatoError('Email do contato inválido.')
+                  return
+                }
+                if (!myUserId) {
+                  setCreateContatoError('Sessão não encontrada. Faça login novamente.')
+                  return
+                }
                 if (createContatoSaving) return
                 setCreateContatoSaving(true)
+                setCreateContatoError(null)
                 try {
-                  const created = await createClienteContato({
-                    integ_id: null,
-                    cliente_id: createClienteId,
+                  const payloadBase = {
+                    integ_id: createContatoDraft.integ_id.trim() || null,
                     contato_nome: nome,
-                    contato_cargo: null,
-                    contato_telefone01: createContatoTelefone || null,
-                    contato_telefone02: null,
-                    contato_email: createContatoEmail || null,
-                    user_id: null,
-                    contato_obs: null,
+                    contato_cargo: createContatoDraft.contato_cargo.trim() || null,
+                    contato_telefone01: createContatoDraft.contato_telefone01.trim() || null,
+                    contato_telefone02: createContatoDraft.contato_telefone02.trim() || null,
+                    contato_email: email || null,
+                    contato_obs: createContatoDraft.contato_obs.trim() || null
+                  }
+                  const created = await createClienteContato({
+                    ...payloadBase,
+                    cliente_id: clienteId,
+                    user_id: myUserId,
                     deleted_at: null
-                  })
-                  const refreshed = await fetchClienteContatos(createClienteId)
+                  } as any)
+                  const refreshed = await fetchClienteContatos(clienteId)
                   setCreateContatoOptions(refreshed)
                   setCreateContatoId(created.contato_id)
                   setCreateContatoModalOpen(false)
+                } catch (e) {
+                  setCreateContatoError(e instanceof Error ? e.message : 'Falha ao salvar contato.')
                 } finally {
                   setCreateContatoSaving(false)
                 }
               }}
-              disabled={createContatoSaving || !createClienteId || !createContatoNome.trim()}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+              disabled={createContatoSaving || !createClienteId || !createContatoDraft.contato_nome.trim()}
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
-              {createContatoSaving ? 'Salvando...' : 'Adicionar'}
+              {createContatoSaving ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
             </button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome</label>
-            <input
-              value={createContatoNome}
-              onChange={(e) => setCreateContatoNome(e.target.value)}
-              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-              placeholder="Nome do contato"
-            />
+        <div className="space-y-5">
+          {createContatoError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+              {createContatoError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome</label>
+              <input
+                value={createContatoDraft.contato_nome}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_nome: e.target.value }))}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                placeholder="Ex: João da Silva"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">ID Integração</label>
+              <input
+                value={createContatoDraft.integ_id}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, integ_id: e.target.value }))}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                placeholder="Ex: OMIE_CONTATO_123"
+              />
+            </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cargo</label>
               <input
-                value={createContatoTelefone}
-                onChange={(e) => setCreateContatoTelefone(e.target.value)}
+                value={createContatoDraft.contato_cargo}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_cargo: e.target.value }))}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                placeholder="Ex: Compras, Financeiro..."
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Email</label>
+              <input
+                value={createContatoDraft.contato_email}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_email: e.target.value }))}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                placeholder="email@empresa.com"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 01</label>
+              <input
+                value={createContatoDraft.contato_telefone01}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_telefone01: e.target.value }))}
                 className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
                 placeholder="(00) 00000-0000"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">E-mail</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 02</label>
               <input
-                value={createContatoEmail}
-                onChange={(e) => setCreateContatoEmail(e.target.value)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                placeholder="email@exemplo.com"
+                value={createContatoDraft.contato_telefone02}
+                onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_telefone02: e.target.value }))}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                placeholder="(00) 00000-0000"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+            <textarea
+              value={createContatoDraft.contato_obs}
+              onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_obs: e.target.value }))}
+              className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              placeholder="Observações do contato..."
+            />
           </div>
         </div>
       </Modal>
@@ -1549,6 +1830,100 @@ export default function OportunidadesKanban() {
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-w-0">
               <div className="px-4 md:px-6 py-4 md:py-5 border-b border-white/10 bg-[#0B1220]">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-4">
+                  <div className="lg:col-span-4 rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
+                          <div className="mt-1 text-xs font-black text-slate-200 bg-white/5 px-2 py-1 rounded-lg border border-white/10 font-mono inline-block">
+                            {(draftCod || '').trim() || '-'}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Solução</div>
+                          <Pencil size={12} className="text-slate-500" />
+                        </div>
+                        <select
+                          value={draftSolucao}
+                          onChange={(e) => setDraftSolucao(e.target.value as any)}
+                          className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                        >
+                          <option value="PRODUTO">Venda de Produto</option>
+                          <option value="SERVICO">Venda de Serviço</option>
+                          <option value="PRODUTO_SERVICO">Venda de Produto + Serviço</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-4 rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vendedor</div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[11px] font-black text-cyan-100">
+                        {vendedorAvatarUrl ? (
+                          <img
+                            src={vendedorAvatarUrl}
+                            alt={(vendedorQuery || 'Vendedor').trim() || 'Vendedor'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span>{getInitials((vendedorQuery || '').trim() || String(draftVendedorId || ''))}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-slate-100 truncate">{(vendedorQuery || '-').trim() || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data Inclusão</div>
+                      <div className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-100">
+                        <Calendar size={14} className="text-slate-500" />
+                        <span>{formatDate(dataInclusao)}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente</div>
+                      <select
+                        value={draftEmpresaCorrespondente}
+                        onChange={(e) => setDraftEmpresaCorrespondente(e.target.value as any)}
+                        className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                      >
+                        <option value="Apliflow">Apliflow</option>
+                        <option value="Automaflow">Automaflow</option>
+                        <option value="Tecnotron">Tecnotron</option>
+                      </select>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</div>
+                      <select
+                        value={draftStatusId}
+                        onChange={(e) => setDraftStatusId(e.target.value)}
+                        className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                      >
+                        <option value="">-</option>
+                        {statuses.map((s) => (
+                          <option key={s.status_id} value={s.status_id}>
+                            {s.status_desc}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data Parado</div>
+                      <div className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-100">
+                        <Clock size={14} className="text-slate-500" />
+                        <span>{formatDias(diasParado)}</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">{`Últ. mov.: ${formatDate(dataAlteracao)}`}</div>
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   <div className="lg:col-span-6 relative">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cliente</label>
@@ -1557,18 +1932,23 @@ export default function OportunidadesKanban() {
                       <input
                         value={clienteQuery}
                         onChange={(e) => {
+                          if (activeId) return
                           setClienteQuery(e.target.value)
                           setDraftClienteId('')
                           setDraftContatoId('')
                           setContatoQuery('')
                           setClienteOpen(true)
                         }}
-                        onFocus={() => setClienteOpen(true)}
+                        onFocus={() => {
+                          if (activeId) return
+                          setClienteOpen(true)
+                        }}
                         onBlur={() => window.setTimeout(() => setClienteOpen(false), 150)}
                         placeholder="Pesquisar cliente..."
+                        disabled={!!activeId}
                         className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                       />
-                      {clienteOpen && (
+                      {!activeId && clienteOpen && (
                         <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
                           <div className="max-h-72 overflow-y-auto custom-scrollbar">
                             {clienteLoading ? (
@@ -1608,23 +1988,16 @@ export default function OportunidadesKanban() {
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  <div className="lg:col-span-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solução</label>
-                    <select
-                      value={draftSolucao}
-                      onChange={(e) => setDraftSolucao(e.target.value as any)}
-                      className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                    >
-                      <option value="PRODUTO">Venda de Produto</option>
-                      <option value="SERVICO">Venda de Serviço</option>
-                      <option value="PRODUTO_SERVICO">Venda de Produto + Serviço</option>
-                    </select>
+                    <div className="mt-1 text-[11px] text-slate-400">
+                      {`CNPJ/CPF: ${draftClienteDocumento || '-'}`}
+                    </div>
                   </div>
 
                   <div className="lg:col-span-3 relative">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Origem</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Origem</label>
+                      <Pencil size={12} className="text-slate-500" />
+                    </div>
                     <div className="relative mt-2">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
@@ -1668,7 +2041,10 @@ export default function OportunidadesKanban() {
                   </div>
 
                   <div className="lg:col-span-4 relative">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Contato</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Contato</label>
+                      <Pencil size={12} className="text-slate-500" />
+                    </div>
                     <div className="relative mt-2">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
@@ -1719,52 +2095,38 @@ export default function OportunidadesKanban() {
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  <div className="lg:col-span-4 relative">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Vendedor</label>
-                    <div className="relative mt-2">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        value={vendedorQuery}
-                        onChange={(e) => {
-                          setVendedorQuery(e.target.value)
-                          setDraftVendedorId('')
-                          setVendedorOpen(true)
-                        }}
-                        onFocus={() => setVendedorOpen(true)}
-                        onBlur={() => window.setTimeout(() => setVendedorOpen(false), 150)}
-                        disabled={!canCrmControl}
-                        placeholder="Pesquisar vendedor..."
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                      />
-                      {vendedorOpen && (
-                        <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                            {vendedorFiltered.length === 0 ? (
-                              <div className="px-4 py-3 text-xs text-slate-400">Nenhum vendedor encontrado.</div>
-                            ) : (
-                              vendedorFiltered.map((u) => (
-                                <button
-                                  key={u.id}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    setDraftVendedorId(u.id)
-                                    setVendedorQuery(u.nome)
-                                    setVendedorOpen(false)
-                                  }}
-                                  className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
-                                >
-                                  <div className="text-sm font-semibold text-slate-100 truncate">{u.nome}</div>
-                                  <div className="text-[11px] text-slate-400 truncate">{u.email_corporativo || u.email_login || ''}</div>
-                                </button>
-                              ))
-                            )}
-                          </div>
+                    {(selectedContato || (active as any)?.contato_nome || active?.nome_contato) && (
+                      <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                        <div>
+                          <span className="text-slate-500">Nome Contato: </span>
+                          <span className="text-slate-200">
+                            {selectedContato?.contato_nome || (active as any)?.contato_nome || active?.nome_contato || '-'}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                        <div>
+                          <span className="text-slate-500">Cargo: </span>
+                          <span className="text-slate-200">{selectedContato?.contato_cargo || (active as any)?.contato_cargo || '-'}</span>
+                        </div>
+                        <div className="font-mono">
+                          <span className="text-slate-500 font-sans">Telefone 01: </span>
+                          <span className="text-slate-200">
+                            {selectedContato?.contato_telefone01 || (active as any)?.contato_telefone01 || active?.telefone01_contato || '-'}
+                          </span>
+                        </div>
+                        <div className="font-mono">
+                          <span className="text-slate-500 font-sans">Telefone 02: </span>
+                          <span className="text-slate-200">
+                            {selectedContato?.contato_telefone02 || (active as any)?.contato_telefone02 || active?.telefone02_contato || '-'}
+                          </span>
+                        </div>
+                        <div className="md:col-span-2">
+                          <span className="text-slate-500">E-mail: </span>
+                          <span className="text-slate-200">
+                            {selectedContato?.contato_email || (active as any)?.contato_email || active?.email || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="lg:col-span-4">
@@ -1777,7 +2139,10 @@ export default function OportunidadesKanban() {
                   </div>
 
                   <div className="lg:col-span-12">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solicitação do Cliente</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solicitação do Cliente</label>
+                      <Pencil size={12} className="text-slate-500" />
+                    </div>
                     <input
                       value={draftDescricao}
                       onChange={(e) => setDraftDescricao(e.target.value)}
@@ -2285,7 +2650,7 @@ export default function OportunidadesKanban() {
               <div className="space-y-4">
                 <button
                   type="button"
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={saving}
                   className="w-full px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.99] inline-flex items-center justify-center gap-2"
                 >
@@ -2454,6 +2819,67 @@ export default function OportunidadesKanban() {
             </div>
           </div>
         </Modal>
+      </Modal>
+
+      <Modal
+        isOpen={statusObsOpen}
+        onClose={() => {
+          if (saving) return
+          setStatusObsOpen(false)
+          setStatusObsError(null)
+        }}
+        title="Observação do Status"
+        size="md"
+        zIndex={180}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusObsOpen(false)
+                setStatusObsError(null)
+              }}
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const obs = statusObsText.trim()
+                if (!obs) {
+                  setStatusObsError('Informe uma observação para a troca de status.')
+                  return
+                }
+                setStatusObsError(null)
+                setStatusObsOpen(false)
+                await handleSave({ skipStatusObsCheck: true, statusObs: obs })
+              }}
+              disabled={saving}
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+            >
+              Salvar
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {statusObsError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+              {statusObsError}
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observação</label>
+            <textarea
+              value={statusObsText}
+              onChange={(e) => setStatusObsText(e.target.value)}
+              className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              placeholder="Descreva o motivo / contexto da troca de status..."
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   )

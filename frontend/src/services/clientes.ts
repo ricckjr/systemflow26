@@ -127,6 +127,26 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
   return data as Cliente[]
 }
 
+export async function fetchClienteById(clienteId: string) {
+  const id = (clienteId || '').trim()
+  if (!id) return null
+  const { data, error } = await (supabase as any)
+    .from('crm_clientes')
+    .select('cliente_id, cliente_nome_razao_social, cliente_documento, cliente_documento_formatado, deleted_at')
+    .eq('cliente_id', id)
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '42P01') return null
+    console.error('Erro ao buscar cliente por ID:', error)
+    return null
+  }
+
+  if (!data) return null
+  if (data.deleted_at) return null
+  return data as Pick<Cliente, 'cliente_id' | 'cliente_nome_razao_social' | 'cliente_documento' | 'cliente_documento_formatado' | 'deleted_at'>
+}
+
 export async function createCliente(payload: CreateClientePayload) {
   const { data, error } = await (supabase as any)
     .from('crm_clientes')

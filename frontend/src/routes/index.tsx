@@ -189,11 +189,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'crm/configs/servicos',
-        element: lazyElement(
-          () => import('@/pages/CRM/Configs/Servicos'),
-          'Carregando Serviços...',
-          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
-        )
+        element: <Navigate to="/app/compras-estoque/servicos" replace />
       },
       {
         path: 'crm/configs/etapas',
@@ -301,6 +297,14 @@ export const router = createBrowserRouter([
       { path: 'compras-estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/VisaoGeral'), 'Carregando Compras e Estoque...') },
       { path: 'compras-estoque/compras', element: lazyElement(() => import('@/pages/ComprasEstoque/ComprasKanban'), 'Carregando Compras...') },
       { path: 'compras-estoque/estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/Estoque'), 'Carregando Estoque...') },
+      {
+        path: 'compras-estoque/servicos',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/Servicos'),
+          'Carregando Serviços...',
+          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
       {
         path: 'compras-estoque/ncm',
         element: lazyElement(

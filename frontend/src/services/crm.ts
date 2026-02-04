@@ -33,6 +33,17 @@ export interface CRM_Oportunidade {
   data_posvenda: string | null
   data_inclusao: string | null
   data_alteracao: string | null
+  data_parado?: string | null
+
+  cliente_nome?: string | null
+  cliente_documento?: string | null
+  contato_nome?: string | null
+  contato_cargo?: string | null
+  contato_telefone01?: string | null
+  contato_telefone02?: string | null
+  contato_email?: string | null
+  vendedor_nome?: string | null
+  vendedor_avatar_url?: string | null
 
   id_oportunidade?: string
   cod_oportunidade?: string | null
@@ -292,6 +303,16 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   `
 
   const wideV2 = `${baseV2},
+    data_parado,
+    cliente_nome,
+    cliente_documento,
+    contato_nome,
+    contato_cargo,
+    contato_telefone01,
+    contato_telefone02,
+    contato_email,
+    vendedor_nome,
+    vendedor_avatar_url,
     cliente,
     nome_contato,
     telefone01_contato,

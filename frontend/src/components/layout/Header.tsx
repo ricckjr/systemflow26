@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/crm/configs/motivos': 'CONFIG GERAIS — MOTIVOS',
       '/app/crm/configs/verticais': 'CONFIG GERAIS — VERTICAIS',
       '/app/crm/configs/produtos': 'CONFIG GERAIS — PRODUTOS',
-      '/app/crm/configs/servicos': 'CONFIG GERAIS — SERVIÇOS',
+      '/app/crm/configs/servicos': 'COMPRAS E ESTOQUE — SERVIÇOS',
       '/app/config-gerais/transportadora': 'CONFIG GERAIS — TRANSPORTADORA',
 
       '/app/comercial/overview': 'COMERCIAL',
@@ -77,6 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/compras-estoque': 'COMPRAS E ESTOQUE',
       '/app/compras-estoque/compras': 'COMPRAS — KANBAN',
       '/app/compras-estoque/estoque': 'COMPRAS E ESTOQUE — ESTOQUE',
+      '/app/compras-estoque/servicos': 'COMPRAS E ESTOQUE — SERVIÇOS',
       '/app/compras-estoque/ncm': 'COMPRAS E ESTOQUE — NCM',
 
       '/app/producao/propostas': 'PRODUÇÃO — PROPOSTAS',

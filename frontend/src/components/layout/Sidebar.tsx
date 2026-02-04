@@ -110,7 +110,7 @@ const navItems: NavItem[] = [
     subItems: [
       { label: 'Visão Geral', path: '/app/compras-estoque', submodulo: 'visao-geral' },
       { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
-      { label: 'Cadastrar Produtos', path: '/app/crm/configs/produtos', submodulo: 'produtos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Estoque', path: '/app/compras-estoque/estoque', submodulo: 'estoque' },
       { label: 'Cadastrar Serviços', path: '/app/crm/configs/servicos', submodulo: 'servicos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Cadastro NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'CRM', acao: 'CONTROL' } },
     ],

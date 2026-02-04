@@ -185,11 +185,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'crm/configs/produtos',
-        element: lazyElement(
-          () => import('@/pages/CRM/Configs/Produtos'),
-          'Carregando Produtos...',
-          (node) => <RequirePermission modulo="CRM" acao="CONTROL">{node}</RequirePermission>
-        )
+        element: <Navigate to="/app/compras-estoque/estoque" replace />
       },
       {
         path: 'crm/configs/servicos',
@@ -224,6 +220,9 @@ export const router = createBrowserRouter([
       { path: 'comercial/vendedores', element: <Navigate to="/app/crm/ranking" replace /> },
       { path: 'comercial/oportunidades', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
       { path: 'comercial/propostas-comerciais', element: <Navigate to="/app/crm/propostas-comerciais-kanban" replace /> },
+
+      { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
+      { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
 
       { path: 'comunicacao/chat', element: <Navigate to="/app/comunidade/chat" replace /> },
       { path: 'comunicacao/flowsmart', element: <Navigate to="/app/smartflow/atendimentos" replace /> },
@@ -301,6 +300,7 @@ export const router = createBrowserRouter([
 
       { path: 'compras-estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/VisaoGeral'), 'Carregando Compras e Estoque...') },
       { path: 'compras-estoque/compras', element: lazyElement(() => import('@/pages/ComprasEstoque/ComprasKanban'), 'Carregando Compras...') },
+      { path: 'compras-estoque/estoque', element: lazyElement(() => import('@/pages/ComprasEstoque/Estoque'), 'Carregando Estoque...') },
       {
         path: 'compras-estoque/ncm',
         element: lazyElement(

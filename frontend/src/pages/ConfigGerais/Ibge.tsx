@@ -7,11 +7,23 @@ export default function Ibge() {
       title="Cadastrar IBGE"
       subtitle="Cadastre códigos IBGE para usar nos clientes."
       singularLabel="IBGE"
-      fetchItems={fetchCrmIbgeCodigos}
-      createItem={createCrmIbgeCodigo}
-      updateItem={updateCrmIbgeCodigo}
-      deleteItem={deleteCrmIbgeCodigo}
+      fetchItems={async () => {
+        const data = await fetchCrmIbgeCodigos()
+        return data.map((i) => ({
+          id: i.ibge_id,
+          codigo: i.codigo_ibge,
+          descricao: i.descricao_ibge ?? null
+        }))
+      }}
+      createItem={async (payload) => {
+        await createCrmIbgeCodigo(payload)
+      }}
+      updateItem={async (id, payload) => {
+        await updateCrmIbgeCodigo(id, payload)
+      }}
+      deleteItem={async (id) => {
+        await deleteCrmIbgeCodigo(id)
+      }}
     />
   )
 }
-

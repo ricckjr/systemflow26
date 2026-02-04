@@ -715,9 +715,13 @@ export interface CRM_Produto {
   marca_prod: string | null
   modelo_prod: string | null
   descricao_prod: string
+  gtin_ean?: string | null
+  imagem_path?: string | null
+  cod_proposta_ref?: string | null
   unidade_prod?: string | null
   ncm_codigo?: string | null
-  local_estoque?: 'PADRAO' | 'INTERNO' | string | null
+  local_estoque?: '03' | '04' | 'PADRAO' | 'INTERNO' | string | null
+  familia_id?: string | null
   obs_prod: string | null
   produto_valor: number | null
   criado_em: string | null
@@ -822,6 +826,12 @@ const extractMissingColumnName = (error: any) => {
   if (m1?.[1]) return m1[1]
   const m2 = msg.match(/column "([^"]+)"/i)
   if (m2?.[1]) return m2[1]
+  const m3 = msg.match(/column\s+([a-zA-Z0-9_.]+)\s+does not exist/i)
+  if (m3?.[1]) {
+    const full = m3[1]
+    const parts = full.split('.').filter(Boolean)
+    return parts.length > 0 ? parts[parts.length - 1] : full
+  }
   return null
 }
 
@@ -1115,9 +1125,13 @@ export async function fetchCrmProdutos() {
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
+    'gtin_ean',
+    'imagem_path',
+    'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
     'local_estoque',
+    'familia_id',
     'obs_prod',
     'produto_valor',
     'criado_em',
@@ -1161,9 +1175,12 @@ export async function createCrmProduto(
     | 'situacao_prod'
     | 'marca_prod'
     | 'modelo_prod'
+    | 'gtin_ean'
+    | 'cod_proposta_ref'
     | 'unidade_prod'
     | 'ncm_codigo'
     | 'local_estoque'
+    | 'familia_id'
   >
 ) {
   const table = 'crm_produtos'
@@ -1175,9 +1192,13 @@ export async function createCrmProduto(
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
+    'gtin_ean',
+    'imagem_path',
+    'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
     'local_estoque',
+    'familia_id',
     'obs_prod',
     'produto_valor',
     'criado_em',
@@ -1189,9 +1210,12 @@ export async function createCrmProduto(
     marca_prod: payload.marca_prod || null,
     modelo_prod: payload.modelo_prod || null,
     descricao_prod: payload.descricao_prod,
+    gtin_ean: payload.gtin_ean || null,
+    cod_proposta_ref: payload.cod_proposta_ref || null,
     unidade_prod: payload.unidade_prod || null,
     ncm_codigo: payload.ncm_codigo || null,
-    local_estoque: payload.local_estoque || 'PADRAO',
+    local_estoque: payload.local_estoque || '03',
+    familia_id: payload.familia_id || null,
     obs_prod: payload.obs_prod || null,
     produto_valor: payload.produto_valor ?? 0
   }
@@ -1217,7 +1241,7 @@ export async function createCrmProduto(
       }
     }
 
-    throw error
+    throw toUserFacingError(error, 'Falha ao criar o produto.')
   }
 
   throw new Error('Falha ao criar o produto.')
@@ -1235,9 +1259,13 @@ export async function updateCrmProduto(
       | 'situacao_prod'
       | 'marca_prod'
       | 'modelo_prod'
+      | 'gtin_ean'
+      | 'imagem_path'
+      | 'cod_proposta_ref'
       | 'unidade_prod'
       | 'ncm_codigo'
       | 'local_estoque'
+      | 'familia_id'
     >
   >
 ) {
@@ -1250,9 +1278,13 @@ export async function updateCrmProduto(
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
+    'gtin_ean',
+    'imagem_path',
+    'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
     'local_estoque',
+    'familia_id',
     'obs_prod',
     'produto_valor',
     'criado_em',
@@ -1281,7 +1313,7 @@ export async function updateCrmProduto(
       }
     }
 
-    throw error
+    throw toUserFacingError(error, 'Falha ao atualizar o produto.')
   }
 
   throw new Error('Falha ao atualizar o produto.')

@@ -9,7 +9,8 @@ export type CatalogCrudItem = {
   situacao: boolean
   unidade?: string | null
   ncmCodigo?: string | null
-  localEstoque?: 'PADRAO' | 'INTERNO' | string | null
+  localEstoque?: '03' | '04' | 'PADRAO' | 'INTERNO' | string | null
+  familiaId?: string | null
   descricao: string
   preco: number | null
 }
@@ -104,6 +105,11 @@ const parseMoneyInput = (input: string) => {
   return value
 }
 
+const formatLocalEstoque = (value: CatalogCrudItem['localEstoque']) => {
+  if (value === '04' || value === 'INTERNO') return 'Estoque de Consumo'
+  return 'Estoque de Produto (Revenda)'
+}
+
 const renderSituacaoBadge = (situacao: boolean) => {
   if (situacao) {
     return (
@@ -150,7 +156,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
-  const [draftLocalEstoque, setDraftLocalEstoque] = useState<'PADRAO' | 'INTERNO'>('PADRAO')
+  const [draftLocalEstoque, setDraftLocalEstoque] = useState<'03' | '04'>('03')
+  const [draftFamiliaId, setDraftFamiliaId] = useState('')
+  const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
+  const [familiaOptions, setFamiliaOptions] = useState<{ familia_id: string; nome: string }[]>([])
+  const [familiaLoading, setFamiliaLoading] = useState(false)
+  const [familiaSaving, setFamiliaSaving] = useState(false)
 
   const [ncmSearch, setNcmSearch] = useState('')
   const [ncmOptions, setNcmOptions] = useState<{ codigo: string; descricao: string }[]>([])
@@ -186,7 +197,9 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       setDraftPreco(active.preco === null || active.preco === undefined ? '' : String(active.preco))
       setDraftUnidade(active.unidade || '')
       setDraftNcmCodigo(active.ncmCodigo || '')
-      setDraftLocalEstoque((active.localEstoque as any) === 'INTERNO' ? 'INTERNO' : 'PADRAO')
+      setDraftLocalEstoque(active.localEstoque === '04' || active.localEstoque === 'INTERNO' ? '04' : '03')
+      setDraftFamiliaId(active.familiaId || '')
+      setDraftFamiliaNova('')
       setNcmSearch(active.ncmCodigo || '')
       return
     }
@@ -196,7 +209,9 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     setDraftPreco('')
     setDraftUnidade('UN')
     setDraftNcmCodigo('')
-    setDraftLocalEstoque('PADRAO')
+    setDraftLocalEstoque('03')
+    setDraftFamiliaId('')
+    setDraftFamiliaNova('')
     setNcmSearch('')
     setNcmOptions([])
   }, [isFormOpen, active])
@@ -232,6 +247,81 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
     return () => clearTimeout(handle)
   }, [isFormOpen, isProduto, ncmSearch])
+
+  useEffect(() => {
+    if (!isFormOpen) return
+    if (!isProduto) return
+
+    let cancelled = false
+    const run = async () => {
+      setFamiliaLoading(true)
+      try {
+        const { data, error: qError } = await (supabase as any)
+          .from('crm_produtos_familias')
+          .select('familia_id,nome')
+          .order('nome', { ascending: true })
+
+        if (qError) throw qError
+        if (!cancelled) setFamiliaOptions(((data || []) as any[]).map((row) => ({ familia_id: row.familia_id, nome: row.nome })))
+      } catch {
+        if (!cancelled) setFamiliaOptions([])
+      } finally {
+        if (!cancelled) setFamiliaLoading(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [isFormOpen, isProduto])
+
+  const handleCreateFamilia = async () => {
+    const nome = draftFamiliaNova.trim()
+    if (!nome) {
+      setError('Informe o nome da família.')
+      return
+    }
+
+    setFamiliaSaving(true)
+    setError(null)
+    try {
+      const { data, error: insError } = await (supabase as any)
+        .from('crm_produtos_familias')
+        .insert({ nome })
+        .select('familia_id,nome')
+        .single()
+
+      if (insError) throw insError
+
+      setFamiliaOptions((prev) => {
+        const merged = [...prev.filter((p) => p.familia_id !== data.familia_id), data as any]
+        merged.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR', { sensitivity: 'base' }))
+        return merged
+      })
+      setDraftFamiliaId(data.familia_id)
+      setDraftFamiliaNova('')
+    } catch (e: any) {
+      if (String(e?.code || '') === '23505') {
+        const { data: existing, error: qError } = await (supabase as any)
+          .from('crm_produtos_familias')
+          .select('familia_id,nome')
+          .ilike('nome', nome)
+          .limit(1)
+          .maybeSingle()
+
+        if (!qError && existing?.familia_id) {
+          setDraftFamiliaId(existing.familia_id)
+          setDraftFamiliaNova('')
+          return
+        }
+      }
+
+      setError(e instanceof Error ? e.message : 'Falha ao criar família')
+    } finally {
+      setFamiliaSaving(false)
+    }
+  }
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -290,6 +380,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       payload.unidade = unidade
       payload.ncmCodigo = maskedNcm
       payload.localEstoque = draftLocalEstoque
+      payload.familiaId = draftFamiliaId || null
     }
 
     setSaving(true)
@@ -433,7 +524,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     {isProduto && (
                       <div className="col-span-1 min-w-0">
                         <div className="text-xs text-slate-300 truncate">
-                          {i.localEstoque === 'INTERNO' ? 'Interno' : 'Padrão'}
+                          {formatLocalEstoque(i.localEstoque)}
                         </div>
                       </div>
                     )}
@@ -518,7 +609,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${isEditing ? 'sm:grid-cols-2' : ''} gap-4`}>
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Situação</label>
               <select
@@ -531,16 +622,18 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código</label>
-              <input
-                value={active?.codigo || ''}
-                readOnly
-                disabled
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 opacity-80 outline-none placeholder:text-slate-500 font-mono"
-                placeholder="Gerado automaticamente"
-              />
-            </div>
+            {isEditing && (
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código</label>
+                <input
+                  value={active?.codigo || ''}
+                  readOnly
+                  disabled
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 opacity-80 outline-none placeholder:text-slate-500 font-mono"
+                  placeholder="Gerado automaticamente"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -588,12 +681,55 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local do Estoque</label>
                 <select
                   value={draftLocalEstoque}
-                  onChange={(e) => setDraftLocalEstoque(e.target.value === 'INTERNO' ? 'INTERNO' : 'PADRAO')}
+                  onChange={(e) => setDraftLocalEstoque(e.target.value === '04' ? '04' : '03')}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
                 >
-                  <option value="PADRAO">Estoque Padrão</option>
-                  <option value="INTERNO">Estoque Interno</option>
+                  <option value="03">Estoque de Produto (Revenda)</option>
+                  <option value="04">Estoque de Consumo</option>
                 </select>
+              </div>
+            </div>
+          )}
+
+          {isProduto && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Família</label>
+              <select
+                value={draftFamiliaId}
+                onChange={(e) => setDraftFamiliaId(e.target.value)}
+                className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
+                disabled={familiaLoading}
+              >
+                <option value="">{familiaLoading ? 'Carregando...' : 'Selecione (opcional)'}</option>
+                {familiaOptions.map((f) => (
+                  <option key={f.familia_id} value={f.familia_id}>
+                    {f.nome}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={draftFamiliaNova}
+                  onChange={(e) => setDraftFamiliaNova(e.target.value)}
+                  className={`flex-1 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
+                  placeholder="Criar nova família..."
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateFamilia}
+                  disabled={familiaSaving || !draftFamiliaNova.trim()}
+                  className={`px-5 py-3 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2`}
+                >
+                  {familiaSaving ? (
+                    <>
+                      <Loader2 className="animate-spin" size={16} />
+                      Criando...
+                    </>
+                  ) : (
+                    'Incluir'
+                  )}
+                </button>
               </div>
             </div>
           )}

@@ -7,11 +7,23 @@ export default function Cnae() {
       title="Cadastrar CNAE"
       subtitle="Cadastre códigos CNAE para usar nos clientes."
       singularLabel="CNAE"
-      fetchItems={fetchCrmCnaeCodigos}
-      createItem={createCrmCnaeCodigo}
-      updateItem={updateCrmCnaeCodigo}
-      deleteItem={deleteCrmCnaeCodigo}
+      fetchItems={async () => {
+        const data = await fetchCrmCnaeCodigos()
+        return data.map((i) => ({
+          id: i.cnae_id,
+          codigo: i.codigo_cnae,
+          descricao: i.descricao_cnae ?? null
+        }))
+      }}
+      createItem={async (payload) => {
+        await createCrmCnaeCodigo(payload)
+      }}
+      updateItem={async (id, payload) => {
+        await updateCrmCnaeCodigo(id, payload)
+      }}
+      deleteItem={async (id) => {
+        await deleteCrmCnaeCodigo(id)
+      }}
     />
   )
 }
-

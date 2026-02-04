@@ -819,10 +819,7 @@ export default function OportunidadesKanban() {
     setCreateVendedorId(canCrmControl ? '' : myUserId)
     setCreateSolucao('PRODUTO')
     setCreateTicket('')
-    {
-      const now = new Date()
-      setCreatePrevFechamento(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
-    }
+    setCreatePrevFechamento('')
     setCreateSolicitacao('')
     setCreateContatoNome('')
     setCreateContatoEmail('')
@@ -861,12 +858,8 @@ export default function OportunidadesKanban() {
       setCreateError('Selecione um vendedor.')
       return
     }
-    if (!Number.isFinite(ticketValor) || ticketValor <= 0) {
-      setCreateError('Informe um valor (maior que 0).')
-      return
-    }
-    if (!prevEntrega) {
-      setCreateError('Informe a previsão de fechamento (mês/ano).')
+    if (createTicket.trim() && (!Number.isFinite(ticketValor) || (ticketValor as number) <= 0)) {
+      setCreateError('Valor inválido. Use um número maior que 0, ou deixe em branco.')
       return
     }
     if (!solicitacao) {
@@ -1424,28 +1417,6 @@ export default function OportunidadesKanban() {
                 <option value="SERVICO">Serviço</option>
                 <option value="PRODUTO_SERVICO">Produto + Serviço</option>
               </select>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor</label>
-                <input
-                  value={createTicket}
-                  onChange={(e) => setCreateTicket(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="Ex.: 15000"
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Fechamento</label>
-                <input
-                  type="month"
-                  value={createPrevFechamento}
-                  onChange={(e) => setCreatePrevFechamento(e.target.value)}
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                />
-              </div>
             </div>
 
             <div className="space-y-2">

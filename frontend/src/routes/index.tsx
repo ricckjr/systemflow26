@@ -157,6 +157,22 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
         )
       },
+      {
+        path: 'financeiro/formas-pagamento',
+        element: lazyElement(
+          () => import('@/pages/Financeiro/FormasPagamento'),
+          'Carregando Formas de Pagamento...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'financeiro/condicoes-pagamento',
+        element: lazyElement(
+          () => import('@/pages/Financeiro/CondicoesPagamento'),
+          'Carregando Condições de Pagamento...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
 
       {
         path: 'crm/configs/origem-leads',

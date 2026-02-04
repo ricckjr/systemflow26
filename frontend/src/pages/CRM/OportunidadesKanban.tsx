@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { WheelEvent as ReactWheelEvent } from 'react'
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd'
 import { 
   LayoutDashboard, 
@@ -37,6 +38,7 @@ import {
   createOportunidade,
   replaceOportunidadeItens
 } from '@/services/crm'
+import { fetchFinCondicoesPagamento, fetchFinFormasPagamento, FinCondicaoPagamento, FinFormaPagamento } from '@/services/financeiro'
 import { fetchClienteById, fetchClientes, Cliente } from '@/services/clientes'
 import { fetchClienteContatos, fetchContatoById, ClienteContato, createClienteContato } from '@/services/clienteContatos'
 import { HorizontalScrollArea, Modal } from '@/components/ui'
@@ -63,6 +65,12 @@ const calcItemTotal = (item: DraftItem) => {
   const factor = 1 - Math.min(100, Math.max(0, desc)) / 100
   const total = unit * qtd * factor
   return Number.isFinite(total) ? total : 0
+}
+
+const normalizeWheelDelta = (delta: number, deltaMode: number, target: HTMLElement) => {
+  if (deltaMode === 1) return delta * 16
+  if (deltaMode === 2) return delta * target.clientHeight
+  return delta
 }
 
 const FALLBACK_STAGES: Stage[] = [
@@ -344,6 +352,9 @@ export default function OportunidadesKanban() {
   const [draftTemperatura, setDraftTemperatura] = useState('50')
   const [draftQtd, setDraftQtd] = useState('1')
   const [draftPrevEntrega, setDraftPrevEntrega] = useState('')
+  const [draftFormaPagamentoId, setDraftFormaPagamentoId] = useState('')
+  const [draftCondicaoPagamentoId, setDraftCondicaoPagamentoId] = useState('')
+  const [draftTipoFrete, setDraftTipoFrete] = useState<'FOB' | 'CIF' | ''>('')
   const [draftProdutoId, setDraftProdutoId] = useState('')
   const [draftServicoId, setDraftServicoId] = useState('')
   const [draftObs, setDraftObs] = useState('')
@@ -392,6 +403,9 @@ export default function OportunidadesKanban() {
   const myUserId = (profile?.id || session?.user?.id || '').trim()
   const myUserName = (profile?.nome || '').trim()
 
+  const [formasPagamento, setFormasPagamento] = useState<FinFormaPagamento[]>([])
+  const [condicoesPagamento, setCondicoesPagamento] = useState<FinCondicaoPagamento[]>([])
+
   const { usuarios } = useUsuarios()
   const vendedorNameById = useMemo(() => {
     const m: Record<string, string> = {}
@@ -424,6 +438,18 @@ export default function OportunidadesKanban() {
   }, [statuses])
 
   const stageLabelById = useMemo(() => new Map(stages.map((s) => [s.id, s.label])), [stages])
+
+  useEffect(() => {
+    Promise.all([fetchFinFormasPagamento(), fetchFinCondicoesPagamento()])
+      .then(([formas, conds]) => {
+        setFormasPagamento(formas)
+        setCondicoesPagamento(conds)
+      })
+      .catch(() => {
+        setFormasPagamento([])
+        setCondicoesPagamento([])
+      })
+  }, [])
 
   const loadData = useCallback(async () => {
     try {
@@ -589,6 +615,9 @@ export default function OportunidadesKanban() {
       setDraftTemperatura(active.temperatura === null || active.temperatura === undefined ? '50' : String(active.temperatura))
       setDraftQtd(active.qts_item === null || active.qts_item === undefined ? '1' : String(active.qts_item))
       setDraftPrevEntrega(active.prev_entrega ? String(active.prev_entrega).slice(0, 7) : '')
+      setDraftFormaPagamentoId(String((active as any).forma_pagamento_id || ''))
+      setDraftCondicaoPagamentoId(String((active as any).condicao_pagamento_id || ''))
+      setDraftTipoFrete(((active as any).tipo_frete as any) || '')
       setDraftProdutoId(active.cod_produto || '')
       setDraftServicoId(active.cod_servico || '')
       setDraftObs(active.obs_oport || '')
@@ -624,6 +653,9 @@ export default function OportunidadesKanban() {
         const now = new Date()
         setDraftPrevEntrega(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
       }
+      setDraftFormaPagamentoId('')
+      setDraftCondicaoPagamentoId('')
+      setDraftTipoFrete('')
       setDraftProdutoId('')
       setDraftServicoId('')
       setDraftObs('')
@@ -1127,6 +1159,9 @@ export default function OportunidadesKanban() {
       solucao,
       qts_item,
       prev_entrega,
+      forma_pagamento_id: draftFormaPagamentoId.trim() || null,
+      condicao_pagamento_id: draftCondicaoPagamentoId.trim() || null,
+      tipo_frete: draftTipoFrete || null,
       cod_produto: null,
       cod_servico: null,
       ticket_valor: ticketCalculado,
@@ -1290,6 +1325,27 @@ export default function OportunidadesKanban() {
   const totalValue = filteredOpportunities.reduce((acc, curr) => acc + getValorNumber(curr), 0)
   const totalCount = filteredOpportunities.length
 
+  const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented) return
+    if (e.ctrlKey) return
+
+    const rawTarget = e.target as HTMLElement | null
+    if (!rawTarget) return
+
+    const cardsDirect = rawTarget.closest('[data-kanban-cards="1"]') as HTMLElement | null
+    const col = rawTarget.closest('[data-kanban-col="1"]') as HTMLElement | null
+    const cards = cardsDirect || (col ? (col.querySelector('[data-kanban-cards="1"]') as HTMLElement | null) : null)
+
+    e.preventDefault()
+
+    if (!cards) return
+
+    const delta = e.deltaY !== 0 ? e.deltaY : e.shiftKey ? e.deltaX : 0
+    if (delta === 0) return
+
+    cards.scrollTop += normalizeWheelDelta(delta, e.deltaMode, cards)
+  }, [])
+
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col space-y-4 animate-in fade-in duration-500">
       {/* Header Toolbar */}
@@ -1345,10 +1401,14 @@ export default function OportunidadesKanban() {
             </div>
           </div>
         ) : (
-          <HorizontalScrollArea className="flex-1 overflow-x-auto overflow-y-hidden pb-2">
-            <div className="flex h-full gap-4 min-w-[1400px] px-1">
-              {columns.map(column => (
-                <div key={column.id} className="flex flex-col w-80 shrink-0 h-full">
+          <div className="flex-1 min-h-0 overflow-x-hidden">
+            <div
+              className="h-full overflow-x-scroll overflow-y-hidden pb-2 kanban-x-scrollbar touch-pan-y"
+              onWheelCapture={onKanbanWheelCapture}
+            >
+              <div className="flex h-full gap-4 min-w-[1400px] px-1">
+                {columns.map(column => (
+                  <div key={column.id} className="flex flex-col w-80 shrink-0 h-full" data-kanban-col="1">
                   <div
                     className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
                     style={{
@@ -1378,6 +1438,7 @@ export default function OportunidadesKanban() {
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
+                          data-kanban-cards="1"
                           className={`h-full overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
                         >
                           {column.items.map((item, index) => (
@@ -1415,8 +1476,9 @@ export default function OportunidadesKanban() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
-          </HorizontalScrollArea>
+          </div>
         )}
       </DragDropContext>
 
@@ -2230,6 +2292,67 @@ export default function OportunidadesKanban() {
                       </div>
                     </div>
 
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamento e Frete</div>
+
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Forma de Pagamento</label>
+                          <select
+                            value={draftFormaPagamentoId}
+                            onChange={(e) => setDraftFormaPagamentoId(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          >
+                            <option value="">-</option>
+                            {formasPagamento.map((f) => (
+                              <option key={f.forma_id} value={f.forma_id}>
+                                {f.descricao || f.codigo}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Condição de Pagamento</label>
+                          <select
+                            value={draftCondicaoPagamentoId}
+                            onChange={(e) => setDraftCondicaoPagamentoId(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          >
+                            <option value="">-</option>
+                            {condicoesPagamento.map((c) => (
+                              <option key={c.condicao_id} value={c.condicao_id}>
+                                {c.descricao || c.codigo}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Tipo de Frete</label>
+                          <select
+                            value={draftTipoFrete}
+                            onChange={(e) => setDraftTipoFrete(e.target.value as any)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          >
+                            <option value="">-</option>
+                            <option value="FOB">FOB</option>
+                            <option value="CIF">CIF</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Prazo de entrega (mês/ano)</label>
+                          <input
+                            type="month"
+                            value={draftPrevEntrega}
+                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 overflow-hidden">
                       <div className="text-xs font-black uppercase tracking-widest text-slate-300">Itens</div>
 
@@ -2416,79 +2539,15 @@ export default function OportunidadesKanban() {
                             </button>
                           </div>
                         </div>
-
-                        <div className="rounded-2xl bg-orange-700/90 border border-orange-500/30 overflow-hidden">
-                          <div className="px-4 pt-3 text-[10px] font-black uppercase tracking-widest text-orange-100/90 text-center">
-                            Previsão de Fechamento
-                          </div>
-                          <div className="px-4 pb-4 pt-2 flex items-center justify-between">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const base = (draftPrevEntrega || '').trim()
-                                const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
-                                const dt = Number.isFinite(yy) && Number.isFinite(mm) ? new Date(yy, (mm || 1) - 1, 1) : new Date()
-                                dt.setMonth(dt.getMonth() - 1)
-                                const y = dt.getFullYear()
-                                const m = String(dt.getMonth() + 1).padStart(2, '0')
-                                setDraftPrevEntrega(`${y}-${m}`)
-                              }}
-                              className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-black transition-colors"
-                            >
-                              ‹
-                            </button>
-                            <div className="text-lg md:text-xl font-black text-white text-center min-w-0">
-                              {(() => {
-                                const base = (draftPrevEntrega || '').trim()
-                                const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
-                                const dt = Number.isFinite(yy) && Number.isFinite(mm) ? new Date(yy, (mm || 1) - 1, 1) : new Date()
-                                const fmt = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dt)
-                                const label = fmt.replace(' de ', '/').replace(' ', '/')
-                                return label.charAt(0).toUpperCase() + label.slice(1)
-                              })()}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const base = (draftPrevEntrega || '').trim()
-                                const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
-                                const dt = Number.isFinite(yy) && Number.isFinite(mm) ? new Date(yy, (mm || 1) - 1, 1) : new Date()
-                                dt.setMonth(dt.getMonth() + 1)
-                                const y = dt.getFullYear()
-                                const m = String(dt.getMonth() + 1).padStart(2, '0')
-                                setDraftPrevEntrega(`${y}-${m}`)
-                              }}
-                              className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-black transition-colors"
-                            >
-                              ›
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="text-[11px] text-slate-400">
-                          Atualizar um mês e ano específico
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Previsão (mês/ano)</label>
-                            <input
-                              type="month"
-                              value={draftPrevEntrega}
-                              onChange={(e) => setDraftPrevEntrega(e.target.value)}
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Temperatura</label>
-                            <input
-                              value={draftTemperatura}
-                              onChange={(e) => setDraftTemperatura(e.target.value)}
-                              inputMode="numeric"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-                              placeholder="50"
-                            />
-                          </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Temperatura (manual)</label>
+                          <input
+                            value={draftTemperatura}
+                            onChange={(e) => setDraftTemperatura(e.target.value)}
+                            inputMode="numeric"
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            placeholder="50"
+                          />
                         </div>
                       </div>
                     </div>

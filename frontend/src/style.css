@@ -36,6 +36,31 @@ html, body {
   background: var(--primary-600);
 }
 
+.kanban-x-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(34, 211, 238, 0.55) rgba(255, 255, 255, 0.08);
+}
+
+.kanban-x-scrollbar::-webkit-scrollbar {
+  height: 12px;
+}
+
+.kanban-x-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.kanban-x-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.45);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+.kanban-x-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.65);
+}
+
 .kanban-hide-native-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

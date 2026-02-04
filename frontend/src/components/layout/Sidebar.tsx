@@ -137,6 +137,8 @@ const navItems: NavItem[] = [
       { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
       { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
       { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
     ],
   },
   {

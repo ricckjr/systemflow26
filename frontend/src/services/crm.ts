@@ -19,6 +19,9 @@ export interface CRM_Oportunidade {
   descricao_oport: string | null
   qts_item: number | null
   prev_entrega: string | null
+  forma_pagamento_id?: string | null
+  condicao_pagamento_id?: string | null
+  tipo_frete?: 'FOB' | 'CIF' | null
   temperatura: number | null
   cod_produto: string | null
   cod_servico: string | null
@@ -286,6 +289,9 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     descricao_oport,
     qts_item,
     prev_entrega,
+    forma_pagamento_id,
+    condicao_pagamento_id,
+    tipo_frete,
     temperatura,
     cod_produto,
     cod_servico,
@@ -350,6 +356,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   if (!isMissingWide && rWide.error?.code === '42P01') return []
 
   if (isMissingWide) {
+    // 1. Tenta baseV2 (com todos os campos esperados da V2)
     const q = (supabase as any)
       .from('crm_oportunidades')
       .select(baseV2)
@@ -357,6 +364,32 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     const r = await q
     if (!r.error) return (r.data || []) as CRM_Oportunidade[]
     if (r.error.code === '42P01') return []
+
+    // 2. Se falhar por coluna inexistente, tenta minimalV2 (sem campos recentes de finanças/frete)
+    const isMissingBase =
+      r.error?.code === 'PGRST204' ||
+      r.error?.code === '42703' ||
+      (String(r.error?.message).includes('Could not find') && String(r.error?.message).toLowerCase().includes('column'))
+    
+    if (isMissingBase) {
+      const minimalV2 = `
+        id_oport,
+        cod_oport,
+        id_cliente,
+        id_vendedor,
+        id_fase,
+        id_status,
+        descricao_oport,
+        ticket_valor,
+        data_inclusao
+      `
+      const qMin = (supabase as any)
+        .from('crm_oportunidades')
+        .select(minimalV2)
+        .order('data_inclusao', { ascending: !orderDesc })
+      const rMin = await qMin
+      if (!rMin.error) return (rMin.data || []) as CRM_Oportunidade[]
+    }
   }
 
   if (rWide.error?.code === '42P01') return []

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WheelEvent as ReactWheelEvent } from 'react'
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd'
 import { 
@@ -154,6 +154,21 @@ const formatDias = (days: number | null) => {
   return `${d} dia${d === 1 ? '' : 's'}`
 }
 
+const formatTempoParado = (dateString: string | null) => {
+  if (!dateString) return '-'
+  const dt = new Date(dateString)
+  if (Number.isNaN(dt.getTime())) return '-'
+  const now = new Date()
+  const diffMs = Math.max(0, now.getTime() - dt.getTime())
+  const totalMinutes = Math.floor(diffMs / (1000 * 60))
+  const days = Math.floor(totalMinutes / (60 * 24))
+  const hours = Math.floor((totalMinutes - days * 60 * 24) / 60)
+  const mins = totalMinutes - days * 60 * 24 - hours * 60
+  if (days > 0) return `${days}d ${hours}h ${mins}m`
+  if (hours > 0) return `${hours}h ${mins}m`
+  return `${mins}m`
+}
+
 const getInitials = (name: string) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -307,6 +322,7 @@ export default function OportunidadesKanban() {
   const [origens, setOrigens] = useState<CRM_OrigemLead[]>([])
   const [clienteNameById, setClienteNameById] = useState<Record<string, string>>({})
   const [contatoNameById, setContatoNameById] = useState<Record<string, string>>({})
+  const [origemDescById, setOrigemDescById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
@@ -373,8 +389,14 @@ export default function OportunidadesKanban() {
   const [draftServicoId, setDraftServicoId] = useState('')
   const [draftObs, setDraftObs] = useState('')
   const [draftDescricao, setDraftDescricao] = useState('')
+  const [draftPedidoCompraPath, setDraftPedidoCompraPath] = useState('')
+  const [pedidoCompraUploading, setPedidoCompraUploading] = useState(false)
+  const [pedidoCompraError, setPedidoCompraError] = useState<string | null>(null)
   const [draftItens, setDraftItens] = useState<DraftItem[]>([])
-  const [tab, setTab] = useState<'ticket' | 'previsaoTemperatura' | 'observacoes' | 'comentarios' | 'historico'>('ticket')
+  const [tab, setTab] = useState<
+    'ticket' | 'previsao' | 'temperatura' | 'comentarios' | 'observacoes' | 'transportadores' | 'historicos'
+  >('ticket')
+  const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
 
   const [itemModalOpen, setItemModalOpen] = useState(false)
   const [itemModalTipo, setItemModalTipo] = useState<'PRODUTO' | 'SERVICO'>('PRODUTO')
@@ -469,6 +491,23 @@ export default function OportunidadesKanban() {
     try {
       setLoading(true)
       const [data, fases, sts] = await Promise.all([fetchOportunidades({ orderDesc: true }), fetchCrmFases(), fetchCrmStatus()])
+      const mapped = (fases || [])
+        .map((e) => ({
+          id: e.fase_id,
+          label: (e.fase_desc || '').trim(),
+          ordem: Number(e.fase_ordem ?? 0),
+          cor: e.fase_cor || null
+        }))
+        .filter((s) => Boolean(s.id) && Boolean(s.label))
+
+      const unique = new Map<string, Stage>()
+      for (const s of mapped) {
+        if (!unique.has(s.id)) unique.set(s.id, s)
+      }
+
+      const stageList = Array.from(unique.values()).sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
+      setStages(stageList.length > 0 ? stageList : FALLBACK_STAGES)
+      setStatuses(sts)
       const nextData =
         !canCrmControl && myUserId
           ? (data || []).filter((o) => {
@@ -478,7 +517,6 @@ export default function OportunidadesKanban() {
             })
           : data
       setOpportunities(nextData)
-      setStatuses(sts)
       try {
         const clienteIds = Array.from(
           new Set(
@@ -494,6 +532,25 @@ export default function OportunidadesKanban() {
               .filter((x) => typeof x === 'string' && x.trim().length > 0)
           )
         )
+        const origemIds = Array.from(
+          new Set(
+            (nextData || [])
+              .map((o) => (o as any)?.id_origem)
+              .filter((x) => typeof x === 'string' && x.trim().length > 0)
+          )
+        )
+        if (contatoIds.length === 0) {
+          for (const o of nextData || []) {
+            const legacy = String((o as any)?.contato_id || '').trim()
+            if (legacy) contatoIds.push(legacy)
+          }
+        }
+        if (origemIds.length === 0) {
+          for (const o of nextData || []) {
+            const legacy = String((o as any)?.orig_id || '').trim()
+            if (legacy) origemIds.push(legacy)
+          }
+        }
 
         if (clienteIds.length > 0) {
           const { data: rows, error } = await (supabase as any)
@@ -524,28 +581,25 @@ export default function OportunidadesKanban() {
             setContatoNameById(map)
           }
         }
+
+        if (origemIds.length > 0) {
+          const { data: rows, error } = await (supabase as any)
+            .from('crm_origem_leads')
+            .select('orig_id, descricao_orig')
+            .in('orig_id', origemIds)
+          if (!error) {
+            const map: Record<string, string> = {}
+            for (const r of rows || []) {
+              if (r?.orig_id && r?.descricao_orig) map[String(r.orig_id)] = String(r.descricao_orig)
+            }
+            setOrigemDescById(map)
+          }
+        }
       } catch {
         setClienteNameById({})
         setContatoNameById({})
+        setOrigemDescById({})
       }
-
-      const mapped = (fases || [])
-        .map((e) => ({
-          id: e.fase_id,
-          label: (e.fase_desc || '').trim(),
-          ordem: Number(e.fase_ordem ?? 0),
-          cor: e.fase_cor || null
-        }))
-        .filter((s) => Boolean(s.id) && Boolean(s.label))
-
-      const unique = new Map<string, Stage>()
-      for (const s of mapped) {
-        if (!unique.has(s.id)) unique.set(s.id, s)
-      }
-
-      const stageList = Array.from(unique.values()).sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
-
-      setStages(stageList.length > 0 ? stageList : FALLBACK_STAGES)
     } catch (error) {
       console.error('Failed to load opportunities', error)
     } finally {
@@ -614,22 +668,28 @@ export default function OportunidadesKanban() {
     if (active) {
       setDraftCod(active.cod_oport || active.cod_oportunidade || '')
       setDraftVendedorId(active.id_vendedor || '')
-      setDraftClienteId(active.id_cliente || '')
-      setDraftContatoId(active.id_contato || '')
+      setDraftClienteId((active as any).id_cliente || (active as any).cliente_id || '')
+      setDraftContatoId((active as any).id_contato || (active as any).contato_id || '')
       setDraftContatoDetails(null)
-      setDraftClienteDocumento(String((active as any).cliente_documento || ''))
-      setDraftContatoNome(String((active as any).contato_nome || active.nome_contato || ''))
-      setDraftContatoCargo(String((active as any).contato_cargo || ''))
-      setDraftContatoTelefone01(String((active as any).contato_telefone01 || active.telefone01_contato || ''))
-      setDraftContatoTelefone02(String((active as any).contato_telefone02 || active.telefone02_contato || ''))
-      setDraftContatoEmail(String((active as any).contato_email || active.email || ''))
-      setSnapshotContatoFromId((active.id_contato || '').trim() || null)
+      const snapClienteDoc = String((active as any).cliente_documento || '').trim()
+      if (snapClienteDoc) setDraftClienteDocumento(snapClienteDoc)
+      const snapContatoNome = String((active as any).contato_nome || active.nome_contato || '').trim()
+      const snapContatoCargo = String((active as any).contato_cargo || '').trim()
+      const snapContatoTel1 = String((active as any).contato_telefone01 || active.telefone01_contato || '').trim()
+      const snapContatoTel2 = String((active as any).contato_telefone02 || active.telefone02_contato || '').trim()
+      const snapContatoEmail = String((active as any).contato_email || active.email || '').trim()
+      if (snapContatoNome) setDraftContatoNome(snapContatoNome)
+      if (snapContatoCargo) setDraftContatoCargo(snapContatoCargo)
+      if (snapContatoTel1) setDraftContatoTelefone01(snapContatoTel1)
+      if (snapContatoTel2) setDraftContatoTelefone02(snapContatoTel2)
+      if (snapContatoEmail) setDraftContatoEmail(snapContatoEmail)
+      setSnapshotContatoFromId(null)
       setDraftEmpresaCorrespondente(((active as any).empresa_correspondente as any) || 'Apliflow')
       setDraftFaseId(active.id_fase || '')
       setDraftStatusId(active.id_status || '')
       setBaselineStatusId(active.id_status || null)
       setDraftMotivoId(active.id_motivo || '')
-      setDraftOrigemId(active.id_origem || '')
+      setDraftOrigemId((active as any).id_origem || (active as any).orig_id || '')
       const solucao = (active.solucao as any) || 'PRODUTO'
       setDraftSolucao(solucao)
       if (solucao === 'PRODUTO_SERVICO') {
@@ -648,12 +708,16 @@ export default function OportunidadesKanban() {
       setDraftServicoId(active.cod_servico || '')
       setDraftObs(active.obs_oport || '')
       setDraftDescricao(active.descricao_oport || '')
+      setDraftPedidoCompraPath(String((active as any).pedido_compra_path || '').trim())
+      setPedidoCompraError(null)
+      setPedidoCompraUploading(false)
       setDraftItens([])
 
-      setClienteQuery((active as any).cliente_nome || active.cliente || '')
-      setContatoQuery((active as any).contato_nome || active.nome_contato || '')
-      setVendedorQuery((active as any).vendedor_nome || active.vendedor || '')
-      setOrigemQuery(active.origem || '')
+      const snapClienteNome = String((active as any).cliente_nome || active.cliente || '').trim()
+      setClienteQuery(snapClienteNome || '')
+      setContatoQuery(String((active as any).contato_nome || active.nome_contato || '').trim())
+      setVendedorQuery(String((active as any).vendedor_nome || active.vendedor || '').trim())
+      setOrigemQuery('')
       setComentarios([])
       setComentariosDraft([])
       setComentarioTexto('')
@@ -692,6 +756,9 @@ export default function OportunidadesKanban() {
       setDraftServicoId('')
       setDraftObs('')
       setDraftDescricao('')
+      setDraftPedidoCompraPath('')
+      setPedidoCompraError(null)
+      setPedidoCompraUploading(false)
       setDraftItens([])
 
       setClienteQuery('')
@@ -925,28 +992,67 @@ export default function OportunidadesKanban() {
       setDraftContatoEmail('')
       return
     }
-    if (snapshotContatoFromId === id) return
+    if (snapshotContatoFromId === id && draftContatoNome.trim()) return
     const c =
       contatoOptions.find((x) => x.contato_id === id) ||
       (draftContatoDetails?.contato_id === id ? draftContatoDetails : null) ||
       null
-    if (!c) return
+    if (!c) {
+      let cancelled = false
+      ;(async () => {
+        const fetched = await fetchContatoById(id)
+        if (cancelled) return
+        if (!fetched) return
+        setDraftContatoNome(String(fetched.contato_nome || ''))
+        setDraftContatoCargo(String(fetched.contato_cargo || ''))
+        setDraftContatoTelefone01(String(fetched.contato_telefone01 || ''))
+        setDraftContatoTelefone02(String(fetched.contato_telefone02 || ''))
+        setDraftContatoEmail(String(fetched.contato_email || ''))
+        setSnapshotContatoFromId(id)
+      })()
+      return () => {
+        cancelled = true
+      }
+    }
     setDraftContatoNome(String(c.contato_nome || ''))
     setDraftContatoCargo(String(c.contato_cargo || ''))
     setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
     setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
     setDraftContatoEmail(String(c.contato_email || ''))
     setSnapshotContatoFromId(id)
-  }, [formOpen, draftContatoId, contatoOptions, draftContatoDetails, snapshotContatoFromId])
+  }, [formOpen, draftContatoId, contatoOptions, draftContatoDetails, snapshotContatoFromId, draftContatoNome])
 
   useEffect(() => {
     if (!formOpen) return
     const id = draftOrigemId.trim()
     if (!id) return
     if (origemQuery.trim()) return
+    const cached = origemDescById[id]
+    if (cached) {
+      setOrigemQuery(cached)
+      return
+    }
     const label = origens.find((o) => o.orig_id === id)?.descricao_orig
-    if (label) setOrigemQuery(label)
-  }, [formOpen, draftOrigemId, origens, origemQuery])
+    if (label) {
+      setOrigemQuery(label)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const { data, error } = await (supabase as any)
+        .from('crm_origem_leads')
+        .select('descricao_orig')
+        .eq('orig_id', id)
+        .maybeSingle()
+      if (cancelled) return
+      if (error) return
+      const desc = String((data as any)?.descricao_orig || '').trim()
+      if (desc) setOrigemQuery(desc)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, draftOrigemId, origens, origemQuery, origemDescById])
 
   useEffect(() => {
     if (!formOpen) return
@@ -971,6 +1077,18 @@ export default function OportunidadesKanban() {
   const diasParado =
     typeof (active as any)?.dias_parado === 'number' ? (active as any).dias_parado : calcDaysSince(dataAlteracao)
   const vendedorAvatarUrl = draftVendedorId.trim() ? (vendedorAvatarById[draftVendedorId.trim()] || null) : null
+  const vendedorDetails = useMemo(() => {
+    const id = draftVendedorId.trim()
+    if (!id) return null
+    return (usuarios as any[]).find((u) => String(u.id).trim() === id) || null
+  }, [usuarios, draftVendedorId])
+  const vendedorTelefone = String((vendedorDetails as any)?.telefone || '').trim()
+  const vendedorEmail = String((vendedorDetails as any)?.email_corporativo || (vendedorDetails as any)?.email_login || '').trim()
+  const vendedorRamal = String((vendedorDetails as any)?.ramal || '').trim()
+  const solucaoLabel =
+    draftSolucao === 'PRODUTO' ? 'Venda de Produto' : draftSolucao === 'SERVICO' ? 'Venda de Serviço' : 'Produto + Serviço'
+  const dataInclusaoLabel = formatDate(dataInclusao)
+  const dataParadoLabel = formatTempoParado(dataAlteracao)
 
   const ticketCalculado = useMemo(() => {
     const total = (draftItens || []).reduce((acc, item) => acc + calcItemTotal(item), 0)
@@ -1114,7 +1232,7 @@ export default function OportunidadesKanban() {
       const statusId = andamentoStatusId || null
       const faseLabel = faseId ? (stages.find((s) => s.id === faseId)?.label || null) : null
       const cliente = await fetchClienteById(clienteId)
-      const contato = createContatoOptions.find((c) => c.contato_id === contatoId) || null
+      const contato = createContatoOptions.find((c) => c.contato_id === contatoId) || (await fetchContatoById(contatoId))
       const clienteNomeSnapshot = (cliente?.cliente_nome_razao_social || createClienteQuery.trim() || null) as string | null
       const clienteDocSnapshot = (cliente?.cliente_documento_formatado || cliente?.cliente_documento || null) as string | null
 
@@ -1151,6 +1269,13 @@ export default function OportunidadesKanban() {
       setOpportunities((prev) => {
         const enriched: any = {
           ...(created as any),
+          cliente_nome: clienteNomeSnapshot,
+          cliente_documento: clienteDocSnapshot,
+          contato_nome: (contato as any)?.contato_nome || null,
+          contato_cargo: (contato as any)?.contato_cargo || null,
+          contato_telefone01: (contato as any)?.contato_telefone01 || null,
+          contato_telefone02: (contato as any)?.contato_telefone02 || null,
+          contato_email: (contato as any)?.contato_email || null,
           cliente: clienteNomeSnapshot || (createClienteQuery || '').trim() || (created as any)?.cliente || null,
           nome_contato: (contato?.contato_nome || null) || (created as any)?.nome_contato || null,
           telefone01_contato: (contato?.contato_telefone01 || null) || (created as any)?.telefone01_contato || null,
@@ -1162,11 +1287,20 @@ export default function OportunidadesKanban() {
         if (prev.some((p) => (p.id_oport || (p as any).id_oportunidade) === createdId)) return prev
         return [enriched as any, ...prev]
       })
-      await loadData()
       if (createdId) {
+        setClienteQuery(clienteNomeSnapshot || '')
+        setDraftClienteId(clienteId)
+        setDraftClienteDocumento(clienteDocSnapshot || '')
+        setDraftContatoId(contatoId)
+        setDraftContatoNome(((contato as any)?.contato_nome as any) || '')
+        setDraftContatoCargo(((contato as any)?.contato_cargo as any) || '')
+        setDraftContatoTelefone01(((contato as any)?.contato_telefone01 as any) || '')
+        setDraftContatoTelefone02(((contato as any)?.contato_telefone02 as any) || '')
+        setDraftContatoEmail(((contato as any)?.contato_email as any) || '')
         setActiveId(createdId)
         setFormOpen(true)
       }
+      await loadData()
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : 'Falha ao criar.')
     } finally {
@@ -1235,6 +1369,7 @@ export default function OportunidadesKanban() {
       forma_pagamento_id: draftFormaPagamentoId.trim() || null,
       condicao_pagamento_id: draftCondicaoPagamentoId.trim() || null,
       tipo_frete: draftTipoFrete || null,
+      pedido_compra_path: draftPedidoCompraPath.trim() || null,
       cod_produto: null,
       cod_servico: null,
       ticket_valor: ticketCalculado,
@@ -1973,260 +2108,351 @@ export default function OportunidadesKanban() {
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-w-0">
               <div className="px-4 md:px-6 py-4 md:py-5 border-b border-white/10 bg-[#0B1220]">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-4">
-                  <div className="lg:col-span-4 rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
-                          <div className="mt-1 text-xs font-black text-slate-200 bg-white/5 px-2 py-1 rounded-lg border border-white/10 font-mono inline-block">
-                            {(draftCod || '').trim() || '-'}
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                    <div className="xl:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Identificação</div>
+                      <div className="mt-4 grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Código da Proposta</label>
+                          <input
+                            value={(draftCod || '').trim() || '-'}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solução</label>
+                          <input
+                            value={solucaoLabel}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="xl:col-span-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Vendedor</div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-[3rem_minmax(0,1fr)] gap-4 items-start">
+                        <div className="w-12 h-12 rounded-2xl border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[11px] font-black text-cyan-100">
+                          {vendedorAvatarUrl ? (
+                            <img
+                              src={vendedorAvatarUrl}
+                              alt={(vendedorQuery || 'Vendedor').trim() || 'Vendedor'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>{getInitials((vendedorQuery || '').trim() || String(draftVendedorId || ''))}</span>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Vendedor</label>
+                          <input
+                            value={(vendedorQuery || '').trim() || '-'}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone</label>
+                          <input
+                            value={vendedorTelefone || '-'}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">E-mail</label>
+                          <input
+                            value={vendedorEmail || '-'}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ramal</label>
+                          <input
+                            value={vendedorRamal || '-'}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="xl:col-span-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Status e Datas</div>
+                      <div className="mt-4 grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Status Atual</label>
+                          <select
+                            value={draftStatusId}
+                            onChange={(e) => setDraftStatusId(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          >
+                            <option value="">-</option>
+                            {statuses.map((s) => (
+                              <option key={s.status_id} value={s.status_id}>
+                                {s.status_desc}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data de Inclusão</label>
+                          <input
+                            value={dataInclusaoLabel}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data Parado</label>
+                          <input
+                            value={dataParadoLabel}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Última Movimentação</label>
+                          <input
+                            value={formatDate(dataAlteracao)}
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                    <div className="xl:col-span-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente</div>
+                      <div className="mt-4 grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cliente</label>
+                          <input
+                            value={clienteQuery}
+                            readOnly
+                            placeholder="Cliente"
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">CNPJ/CPF</label>
+                            <input
+                              value={draftClienteDocumento || '-'}
+                              readOnly
+                              placeholder="CNPJ/CPF"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Origem</label>
+                            <div className="relative">
+                              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <input
+                                value={origemQuery}
+                                onChange={(e) => {
+                                  setOrigemQuery(e.target.value)
+                                  setDraftOrigemId('')
+                                  setOrigemOpen(true)
+                                }}
+                                onFocus={() => setOrigemOpen(true)}
+                                onBlur={() => window.setTimeout(() => setOrigemOpen(false), 150)}
+                                placeholder="Pesquisar origem..."
+                                className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                              />
+                              {origemOpen && (
+                                <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
+                                  <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                    {origemFiltered.length === 0 ? (
+                                      <div className="px-4 py-3 text-xs text-slate-400">Nenhuma origem encontrada.</div>
+                                    ) : (
+                                      origemFiltered.map((o) => (
+                                        <button
+                                          key={o.orig_id}
+                                          type="button"
+                                          onMouseDown={(e) => {
+                                            e.preventDefault()
+                                            setDraftOrigemId(o.orig_id)
+                                            setOrigemQuery(o.descricao_orig)
+                                            setOrigemOpen(false)
+                                          }}
+                                          className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
+                                        >
+                                          <div className="text-sm font-semibold text-slate-100 truncate">{o.descricao_orig}</div>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Solução</div>
-                          <Pencil size={12} className="text-slate-500" />
+                    </div>
+
+                    <div className="xl:col-span-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Contato</div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2 md:col-span-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Contato</label>
+                          <input
+                            value={draftContatoNome || '-'}
+                            readOnly
+                            placeholder="Nome do contato"
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
                         </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cargo</label>
+                          <input
+                            value={draftContatoCargo || '-'}
+                            placeholder="Cargo"
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">E-mail</label>
+                          <input
+                            value={draftContatoEmail || '-'}
+                            placeholder="email@exemplo.com"
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone 01</label>
+                          <input
+                            value={draftContatoTelefone01 || '-'}
+                            placeholder="Telefone 01"
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone 02</label>
+                          <input
+                            value={draftContatoTelefone02 || '-'}
+                            placeholder="Telefone 02"
+                            readOnly
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Detalhes Comerciais</div>
+                    <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      <div className="lg:col-span-4 space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ticket Calculado</label>
+                        <input
+                          value={formatCurrency(ticketCalculado)}
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-3 text-sm font-black text-emerald-300 outline-none font-mono"
+                        />
+                      </div>
+                      <div className="lg:col-span-4 space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Empresa Correspondente</label>
                         <select
-                          value={draftSolucao}
-                          onChange={(e) => {
-                            const next = e.target.value as any
-                            setDraftSolucao(next)
-                            if (
-                              formError &&
-                              formError
-                                .toLowerCase()
-                                .includes('produto + serviço')
-                            ) {
-                              setFormError(null)
-                            }
-                          }}
-                          className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          value={draftEmpresaCorrespondente}
+                          onChange={(e) => setDraftEmpresaCorrespondente(e.target.value as any)}
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                         >
-                          <option value="PRODUTO">Venda de Produto</option>
-                          <option value="SERVICO">Venda de Serviço</option>
+                          <option value="Apliflow">Apliflow</option>
+                          <option value="Automaflow">Automaflow</option>
+                          <option value="Tecnotron">Tecnotron</option>
                         </select>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-4 rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vendedor</div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[11px] font-black text-cyan-100">
-                        {vendedorAvatarUrl ? (
-                          <img
-                            src={vendedorAvatarUrl}
-                            alt={(vendedorQuery || 'Vendedor').trim() || 'Vendedor'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span>{getInitials((vendedorQuery || '').trim() || String(draftVendedorId || ''))}</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-slate-100 truncate">{(vendedorQuery || '-').trim() || '-'}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data Inclusão</div>
-                      <div className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-100">
-                        <Calendar size={14} className="text-slate-500" />
-                        <span>{formatDate(dataInclusao)}</span>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente</div>
-                      <select
-                        value={draftEmpresaCorrespondente}
-                        onChange={(e) => setDraftEmpresaCorrespondente(e.target.value as any)}
-                        className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                      >
-                        <option value="Apliflow">Apliflow</option>
-                        <option value="Automaflow">Automaflow</option>
-                        <option value="Tecnotron">Tecnotron</option>
-                      </select>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</div>
-                      <select
-                        value={draftStatusId}
-                        onChange={(e) => setDraftStatusId(e.target.value)}
-                        className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                      >
-                        <option value="">-</option>
-                        {statuses.map((s) => (
-                          <option key={s.status_id} value={s.status_id}>
-                            {s.status_desc}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0F172A] px-4 py-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data Parado</div>
-                      <div className="mt-2 flex items-center gap-2 text-sm font-bold text-slate-100">
-                        <Clock size={14} className="text-slate-500" />
-                        <span>{formatDias(diasParado)}</span>
-                      </div>
-                      <div className="mt-1 text-[11px] text-slate-500">{`Últ. mov.: ${formatDate(dataAlteracao)}`}</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  <div className="lg:col-span-6 relative">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cliente</label>
-                    <div className="relative mt-2">
-                      <input
-                        value={clienteQuery}
-                        readOnly
-                        placeholder="Cliente"
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                      />
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">CNPJ/CPF</label>
-                      <input
-                        value={draftClienteDocumento}
-                        readOnly
-                        placeholder="CNPJ/CPF"
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-3 relative">
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Origem</label>
-                      <Pencil size={12} className="text-slate-500" />
-                    </div>
-                    <div className="relative mt-2">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                      <input
-                        value={origemQuery}
-                        onChange={(e) => {
-                          setOrigemQuery(e.target.value)
-                          setDraftOrigemId('')
-                          setOrigemOpen(true)
-                        }}
-                        onFocus={() => setOrigemOpen(true)}
-                        onBlur={() => window.setTimeout(() => setOrigemOpen(false), 150)}
-                        placeholder="Pesquisar origem..."
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                      />
-                      {origemOpen && (
-                        <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                            {origemFiltered.length === 0 ? (
-                              <div className="px-4 py-3 text-xs text-slate-400">Nenhuma origem encontrada.</div>
-                            ) : (
-                              origemFiltered.map((o) => (
-                                <button
-                                  key={o.orig_id}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    setDraftOrigemId(o.orig_id)
-                                    setOrigemQuery(o.descricao_orig)
-                                    setOrigemOpen(false)
-                                  }}
-                                  className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
-                                >
-                                  <div className="text-sm font-semibold text-slate-100 truncate">{o.descricao_orig}</div>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-4 relative">
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Contato</label>
-                    </div>
-                    <div className="relative mt-2">
-                      <input
-                        value={draftContatoNome}
-                        readOnly
-                        placeholder="Contato"
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                      />
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-2 md:col-span-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nome do Contato</label>
-                        <input
-                          value={draftContatoNome}
-                          readOnly
-                          placeholder="Nome do contato"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cargo</label>
-                        <input
-                          value={draftContatoCargo}
-                          placeholder="Cargo"
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">E-mail</label>
-                        <input
-                          value={draftContatoEmail}
-                          placeholder="email@exemplo.com"
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Telefone 01</label>
-                        <input
-                          value={draftContatoTelefone01}
-                          placeholder="Telefone 01"
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none font-mono"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Telefone 02</label>
-                        <input
-                          value={draftContatoTelefone02}
-                          placeholder="Telefone 02"
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none font-mono"
+                      <div className="lg:col-span-12 space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solicitação do Cliente</label>
+                        <textarea
+                          value={draftDescricao}
+                          onChange={(e) => setDraftDescricao(e.target.value)}
+                          placeholder="Descreva a solicitação do cliente..."
+                          className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="lg:col-span-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Ticket Calculado</label>
-                    <input
-                      value={formatCurrency(ticketCalculado)}
-                      readOnly
-                      className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-bold text-emerald-300 outline-none font-mono"
-                    />
-                  </div>
-
-                  <div className="lg:col-span-12">
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solicitação do Cliente</label>
-                      <Pencil size={12} className="text-slate-500" />
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Documentos</div>
+                    <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                      <div className="lg:col-span-8 space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Pedido de Compra</label>
+                        <input
+                          value={draftPedidoCompraPath ? (draftPedidoCompraPath.split('/').pop() || draftPedidoCompraPath) : '-'}
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                        />
+                        <input
+                          ref={pedidoCompraInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="application/pdf,image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ''
+                            if (!file) return
+                            if (pedidoCompraUploading) return
+                            setPedidoCompraUploading(true)
+                            setPedidoCompraError(null)
+                            try {
+                              const userId = (myUserId || '').trim() || (await supabase.auth.getUser()).data.user?.id || ''
+                              if (!userId) throw new Error('Sessão não encontrada. Faça login novamente.')
+                              const safeName = String(file.name || 'pedido-compra').replace(/[^\w.\-]+/g, '_')
+                              const path = `crm-pedidos-compra/${userId}/${(activeId || 'draft').trim()}/${Date.now()}-${safeName}`
+                              const r = await supabase.storage.from('crm-pedidos-compra').upload(path, file, {
+                                upsert: true,
+                                contentType: file.type || undefined
+                              } as any)
+                              if (r.error) throw r.error
+                              setDraftPedidoCompraPath(path)
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : 'Falha ao anexar.'
+                              setPedidoCompraError(msg)
+                              setFormError(msg)
+                            } finally {
+                              setPedidoCompraUploading(false)
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="lg:col-span-4 flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => pedidoCompraInputRef.current?.click()}
+                          disabled={pedidoCompraUploading}
+                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                        >
+                          {pedidoCompraUploading ? 'Anexando...' : 'Anexar Pedido de Compra'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!draftPedidoCompraPath.trim()}
+                          onClick={() => {
+                            const path = draftPedidoCompraPath.trim()
+                            if (!path) return
+                            const url = supabase.storage.from('crm-pedidos-compra').getPublicUrl(path).data.publicUrl
+                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                          }}
+                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                        >
+                          Abrir
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      value={draftDescricao}
-                      onChange={(e) => setDraftDescricao(e.target.value)}
-                      placeholder="Descreva a solicitação do cliente..."
-                      className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                    />
                   </div>
                 </div>
               </div>
@@ -2236,10 +2462,12 @@ export default function OportunidadesKanban() {
                   <div className="flex gap-2 pb-2">
                     {[
                       { id: 'ticket', label: 'Ticket' },
-                      { id: 'previsaoTemperatura', label: 'Previsão e Temperatura' },
+                      { id: 'previsao', label: 'Previsão' },
+                      { id: 'temperatura', label: 'Temperatura' },
                       { id: 'comentarios', label: 'Comentários' },
-                      { id: 'observacoes', label: 'Observações do cliente' },
-                      { id: 'historico', label: 'Histórico' },
+                      { id: 'observacoes', label: 'Observações' },
+                      { id: 'transportadores', label: 'Transportadores' },
+                      { id: 'historicos', label: 'Históricos' },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -2296,12 +2524,16 @@ export default function OportunidadesKanban() {
 
                       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Calculado</div>
-                        <div className="mt-1 text-lg font-black text-emerald-300 font-mono">{formatCurrency(ticketCalculado)}</div>
+                        <input
+                          value={formatCurrency(ticketCalculado)}
+                          readOnly
+                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-2.5 text-sm font-black text-emerald-300 outline-none font-mono"
+                        />
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamento e Frete</div>
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamento</div>
 
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
@@ -2336,28 +2568,7 @@ export default function OportunidadesKanban() {
                           </select>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Tipo de Frete</label>
-                          <select
-                            value={draftTipoFrete}
-                            onChange={(e) => setDraftTipoFrete(e.target.value as any)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                          >
-                            <option value="">-</option>
-                            <option value="FOB">FOB</option>
-                            <option value="CIF">CIF</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Prazo de entrega (mês/ano)</label>
-                          <input
-                            type="month"
-                            value={draftPrevEntrega}
-                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-                          />
-                        </div>
+                        
                       </div>
                     </div>
 
@@ -2447,7 +2658,26 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
 
-                {tab === 'previsaoTemperatura' && (
+                {tab === 'previsao' && (
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão</div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Prazo de entrega (mês/ano)</label>
+                          <input
+                            type="month"
+                            value={draftPrevEntrega}
+                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tab === 'temperatura' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
                       <div className="flex items-start justify-between gap-4">
@@ -2626,7 +2856,7 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
 
-                {tab === 'historico' && (
+                {tab === 'historicos' && (
                   <div className="space-y-4">
                     {!activeId ? (
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
@@ -2708,13 +2938,35 @@ export default function OportunidadesKanban() {
                 {tab === 'observacoes' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações do cliente</label>
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
                       <textarea
                         value={draftObs}
                         onChange={(e) => setDraftObs(e.target.value)}
                         className="w-full h-32 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
                         placeholder="Observações do cliente..."
                       />
+                    </div>
+                  </div>
+                )}
+
+                {tab === 'transportadores' && (
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Transportadores</div>
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Tipo de Frete</label>
+                          <select
+                            value={draftTipoFrete}
+                            onChange={(e) => setDraftTipoFrete(e.target.value as any)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          >
+                            <option value="">-</option>
+                            <option value="FOB">FOB</option>
+                            <option value="CIF">CIF</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2741,23 +2993,67 @@ export default function OportunidadesKanban() {
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resumo</div>
-                  <div className="mt-2 text-xs text-slate-300 space-y-1">
-                    <div>{`Cliente: ${draftClienteId.trim() ? clienteQuery || '-' : '-'}`}</div>
-                    <div>{`Contato: ${draftContatoId.trim() ? contatoQuery || '-' : '-'}`}</div>
-                    <div>{`Vendedor: ${draftVendedorId.trim() ? vendedorQuery || '-' : '-'}`}</div>
-                    <div>{`Valor Calculado: ${formatCurrency(ticketCalculado)}`}</div>
-                    <div>{`Temperatura: ${Math.min(100, Math.max(1, Number.parseInt(draftTemperatura || '50', 10) || 50))}°`}</div>
-                    <div>{`Previsão: ${(() => {
-                      const base = (draftPrevEntrega || '').trim()
-                      if (!base) return '-'
-                      const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
-                      if (!Number.isFinite(yy) || !Number.isFinite(mm)) return base
-                      const dt = new Date(yy, (mm || 1) - 1, 1)
-                      const fmt = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dt)
-                      const label = fmt.replace(' de ', '/').replace(' ', '/')
-                      const text = label.charAt(0).toUpperCase() + label.slice(1)
-                      return text
-                    })()}`}</div>
+                  <div className="mt-4 grid grid-cols-1 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Cliente</label>
+                      <input
+                        value={draftClienteId.trim() ? clienteQuery || '-' : '-'}
+                        readOnly
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Contato</label>
+                      <input
+                        value={draftContatoId.trim() ? draftContatoNome || '-' : '-'}
+                        readOnly
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Vendedor</label>
+                      <input
+                        value={draftVendedorId.trim() ? vendedorQuery || '-' : '-'}
+                        readOnly
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Valor Calculado</label>
+                        <input
+                          value={formatCurrency(ticketCalculado)}
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-3 text-sm font-black text-emerald-300 outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Temperatura</label>
+                        <input
+                          value={`${Math.min(100, Math.max(1, Number.parseInt(draftTemperatura || '50', 10) || 50))}°`}
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Previsão</label>
+                        <input
+                          value={(() => {
+                            const base = (draftPrevEntrega || '').trim()
+                            if (!base) return '-'
+                            const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
+                            if (!Number.isFinite(yy) || !Number.isFinite(mm)) return base
+                            const dt = new Date(yy, (mm || 1) - 1, 1)
+                            const fmt = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dt)
+                            const label = fmt.replace(' de ', '/').replace(' ', '/')
+                            const text = label.charAt(0).toUpperCase() + label.slice(1)
+                            return text
+                          })()}
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

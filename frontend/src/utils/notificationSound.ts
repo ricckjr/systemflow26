@@ -19,10 +19,12 @@ export async function primeNotificationAudio() {
 
   try {
     if (typeof Audio === 'undefined') return
+    const shouldLoadSystem = !systemAudioBase
+    const shouldLoadChat = !chatAudioBase
     systemAudioBase = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
     chatAudioBase = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
-    systemAudioBase.load()
-    chatAudioBase.load()
+    if (shouldLoadSystem) systemAudioBase.load()
+    if (shouldLoadChat) chatAudioBase.load()
   } catch {}
 }
 

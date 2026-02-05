@@ -47,6 +47,7 @@ export interface CRM_Oportunidade {
   contato_email?: string | null
   vendedor_nome?: string | null
   vendedor_avatar_url?: string | null
+  pedido_compra_path?: string | null
 
   id_oportunidade?: string
   cod_oportunidade?: string | null
@@ -273,7 +274,7 @@ export async function deleteCrmCnaeCodigo(id: string) {
 ====================================================== */
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
-  const baseV2 = `
+  const coreV2 = `
     id_oport,
     id_integ,
     cod_oport,
@@ -289,9 +290,6 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     descricao_oport,
     qts_item,
     prev_entrega,
-    forma_pagamento_id,
-    condicao_pagamento_id,
-    tipo_frete,
     temperatura,
     cod_produto,
     cod_servico,
@@ -308,7 +306,14 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     data_alteracao
   `
 
-  const wideV2 = `${baseV2},
+  const extendedV2 = `${coreV2},
+    forma_pagamento_id,
+    condicao_pagamento_id,
+    tipo_frete,
+    pedido_compra_path
+  `
+
+  const wideV2 = `${extendedV2},
     data_parado,
     cliente_nome,
     cliente_documento,
@@ -356,22 +361,56 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   if (!isMissingWide && rWide.error?.code === '42P01') return []
 
   if (isMissingWide) {
-    // 1. Tenta baseV2 (com todos os campos esperados da V2)
+    // 1. Tenta extendedV2 (campos comuns atuais)
     const q = (supabase as any)
       .from('crm_oportunidades')
-      .select(baseV2)
+      .select(extendedV2)
       .order('data_inclusao', { ascending: !orderDesc })
     const r = await q
     if (!r.error) return (r.data || []) as CRM_Oportunidade[]
     if (r.error.code === '42P01') return []
 
-    // 2. Se falhar por coluna inexistente, tenta minimalV2 (sem campos recentes de finanças/frete)
+    // 2. Se falhar por coluna inexistente, tenta coreV2 (sem campos opcionais)
     const isMissingBase =
       r.error?.code === 'PGRST204' ||
       r.error?.code === '42703' ||
       (String(r.error?.message).includes('Could not find') && String(r.error?.message).toLowerCase().includes('column'))
     
     if (isMissingBase) {
+      const qCore = (supabase as any)
+        .from('crm_oportunidades')
+        .select(coreV2)
+        .order('data_inclusao', { ascending: !orderDesc })
+      const rCore = await qCore
+      if (!rCore.error) return (rCore.data || []) as CRM_Oportunidade[]
+      if (rCore.error.code === '42P01') return []
+
+      const minimalLegacyIds = `
+        id_oport,
+        cod_oport,
+        id_cliente,
+        id_vendedor,
+        id_fase,
+        id_status,
+        contato_id,
+        orig_id,
+        descricao_oport,
+        ticket_valor,
+        data_inclusao
+      `
+      const qLegacyIds = (supabase as any)
+        .from('crm_oportunidades')
+        .select(minimalLegacyIds)
+        .order('data_inclusao', { ascending: !orderDesc })
+      const rLegacyIds = await qLegacyIds
+      if (!rLegacyIds.error) {
+        return (rLegacyIds.data || []).map((row: any) => ({
+          ...row,
+          id_contato: row.id_contato ?? row.contato_id ?? null,
+          id_origem: row.id_origem ?? row.orig_id ?? null
+        })) as CRM_Oportunidade[]
+      }
+
       const minimalV2 = `
         id_oport,
         cod_oport,
@@ -500,6 +539,10 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
 
 export async function updateOportunidade(id: string, updates: Partial<CRM_Oportunidade>) {
   let sanitized: any = { ...(updates as any) }
+  if (sanitized.id_contato && !sanitized.contato_id) sanitized.contato_id = sanitized.id_contato
+  if (sanitized.contato_id && !sanitized.id_contato) sanitized.id_contato = sanitized.contato_id
+  if (sanitized.id_origem && !sanitized.orig_id) sanitized.orig_id = sanitized.id_origem
+  if (sanitized.orig_id && !sanitized.id_origem) sanitized.id_origem = sanitized.orig_id
   for (let i = 0; i < 6; i++) {
     const q = (supabase as any)
       .from('crm_oportunidades')
@@ -564,6 +607,10 @@ export async function updateOportunidade(id: string, updates: Partial<CRM_Oportu
 
 export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
   let sanitized: any = { ...(payload as any) }
+  if (sanitized.id_contato && !sanitized.contato_id) sanitized.contato_id = sanitized.id_contato
+  if (sanitized.contato_id && !sanitized.id_contato) sanitized.id_contato = sanitized.contato_id
+  if (sanitized.id_origem && !sanitized.orig_id) sanitized.orig_id = sanitized.id_origem
+  if (sanitized.orig_id && !sanitized.id_origem) sanitized.id_origem = sanitized.orig_id
   for (let i = 0; i < 6; i++) {
     const q = (supabase as any)
       .from('crm_oportunidades')

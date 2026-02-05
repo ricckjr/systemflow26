@@ -25,6 +25,7 @@ export interface CRM_Oportunidade {
   temperatura: number | null
   cod_produto: string | null
   cod_servico: string | null
+  desconto_percent_proposta?: number | null
   ticket_valor: number | null
   data_lead: string | null
   data_prospeccao: string | null
@@ -48,6 +49,7 @@ export interface CRM_Oportunidade {
   vendedor_nome?: string | null
   vendedor_avatar_url?: string | null
   pedido_compra_path?: string | null
+  pedido_compra_numero?: string | null
 
   id_oportunidade?: string
   cod_oportunidade?: string | null
@@ -293,6 +295,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     temperatura,
     cod_produto,
     cod_servico,
+    desconto_percent_proposta,
     ticket_valor,
     data_lead,
     data_prospeccao,
@@ -310,7 +313,8 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     forma_pagamento_id,
     condicao_pagamento_id,
     tipo_frete,
-    pedido_compra_path
+    pedido_compra_path,
+    pedido_compra_numero
   `
 
   const wideV2 = `${extendedV2},
@@ -634,6 +638,34 @@ export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
   }
 
   throw new Error('Falha ao criar a proposta comercial.')
+}
+
+export async function fetchOportunidadeById(id: string) {
+  const oportunidadeId = String(id || '').trim()
+  if (!oportunidadeId) return null
+  const { data, error } = await (supabase as any).from('crm_oportunidades').select().eq('id_oport', oportunidadeId).single()
+  if (error) {
+    if (error.code === '42P01') return null
+    throw toUserFacingError(error, 'Falha ao carregar a proposta comercial.')
+  }
+  return data as CRM_Oportunidade
+}
+
+export async function deleteOportunidade(id: string) {
+  const oportunidadeId = String(id || '').trim()
+  if (!oportunidadeId) return
+  const delItens = await sb.from('crm_oportunidade_itens').delete().eq('id_oport', oportunidadeId)
+  if (delItens.error && delItens.error.code !== '42P01') throw toUserFacingError(delItens.error, 'Falha ao excluir itens da proposta.')
+  const delComentarios = await sb.from('crm_oportunidade_comentarios').delete().eq('id_oport', oportunidadeId)
+  if (delComentarios.error && delComentarios.error.code !== '42P01') throw toUserFacingError(delComentarios.error, 'Falha ao excluir comentários da proposta.')
+  const delAtividades = await sb.from('crm_oportunidade_atividades').delete().eq('id_oport', oportunidadeId)
+  if (delAtividades.error && delAtividades.error.code !== '42P01') throw toUserFacingError(delAtividades.error, 'Falha ao excluir atividades da proposta.')
+
+  const delOpp = await sb.from('crm_oportunidades').delete().eq('id_oport', oportunidadeId)
+  if (delOpp.error) {
+    if (delOpp.error.code === '42P01') return
+    throw toUserFacingError(delOpp.error, 'Falha ao excluir a proposta comercial.')
+  }
 }
 
 export async function fetchPropostasComerciais(opts?: { orderDesc?: boolean }) {

@@ -36,7 +36,8 @@ import {
   createOportunidadeComentario,
   updateOportunidade,
   createOportunidade,
-  replaceOportunidadeItens
+  replaceOportunidadeItens,
+  deleteOportunidade
 } from '@/services/crm'
 import { fetchFinCondicoesPagamento, fetchFinFormasPagamento, FinCondicaoPagamento, FinFormaPagamento } from '@/services/financeiro'
 import { fetchClienteById, fetchClientes, Cliente } from '@/services/clientes'
@@ -384,11 +385,13 @@ export default function OportunidadesKanban() {
   const [draftPrevEntrega, setDraftPrevEntrega] = useState('')
   const [draftFormaPagamentoId, setDraftFormaPagamentoId] = useState('')
   const [draftCondicaoPagamentoId, setDraftCondicaoPagamentoId] = useState('')
+  const [draftDescontoPropostaPercent, setDraftDescontoPropostaPercent] = useState('0')
   const [draftTipoFrete, setDraftTipoFrete] = useState<'FOB' | 'CIF' | ''>('')
   const [draftProdutoId, setDraftProdutoId] = useState('')
   const [draftServicoId, setDraftServicoId] = useState('')
   const [draftObs, setDraftObs] = useState('')
   const [draftDescricao, setDraftDescricao] = useState('')
+  const [draftPedidoCompraNumero, setDraftPedidoCompraNumero] = useState('')
   const [draftPedidoCompraPath, setDraftPedidoCompraPath] = useState('')
   const [pedidoCompraUploading, setPedidoCompraUploading] = useState(false)
   const [pedidoCompraError, setPedidoCompraError] = useState<string | null>(null)
@@ -408,6 +411,22 @@ export default function OportunidadesKanban() {
   const [statusObsOpen, setStatusObsOpen] = useState(false)
   const [statusObsText, setStatusObsText] = useState('')
   const [statusObsError, setStatusObsError] = useState<string | null>(null)
+
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [transferVendedorId, setTransferVendedorId] = useState('')
+  const [transferSaving, setTransferSaving] = useState(false)
+  const [transferError, setTransferError] = useState<string | null>(null)
+
+  const [statusChangeOpen, setStatusChangeOpen] = useState(false)
+  const [statusChangeId, setStatusChangeId] = useState('')
+
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteSaving, setDeleteSaving] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const [generateValidade, setGenerateValidade] = useState('')
+  const [generateTipoFrete, setGenerateTipoFrete] = useState<'FOB' | 'CIF' | ''>('')
 
   const [comentarios, setComentarios] = useState<CRM_OportunidadeComentario[]>([])
   const [comentariosDraft, setComentariosDraft] = useState<Array<{ localId: string; comentario: string; createdAt: string }>>([])
@@ -434,7 +453,7 @@ export default function OportunidadesKanban() {
 
   const active = useMemo(() => opportunities.find(o => (o.id_oport || (o as any).id_oportunidade) === activeId) || null, [opportunities, activeId])
 
-  const { session, profile, can } = useAuth()
+  const { session, profile, can, isAdmin } = useAuth()
   const canCrmControl = can('CRM', 'CONTROL')
   const myUserId = (profile?.id || session?.user?.id || '').trim()
   const myUserName = (profile?.nome || '').trim()
@@ -700,14 +719,19 @@ export default function OportunidadesKanban() {
       setDraftTicket(active.ticket_valor === null || active.ticket_valor === undefined ? '' : String(active.ticket_valor))
       setDraftTemperatura(active.temperatura === null || active.temperatura === undefined ? '50' : String(active.temperatura))
       setDraftQtd(active.qts_item === null || active.qts_item === undefined ? '1' : String(active.qts_item))
-      setDraftPrevEntrega(active.prev_entrega ? String(active.prev_entrega).slice(0, 7) : '')
+      setDraftPrevEntrega(active.prev_entrega ? String(active.prev_entrega).slice(0, 10) : '')
       setDraftFormaPagamentoId(String((active as any).forma_pagamento_id || ''))
       setDraftCondicaoPagamentoId(String((active as any).condicao_pagamento_id || ''))
+      {
+        const v = (active as any).desconto_percent_proposta
+        setDraftDescontoPropostaPercent(v === null || v === undefined ? '0' : String(v))
+      }
       setDraftTipoFrete(((active as any).tipo_frete as any) || '')
       setDraftProdutoId(active.cod_produto || '')
       setDraftServicoId(active.cod_servico || '')
       setDraftObs(active.obs_oport || '')
       setDraftDescricao(active.descricao_oport || '')
+      setDraftPedidoCompraNumero(String((active as any).pedido_compra_numero || '').trim())
       setDraftPedidoCompraPath(String((active as any).pedido_compra_path || '').trim())
       setPedidoCompraError(null)
       setPedidoCompraUploading(false)
@@ -747,15 +771,20 @@ export default function OportunidadesKanban() {
       setDraftQtd('1')
       {
         const now = new Date()
-        setDraftPrevEntrega(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+        setDraftPrevEntrega(
+          `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        )
       }
       setDraftFormaPagamentoId('')
       setDraftCondicaoPagamentoId('')
+      setDraftDescontoPropostaPercent('0')
       setDraftTipoFrete('')
       setDraftProdutoId('')
       setDraftServicoId('')
       setDraftObs('')
       setDraftDescricao('')
+      setDraftPedidoCompraNumero('')
+      setDraftPedidoCompraPath('')
       setDraftPedidoCompraPath('')
       setPedidoCompraError(null)
       setPedidoCompraUploading(false)
@@ -1090,10 +1119,22 @@ export default function OportunidadesKanban() {
   const dataInclusaoLabel = formatDate(dataInclusao)
   const dataParadoLabel = formatTempoParado(dataAlteracao)
 
-  const ticketCalculado = useMemo(() => {
+  const descontoPropostaPercent = useMemo(() => {
+    const raw = String(draftDescontoPropostaPercent || '').trim().replace(',', '.')
+    const v = raw ? Number.parseFloat(raw) : 0
+    return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0
+  }, [draftDescontoPropostaPercent])
+
+  const ticketCalculadoBruto = useMemo(() => {
     const total = (draftItens || []).reduce((acc, item) => acc + calcItemTotal(item), 0)
     return Number.isFinite(total) ? total : 0
   }, [draftItens])
+
+  const ticketCalculado = useMemo(() => {
+    const factor = 1 - descontoPropostaPercent / 100
+    const total = ticketCalculadoBruto * factor
+    return Number.isFinite(total) ? total : 0
+  }, [ticketCalculadoBruto, descontoPropostaPercent])
 
   const itemOptions = useMemo(() => {
     const term = (itemSearch || '').trim().toLowerCase()
@@ -1322,7 +1363,7 @@ export default function OportunidadesKanban() {
     return Number.isFinite(v) ? v : null
   }
 
-  const handleSave = async (opts?: { skipStatusObsCheck?: boolean; statusObs?: string | null }) => {
+  const handleSave = async (opts?: { skipStatusObsCheck?: boolean; statusObs?: string | null; statusIdOverride?: string | null }) => {
     const clienteId = draftClienteId.trim()
     const vendedorId = (canCrmControl ? draftVendedorId : (myUserId || draftVendedorId)).trim()
     const lockedClienteId = activeId ? ((active?.id_cliente || clienteId).trim()) : clienteId
@@ -1341,9 +1382,9 @@ export default function OportunidadesKanban() {
     const qts_item = draftItens.length
       ? draftItens.reduce((acc, it) => acc + (Number(it.quantidade || 0) || 0), 0)
       : null
-    const prev_entrega = draftPrevEntrega ? `${draftPrevEntrega}-01` : null
+    const prev_entrega = draftPrevEntrega.trim() || null
     const finalFaseId = activeId ? draftFaseId : (leadStageId || draftFaseId)
-    const finalStatusId = draftStatusId || andamentoStatusId || ''
+    const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
     const faseLabel = stages.find(s => s.id === finalFaseId)?.label || null
     const solucao = draftSolucao
 
@@ -1369,9 +1410,11 @@ export default function OportunidadesKanban() {
       forma_pagamento_id: draftFormaPagamentoId.trim() || null,
       condicao_pagamento_id: draftCondicaoPagamentoId.trim() || null,
       tipo_frete: draftTipoFrete || null,
+      pedido_compra_numero: draftPedidoCompraNumero.trim() || null,
       pedido_compra_path: draftPedidoCompraPath.trim() || null,
       cod_produto: null,
       cod_servico: null,
+      desconto_percent_proposta: descontoPropostaPercent,
       ticket_valor: ticketCalculado,
       temperatura,
       obs_oport: draftObs.trim() || null,
@@ -2092,7 +2135,7 @@ export default function OportunidadesKanban() {
             <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
               <LayoutDashboard size={16} className="text-cyan-300" />
             </div>
-            {activeId ? 'Editar Proposta Comercial' : 'Nova Proposta Comercial'}
+            {activeId ? 'Informações da Proposta Comercial' : 'Nova Proposta Comercial'}
           </div>
         }
         size="full"
@@ -2363,7 +2406,10 @@ export default function OportunidadesKanban() {
                         />
                       </div>
                       <div className="lg:col-span-4 space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Empresa Correspondente</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Empresa Correspondente</label>
+                          <Pencil size={12} className="text-slate-500" />
+                        </div>
                         <select
                           value={draftEmpresaCorrespondente}
                           onChange={(e) => setDraftEmpresaCorrespondente(e.target.value as any)}
@@ -2375,7 +2421,10 @@ export default function OportunidadesKanban() {
                         </select>
                       </div>
                       <div className="lg:col-span-12 space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solicitação do Cliente</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solicitação do Cliente</label>
+                          <Pencil size={12} className="text-slate-500" />
+                        </div>
                         <textarea
                           value={draftDescricao}
                           onChange={(e) => setDraftDescricao(e.target.value)}
@@ -2390,7 +2439,16 @@ export default function OportunidadesKanban() {
                     <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Documentos</div>
                     <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
                       <div className="lg:col-span-8 space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Pedido de Compra</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Pedido de Compra</label>
+                          <Pencil size={12} className="text-slate-500" />
+                        </div>
+                        <input
+                          value={draftPedidoCompraNumero}
+                          onChange={(e) => setDraftPedidoCompraNumero(e.target.value)}
+                          placeholder="Número do pedido de compra..."
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
                         <input
                           value={draftPedidoCompraPath ? (draftPedidoCompraPath.split('/').pop() || draftPedidoCompraPath) : '-'}
                           readOnly
@@ -2461,13 +2519,13 @@ export default function OportunidadesKanban() {
                 <HorizontalScrollArea className="w-full overflow-x-auto">
                   <div className="flex gap-2 pb-2">
                     {[
-                      { id: 'ticket', label: 'Ticket' },
-                      { id: 'previsao', label: 'Previsão' },
-                      { id: 'temperatura', label: 'Temperatura' },
-                      { id: 'comentarios', label: 'Comentários' },
-                      { id: 'observacoes', label: 'Observações' },
-                      { id: 'transportadores', label: 'Transportadores' },
-                      { id: 'historicos', label: 'Históricos' },
+                      { id: 'ticket', label: 'Pagamentos', editable: true },
+                      { id: 'previsao', label: 'Previsão', editable: true },
+                      { id: 'temperatura', label: 'Temperatura', editable: true },
+                      { id: 'comentarios', label: 'Comentários', editable: true },
+                      { id: 'observacoes', label: 'Observações', editable: true },
+                      { id: 'transportadores', label: 'Transportadores', editable: true },
+                      { id: 'historicos', label: 'Históricos', editable: false },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -2479,7 +2537,10 @@ export default function OportunidadesKanban() {
                             : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                         }`}
                       >
-                        {t.label}
+                        <span className="inline-flex items-center gap-2">
+                          {t.editable ? <Pencil size={12} className={tab === t.id ? 'text-cyan-200' : 'text-slate-400'} /> : null}
+                          {t.label}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -2490,37 +2551,68 @@ export default function OportunidadesKanban() {
                 {tab === 'ticket' && (
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setItemModalTipo('PRODUTO')
-                          setItemSearch('')
-                          setItemSelectedId('')
-                          setItemQuantidade('1')
-                          setItemDesconto('0')
-                          setItemModalOpen(true)
-                        }}
-                        disabled={draftSolucao === 'SERVICO'}
-                        className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        Adicionar Produto
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setItemModalTipo('SERVICO')
-                          setItemSearch('')
-                          setItemSelectedId('')
-                          setItemQuantidade('1')
-                          setItemDesconto('0')
-                          setItemModalOpen(true)
-                        }}
-                        disabled={draftSolucao === 'PRODUTO'}
-                        className="w-full px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-lg shadow-indigo-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        Adicionar Serviço
-                      </button>
+                      {draftSolucao === 'PRODUTO' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setItemModalTipo('PRODUTO')
+                            setItemSearch('')
+                            setItemSelectedId('')
+                            setItemQuantidade('1')
+                            setItemDesconto('0')
+                            setItemModalOpen(true)
+                          }}
+                          className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
+                        >
+                          Adicionar Produto
+                        </button>
+                      ) : draftSolucao === 'SERVICO' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setItemModalTipo('SERVICO')
+                            setItemSearch('')
+                            setItemSelectedId('')
+                            setItemQuantidade('1')
+                            setItemDesconto('0')
+                            setItemModalOpen(true)
+                          }}
+                          className="w-full px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-lg shadow-indigo-500/15 transition-all active:scale-[0.99]"
+                        >
+                          Adicionar Serviço
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setItemModalTipo('PRODUTO')
+                              setItemSearch('')
+                              setItemSelectedId('')
+                              setItemQuantidade('1')
+                              setItemDesconto('0')
+                              setItemModalOpen(true)
+                            }}
+                            className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
+                          >
+                            Adicionar Produto
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setItemModalTipo('SERVICO')
+                              setItemSearch('')
+                              setItemSelectedId('')
+                              setItemQuantidade('1')
+                              setItemDesconto('0')
+                              setItemModalOpen(true)
+                            }}
+                            className="w-full px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-lg shadow-indigo-500/15 transition-all active:scale-[0.99]"
+                          >
+                            Adicionar Serviço
+                          </button>
+                        </>
+                      )}
 
                       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Calculado</div>
@@ -2529,11 +2621,18 @@ export default function OportunidadesKanban() {
                           readOnly
                           className="mt-2 w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-2.5 text-sm font-black text-emerald-300 outline-none font-mono"
                         />
+                        {descontoPropostaPercent > 0 ? (
+                          <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Bruto: {formatCurrency(ticketCalculadoBruto)} · Desconto {descontoPropostaPercent}%
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Bruto: {formatCurrency(ticketCalculadoBruto)}</div>
+                        )}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamento</div>
+                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamentos</div>
 
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
@@ -2568,7 +2667,16 @@ export default function OportunidadesKanban() {
                           </select>
                         </div>
 
-                        
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Desconto (%)</label>
+                          <input
+                            value={draftDescontoPropostaPercent}
+                            onChange={(e) => setDraftDescontoPropostaPercent(e.target.value)}
+                            inputMode="decimal"
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -2664,9 +2772,9 @@ export default function OportunidadesKanban() {
                       <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão</div>
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Prazo de entrega (mês/ano)</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Prazo de entrega (dia/mês/ano)</label>
                           <input
-                            type="month"
+                            type="date"
                             value={draftPrevEntrega}
                             onChange={(e) => setDraftPrevEntrega(e.target.value)}
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
@@ -2992,74 +3100,344 @@ export default function OportunidadesKanban() {
                 </button>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resumo</div>
-                  <div className="mt-4 grid grid-cols-1 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Cliente</label>
-                      <input
-                        value={draftClienteId.trim() ? clienteQuery || '-' : '-'}
-                        readOnly
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Contato</label>
-                      <input
-                        value={draftContatoId.trim() ? draftContatoNome || '-' : '-'}
-                        readOnly
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Vendedor</label>
-                      <input
-                        value={draftVendedorId.trim() ? vendedorQuery || '-' : '-'}
-                        readOnly
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Valor Calculado</label>
-                        <input
-                          value={formatCurrency(ticketCalculado)}
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-3 text-sm font-black text-emerald-300 outline-none font-mono"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Temperatura</label>
-                        <input
-                          value={`${Math.min(100, Math.max(1, Number.parseInt(draftTemperatura || '50', 10) || 50))}°`}
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Previsão</label>
-                        <input
-                          value={(() => {
-                            const base = (draftPrevEntrega || '').trim()
-                            if (!base) return '-'
-                            const [yy, mm] = base.split('-').map((x) => Number.parseInt(x, 10))
-                            if (!Number.isFinite(yy) || !Number.isFinite(mm)) return base
-                            const dt = new Date(yy, (mm || 1) - 1, 1)
-                            const fmt = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(dt)
-                            const label = fmt.replace(' de ', '/').replace(' ', '/')
-                            const text = label.charAt(0).toUpperCase() + label.slice(1)
-                            return text
-                          })()}
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                        />
-                      </div>
-                    </div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</div>
+                  <div className="mt-4 grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      disabled={!activeId}
+                      onClick={() => {
+                        if (!activeId) return
+                        const now = new Date()
+                        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7)
+                        const validade = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+                        setGenerateValidade(validade)
+                        setGenerateTipoFrete(draftTipoFrete)
+                        setGenerateOpen(true)
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Gerar Proposta
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!activeId || !canCrmControl}
+                      onClick={() => {
+                        if (!activeId) return
+                        setTransferError(null)
+                        setTransferVendedorId(draftVendedorId)
+                        setTransferOpen(true)
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Transferir Proposta
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!activeId}
+                      onClick={() => {
+                        if (!activeId) return
+                        setStatusChangeId(draftStatusId)
+                        setStatusChangeOpen(true)
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Alterar o Status
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!activeId}
+                      onClick={async () => {
+                        if (!activeId) return
+                        const target = statuses.find((s) => String((s as any).status_desc || '').toLowerCase().includes('fatur'))
+                        if (!target?.status_id) {
+                          setFormError('Nenhum status com "Fatur" encontrado em CRM > Configs > Status.')
+                          return
+                        }
+                        setDraftStatusId(String(target.status_id))
+                        await handleSave({ statusIdOverride: String(target.status_id) })
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Separar para Faturar
+                    </button>
+
+                    {isAdmin ? (
+                      <button
+                        type="button"
+                        disabled={!activeId}
+                        onClick={() => {
+                          if (!activeId) return
+                          setDeleteError(null)
+                          setDeleteOpen(true)
+                        }}
+                        className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        Excluir Proposta
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        <Modal
+          isOpen={generateOpen}
+          onClose={() => setGenerateOpen(false)}
+          title="Gerar Proposta"
+          size="sm"
+          zIndex={210}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setGenerateOpen(false)}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!activeId) return
+                  const params = new URLSearchParams()
+                  const validade = generateValidade.trim()
+                  if (validade) params.set('validade', validade)
+                  if (generateTipoFrete) params.set('tipoFrete', generateTipoFrete)
+                  const qs = params.toString()
+                  const url = `/app/crm/proposta/${activeId}/preview${qs ? `?${qs}` : ''}`
+                  window.open(url, '_blank', 'noopener,noreferrer')
+                  setGenerateOpen(false)
+                }}
+                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+              >
+                Abrir Preview
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Validade da proposta</label>
+              <input
+                type="date"
+                value={generateValidade}
+                onChange={(e) => setGenerateValidade(e.target.value)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Tipo de frete / transportadora</label>
+              <select
+                value={generateTipoFrete}
+                onChange={(e) => setGenerateTipoFrete(e.target.value as any)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all outline-none"
+              >
+                <option value="">-</option>
+                <option value="FOB">FOB</option>
+                <option value="CIF">CIF</option>
+              </select>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={transferOpen}
+          onClose={() => {
+            if (transferSaving) return
+            setTransferOpen(false)
+          }}
+          title="Transferir Proposta"
+          size="sm"
+          zIndex={210}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setTransferOpen(false)}
+                disabled={transferSaving}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!activeId) return
+                  const nextId = transferVendedorId.trim()
+                  if (!nextId) {
+                    setTransferError('Selecione um vendedor.')
+                    return
+                  }
+                  setTransferSaving(true)
+                  setTransferError(null)
+                  try {
+                    await updateOportunidade(activeId, { id_vendedor: nextId } as any)
+                    setDraftVendedorId(nextId)
+                    setVendedorQuery((vendedorNameById[nextId] || '').trim())
+                    await createOportunidadeComentario(activeId, `Proposta transferida para ${vendedorNameById[nextId] || nextId}.`)
+                    await loadData()
+                    setTransferOpen(false)
+                  } catch (e) {
+                    setTransferError(e instanceof Error ? e.message : 'Falha ao transferir.')
+                  } finally {
+                    setTransferSaving(false)
+                  }
+                }}
+                disabled={transferSaving}
+                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              >
+                {transferSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Transferindo...
+                  </>
+                ) : (
+                  'Transferir'
+                )}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {transferError && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{transferError}</div>
+            )}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Vendedor</label>
+              <select
+                value={transferVendedorId}
+                onChange={(e) => setTransferVendedorId(e.target.value)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              >
+                <option value="">-</option>
+                {(usuarios as any[]).map((u: any) => (
+                  <option key={String(u.id)} value={String(u.id)}>
+                    {String(u.nome || u.email_login || u.id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={statusChangeOpen}
+          onClose={() => setStatusChangeOpen(false)}
+          title="Alterar o Status"
+          size="sm"
+          zIndex={210}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setStatusChangeOpen(false)}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const next = statusChangeId.trim()
+                  if (!next) {
+                    setFormError('Selecione um status.')
+                    return
+                  }
+                  setDraftStatusId(next)
+                  setStatusChangeOpen(false)
+                  await handleSave({ statusIdOverride: next })
+                }}
+                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+              >
+                Aplicar
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Status</label>
+              <select
+                value={statusChangeId}
+                onChange={(e) => setStatusChangeId(e.target.value)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              >
+                <option value="">-</option>
+                {statuses.map((s) => (
+                  <option key={s.status_id} value={s.status_id}>
+                    {s.status_desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={deleteOpen}
+          onClose={() => {
+            if (deleteSaving) return
+            setDeleteOpen(false)
+          }}
+          title="Excluir Proposta"
+          size="sm"
+          zIndex={210}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteSaving}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!activeId) return
+                  setDeleteSaving(true)
+                  setDeleteError(null)
+                  try {
+                    await deleteOportunidade(activeId)
+                    setOpportunities((prev) => prev.filter((p) => (p.id_oport || (p as any).id_oportunidade) !== activeId))
+                    setDeleteOpen(false)
+                    setFormOpen(false)
+                    setActiveId(null)
+                    await loadData()
+                  } catch (e) {
+                    setDeleteError(e instanceof Error ? e.message : 'Falha ao excluir.')
+                  } finally {
+                    setDeleteSaving(false)
+                  }
+                }}
+                disabled={deleteSaving}
+                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              >
+                {deleteSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {deleteError && (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{deleteError}</div>
+            )}
+            <div className="text-sm text-slate-300">Essa ação não pode ser desfeita.</div>
+          </div>
+        </Modal>
 
         <Modal
           isOpen={itemModalOpen}

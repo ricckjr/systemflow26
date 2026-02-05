@@ -2,21 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from '@/components/ui'
 import { Loader2, Plus, Search, Pencil, Trash2, Settings } from 'lucide-react'
 
-export type CodeCrudItem = {
+export type DescObsCrudItem = {
   id: string
-  codigo: string
-  descricao: string | null
+  descricao: string
+  observacao: string | null
 }
 
-type CodeCrudPageProps = {
+type DescObsCrudPageProps = {
   title: string
   subtitle: string
   singularLabel: string
-  codeLabel?: string
-  descriptionLabel?: string
-  fetchItems: () => Promise<CodeCrudItem[]>
-  createItem: (payload: Pick<CodeCrudItem, 'codigo' | 'descricao'>) => Promise<unknown>
-  updateItem: (id: string, payload: Pick<CodeCrudItem, 'codigo' | 'descricao'>) => Promise<unknown>
+  fetchItems: () => Promise<DescObsCrudItem[]>
+  createItem: (payload: Pick<DescObsCrudItem, 'descricao' | 'observacao'>) => Promise<unknown>
+  updateItem: (id: string, payload: Pick<DescObsCrudItem, 'descricao' | 'observacao'>) => Promise<unknown>
   deleteItem: (id: string) => Promise<unknown>
 }
 
@@ -24,18 +22,16 @@ const HeaderCard = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">{children}</div>
 )
 
-export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
+export const DescObsCrudPage: React.FC<DescObsCrudPageProps> = ({
   title,
   subtitle,
   singularLabel,
-  codeLabel = 'Código',
-  descriptionLabel = 'Descrição',
   fetchItems,
   createItem,
   updateItem,
   deleteItem
 }) => {
-  const [items, setItems] = useState<CodeCrudItem[]>([])
+  const [items, setItems] = useState<DescObsCrudItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -43,10 +39,10 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const active = useMemo(() => items.find(i => i.id === activeId) || null, [items, activeId])
+  const active = useMemo(() => items.find((i) => i.id === activeId) || null, [items, activeId])
 
-  const [draftCodigo, setDraftCodigo] = useState('')
   const [draftDescricao, setDraftDescricao] = useState('')
+  const [draftObservacao, setDraftObservacao] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -71,20 +67,20 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
     if (!isFormOpen) return
     setError(null)
     if (active) {
-      setDraftCodigo(active.codigo || '')
       setDraftDescricao(active.descricao || '')
+      setDraftObservacao(active.observacao || '')
       return
     }
-    setDraftCodigo('')
     setDraftDescricao('')
+    setDraftObservacao('')
   }, [isFormOpen, active])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return items
-    return items.filter(i => {
-      const a = (i.codigo || '').toLowerCase()
-      const b = (i.descricao || '').toLowerCase()
+    return items.filter((i) => {
+      const a = (i.descricao || '').toLowerCase()
+      const b = (i.observacao || '').toLowerCase()
       return a.includes(term) || b.includes(term)
     })
   }, [items, search])
@@ -105,9 +101,9 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
   }
 
   const handleSubmit = async () => {
-    const codigo = draftCodigo.trim()
-    if (!codigo) {
-      setError(`O ${String(codeLabel).toLowerCase()} é obrigatório.`)
+    const descricao = draftDescricao.trim()
+    if (!descricao) {
+      setError('A descrição é obrigatória.')
       return
     }
 
@@ -115,8 +111,8 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
     setError(null)
     try {
       const payload = {
-        codigo,
-        descricao: draftDescricao.trim() ? draftDescricao.trim() : null
+        descricao,
+        observacao: draftObservacao.trim() ? draftObservacao.trim() : null
       }
       if (activeId) await updateItem(activeId, payload)
       else await createItem(payload)
@@ -155,7 +151,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
         </div>
         <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
           <Settings size={14} className="text-cyan-400" />
-          Config Gerais
+          Financeiro
         </div>
       </div>
 
@@ -165,7 +161,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder={`Buscar ${singularLabel.toLowerCase()}...`}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
             />
@@ -181,9 +177,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
         </div>
       </HeaderCard>
 
-      {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>
-      )}
+      {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
@@ -197,18 +191,18 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
       ) : (
         <div className="overflow-hidden rounded-2xl border border-white/5">
           <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-            <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{codeLabel}</div>
-            <div className="col-span-7 text-[10px] font-black uppercase tracking-widest text-slate-400">{descriptionLabel}</div>
+            <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição</div>
+            <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Observação</div>
             <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
           </div>
           <div className="divide-y divide-white/5">
-            {filtered.map(i => (
+            {filtered.map((i) => (
               <div key={i.id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
-                <div className="col-span-4 min-w-0">
-                  <div className="text-sm font-mono text-slate-200 truncate">{i.codigo}</div>
+                <div className="col-span-5 min-w-0">
+                  <div className="text-sm text-slate-200 truncate">{i.descricao}</div>
                 </div>
-                <div className="col-span-7 min-w-0">
-                  <div className="text-sm text-slate-200 truncate">{i.descricao || '-'}</div>
+                <div className="col-span-6 min-w-0">
+                  <div className="text-sm text-slate-300 truncate">{i.observacao || '-'}</div>
                 </div>
                 <div className="col-span-1 flex items-center justify-end gap-1">
                   <button
@@ -272,23 +266,21 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
         }
       >
         <div className="space-y-4">
-          {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>
-          )}
+          {error && <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{codeLabel}</label>
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição</label>
             <input
-              value={draftCodigo}
-              onChange={e => setDraftCodigo(e.target.value)}
-              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-              placeholder="Ex: 3550308"
+              value={draftDescricao}
+              onChange={(e) => setDraftDescricao(e.target.value)}
+              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              placeholder="Descrição"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{descriptionLabel}</label>
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observação</label>
             <input
-              value={draftDescricao}
-              onChange={e => setDraftDescricao(e.target.value)}
+              value={draftObservacao}
+              onChange={(e) => setDraftObservacao(e.target.value)}
               className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
               placeholder="Opcional"
             />
@@ -339,3 +331,4 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
     </div>
   )
 }
+

@@ -83,6 +83,14 @@ export const router = createBrowserRouter([
         )
       },
       {
+        path: 'crm/proposta/:id/preview',
+        element: lazyElement(
+          () => import('@/pages/CRM/PropostaPreview'),
+          'Carregando Proposta...',
+          (node) => <RequirePermission modulo="CRM" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
         path: 'crm/ranking',
         element: lazyElement(
           () => import('@/pages/CRM/Vendedores'),

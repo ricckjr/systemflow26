@@ -107,6 +107,14 @@ const formatCurrency = (value: string | number | null | undefined) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
 
+const formatSolucaoLabel = (solucao: string | null | undefined) => {
+  const s = String(solucao || '').trim().toUpperCase()
+  if (s === 'PRODUTO') return 'Venda de Produto'
+  if (s === 'SERVICO') return 'Venda de Serviço'
+  if (s === 'PRODUTO_SERVICO') return 'Produto + Serviço'
+  return '-'
+}
+
 const getValorNumber = (op: any) => {
   const raw = op?.ticket_valor ?? op?.valor_proposta
   if (raw === null || raw === undefined || raw === '') return 0
@@ -229,7 +237,7 @@ const OpportunityCard = ({
             </div>
             <div className="text-[11px] text-slate-400">
               <span className="text-slate-500">Solução: </span>
-              {opportunity.solucao || '-'}
+              {formatSolucaoLabel(opportunity.solucao)}
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Data de inclusão">
               <Calendar size={12} className="text-slate-500" />
@@ -315,7 +323,7 @@ export default function OportunidadesKanban() {
   const [createOrigemId, setCreateOrigemId] = useState('')
   const [createVendedorId, setCreateVendedorId] = useState('')
   const [createEmpresaCorrespondente, setCreateEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
-  const [createSolucao, setCreateSolucao] = useState<'PRODUTO' | 'SERVICO' | 'PRODUTO_SERVICO'>('PRODUTO')
+  const [createSolucao, setCreateSolucao] = useState<'PRODUTO' | 'SERVICO'>('PRODUTO')
   const [createTicket, setCreateTicket] = useState('')
   const [createPrevFechamento, setCreatePrevFechamento] = useState('')
   const [createSolicitacao, setCreateSolicitacao] = useState('')
@@ -339,9 +347,15 @@ export default function OportunidadesKanban() {
   const [draftVendedorId, setDraftVendedorId] = useState('')
   const [draftEmpresaCorrespondente, setDraftEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
   const [draftClienteId, setDraftClienteId] = useState('')
-  const [draftClienteDocumento, setDraftClienteDocumento] = useState<string | null>(null)
+  const [draftClienteDocumento, setDraftClienteDocumento] = useState('')
   const [draftContatoId, setDraftContatoId] = useState('')
   const [draftContatoDetails, setDraftContatoDetails] = useState<ClienteContato | null>(null)
+  const [draftContatoNome, setDraftContatoNome] = useState('')
+  const [draftContatoCargo, setDraftContatoCargo] = useState('')
+  const [draftContatoTelefone01, setDraftContatoTelefone01] = useState('')
+  const [draftContatoTelefone02, setDraftContatoTelefone02] = useState('')
+  const [draftContatoEmail, setDraftContatoEmail] = useState('')
+  const [snapshotContatoFromId, setSnapshotContatoFromId] = useState<string | null>(null)
   const [draftFaseId, setDraftFaseId] = useState('')
   const [draftStatusId, setDraftStatusId] = useState('')
   const [baselineStatusId, setBaselineStatusId] = useState<string | null>(null)
@@ -603,14 +617,26 @@ export default function OportunidadesKanban() {
       setDraftClienteId(active.id_cliente || '')
       setDraftContatoId(active.id_contato || '')
       setDraftContatoDetails(null)
-      setDraftClienteDocumento((active as any).cliente_documento ?? null)
+      setDraftClienteDocumento(String((active as any).cliente_documento || ''))
+      setDraftContatoNome(String((active as any).contato_nome || active.nome_contato || ''))
+      setDraftContatoCargo(String((active as any).contato_cargo || ''))
+      setDraftContatoTelefone01(String((active as any).contato_telefone01 || active.telefone01_contato || ''))
+      setDraftContatoTelefone02(String((active as any).contato_telefone02 || active.telefone02_contato || ''))
+      setDraftContatoEmail(String((active as any).contato_email || active.email || ''))
+      setSnapshotContatoFromId((active.id_contato || '').trim() || null)
       setDraftEmpresaCorrespondente(((active as any).empresa_correspondente as any) || 'Apliflow')
       setDraftFaseId(active.id_fase || '')
       setDraftStatusId(active.id_status || '')
       setBaselineStatusId(active.id_status || null)
       setDraftMotivoId(active.id_motivo || '')
       setDraftOrigemId(active.id_origem || '')
-      setDraftSolucao((active.solucao as any) || 'PRODUTO')
+      const solucao = (active.solucao as any) || 'PRODUTO'
+      setDraftSolucao(solucao)
+      if (solucao === 'PRODUTO_SERVICO') {
+        setFormError(
+          'Esta proposta está como Produto + Serviço (modelo antigo). A partir de agora, crie duas propostas separadas: Venda de Produto e Venda de Serviço.'
+        )
+      }
       setDraftTicket(active.ticket_valor === null || active.ticket_valor === undefined ? '' : String(active.ticket_valor))
       setDraftTemperatura(active.temperatura === null || active.temperatura === undefined ? '50' : String(active.temperatura))
       setDraftQtd(active.qts_item === null || active.qts_item === undefined ? '1' : String(active.qts_item))
@@ -638,7 +664,13 @@ export default function OportunidadesKanban() {
       setDraftClienteId('')
       setDraftContatoId('')
       setDraftContatoDetails(null)
-      setDraftClienteDocumento(null)
+      setDraftClienteDocumento('')
+      setDraftContatoNome('')
+      setDraftContatoCargo('')
+      setDraftContatoTelefone01('')
+      setDraftContatoTelefone02('')
+      setDraftContatoEmail('')
+      setSnapshotContatoFromId(null)
       setDraftEmpresaCorrespondente('Apliflow')
       setDraftFaseId(leadStageId || '')
       setDraftStatusId(andamentoStatusId || '')
@@ -864,20 +896,48 @@ export default function OportunidadesKanban() {
     if (!formOpen) return
     const id = draftClienteId.trim()
     if (!id) {
-      setDraftClienteDocumento(null)
+      setDraftClienteDocumento('')
       return
     }
     let cancelled = false
     ;(async () => {
       const c = await fetchClienteById(id)
       if (cancelled) return
-      setDraftClienteDocumento((c as any)?.cliente_documento_formatado || (c as any)?.cliente_documento || null)
-      if (!clienteQuery.trim() && c?.cliente_nome_razao_social) setClienteQuery(c.cliente_nome_razao_social)
+      setDraftClienteDocumento(String((c as any)?.cliente_documento_formatado || (c as any)?.cliente_documento || ''))
+      if (c?.cliente_nome_razao_social) {
+        setClienteQuery((prev) => (prev.trim() ? prev : c.cliente_nome_razao_social))
+      }
     })()
     return () => {
       cancelled = true
     }
-  }, [formOpen, draftClienteId, clienteQuery])
+  }, [formOpen, draftClienteId])
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = draftContatoId.trim()
+    if (!id) {
+      setSnapshotContatoFromId(null)
+      setDraftContatoNome('')
+      setDraftContatoCargo('')
+      setDraftContatoTelefone01('')
+      setDraftContatoTelefone02('')
+      setDraftContatoEmail('')
+      return
+    }
+    if (snapshotContatoFromId === id) return
+    const c =
+      contatoOptions.find((x) => x.contato_id === id) ||
+      (draftContatoDetails?.contato_id === id ? draftContatoDetails : null) ||
+      null
+    if (!c) return
+    setDraftContatoNome(String(c.contato_nome || ''))
+    setDraftContatoCargo(String(c.contato_cargo || ''))
+    setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
+    setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
+    setDraftContatoEmail(String(c.contato_email || ''))
+    setSnapshotContatoFromId(id)
+  }, [formOpen, draftContatoId, contatoOptions, draftContatoDetails, snapshotContatoFromId])
 
   useEffect(() => {
     if (!formOpen) return
@@ -905,16 +965,6 @@ export default function OportunidadesKanban() {
     const label = contatoOptions.find((c) => c.contato_id === id)?.contato_nome
     if (label) setContatoQuery(label)
   }, [formOpen, draftContatoId, contatoOptions, contatoQuery])
-
-  const selectedContato = useMemo(() => {
-    const id = draftContatoId.trim()
-    if (!id) return null
-    return (
-      contatoOptions.find((c) => c.contato_id === id) ||
-      (draftContatoDetails?.contato_id === id ? draftContatoDetails : null) ||
-      null
-    )
-  }, [draftContatoId, contatoOptions, draftContatoDetails])
 
   const dataInclusao = active?.data_inclusao ?? (active as any)?.criado_em ?? null
   const dataAlteracao = (active as any)?.data_parado ?? active?.data_alteracao ?? (active as any)?.atualizado_em ?? null
@@ -1063,12 +1113,23 @@ export default function OportunidadesKanban() {
       const faseId = leadStageId || stages[0]?.id || null
       const statusId = andamentoStatusId || null
       const faseLabel = faseId ? (stages.find((s) => s.id === faseId)?.label || null) : null
+      const cliente = await fetchClienteById(clienteId)
+      const contato = createContatoOptions.find((c) => c.contato_id === contatoId) || null
+      const clienteNomeSnapshot = (cliente?.cliente_nome_razao_social || createClienteQuery.trim() || null) as string | null
+      const clienteDocSnapshot = (cliente?.cliente_documento_formatado || cliente?.cliente_documento || null) as string | null
 
       const created = await createOportunidade({
         id_cliente: clienteId,
         id_contato: contatoId,
         id_origem: origemId,
         id_vendedor: vendedorId,
+        cliente_nome: clienteNomeSnapshot,
+        cliente_documento: clienteDocSnapshot,
+        contato_nome: contato?.contato_nome || null,
+        contato_cargo: contato?.contato_cargo || null,
+        contato_telefone01: contato?.contato_telefone01 || null,
+        contato_telefone02: contato?.contato_telefone02 || null,
+        contato_email: contato?.contato_email || null,
         id_fase: faseId,
         id_status: statusId,
         id_motivo: null,
@@ -1086,21 +1147,26 @@ export default function OportunidadesKanban() {
       } as any)
 
       setCreateOpen(false)
+      const createdId = String((created as any)?.id_oport || (created as any)?.id_oportunidade || '').trim()
       setOpportunities((prev) => {
-        const contatoNome =
-          createContatoOptions.find((c) => c.contato_id === contatoId)?.contato_nome || null
         const enriched: any = {
           ...(created as any),
-          cliente: (createClienteQuery || '').trim() || (created as any)?.cliente || null,
-          nome_contato: contatoNome || (created as any)?.nome_contato || null,
+          cliente: clienteNomeSnapshot || (createClienteQuery || '').trim() || (created as any)?.cliente || null,
+          nome_contato: (contato?.contato_nome || null) || (created as any)?.nome_contato || null,
+          telefone01_contato: (contato?.contato_telefone01 || null) || (created as any)?.telefone01_contato || null,
+          telefone02_contato: (contato?.contato_telefone02 || null) || (created as any)?.telefone02_contato || null,
+          email: (contato?.contato_email || null) || (created as any)?.email || null,
           vendedor: (vendedorNameById[vendedorId] || myUserName || '').trim() || (created as any)?.vendedor || null
         }
-        const id = (created as any)?.id_oport || (created as any)?.id_oportunidade
-        if (!id) return prev
-        if (prev.some((p) => (p.id_oport || (p as any).id_oportunidade) === id)) return prev
+        if (!createdId) return prev
+        if (prev.some((p) => (p.id_oport || (p as any).id_oportunidade) === createdId)) return prev
         return [enriched as any, ...prev]
       })
       await loadData()
+      if (createdId) {
+        setActiveId(createdId)
+        setFormOpen(true)
+      }
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : 'Falha ao criar.')
     } finally {
@@ -1151,6 +1217,13 @@ export default function OportunidadesKanban() {
       id_cliente: lockedClienteId || null,
       id_vendedor: lockedVendedorId || null,
       id_contato: draftContatoId.trim() || null,
+      cliente_nome: (clienteQuery || '').trim() || null,
+      cliente_documento: draftClienteDocumento.trim() || null,
+      contato_nome: draftContatoNome.trim() || null,
+      contato_cargo: draftContatoCargo.trim() || null,
+      contato_telefone01: draftContatoTelefone01.trim() || null,
+      contato_telefone02: draftContatoTelefone02.trim() || null,
+      contato_email: draftContatoEmail.trim() || null,
       id_fase: finalFaseId || null,
       id_status: finalStatusId || null,
       id_motivo: draftMotivoId || null,
@@ -1288,9 +1361,10 @@ export default function OportunidadesKanban() {
   const filteredOpportunities = opportunities.filter(op => {
     const term = search.trim().toLowerCase()
     if (!term) return true
+    const solucaoLabel = formatSolucaoLabel(op.solucao).toLowerCase()
     return (
       (op.cliente?.toLowerCase().includes(term) || false) ||
-      (op.solucao?.toLowerCase().includes(term) || false) ||
+      solucaoLabel.includes(term) ||
       (op.vendedor?.toLowerCase().includes(term) || false)
     )
   })
@@ -1682,9 +1756,8 @@ export default function OportunidadesKanban() {
                 onChange={(e) => setCreateSolucao(e.target.value as any)}
                 className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
               >
-                <option value="PRODUTO">Produto</option>
-                <option value="SERVICO">Serviço</option>
-                <option value="PRODUTO_SERVICO">Produto + Serviço</option>
+                <option value="PRODUTO">Venda de Produto</option>
+                <option value="SERVICO">Venda de Serviço</option>
               </select>
             </div>
 
@@ -1918,12 +1991,22 @@ export default function OportunidadesKanban() {
                         </div>
                         <select
                           value={draftSolucao}
-                          onChange={(e) => setDraftSolucao(e.target.value as any)}
+                          onChange={(e) => {
+                            const next = e.target.value as any
+                            setDraftSolucao(next)
+                            if (
+                              formError &&
+                              formError
+                                .toLowerCase()
+                                .includes('produto + serviço')
+                            ) {
+                              setFormError(null)
+                            }
+                          }}
                           className="mt-2 w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                         >
                           <option value="PRODUTO">Venda de Produto</option>
                           <option value="SERVICO">Venda de Serviço</option>
-                          <option value="PRODUTO_SERVICO">Venda de Produto + Serviço</option>
                         </select>
                       </div>
                     </div>
@@ -1998,68 +2081,21 @@ export default function OportunidadesKanban() {
                   <div className="lg:col-span-6 relative">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cliente</label>
                     <div className="relative mt-2">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
                         value={clienteQuery}
-                        onChange={(e) => {
-                          if (activeId) return
-                          setClienteQuery(e.target.value)
-                          setDraftClienteId('')
-                          setDraftContatoId('')
-                          setContatoQuery('')
-                          setClienteOpen(true)
-                        }}
-                        onFocus={() => {
-                          if (activeId) return
-                          setClienteOpen(true)
-                        }}
-                        onBlur={() => window.setTimeout(() => setClienteOpen(false), 150)}
-                        placeholder="Pesquisar cliente..."
-                        disabled={!!activeId}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                        readOnly
+                        placeholder="Cliente"
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
                       />
-                      {!activeId && clienteOpen && (
-                        <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                            {clienteLoading ? (
-                              <div className="px-4 py-3 text-xs text-slate-400 flex items-center gap-2">
-                                <Loader2 className="animate-spin" size={14} />
-                                Buscando...
-                              </div>
-                            ) : clienteOptions.length === 0 ? (
-                              <div className="px-4 py-3 text-xs text-slate-400">Nenhum cliente encontrado.</div>
-                            ) : (
-                              clienteOptions.map((c) => (
-                                <button
-                                  key={c.cliente_id}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    setDraftClienteId(c.cliente_id)
-                                    setClienteQuery(c.cliente_nome_razao_social)
-                                    setDraftContatoId('')
-                                    setContatoQuery('')
-                                    setClienteOpen(false)
-                                  }}
-                                  className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
-                                >
-                                  <div className="text-sm font-semibold text-slate-100 truncate">
-                                    {c.cliente_nome_razao_social}
-                                  </div>
-                                  <div className="text-[11px] text-slate-400 truncate">
-                                    {(c.cliente_documento_formatado || c.cliente_documento || '-') +
-                                      (c.cliente_cidade ? ` · ${c.cliente_cidade}` : '') +
-                                      (c.cliente_uf ? `/${c.cliente_uf}` : '')}
-                                  </div>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                    <div className="mt-1 text-[11px] text-slate-400">
-                      {`CNPJ/CPF: ${draftClienteDocumento || '-'}`}
+                    <div className="mt-3 space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">CNPJ/CPF</label>
+                      <input
+                        value={draftClienteDocumento}
+                        readOnly
+                        placeholder="CNPJ/CPF"
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
+                      />
                     </div>
                   </div>
 
@@ -2113,90 +2149,62 @@ export default function OportunidadesKanban() {
                   <div className="lg:col-span-4 relative">
                     <div className="flex items-center gap-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Contato</label>
-                      <Pencil size={12} className="text-slate-500" />
                     </div>
                     <div className="relative mt-2">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                       <input
-                        value={contatoQuery}
-                        onChange={(e) => {
-                          setContatoQuery(e.target.value)
-                          setDraftContatoId('')
-                          setContatoOpen(true)
-                        }}
-                        onFocus={() => setContatoOpen(true)}
-                        onBlur={() => window.setTimeout(() => setContatoOpen(false), 150)}
-                        disabled={!draftClienteId.trim()}
-                        placeholder={draftClienteId.trim() ? 'Pesquisar contato...' : 'Selecione um cliente'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-60"
+                        value={draftContatoNome}
+                        readOnly
+                        placeholder="Contato"
+                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
                       />
-                      {contatoOpen && draftClienteId.trim() && (
-                        <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
-                          <div className="max-h-72 overflow-y-auto custom-scrollbar">
-                            {contatoLoading ? (
-                              <div className="px-4 py-3 text-xs text-slate-400 flex items-center gap-2">
-                                <Loader2 className="animate-spin" size={14} />
-                                Carregando...
-                              </div>
-                            ) : contatoFiltered.length === 0 ? (
-                              <div className="px-4 py-3 text-xs text-slate-400">Nenhum contato encontrado.</div>
-                            ) : (
-                              contatoFiltered.map((c) => (
-                                <button
-                                  key={c.contato_id}
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault()
-                                    setDraftContatoId(c.contato_id)
-                                    setContatoQuery(c.contato_nome)
-                                    setContatoOpen(false)
-                                  }}
-                                  className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
-                                >
-                                  <div className="text-sm font-semibold text-slate-100 truncate">{c.contato_nome}</div>
-                                  <div className="text-[11px] text-slate-400 truncate">
-                                    {(c.contato_email || '-') +
-                                      (c.contato_telefone01 ? ` · ${c.contato_telefone01}` : '')}
-                                  </div>
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                    {(selectedContato || (active as any)?.contato_nome || active?.nome_contato) && (
-                      <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-400">
-                        <div>
-                          <span className="text-slate-500">Nome Contato: </span>
-                          <span className="text-slate-200">
-                            {selectedContato?.contato_nome || (active as any)?.contato_nome || active?.nome_contato || '-'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500">Cargo: </span>
-                          <span className="text-slate-200">{selectedContato?.contato_cargo || (active as any)?.contato_cargo || '-'}</span>
-                        </div>
-                        <div className="font-mono">
-                          <span className="text-slate-500 font-sans">Telefone 01: </span>
-                          <span className="text-slate-200">
-                            {selectedContato?.contato_telefone01 || (active as any)?.contato_telefone01 || active?.telefone01_contato || '-'}
-                          </span>
-                        </div>
-                        <div className="font-mono">
-                          <span className="text-slate-500 font-sans">Telefone 02: </span>
-                          <span className="text-slate-200">
-                            {selectedContato?.contato_telefone02 || (active as any)?.contato_telefone02 || active?.telefone02_contato || '-'}
-                          </span>
-                        </div>
-                        <div className="md:col-span-2">
-                          <span className="text-slate-500">E-mail: </span>
-                          <span className="text-slate-200">
-                            {selectedContato?.contato_email || (active as any)?.contato_email || active?.email || '-'}
-                          </span>
-                        </div>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nome do Contato</label>
+                        <input
+                          value={draftContatoNome}
+                          readOnly
+                          placeholder="Nome do contato"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
+                        />
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cargo</label>
+                        <input
+                          value={draftContatoCargo}
+                          placeholder="Cargo"
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">E-mail</label>
+                        <input
+                          value={draftContatoEmail}
+                          placeholder="email@exemplo.com"
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Telefone 01</label>
+                        <input
+                          value={draftContatoTelefone01}
+                          placeholder="Telefone 01"
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none font-mono"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Telefone 02</label>
+                        <input
+                          value={draftContatoTelefone02}
+                          placeholder="Telefone 02"
+                          readOnly
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none font-mono"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="lg:col-span-4">

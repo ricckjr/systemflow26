@@ -19,6 +19,7 @@ function classifySupabaseError(err: any): 'network' | 'auth' | 'schema' | 'rls' 
   const code = String(err?.code || '')
   const status = Number(err?.status || 0)
 
+  if (name === 'AbortError' || message.toLowerCase().includes('aborted')) return 'network'
   if (name === 'TypeError' || message.includes('Failed to fetch')) return 'network'
   if (status === 401 || status === 403) return 'auth'
   if (code === '42P01' || message.toLowerCase().includes('does not exist')) return 'schema'

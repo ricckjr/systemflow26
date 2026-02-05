@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     const enableSupabaseDevProxy =
       mode === 'development' &&
       !!supabaseTarget &&
-      String(env.VITE_SUPABASE_DEV_PROXY || '0') === '1';
+      String(env.VITE_SUPABASE_DEV_PROXY || '1') === '1';
 
     return {
       envDir,

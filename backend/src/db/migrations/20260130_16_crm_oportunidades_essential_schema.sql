@@ -258,7 +258,7 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_crm_oportunidades_solucao') THEN
     ALTER TABLE public.crm_oportunidades
-      ADD CONSTRAINT chk_crm_oportunidades_solucao CHECK (solucao IS NULL OR solucao IN ('PRODUTO','SERVICO'));
+      ADD CONSTRAINT chk_crm_oportunidades_solucao CHECK (solucao IS NULL OR solucao IN ('PRODUTO','SERVICO','PRODUTO_SERVICO'));
   END IF;
 END $$;
 

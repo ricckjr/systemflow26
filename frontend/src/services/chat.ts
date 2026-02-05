@@ -94,7 +94,7 @@ function getSupabaseBaseUrl() {
   const raw = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const useDevProxy =
     import.meta.env.DEV &&
-    String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '0') === '1' &&
+    String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '1') === '1' &&
     typeof window !== 'undefined' &&
     !!window.location?.origin
   return useDevProxy ? window.location.origin : raw

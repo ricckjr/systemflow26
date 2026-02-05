@@ -8,6 +8,7 @@ import { showBrowserNotification } from '@/utils/browserNotifications'
 import { chatService } from '@/services/chat'
 import type { Notification } from '@/types'
 import { useToast, openToastUrl } from '@/contexts/ToastContext'
+import { logWarn } from '@/utils/logger'
 
 type UnreadByRoomId = Record<string, number>
 
@@ -98,19 +99,22 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refresh = useCallback(async () => {
     if (!authReady || !userId) return
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(30)
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(30)
+      if (error) return
 
-    if (error) return
-
-    const rows = (data ?? []) as Array<Notification & { metadata?: any | null }>
-    setNotifications(rows)
-    recomputeUnreadCount(rows)
+      const rows = (data ?? []) as Array<Notification & { metadata?: any | null }>
+      setNotifications(rows)
+      recomputeUnreadCount(rows)
+    } catch (error) {
+      logWarn('notifications', 'refresh failed', error)
+    }
   }, [authReady, recomputeUnreadCount, userId])
 
   const refreshChatUnreadByRoom = useCallback(async () => {
@@ -118,30 +122,33 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
     const aggregated: UnreadByRoomId = {}
     const pageSize = 1000
     let from = 0
+    try {
+      while (true) {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('metadata')
+          .eq('user_id', userId)
+          .eq('type', 'chat')
+          .eq('is_read', false)
+          .range(from, from + pageSize - 1)
 
-    while (true) {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('metadata')
-        .eq('user_id', userId)
-        .eq('type', 'chat')
-        .eq('is_read', false)
-        .range(from, from + pageSize - 1)
+        if (error) break
+        const rows = (data ?? []) as any[]
 
-      if (error) break
-      const rows = (data ?? []) as any[]
+        for (const row of rows) {
+          const roomId = safeRoomIdFromMetadata(row?.metadata)
+          if (!roomId) continue
+          aggregated[roomId] = (aggregated[roomId] ?? 0) + 1
+        }
 
-      for (const row of rows) {
-        const roomId = safeRoomIdFromMetadata(row?.metadata)
-        if (!roomId) continue
-        aggregated[roomId] = (aggregated[roomId] ?? 0) + 1
+        if (rows.length < pageSize) break
+        from += pageSize
       }
 
-      if (rows.length < pageSize) break
-      from += pageSize
+      setUnreadByRoomId(aggregated)
+    } catch (error) {
+      logWarn('notifications', 'refresh chat unread failed', error)
     }
-
-    setUnreadByRoomId(aggregated)
   }, [authReady, userId])
 
   const markRowReadOptimistic = useCallback(

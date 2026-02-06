@@ -460,6 +460,7 @@ export default function OportunidadesKanban() {
 
   const [formasPagamento, setFormasPagamento] = useState<FinFormaPagamento[]>([])
   const [condicoesPagamento, setCondicoesPagamento] = useState<FinCondicaoPagamento[]>([])
+  const [paymentsSchemaOk, setPaymentsSchemaOk] = useState<boolean | null>(null)
 
   const { usuarios } = useUsuarios()
   const vendedorNameById = useMemo(() => {
@@ -537,82 +538,95 @@ export default function OportunidadesKanban() {
           : data
       setOpportunities(nextData)
       try {
-        const clienteIds = Array.from(
-          new Set(
-            (nextData || [])
-              .map((o) => (o as any)?.id_cliente)
-              .filter((x) => typeof x === 'string' && x.trim().length > 0)
-          )
-        )
-        const contatoIds = Array.from(
-          new Set(
-            (nextData || [])
-              .map((o) => (o as any)?.id_contato)
-              .filter((x) => typeof x === 'string' && x.trim().length > 0)
-          )
-        )
-        const origemIds = Array.from(
-          new Set(
-            (nextData || [])
-              .map((o) => (o as any)?.id_origem)
-              .filter((x) => typeof x === 'string' && x.trim().length > 0)
-          )
-        )
-        if (contatoIds.length === 0) {
-          for (const o of nextData || []) {
-            const legacy = String((o as any)?.contato_id || '').trim()
-            if (legacy) contatoIds.push(legacy)
-          }
+        const probe = await (supabase as any).from('crm_oportunidades').select('forma_pagamento_id, condicao_pagamento_id').limit(1)
+        if (!probe?.error) {
+          setPaymentsSchemaOk(true)
+        } else {
+          const code = String(probe.error?.code || '')
+          const msg = String(probe.error?.message || '')
+          const lc = msg.toLowerCase()
+          const missing =
+            code === 'PGRST204' ||
+            code === '42703' ||
+            (lc.includes('schema cache') && lc.includes('column')) ||
+            (lc.includes('could not find') && lc.includes('column'))
+          setPaymentsSchemaOk(missing ? false : true)
         }
-        if (origemIds.length === 0) {
-          for (const o of nextData || []) {
-            const legacy = String((o as any)?.orig_id || '').trim()
-            if (legacy) origemIds.push(legacy)
-          }
+      } catch {
+        setPaymentsSchemaOk(false)
+      }
+      try {
+        const clienteIdsSet = new Set<string>()
+        const contatoIdsSet = new Set<string>()
+        const origemIdsSet = new Set<string>()
+
+        for (const o of nextData || []) {
+          const clienteId = String((o as any)?.id_cliente || (o as any)?.cliente_id || '').trim()
+          if (clienteId) clienteIdsSet.add(clienteId)
+          const contatoId = String((o as any)?.id_contato || (o as any)?.contato_id || '').trim()
+          if (contatoId) contatoIdsSet.add(contatoId)
+          const origemId = String((o as any)?.id_origem || (o as any)?.orig_id || '').trim()
+          if (origemId) origemIdsSet.add(origemId)
         }
 
-        if (clienteIds.length > 0) {
-          const { data: rows, error } = await (supabase as any)
-            .from('crm_clientes')
-            .select('cliente_id, cliente_nome_razao_social, deleted_at')
-            .in('cliente_id', clienteIds)
-            .is('deleted_at', null)
-          if (!error) {
-            const map: Record<string, string> = {}
+        const chunk = <T,>(items: T[], size: number) => {
+          const out: T[][] = []
+          for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+          return out
+        }
+
+        const clienteIds = Array.from(clienteIdsSet)
+        const contatoIds = Array.from(contatoIdsSet)
+        const origemIds = Array.from(origemIdsSet)
+
+        if (clienteIds.length === 0) setClienteNameById({})
+        else {
+          const map: Record<string, string> = {}
+          for (const ids of chunk(clienteIds, 250)) {
+            const { data: rows, error } = await (supabase as any)
+              .from('crm_clientes')
+              .select('cliente_id, cliente_nome_razao_social, deleted_at')
+              .in('cliente_id', ids)
+              .is('deleted_at', null)
+            if (error) continue
             for (const r of rows || []) {
               if (r?.cliente_id && r?.cliente_nome_razao_social) map[String(r.cliente_id)] = String(r.cliente_nome_razao_social)
             }
-            setClienteNameById(map)
           }
+          setClienteNameById(map)
         }
 
-        if (contatoIds.length > 0) {
-          const { data: rows, error } = await (supabase as any)
-            .from('crm_contatos')
-            .select('contato_id, contato_nome, deleted_at')
-            .in('contato_id', contatoIds)
-            .is('deleted_at', null)
-          if (!error) {
-            const map: Record<string, string> = {}
+        if (contatoIds.length === 0) setContatoNameById({})
+        else {
+          const map: Record<string, string> = {}
+          for (const ids of chunk(contatoIds, 250)) {
+            const { data: rows, error } = await (supabase as any)
+              .from('crm_contatos')
+              .select('contato_id, contato_nome, deleted_at')
+              .in('contato_id', ids)
+              .is('deleted_at', null)
+            if (error) continue
             for (const r of rows || []) {
               if (r?.contato_id && r?.contato_nome) map[String(r.contato_id)] = String(r.contato_nome)
             }
-            setContatoNameById(map)
           }
+          setContatoNameById(map)
         }
 
-        if (origemIds.length > 0) {
-          const { data: rows, error } = await (supabase as any)
-            .from('crm_origem_leads')
-            .select('orig_id, descricao_orig')
-            .in('orig_id', origemIds)
-          if (!error) {
-            const map: Record<string, string> = {}
+        if (origemIds.length === 0) setOrigemDescById({})
+        else {
+          const map: Record<string, string> = {}
+          for (const ids of chunk(origemIds, 250)) {
+            const { data: rows, error } = await (supabase as any)
+              .from('crm_origem_leads')
+              .select('orig_id, descricao_orig')
+              .in('orig_id', ids)
+            if (error) continue
             for (const r of rows || []) {
               if (r?.orig_id && r?.descricao_orig) map[String(r.orig_id)] = String(r.descricao_orig)
             }
-            setOrigemDescById(map)
           }
+          setOrigemDescById(map)
         }
       } catch {
         setClienteNameById({})
@@ -685,14 +699,24 @@ export default function OportunidadesKanban() {
     if (!formOpen) return
     setFormError(null)
     if (active) {
+      const clienteId = String((active as any).id_cliente || (active as any).cliente_id || '').trim()
+      const contatoId = String((active as any).id_contato || (active as any).contato_id || '').trim()
       setDraftCod(active.cod_oport || active.cod_oportunidade || '')
       setDraftVendedorId(active.id_vendedor || '')
-      setDraftClienteId((active as any).id_cliente || (active as any).cliente_id || '')
-      setDraftContatoId((active as any).id_contato || (active as any).contato_id || '')
+      setDraftClienteId(clienteId)
+      setDraftContatoId(contatoId)
       setDraftContatoDetails(null)
+      setDraftClienteDocumento('')
+      setDraftContatoNome('')
+      setDraftContatoCargo('')
+      setDraftContatoTelefone01('')
+      setDraftContatoTelefone02('')
+      setDraftContatoEmail('')
       const snapClienteDoc = String((active as any).cliente_documento || '').trim()
       if (snapClienteDoc) setDraftClienteDocumento(snapClienteDoc)
-      const snapContatoNome = String((active as any).contato_nome || active.nome_contato || '').trim()
+      const snapContatoNome =
+        String((active as any).contato_nome || active.nome_contato || '').trim() ||
+        (contatoId ? String(contatoNameById[contatoId] || '').trim() : '')
       const snapContatoCargo = String((active as any).contato_cargo || '').trim()
       const snapContatoTel1 = String((active as any).contato_telefone01 || active.telefone01_contato || '').trim()
       const snapContatoTel2 = String((active as any).contato_telefone02 || active.telefone02_contato || '').trim()
@@ -737,16 +761,18 @@ export default function OportunidadesKanban() {
       setPedidoCompraUploading(false)
       setDraftItens([])
 
-      const snapClienteNome = String((active as any).cliente_nome || active.cliente || '').trim()
+      const snapClienteNome =
+        String((active as any).cliente_nome || active.cliente || '').trim() ||
+        (clienteId ? String(clienteNameById[clienteId] || '').trim() : '')
       setClienteQuery(snapClienteNome || '')
-      setContatoQuery(String((active as any).contato_nome || active.nome_contato || '').trim())
+      setContatoQuery(snapContatoNome || '')
       setVendedorQuery(String((active as any).vendedor_nome || active.vendedor || '').trim())
       setOrigemQuery('')
       setComentarios([])
       setComentariosDraft([])
       setComentarioTexto('')
       setAtividades([])
-    } else {
+    } else if (!activeId) {
       setDraftCod('')
       setDraftVendedorId(canCrmControl ? '' : myUserId)
       setDraftClienteId('')
@@ -804,7 +830,7 @@ export default function OportunidadesKanban() {
     setVendedorOpen(false)
     setOrigemOpen(false)
     setTab('ticket')
-  }, [formOpen, active, stages, leadStageId, andamentoStatusId])
+  }, [formOpen, active, stages, leadStageId, andamentoStatusId, clienteNameById, contatoNameById])
 
   useEffect(() => {
     if (!formOpen) return
@@ -953,40 +979,25 @@ export default function OportunidadesKanban() {
       setDraftContatoDetails(null)
       return
     }
+    let cancelled = false
     setContatoLoading(true)
     fetchClienteContatos(clienteId)
       .then((data) => {
+        if (cancelled) return
         setContatoOptions(data)
       })
-      .finally(() => setContatoLoading(false))
-  }, [formOpen, draftClienteId])
-
-  useEffect(() => {
-    if (!formOpen) return
-    const contatoId = draftContatoId.trim()
-    if (!contatoId) {
-      setDraftContatoDetails(null)
-      return
-    }
-    if (draftContatoDetails?.contato_id === contatoId) return
-    const fromList = contatoOptions.find((c) => c.contato_id === contatoId) || null
-    if (fromList) {
-      setDraftContatoDetails(fromList)
-      if (!contatoQuery.trim() && fromList.contato_nome) setContatoQuery(fromList.contato_nome)
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const c = await fetchContatoById(contatoId)
-      if (cancelled) return
-      if (!c) return
-      setDraftContatoDetails(c)
-      if (!contatoQuery.trim() && c.contato_nome) setContatoQuery(c.contato_nome)
-    })()
+      .catch(() => {
+        if (cancelled) return
+        setContatoOptions([])
+      })
+      .finally(() => {
+        if (cancelled) return
+        setContatoLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [formOpen, draftContatoId, contatoQuery, draftContatoDetails])
+  }, [formOpen, draftClienteId])
 
   useEffect(() => {
     if (!formOpen) return
@@ -1014,6 +1025,7 @@ export default function OportunidadesKanban() {
     const id = draftContatoId.trim()
     if (!id) {
       setSnapshotContatoFromId(null)
+      setDraftContatoDetails(null)
       setDraftContatoNome('')
       setDraftContatoCargo('')
       setDraftContatoTelefone01('')
@@ -1026,30 +1038,41 @@ export default function OportunidadesKanban() {
       contatoOptions.find((x) => x.contato_id === id) ||
       (draftContatoDetails?.contato_id === id ? draftContatoDetails : null) ||
       null
-    if (!c) {
-      let cancelled = false
-      ;(async () => {
-        const fetched = await fetchContatoById(id)
-        if (cancelled) return
-        if (!fetched) return
-        setDraftContatoNome(String(fetched.contato_nome || ''))
-        setDraftContatoCargo(String(fetched.contato_cargo || ''))
-        setDraftContatoTelefone01(String(fetched.contato_telefone01 || ''))
-        setDraftContatoTelefone02(String(fetched.contato_telefone02 || ''))
-        setDraftContatoEmail(String(fetched.contato_email || ''))
-        setSnapshotContatoFromId(id)
-      })()
-      return () => {
-        cancelled = true
-      }
+    if (c) {
+      setDraftContatoDetails(c)
+      setDraftContatoNome(String(c.contato_nome || ''))
+      setDraftContatoCargo(String(c.contato_cargo || ''))
+      setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
+      setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
+      setDraftContatoEmail(String(c.contato_email || ''))
+      if (!contatoQuery.trim() && c.contato_nome) setContatoQuery(c.contato_nome)
+      setSnapshotContatoFromId(id)
+      return
     }
-    setDraftContatoNome(String(c.contato_nome || ''))
-    setDraftContatoCargo(String(c.contato_cargo || ''))
-    setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
-    setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
-    setDraftContatoEmail(String(c.contato_email || ''))
-    setSnapshotContatoFromId(id)
-  }, [formOpen, draftContatoId, contatoOptions, draftContatoDetails, snapshotContatoFromId, draftContatoNome])
+    let cancelled = false
+    ;(async () => {
+      const fetched = await fetchContatoById(id)
+      if (cancelled) return
+      if (!fetched) {
+        setDraftContatoDetails(null)
+        return
+      }
+      setDraftContatoDetails(fetched)
+      setDraftContatoNome(String(fetched.contato_nome || ''))
+      setDraftContatoCargo(String(fetched.contato_cargo || ''))
+      setDraftContatoTelefone01(String(fetched.contato_telefone01 || ''))
+      setDraftContatoTelefone02(String(fetched.contato_telefone02 || ''))
+      setDraftContatoEmail(String(fetched.contato_email || ''))
+      if (!contatoQuery.trim() && fetched.contato_nome) setContatoQuery(fetched.contato_nome)
+      setSnapshotContatoFromId(id)
+    })().catch(() => {
+      if (cancelled) return
+      setDraftContatoDetails(null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, draftContatoId, contatoOptions, draftContatoDetails, snapshotContatoFromId, draftContatoNome, contatoQuery])
 
   useEffect(() => {
     if (!formOpen) return
@@ -1388,6 +1411,16 @@ export default function OportunidadesKanban() {
     const faseLabel = stages.find(s => s.id === finalFaseId)?.label || null
     const solucao = draftSolucao
 
+    if (
+      paymentsSchemaOk === false &&
+      (draftFormaPagamentoId.trim() || draftCondicaoPagamentoId.trim() || descontoPropostaPercent > 0)
+    ) {
+      setFormError(
+        'Pagamentos não estão disponíveis no banco agora (API do Supabase sem a coluna condicao_pagamento_id no schema cache). Aplique as migrations do CRM e recarregue o schema do Supabase/PostgREST.'
+      )
+      return
+    }
+
     const payload: any = {
       id_cliente: lockedClienteId || null,
       id_vendedor: lockedVendedorId || null,
@@ -1407,19 +1440,21 @@ export default function OportunidadesKanban() {
       solucao,
       qts_item,
       prev_entrega,
-      forma_pagamento_id: draftFormaPagamentoId.trim() || null,
-      condicao_pagamento_id: draftCondicaoPagamentoId.trim() || null,
-      tipo_frete: draftTipoFrete || null,
       pedido_compra_numero: draftPedidoCompraNumero.trim() || null,
       pedido_compra_path: draftPedidoCompraPath.trim() || null,
       cod_produto: null,
       cod_servico: null,
-      desconto_percent_proposta: descontoPropostaPercent,
       ticket_valor: ticketCalculado,
       temperatura,
       obs_oport: draftObs.trim() || null,
       descricao_oport: draftDescricao.trim() || null,
       fase: faseLabel
+    }
+    if (paymentsSchemaOk !== false) {
+      payload.forma_pagamento_id = draftFormaPagamentoId.trim() || null
+      payload.condicao_pagamento_id = draftCondicaoPagamentoId.trim() || null
+      payload.tipo_frete = draftTipoFrete || null
+      payload.desconto_percent_proposta = descontoPropostaPercent
     }
 
     const baseline = (baselineStatusId || '').trim()
@@ -1584,18 +1619,27 @@ export default function OportunidadesKanban() {
     const rawTarget = e.target as HTMLElement | null
     if (!rawTarget) return
 
+    const board = e.currentTarget as HTMLElement | null
     const cardsDirect = rawTarget.closest('[data-kanban-cards="1"]') as HTMLElement | null
     const col = rawTarget.closest('[data-kanban-col="1"]') as HTMLElement | null
     const cards = cardsDirect || (col ? (col.querySelector('[data-kanban-cards="1"]') as HTMLElement | null) : null)
 
-    e.preventDefault()
+    const absX = Math.abs(e.deltaX)
+    const absY = Math.abs(e.deltaY)
+    if (absX > absY) {
+      if (!board) return
+      if (board.scrollWidth <= board.clientWidth) return
+      if (e.deltaX === 0) return
+      e.preventDefault()
+      board.scrollLeft += normalizeWheelDelta(e.deltaX, e.deltaMode, board)
+      return
+    }
 
     if (!cards) return
-
-    const delta = e.deltaY !== 0 ? e.deltaY : e.shiftKey ? e.deltaX : 0
-    if (delta === 0) return
-
-    cards.scrollTop += normalizeWheelDelta(delta, e.deltaMode, cards)
+    if (cards.scrollHeight <= cards.clientHeight) return
+    if (e.deltaY === 0) return
+    e.preventDefault()
+    cards.scrollTop += normalizeWheelDelta(e.deltaY, e.deltaMode, cards)
   }, [])
 
   return (
@@ -1660,7 +1704,7 @@ export default function OportunidadesKanban() {
             >
               <div className="flex h-full gap-4 min-w-[1400px] px-1">
                 {columns.map(column => (
-                  <div key={column.id} className="flex flex-col w-80 shrink-0 h-full" data-kanban-col="1">
+                  <div key={column.id} className="flex flex-col w-80 shrink-0 h-full min-h-0" data-kanban-col="1">
                   <div
                     className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
                     style={{
@@ -1682,7 +1726,7 @@ export default function OportunidadesKanban() {
                   </div>
 
                   <div
-                    className="flex-1 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
+                    className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
                     style={{ backgroundColor: column.cor ? hexToRgba(column.cor, 0.05) : undefined }}
                   >
                     <Droppable droppableId={column.id}>
@@ -1691,7 +1735,7 @@ export default function OportunidadesKanban() {
                           ref={provided.innerRef}
                           {...provided.droppableProps}
                           data-kanban-cards="1"
-                          className={`h-full overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
+                          className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
                         >
                           {column.items.map((item, index) => (
                             <OpportunityCard
@@ -1699,8 +1743,16 @@ export default function OportunidadesKanban() {
                               opportunity={item}
                               index={index}
                               onOpen={openEdit}
-                              clienteNome={item.id_cliente ? (clienteNameById[item.id_cliente] ?? null) : null}
-                              contatoNome={item.id_contato ? (contatoNameById[item.id_contato] ?? null) : null}
+                              clienteNome={
+                                String((item as any).id_cliente || (item as any).cliente_id || '').trim()
+                                  ? (clienteNameById[String((item as any).id_cliente || (item as any).cliente_id)] ?? null)
+                                  : null
+                              }
+                              contatoNome={
+                                String((item as any).id_contato || (item as any).contato_id || '').trim()
+                                  ? (contatoNameById[String((item as any).id_contato || (item as any).contato_id)] ?? null)
+                                  : null
+                              }
                               vendedorNome={item.id_vendedor ? (vendedorNameById[item.id_vendedor] ?? null) : null}
                               vendedorAvatarUrl={item.id_vendedor ? (vendedorAvatarById[item.id_vendedor] ?? null) : null}
                             />
@@ -2634,12 +2686,20 @@ export default function OportunidadesKanban() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamentos</div>
 
+                      {paymentsSchemaOk === false ? (
+                        <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+                          Pagamentos não estão disponíveis no banco agora (API do Supabase sem a coluna condicao_pagamento_id no schema cache).
+                          Aplique as migrations do CRM e recarregue o schema do Supabase/PostgREST.
+                        </div>
+                      ) : null}
+
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Forma de Pagamento</label>
                           <select
                             value={draftFormaPagamentoId}
                             onChange={(e) => setDraftFormaPagamentoId(e.target.value)}
+                            disabled={paymentsSchemaOk === false}
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                           >
                             <option value="">-</option>
@@ -2656,6 +2716,7 @@ export default function OportunidadesKanban() {
                           <select
                             value={draftCondicaoPagamentoId}
                             onChange={(e) => setDraftCondicaoPagamentoId(e.target.value)}
+                            disabled={paymentsSchemaOk === false}
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                           >
                             <option value="">-</option>
@@ -2672,6 +2733,7 @@ export default function OportunidadesKanban() {
                           <input
                             value={draftDescontoPropostaPercent}
                             onChange={(e) => setDraftDescontoPropostaPercent(e.target.value)}
+                            disabled={paymentsSchemaOk === false}
                             inputMode="decimal"
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
                             placeholder="0"
@@ -3209,7 +3271,7 @@ export default function OportunidadesKanban() {
                   if (validade) params.set('validade', validade)
                   if (generateTipoFrete) params.set('tipoFrete', generateTipoFrete)
                   const qs = params.toString()
-                  const url = `/app/crm/proposta/${activeId}/preview${qs ? `?${qs}` : ''}`
+                  const url = `/crm/proposta/${activeId}/preview${qs ? `?${qs}` : ''}`
                   window.open(url, '_blank', 'noopener,noreferrer')
                   setGenerateOpen(false)
                 }}

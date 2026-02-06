@@ -4,6 +4,7 @@ import ProtectedRoute from './guards/ProtectedRoute'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import AuthCallback from '@/pages/AuthCallback'
 import RequirePermission from './guards/RequirePermission'
+import ProtectedNoLayoutRoute from './guards/ProtectedNoLayoutRoute'
 
 // Auth Pages
 import Login from '@/pages/Login'
@@ -50,6 +51,19 @@ export const router = createBrowserRouter([
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/reset', element: <Navigate to="/forgot-password" replace /> },
+
+  {
+    path: '/crm/proposta/:id/preview',
+    element: (
+      <ProtectedNoLayoutRoute>
+        {lazyElement(
+          () => import('@/pages/CRM/PropostaPreview'),
+          'Carregando Proposta...',
+          (node) => <RequirePermission modulo="CRM" acao="VIEW" fallbackTo="/app/crm/propostas-comerciais-kanban">{node}</RequirePermission>
+        )}
+      </ProtectedNoLayoutRoute>
+    )
+  },
 
   // =========================
   // APP (Protected)

@@ -1,0 +1,59 @@
+import React from 'react'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+
+export default function ProtectedNoLayoutRoute({ children }: { children?: React.ReactNode }) {
+  const { session, profile, authReady, profileReady } = useAuth()
+  const location = useLocation()
+
+  if (!authReady || (session && !profileReady)) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-main)]">
+        <div className="loader" />
+      </div>
+    )
+  }
+
+  if (!session) {
+    let state: any = { message: 'Sessão expirada. Faça login novamente.' }
+    try {
+      const manualLogout = sessionStorage.getItem('systemflow:manual-logout') === '1'
+      if (manualLogout) {
+        sessionStorage.removeItem('systemflow:manual-logout')
+        state = undefined
+      }
+    } catch {
+    }
+
+    return <Navigate to="/login" replace state={state} />
+  }
+
+  const isProfilePage = location.pathname === '/app/configuracoes/perfil'
+  if (profileReady && !profile && !isProfilePage) {
+    return (
+      <Navigate
+        to="/app/configuracoes/perfil"
+        replace
+        state={{ message: 'Complete seu perfil para continuar.' }}
+      />
+    )
+  }
+
+  if (profile?.ativo === false) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-navy-950 text-white">
+        <h1 className="text-2xl font-bold mb-4">Acesso Bloqueado</h1>
+        <p className="text-gray-300 mb-6">Seu usuário foi desativado. Entre em contato com o administrador.</p>
+        <button
+          onClick={() => (window.location.href = '/login')}
+          className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium"
+        >
+          Voltar ao Login
+        </button>
+      </div>
+    )
+  }
+
+  return <>{children || <Outlet />}</>
+}
+

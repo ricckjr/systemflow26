@@ -63,8 +63,11 @@ BEGIN
   FROM public.crm_produtos
   WHERE codigo_prod ~ '^PRD[0-9]+$';
 
-  PERFORM setval('public.crm_produtos_cod_seq_simple', max_n, true);
+  IF max_n < 1 THEN
+    PERFORM setval('public.crm_produtos_cod_seq_simple', 1, false);
+  ELSE
+    PERFORM setval('public.crm_produtos_cod_seq_simple', max_n, true);
+  END IF;
 END $$;
 
 COMMIT;
-

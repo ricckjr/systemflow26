@@ -655,15 +655,21 @@ export async function deleteOportunidade(id: string) {
   const oportunidadeId = String(id || '').trim()
   if (!oportunidadeId) return
   const delItens = await sb.from('crm_oportunidade_itens').delete().eq('id_oport', oportunidadeId)
-  if (delItens.error && delItens.error.code !== '42P01') throw toUserFacingError(delItens.error, 'Falha ao excluir itens da proposta.')
+  if (delItens.error && !isMissingTable(delItens.error)) {
+    throw toUserFacingError(delItens.error, 'Falha ao excluir itens da proposta.')
+  }
   const delComentarios = await sb.from('crm_oportunidade_comentarios').delete().eq('id_oport', oportunidadeId)
-  if (delComentarios.error && delComentarios.error.code !== '42P01') throw toUserFacingError(delComentarios.error, 'Falha ao excluir comentários da proposta.')
+  if (delComentarios.error && !isMissingTable(delComentarios.error)) {
+    throw toUserFacingError(delComentarios.error, 'Falha ao excluir comentários da proposta.')
+  }
   const delAtividades = await sb.from('crm_oportunidade_atividades').delete().eq('id_oport', oportunidadeId)
-  if (delAtividades.error && delAtividades.error.code !== '42P01') throw toUserFacingError(delAtividades.error, 'Falha ao excluir atividades da proposta.')
+  if (delAtividades.error && !isMissingTable(delAtividades.error)) {
+    throw toUserFacingError(delAtividades.error, 'Falha ao excluir atividades da proposta.')
+  }
 
   const delOpp = await sb.from('crm_oportunidades').delete().eq('id_oport', oportunidadeId)
   if (delOpp.error) {
-    if (delOpp.error.code === '42P01') return
+    if (isMissingTable(delOpp.error)) return
     throw toUserFacingError(delOpp.error, 'Falha ao excluir a proposta comercial.')
   }
 }

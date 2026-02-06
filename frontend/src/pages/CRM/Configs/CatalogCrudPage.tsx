@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from '@/components/ui'
 import { Loader2, Plus, Search, Pencil, Trash2, Settings } from 'lucide-react'
 import { supabase } from '@/services/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type CatalogCrudItem = {
   id: string
@@ -136,8 +137,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   updateItem,
   deleteItem
 }) => {
+  const { isAdmin } = useAuth()
   const colors = ACCENTS[accent]
   const isProduto = kind === 'produto'
+  const canEditExisting = isAdmin
 
   const [items, setItems] = useState<CatalogCrudItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -221,20 +224,14 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     if (!isProduto) return
 
     const term = ncmSearch.trim()
-    if (term.length < 2) {
-      setNcmOptions([])
-      return
-    }
 
     const handle = setTimeout(async () => {
       setNcmLoading(true)
       try {
-        const { data, error: qError } = await supabase
-          .from('ncm')
-          .select('codigo,descricao')
-          .or(`codigo.ilike.%${term}%,descricao.ilike.%${term}%`)
-          .order('codigo', { ascending: true })
-          .limit(20)
+        const baseQuery = supabase.from('ncm').select('codigo,descricao').order('codigo', { ascending: true }).limit(50)
+        const { data, error: qError } = term
+          ? await baseQuery.or(`codigo.ilike.%${term}%,descricao.ilike.%${term}%`)
+          : await baseQuery
 
         if (qError) throw qError
         setNcmOptions(((data || []) as any[]).map((row) => ({ codigo: row.codigo, descricao: row.descricao })))
@@ -243,7 +240,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       } finally {
         setNcmLoading(false)
       }
-    }, 250)
+    }, 200)
 
     return () => clearTimeout(handle)
   }, [isFormOpen, isProduto, ncmSearch])
@@ -345,11 +342,19 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   }
 
   const handleOpenEdit = (id: string) => {
+    if (!canEditExisting) {
+      setError(`Somente ADMIN pode editar ${singularLabel.toLowerCase()}.`)
+      return
+    }
     setActiveId(id)
     setIsFormOpen(true)
   }
 
   const handleSubmit = async () => {
+    if (activeId && !canEditExisting) {
+      setError(`Somente ADMIN pode editar ${singularLabel.toLowerCase()}.`)
+      return
+    }
     const descricao = draftDescricao.trim()
     if (!descricao) {
       setError('A descrição é obrigatória.')
@@ -532,8 +537,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(i.id)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
-                        title="Editar"
+                        className={`p-2 rounded-lg border transition-colors ${
+                          canEditExisting
+                            ? 'text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-transparent hover:border-cyan-500/20'
+                            : 'text-slate-600 border-transparent opacity-50 cursor-not-allowed'
+                        }`}
+                        title={canEditExisting ? 'Editar' : `Somente ADMIN pode editar ${singularLabel.toLowerCase()}`}
                       >
                         <Pencil size={14} />
                       </button>
@@ -738,6 +747,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código NCM</label>
               <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   value={ncmSearch}
                   onChange={(e) => {
@@ -745,8 +755,8 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     setNcmSearch(v)
                     setDraftNcmCodigo(v)
                   }}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
-                  placeholder="0000.00.00"
+                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-10 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  placeholder="Buscar NCM por código ou descrição..."
                 />
                 {ncmLoading && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
@@ -755,27 +765,34 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 )}
               </div>
 
-              {ncmOptions.length > 0 && (
-                <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
-                  <div className="max-h-56 overflow-auto custom-scrollbar">
-                    {ncmOptions.map((opt) => (
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
+                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-white/5 border-b border-white/10">
+                  <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
+                  <div className="col-span-9 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição</div>
+                </div>
+                <div className="max-h-56 overflow-auto custom-scrollbar">
+                  {ncmOptions.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-slate-400">{ncmLoading ? 'Carregando...' : 'Nenhum NCM encontrado.'}</div>
+                  ) : (
+                    ncmOptions.map((opt) => (
                       <button
                         type="button"
                         key={opt.codigo}
                         onClick={() => {
                           setDraftNcmCodigo(opt.codigo)
                           setNcmSearch(opt.codigo)
-                          setNcmOptions([])
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
                       >
-                        <div className="text-sm font-mono text-slate-200">{opt.codigo}</div>
-                        <div className="text-xs text-slate-400 truncate">{opt.descricao}</div>
+                        <div className="grid grid-cols-12 gap-3 items-start">
+                          <div className="col-span-3 text-sm font-mono text-slate-200">{opt.codigo}</div>
+                          <div className="col-span-9 text-xs text-slate-400">{opt.descricao}</div>
+                        </div>
                       </button>
-                    ))}
-                  </div>
+                    ))
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
 

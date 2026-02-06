@@ -4,6 +4,7 @@ import { Box, ChevronDown, Image as ImageIcon, Loader2, Plus, Search } from 'luc
 import { createCrmProduto, fetchCrmProdutos, updateCrmProduto, type CRM_Produto } from '@/services/crm'
 import { supabase } from '@/services/supabase'
 import { Modal } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
 
 type LocalCode = '03' | '04'
 
@@ -98,6 +99,7 @@ const randomId = () => {
 }
 
 const Estoque: React.FC = () => {
+  const { isAdmin } = useAuth()
   const location = useLocation()
   const isConsultaEstoque = location.pathname.includes('/compras-estoque/consultar-estoque')
   const [loading, setLoading] = useState(true)
@@ -819,7 +821,7 @@ const Estoque: React.FC = () => {
                 >
                   Novo Movimento
                 </button>
-                {!isConsultaEstoque && (
+                {!isConsultaEstoque && isAdmin && (
                   <button
                     type="button"
                     onClick={() => {
@@ -902,14 +904,16 @@ const Estoque: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handlePickImagem}
-                  disabled={!savedProduto || imagemUploading}
-                  className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
-                >
-                  Alterar
-                </button>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={handlePickImagem}
+                    disabled={!savedProduto || imagemUploading}
+                    className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                  >
+                    Alterar
+                  </button>
+                ) : null}
                 <div className="mt-2 text-center text-[11px] text-slate-500">
                   {savedProduto.imagem_path ? 'Imagem cadastrada' : 'Nenhuma imagem'}
                 </div>

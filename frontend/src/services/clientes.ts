@@ -130,21 +130,56 @@ export async function fetchClientes(opts?: { search?: string; includeDeleted?: b
 export async function fetchClienteById(clienteId: string) {
   const id = (clienteId || '').trim()
   if (!id) return null
-  const { data, error } = await (supabase as any)
-    .from('crm_clientes')
-    .select('cliente_id, cliente_nome_razao_social, cliente_documento, cliente_documento_formatado, deleted_at')
-    .eq('cliente_id', id)
-    .maybeSingle()
+  const sb = supabase as any
+  const isMissingColumn = (error: any) => {
+    const code = String(error?.code || '')
+    const msg = String(error?.message || '')
+    return (
+      code === 'PGRST204' ||
+      code === '42703' ||
+      (msg.includes('Could not find') && msg.toLowerCase().includes('column')) ||
+      (msg.toLowerCase().includes('column') && msg.toLowerCase().includes('schema cache'))
+    )
+  }
+  const extractMissingColumnName = (error: any) => {
+    const msg = String(error?.message || '')
+    const m1 = msg.match(/Could not find the '([^']+)' column/i)
+    if (m1?.[1]) return m1[1]
+    const m2 = msg.match(/column "([^"]+)"/i)
+    if (m2?.[1]) return m2[1]
+    const m3 = msg.match(/column\s+([a-zA-Z0-9_.]+)\s+does not exist/i)
+    if (m3?.[1]) {
+      const full = m3[1]
+      const parts = full.split('.').filter(Boolean)
+      return parts.length > 0 ? parts[parts.length - 1] : full
+    }
+    return null
+  }
 
-  if (error) {
+  let cols = ['cliente_id', 'cliente_nome_razao_social', 'cliente_documento', 'cliente_documento_formatado', 'deleted_at']
+  let hasDeletedAt = true
+  for (let i = 0; i < 12; i++) {
+    const { data, error } = await sb.from('crm_clientes').select(cols.join(', ')).eq('cliente_id', id).maybeSingle()
+    if (!error) {
+      if (!data) return null
+      if (hasDeletedAt && (data as any).deleted_at) return null
+      return data as Pick<Cliente, 'cliente_id' | 'cliente_nome_razao_social' | 'cliente_documento' | 'cliente_documento_formatado' | 'deleted_at'>
+    }
     if (error.code === '42P01') return null
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (missing === 'deleted_at') hasDeletedAt = false
+        const before = cols.length
+        cols = cols.filter((c) => c !== missing)
+        if (cols.length !== before) continue
+      }
+    }
     console.error('Erro ao buscar cliente por ID:', error)
     return null
   }
 
-  if (!data) return null
-  if (data.deleted_at) return null
-  return data as Pick<Cliente, 'cliente_id' | 'cliente_nome_razao_social' | 'cliente_documento' | 'cliente_documento_formatado' | 'deleted_at'>
+  return null
 }
 
 export async function createCliente(payload: CreateClientePayload) {

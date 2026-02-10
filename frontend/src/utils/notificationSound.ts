@@ -3,6 +3,7 @@ import notificationUrl from '@/assets/sounds/notification.mp3'
 let audioContext: AudioContext | null = null
 let systemAudioBase: HTMLAudioElement | null = null
 let chatAudioBase: HTMLAudioElement | null = null
+let mp3Disabled = false
 
 function emitSoundDebug(detail: { type: 'system' | 'chat'; ok: boolean; at: number; error?: string }) {
   try {
@@ -19,10 +20,33 @@ export async function primeNotificationAudio() {
 
   try {
     if (typeof Audio === 'undefined') return
+    if (mp3Disabled) return
     const shouldLoadSystem = !systemAudioBase
     const shouldLoadChat = !chatAudioBase
     systemAudioBase = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
     chatAudioBase = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
+    if (shouldLoadSystem) {
+      systemAudioBase.addEventListener(
+        'error',
+        () => {
+          mp3Disabled = true
+          systemAudioBase = null
+          chatAudioBase = null
+        },
+        { once: true }
+      )
+    }
+    if (shouldLoadChat) {
+      chatAudioBase.addEventListener(
+        'error',
+        () => {
+          mp3Disabled = true
+          systemAudioBase = null
+          chatAudioBase = null
+        },
+        { once: true }
+      )
+    }
     if (shouldLoadSystem) systemAudioBase.preload = 'metadata'
     if (shouldLoadChat) chatAudioBase.preload = 'metadata'
   } catch {}
@@ -65,7 +89,7 @@ export async function playSystemAlertSound() {
   await primeNotificationAudio()
 
   try {
-    if (typeof Audio !== 'undefined') {
+    if (typeof Audio !== 'undefined' && !mp3Disabled) {
       const base = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       systemAudioBase = base
       base.pause()
@@ -115,7 +139,7 @@ export async function playChatMessageSound() {
   await primeNotificationAudio()
 
   try {
-    if (typeof Audio !== 'undefined') {
+    if (typeof Audio !== 'undefined' && !mp3Disabled) {
       const base = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       chatAudioBase = base
       base.pause()

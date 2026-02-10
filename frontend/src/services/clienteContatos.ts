@@ -21,74 +21,136 @@ export type UpdateClienteContatoPayload = Partial<Omit<ClienteContato, 'contato_
 
 const normalizeDigits = (value: string) => (value || '').replace(/\D/g, '').trim()
 
-export async function fetchClienteContatos(clienteId: string) {
-  const sb = supabase as any
-  const { data, error } = await sb
-    .from('crm_contatos')
-    .select(
-      `
-      contato_id,
-      integ_id,
-      cliente_id,
-      contato_nome,
-      contato_cargo,
-      contato_telefone01,
-      contato_telefone02,
-      contato_email,
-      user_id,
-      contato_obs,
-      data_inclusao,
-      data_atualizacao,
-      deleted_at
-    `
-    )
-    .eq('cliente_id', clienteId)
-    .is('deleted_at', null)
-    .order('data_inclusao', { ascending: false })
+const isMissingColumn = (error: any) => {
+  const code = String(error?.code || '')
+  const msg = String(error?.message || '')
+  return (
+    code === 'PGRST204' ||
+    code === '42703' ||
+    (msg.includes('Could not find') && msg.toLowerCase().includes('column')) ||
+    (msg.toLowerCase().includes('column') && msg.toLowerCase().includes('schema cache'))
+  )
+}
 
-  if (error) {
+const extractMissingColumnName = (error: any) => {
+  const msg = String(error?.message || '')
+  const m1 = msg.match(/Could not find the '([^']+)' column/i)
+  if (m1?.[1]) return m1[1]
+  const m2 = msg.match(/column "([^"]+)"/i)
+  if (m2?.[1]) return m2[1]
+  const m3 = msg.match(/column\s+([a-zA-Z0-9_.]+)\s+does not exist/i)
+  if (m3?.[1]) {
+    const full = m3[1]
+    const parts = full.split('.').filter(Boolean)
+    return parts.length > 0 ? parts[parts.length - 1] : full
+  }
+  return null
+}
+
+export async function fetchClienteContatos(clienteId: string) {
+  const id = String(clienteId || '').trim()
+  if (!id) return []
+  const sb = supabase as any
+  let cols = [
+    'contato_id',
+    'integ_id',
+    'cliente_id',
+    'contato_nome',
+    'contato_cargo',
+    'contato_telefone01',
+    'contato_telefone02',
+    'contato_email',
+    'user_id',
+    'contato_obs',
+    'data_inclusao',
+    'data_atualizacao',
+    'deleted_at'
+  ]
+  let hasDeletedAt = true
+  let orderCol: string | null = 'data_inclusao'
+
+  for (let i = 0; i < 20; i++) {
+    let q = sb.from('crm_contatos').select(cols.join(', ')).eq('cliente_id', id)
+    if (hasDeletedAt) q = q.is('deleted_at', null)
+    if (orderCol) q = q.order(orderCol, { ascending: false })
+    const { data, error } = await q
+
+    if (!error) return (data ?? []) as ClienteContato[]
     if (error.code === '42P01') return []
+
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (missing === 'deleted_at') {
+          hasDeletedAt = false
+          cols = cols.filter((c) => c !== 'deleted_at')
+          continue
+        }
+        if (orderCol && missing === orderCol) {
+          orderCol = null
+          continue
+        }
+        const before = cols.length
+        cols = cols.filter((c) => c !== missing)
+        if (cols.length !== before) continue
+      }
+    }
+
     console.error('Erro ao buscar contatos do cliente:', error)
     return []
   }
 
-  return data as ClienteContato[]
+  return []
 }
 
 export async function fetchContatoById(contatoId: string) {
   const id = (contatoId || '').trim()
   if (!id) return null
   const sb = supabase as any
-  const { data, error } = await sb
-    .from('crm_contatos')
-    .select(
-      `
-      contato_id,
-      integ_id,
-      cliente_id,
-      contato_nome,
-      contato_cargo,
-      contato_telefone01,
-      contato_telefone02,
-      contato_email,
-      user_id,
-      contato_obs,
-      data_inclusao,
-      data_atualizacao,
-      deleted_at
-    `
-    )
-    .eq('contato_id', id)
-    .maybeSingle()
+  let cols = [
+    'contato_id',
+    'integ_id',
+    'cliente_id',
+    'contato_nome',
+    'contato_cargo',
+    'contato_telefone01',
+    'contato_telefone02',
+    'contato_email',
+    'user_id',
+    'contato_obs',
+    'data_inclusao',
+    'data_atualizacao',
+    'deleted_at'
+  ]
+  let hasDeletedAt = true
 
-  if (error) {
+  for (let i = 0; i < 20; i++) {
+    const q = sb.from('crm_contatos').select(cols.join(', ')).eq('contato_id', id).maybeSingle()
+    const { data, error } = await q
+    if (!error) {
+      if (!data) return null
+      if (hasDeletedAt && (data as any).deleted_at) return null
+      return data as ClienteContato
+    }
     if (error.code === '42P01') return null
+    if (isMissingColumn(error)) {
+      const missing = extractMissingColumnName(error)
+      if (missing) {
+        if (missing === 'deleted_at') {
+          hasDeletedAt = false
+          cols = cols.filter((c) => c !== 'deleted_at')
+          continue
+        }
+        const before = cols.length
+        cols = cols.filter((c) => c !== missing)
+        if (cols.length !== before) continue
+      }
+    }
     console.error('Erro ao buscar contato por ID:', error)
     return null
   }
-  if (!data) return null
-  if (data.deleted_at) return null
-  return data as ClienteContato
+
+  return null
 }
 
 export async function createClienteContato(payload: CreateClienteContatoPayload) {

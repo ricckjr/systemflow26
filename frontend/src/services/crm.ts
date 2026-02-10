@@ -349,95 +349,87 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     system_nota
   `
 
-  const qWide = (supabase as any)
-    .from('crm_oportunidades')
-    .select(wideV2)
-    .order('data_inclusao', { ascending: !orderDesc })
+  const sb = supabase as any
+  const parseCols = (s: string) =>
+    (s || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
 
-  const rWide = await qWide
-  if (!rWide.error) return (rWide.data || []) as CRM_Oportunidade[]
-
-  const msgWide = String(rWide.error?.message || '')
-  const isMissingWide =
-    rWide.error?.code === 'PGRST204' ||
-    rWide.error?.code === '42703' ||
-    (msgWide.includes('Could not find') && msgWide.toLowerCase().includes('column')) ||
-    (msgWide.toLowerCase().includes('column') && msgWide.toLowerCase().includes('schema cache'))
-
-  if (!isMissingWide && rWide.error?.code === '42P01') return []
-
-  if (isMissingWide) {
-    // 1. Tenta extendedV2 (campos comuns atuais)
-    const q = (supabase as any)
-      .from('crm_oportunidades')
-      .select(extendedV2)
-      .order('data_inclusao', { ascending: !orderDesc })
-    const r = await q
-    if (!r.error) return (r.data || []) as CRM_Oportunidade[]
-    if (r.error.code === '42P01') return []
-
-    // 2. Se falhar por coluna inexistente, tenta coreV2 (sem campos opcionais)
-    const isMissingBase =
-      r.error?.code === 'PGRST204' ||
-      r.error?.code === '42703' ||
-      (String(r.error?.message).includes('Could not find') && String(r.error?.message).toLowerCase().includes('column'))
-    
-    if (isMissingBase) {
-      const qCore = (supabase as any)
-        .from('crm_oportunidades')
-        .select(coreV2)
-        .order('data_inclusao', { ascending: !orderDesc })
-      const rCore = await qCore
-      if (!rCore.error) return (rCore.data || []) as CRM_Oportunidade[]
-      if (rCore.error.code === '42P01') return []
-
-      const minimalLegacyIds = `
-        id_oport,
-        cod_oport,
-        id_cliente,
-        id_vendedor,
-        id_fase,
-        id_status,
-        contato_id,
-        orig_id,
-        descricao_oport,
-        ticket_valor,
-        data_inclusao
-      `
-      const qLegacyIds = (supabase as any)
-        .from('crm_oportunidades')
-        .select(minimalLegacyIds)
-        .order('data_inclusao', { ascending: !orderDesc })
-      const rLegacyIds = await qLegacyIds
-      if (!rLegacyIds.error) {
-        return (rLegacyIds.data || []).map((row: any) => ({
-          ...row,
-          id_contato: row.id_contato ?? row.contato_id ?? null,
-          id_origem: row.id_origem ?? row.orig_id ?? null
-        })) as CRM_Oportunidade[]
+  const trySelectAdaptive = async (input: { cols: string[]; orderCol: string | null }) => {
+    let cols = input.cols.slice()
+    let orderCol = input.orderCol
+    for (let i = 0; i < 40; i++) {
+      let q = sb.from('crm_oportunidades').select(cols.join(', '))
+      if (orderCol) q = q.order(orderCol, { ascending: !orderDesc })
+      const { data, error } = await q
+      if (!error) return { data: (data || []) as CRM_Oportunidade[], error: null }
+      if (isMissingTable(error) || error.code === '42P01') return { data: [] as CRM_Oportunidade[], error: null }
+      if (isMissingColumn(error)) {
+        const missing = extractMissingColumnName(error)
+        if (missing) {
+          if (orderCol && missing === orderCol) {
+            orderCol = null
+            continue
+          }
+          const before = cols.length
+          cols = cols.filter((c) => c !== missing)
+          if (cols.length !== before) continue
+        }
       }
-
-      const minimalV2 = `
-        id_oport,
-        cod_oport,
-        id_cliente,
-        id_vendedor,
-        id_fase,
-        id_status,
-        descricao_oport,
-        ticket_valor,
-        data_inclusao
-      `
-      const qMin = (supabase as any)
-        .from('crm_oportunidades')
-        .select(minimalV2)
-        .order('data_inclusao', { ascending: !orderDesc })
-      const rMin = await qMin
-      if (!rMin.error) return (rMin.data || []) as CRM_Oportunidade[]
+      return { data: [] as CRM_Oportunidade[], error }
     }
+    return { data: [] as CRM_Oportunidade[], error: new Error('Falha ao carregar oportunidades.') }
   }
 
-  if (rWide.error?.code === '42P01') return []
+  const wideAttempt = await trySelectAdaptive({ cols: parseCols(wideV2), orderCol: 'data_inclusao' })
+  if (!wideAttempt.error) return wideAttempt.data
+
+  const extendedAttempt = await trySelectAdaptive({ cols: parseCols(extendedV2), orderCol: 'data_inclusao' })
+  if (!extendedAttempt.error) return extendedAttempt.data
+
+  const coreAttempt = await trySelectAdaptive({ cols: parseCols(coreV2), orderCol: 'data_inclusao' })
+  if (!coreAttempt.error) return coreAttempt.data
+
+  const minimalLegacyIdsAttempt = await trySelectAdaptive({
+    cols: parseCols(`
+      id_oport,
+      cod_oport,
+      id_cliente,
+      id_vendedor,
+      id_fase,
+      id_status,
+      contato_id,
+      orig_id,
+      descricao_oport,
+      ticket_valor,
+      data_inclusao
+    `),
+    orderCol: 'data_inclusao'
+  })
+  if (!minimalLegacyIdsAttempt.error) {
+    return minimalLegacyIdsAttempt.data.map((row: any) => ({
+      ...row,
+      id_contato: row.id_contato ?? row.contato_id ?? null,
+      id_origem: row.id_origem ?? row.orig_id ?? null
+    })) as CRM_Oportunidade[]
+  }
+
+  const minimalAttempt = await trySelectAdaptive({
+    cols: parseCols(`
+      id_oport,
+      cod_oport,
+      id_cliente,
+      id_vendedor,
+      id_fase,
+      id_status,
+      descricao_oport,
+      ticket_valor,
+      data_inclusao
+    `),
+    orderCol: 'data_inclusao'
+  })
+  if (!minimalAttempt.error) return minimalAttempt.data
 
   const baseLegacy = `
     id_oportunidade,
@@ -473,6 +465,13 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     .order('data_inclusao', { ascending: !orderDesc })
   const r2 = await q2
   if (r2.error) {
+    if (isMissingColumn(r2.error) && extractMissingColumnName(r2.error) === 'id_oportunidade') {
+      const probe = await sb.from('crm_oportunidades').select('id_oport').limit(1)
+      if (!probe?.error) {
+        const fallback = await trySelectAdaptive({ cols: parseCols(coreV2), orderCol: 'data_inclusao' })
+        if (!fallback.error) return fallback.data
+      }
+    }
     const q3 = (supabase as any)
       .from('crm_oportunidades')
       .select(`${baseLegacy.replace(', fase', '')}, etapa`)

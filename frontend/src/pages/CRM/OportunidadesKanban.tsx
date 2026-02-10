@@ -30,6 +30,7 @@ import {
   fetchCrmServicos,
   fetchCrmStatus,
   fetchOportunidades,
+  fetchOportunidadeById,
   fetchOportunidadeItens,
   fetchOportunidadeComentarios,
   fetchOportunidadeAtividades,
@@ -458,7 +459,16 @@ export default function OportunidadesKanban() {
   const [origemQuery, setOrigemQuery] = useState('')
   const [origemOpen, setOrigemOpen] = useState(false)
 
-  const active = useMemo(() => opportunities.find(o => (o.id_oport || (o as any).id_oportunidade) === activeId) || null, [opportunities, activeId])
+  const active = useMemo(() => {
+    const target = String(activeId || '').trim()
+    if (!target) return null
+    return (
+      opportunities.find((o) => {
+        const id = String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
+        return id === target
+      }) || null
+    )
+  }, [opportunities, activeId])
 
   const { session, profile, can, isAdmin } = useAuth()
   const canCrmControl = can('CRM', 'CONTROL')
@@ -1276,9 +1286,34 @@ export default function OportunidadesKanban() {
   }
 
   const openEdit = (id: string) => {
-    setActiveId(id)
+    setActiveId(String(id || '').trim())
     setFormOpen(true)
   }
+
+  useEffect(() => {
+    if (!formOpen) return
+    const id = String(activeId || '').trim()
+    if (!id) return
+    if (active) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const fetched = await fetchOportunidadeById(id)
+        if (cancelled) return
+        if (!fetched) return
+        setOpportunities((prev) => {
+          const next = prev.slice()
+          const idx = next.findIndex((o) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim() === id)
+          if (idx >= 0) next[idx] = { ...(next[idx] as any), ...(fetched as any) }
+          else next.unshift(fetched as any)
+          return next
+        })
+      } catch {}
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, activeId, active])
 
   const handleCreateOportunidade = async () => {
     const clienteId = createClienteId.trim()

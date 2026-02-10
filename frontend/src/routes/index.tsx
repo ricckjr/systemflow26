@@ -195,6 +195,14 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
         )
       },
+      {
+        path: 'financeiro/empresas-correspondentes',
+        element: lazyElement(
+          () => import('@/pages/Financeiro/EmpresasCorrespondentes'),
+          'Carregando Empresas Correspondentes...',
+          (node) => <RequirePermission modulo="FINANCEIRO" acao="CONTROL">{node}</RequirePermission>
+        )
+      },
 
       {
         path: 'crm/configs/origem-leads',

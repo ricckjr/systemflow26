@@ -104,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const mounted = useRef(true)
   const sessionRef = useRef<Session | null>(null)
   const realtimeAuthedRef = useRef<string | null>(null)
+  const profileRetryAtRef = useRef<number>(0)
 
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -283,10 +284,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      let { data, error } = await withTimeout(supabase
-        .from('profiles_private')
-        .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
-        .maybeSingle(), 8000)
+      const cachedProfile = normalizeProfile(
+        safeParse<Profile>(localStorage.getItem(PROFILE_CACHE_KEY))
+      )
+
+      let { data, error } = await withTimeout(
+        supabase
+          .from('profiles_private')
+          .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
+          .maybeSingle(),
+        20000
+      )
 
       if (error) throw error
 
@@ -307,10 +315,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } as any)
             .throwOnError()
 
-          ;({ data, error } = await withTimeout(supabase
-            .from('profiles_private')
-            .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
-            .maybeSingle(), 8000))
+          ;({ data, error } = await withTimeout(
+            supabase
+              .from('profiles_private')
+              .select('id, nome, email_login, email_corporativo, telefone, ramal, ativo, avatar_url, cargo')
+              .maybeSingle(),
+            20000
+          ))
 
           if (error) throw error
         }
@@ -339,6 +350,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPermissions(list)
       localStorage.setItem(PERMS_CACHE_KEY, JSON.stringify(list))
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const isTimeout = msg.trim().toLowerCase() === 'timeout'
+      const hasCached = Boolean(profile)
+      if (isTimeout && hasCached) {
+        const now = Date.now()
+        if (now > profileRetryAtRef.current) {
+          profileRetryAtRef.current = now + 15000
+          window.setTimeout(() => {
+            if (!mounted.current) return
+            if (!sessionRef.current) return
+            void refreshProfile(sessionRef.current)
+          }, 1500)
+        }
+        return
+      }
+
+      const cached = normalizeProfile(safeParse<Profile>(localStorage.getItem(PROFILE_CACHE_KEY)))
+      if (cached) {
+        setProfile(cached)
+        return
+      }
+
       console.error('[AUTH] profile load failed', err)
       setProfile(null)
     } finally {

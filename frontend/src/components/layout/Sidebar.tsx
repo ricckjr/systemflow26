@@ -139,6 +139,7 @@ const navItems: NavItem[] = [
       { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
       { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
       { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Empresas Correspondentes', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
     ],
   },
   {

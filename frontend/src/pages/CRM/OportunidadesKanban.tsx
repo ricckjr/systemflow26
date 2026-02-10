@@ -39,7 +39,14 @@ import {
   replaceOportunidadeItens,
   deleteOportunidade
 } from '@/services/crm'
-import { fetchFinCondicoesPagamento, fetchFinFormasPagamento, FinCondicaoPagamento, FinFormaPagamento } from '@/services/financeiro'
+import {
+  fetchFinCondicoesPagamento,
+  fetchFinEmpresasCorrespondentes,
+  fetchFinFormasPagamento,
+  FinCondicaoPagamento,
+  FinEmpresaCorrespondente,
+  FinFormaPagamento
+} from '@/services/financeiro'
 import { fetchClienteById, fetchClientes, Cliente } from '@/services/clientes'
 import { fetchClienteContatos, fetchContatoById, ClienteContato, createClienteContato } from '@/services/clienteContatos'
 import { HorizontalScrollArea, Modal } from '@/components/ui'
@@ -339,7 +346,7 @@ export default function OportunidadesKanban() {
   const [createContatoOptions, setCreateContatoOptions] = useState<ClienteContato[]>([])
   const [createOrigemId, setCreateOrigemId] = useState('')
   const [createVendedorId, setCreateVendedorId] = useState('')
-  const [createEmpresaCorrespondente, setCreateEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
+  const [createEmpresaCorrespondenteId, setCreateEmpresaCorrespondenteId] = useState<string>('')
   const [createSolucao, setCreateSolucao] = useState<'PRODUTO' | 'SERVICO'>('PRODUTO')
   const [createTicket, setCreateTicket] = useState('')
   const [createPrevFechamento, setCreatePrevFechamento] = useState('')
@@ -362,7 +369,7 @@ export default function OportunidadesKanban() {
   const [formError, setFormError] = useState<string | null>(null)
   const [draftCod, setDraftCod] = useState('')
   const [draftVendedorId, setDraftVendedorId] = useState('')
-  const [draftEmpresaCorrespondente, setDraftEmpresaCorrespondente] = useState<'Apliflow' | 'Automaflow' | 'Tecnotron'>('Apliflow')
+  const [draftEmpresaCorrespondenteId, setDraftEmpresaCorrespondenteId] = useState<string>('')
   const [draftClienteId, setDraftClienteId] = useState('')
   const [draftClienteDocumento, setDraftClienteDocumento] = useState('')
   const [draftContatoId, setDraftContatoId] = useState('')
@@ -460,6 +467,7 @@ export default function OportunidadesKanban() {
 
   const [formasPagamento, setFormasPagamento] = useState<FinFormaPagamento[]>([])
   const [condicoesPagamento, setCondicoesPagamento] = useState<FinCondicaoPagamento[]>([])
+  const [empresasCorrespondentes, setEmpresasCorrespondentes] = useState<FinEmpresaCorrespondente[]>([])
   const [paymentsSchemaOk, setPaymentsSchemaOk] = useState<boolean | null>(null)
 
   const { usuarios } = useUsuarios()
@@ -495,15 +503,34 @@ export default function OportunidadesKanban() {
 
   const stageLabelById = useMemo(() => new Map(stages.map((s) => [s.id, s.label])), [stages])
 
+  const defaultEmpresaCorrespondenteId = useMemo(() => {
+    if (empresasCorrespondentes.length === 0) return ''
+    const apl = empresasCorrespondentes.find((e) => String(e.nome_fantasia || '').trim().toLowerCase() === 'apliflow')
+    return String(apl?.empresa_id || empresasCorrespondentes[0]?.empresa_id || '').trim()
+  }, [empresasCorrespondentes])
+
+  const empresaNomeById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const e of empresasCorrespondentes) {
+      const id = String(e.empresa_id || '').trim()
+      if (!id) continue
+      const label = String(e.nome_fantasia || e.razao_social || '').trim() || 'Empresa'
+      m.set(id, label)
+    }
+    return m
+  }, [empresasCorrespondentes])
+
   useEffect(() => {
-    Promise.all([fetchFinFormasPagamento(), fetchFinCondicoesPagamento()])
-      .then(([formas, conds]) => {
+    Promise.all([fetchFinFormasPagamento(), fetchFinCondicoesPagamento(), fetchFinEmpresasCorrespondentes()])
+      .then(([formas, conds, empresas]) => {
         setFormasPagamento(formas)
         setCondicoesPagamento(conds)
+        setEmpresasCorrespondentes(empresas)
       })
       .catch(() => {
         setFormasPagamento([])
         setCondicoesPagamento([])
+        setEmpresasCorrespondentes([])
       })
   }, [])
 
@@ -727,7 +754,10 @@ export default function OportunidadesKanban() {
       if (snapContatoTel2) setDraftContatoTelefone02(snapContatoTel2)
       if (snapContatoEmail) setDraftContatoEmail(snapContatoEmail)
       setSnapshotContatoFromId(null)
-      setDraftEmpresaCorrespondente(((active as any).empresa_correspondente as any) || 'Apliflow')
+      setDraftEmpresaCorrespondenteId(
+        String((active as any).empresa_correspondente_id || '').trim() ||
+          defaultEmpresaCorrespondenteId
+      )
       setDraftFaseId(active.id_fase || '')
       setDraftStatusId(active.id_status || '')
       setBaselineStatusId(active.id_status || null)
@@ -785,7 +815,7 @@ export default function OportunidadesKanban() {
       setDraftContatoTelefone02('')
       setDraftContatoEmail('')
       setSnapshotContatoFromId(null)
-      setDraftEmpresaCorrespondente('Apliflow')
+      setDraftEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
       setDraftFaseId(leadStageId || '')
       setDraftStatusId(andamentoStatusId || '')
       setBaselineStatusId(andamentoStatusId || null)
@@ -1226,7 +1256,7 @@ export default function OportunidadesKanban() {
     setCreateContatoOptions([])
     setCreateOrigemId('')
     setCreateVendedorId(canCrmControl ? '' : myUserId)
-    setCreateEmpresaCorrespondente('Apliflow')
+    setCreateEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
     setCreateSolucao('PRODUTO')
     setCreateTicket('')
     setCreatePrevFechamento('')
@@ -1258,7 +1288,8 @@ export default function OportunidadesKanban() {
     const ticketValor = parseMoney(createTicket)
     const prevEntrega = createPrevFechamento.trim() ? `${createPrevFechamento.trim()}-01` : null
     const solicitacao = createSolicitacao.trim()
-    const empresa = (createEmpresaCorrespondente || '').trim()
+    const empresaId = (createEmpresaCorrespondenteId || '').trim() || defaultEmpresaCorrespondenteId
+    const empresaNome = (empresaNomeById.get(empresaId) || '').trim() || 'Apliflow'
 
     if (!clienteId) {
       setCreateError('Selecione um cliente.')
@@ -1276,7 +1307,7 @@ export default function OportunidadesKanban() {
       setCreateError('Selecione um vendedor.')
       return
     }
-    if (!empresa) {
+    if (!empresaId) {
       setCreateError('Selecione a empresa correspondente.')
       return
     }
@@ -1315,7 +1346,8 @@ export default function OportunidadesKanban() {
         id_fase: faseId,
         id_status: statusId,
         id_motivo: null,
-        empresa_correspondente: empresa,
+        empresa_correspondente_id: empresaId,
+        empresa_correspondente: empresaNome,
         solucao: createSolucao,
         qts_item: null,
         prev_entrega: prevEntrega,
@@ -1410,6 +1442,8 @@ export default function OportunidadesKanban() {
     const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
     const faseLabel = stages.find(s => s.id === finalFaseId)?.label || null
     const solucao = draftSolucao
+    const empresaId = (draftEmpresaCorrespondenteId || '').trim() || defaultEmpresaCorrespondenteId
+    const empresaNome = (empresaNomeById.get(empresaId) || '').trim() || 'Apliflow'
 
     if (
       paymentsSchemaOk === false &&
@@ -1418,6 +1452,10 @@ export default function OportunidadesKanban() {
       setFormError(
         'Pagamentos não estão disponíveis no banco agora (API do Supabase sem a coluna condicao_pagamento_id no schema cache). Aplique as migrations do CRM e recarregue o schema do Supabase/PostgREST.'
       )
+      return
+    }
+    if (!empresaId) {
+      setFormError('Selecione a empresa correspondente.')
       return
     }
 
@@ -1436,7 +1474,8 @@ export default function OportunidadesKanban() {
       id_status: finalStatusId || null,
       id_motivo: draftMotivoId || null,
       id_origem: draftOrigemId || null,
-      empresa_correspondente: draftEmpresaCorrespondente || null,
+      empresa_correspondente_id: empresaId,
+      empresa_correspondente: empresaNome,
       solucao,
       qts_item,
       prev_entrega,
@@ -1835,14 +1874,20 @@ export default function OportunidadesKanban() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Empresa Correspondente</label>
                 <select
-                  value={createEmpresaCorrespondente}
-                  onChange={(e) => setCreateEmpresaCorrespondente(e.target.value as any)}
-                  disabled={createSaving}
+                  value={createEmpresaCorrespondenteId}
+                  onChange={(e) => setCreateEmpresaCorrespondenteId(e.target.value)}
+                  disabled={createSaving || empresasCorrespondentes.length === 0}
                   className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
                 >
-                  <option value="Apliflow">Apliflow</option>
-                  <option value="Automaflow">Automaflow</option>
-                  <option value="Tecnotron">Tecnotron</option>
+                  {empresasCorrespondentes.length === 0 ? (
+                    <option value="">Cadastre no Financeiro</option>
+                  ) : (
+                    empresasCorrespondentes.map((e) => (
+                      <option key={String(e.empresa_id)} value={String(e.empresa_id)}>
+                        {String(e.nome_fantasia || e.razao_social || 'Empresa')}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
@@ -2463,13 +2508,19 @@ export default function OportunidadesKanban() {
                           <Pencil size={12} className="text-slate-500" />
                         </div>
                         <select
-                          value={draftEmpresaCorrespondente}
-                          onChange={(e) => setDraftEmpresaCorrespondente(e.target.value as any)}
+                          value={draftEmpresaCorrespondenteId}
+                          onChange={(e) => setDraftEmpresaCorrespondenteId(e.target.value)}
                           className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
                         >
-                          <option value="Apliflow">Apliflow</option>
-                          <option value="Automaflow">Automaflow</option>
-                          <option value="Tecnotron">Tecnotron</option>
+                          {empresasCorrespondentes.length === 0 ? (
+                            <option value="">Cadastre no Financeiro</option>
+                          ) : (
+                            empresasCorrespondentes.map((e) => (
+                              <option key={String(e.empresa_id)} value={String(e.empresa_id)}>
+                                {String(e.nome_fantasia || e.razao_social || 'Empresa')}
+                              </option>
+                            ))
+                          )}
                         </select>
                       </div>
                       <div className="lg:col-span-12 space-y-2">

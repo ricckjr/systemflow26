@@ -65,6 +65,7 @@ export interface CRM_Oportunidade {
   valor_proposta?: string | null
   descricao_oportunidade?: string | null
   empresa_correspondente?: string | null
+  empresa_correspondente_id?: string | null
   data?: string | null
   dias_abertos?: number | null
   dias_parado?: number | null
@@ -339,6 +340,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     status,
     valor_proposta,
     empresa_correspondente,
+    empresa_correspondente_id,
     data,
     dias_abertos,
     dias_parado,
@@ -1657,7 +1659,15 @@ export async function fetchCrmFases() {
     .order('fase_ordem', { ascending: true })
     .order('fase_desc', { ascending: true })
 
-  const { data, error } = await q
+  let data: any = null
+  let error: any = null
+  try {
+    const r = await q
+    data = r.data
+    error = r.error
+  } catch (e) {
+    error = e
+  }
 
   if (!error) return data as CRM_Fase[]
 
@@ -1680,7 +1690,11 @@ export async function fetchCrmFases() {
     })) as CRM_Fase[]
   }
 
-  console.error('Erro ao buscar fases CRM:', error)
+  const msg = String((error as any)?.message || '').trim()
+  if (msg) {
+    const e = toUserFacingError(error, 'Falha ao buscar fases CRM.')
+    console.warn('Erro ao buscar fases CRM:', e.message)
+  }
   return []
 }
 

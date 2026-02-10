@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { fetchOportunidadeById, fetchOportunidadeItens } from '@/services/crm'
-import { fetchFinCondicoesPagamento, fetchFinFormasPagamento } from '@/services/financeiro'
+import {
+  fetchFinCondicoesPagamento,
+  fetchFinEmpresasCorrespondentes,
+  fetchFinFormasPagamento,
+  FinEmpresaCorrespondente,
+  getFinEmpresaCorrespondenteLogoUrl
+} from '@/services/financeiro'
 import { supabase } from '@/services/supabase'
 import { fetchContatoById } from '@/services/clienteContatos'
 
@@ -39,6 +45,7 @@ export default function PropostaPreview() {
   const [contato, setContato] = useState<any>(null)
   const [formas, setFormas] = useState<any[]>([])
   const [condicoes, setCondicoes] = useState<any[]>([])
+  const [empresa, setEmpresa] = useState<FinEmpresaCorrespondente | null>(null)
 
   const query = useMemo(() => new URLSearchParams(location.search || ''), [location.search])
   const validadeParam = useMemo(() => String(query.get('validade') || '').trim() || null, [query])
@@ -70,12 +77,27 @@ export default function PropostaPreview() {
     setLoading(true)
     setError(null)
     let cancelled = false
-    Promise.all([fetchOportunidadeById(oportunidadeId), fetchOportunidadeItens(oportunidadeId), fetchFinFormasPagamento(), fetchFinCondicoesPagamento()])
-      .then(async ([o, its, f, c]) => {
+    Promise.all([
+      fetchOportunidadeById(oportunidadeId),
+      fetchOportunidadeItens(oportunidadeId),
+      fetchFinFormasPagamento(),
+      fetchFinCondicoesPagamento(),
+      fetchFinEmpresasCorrespondentes()
+    ])
+      .then(async ([o, its, f, c, empresas]) => {
         if (cancelled) return
         setOpp(o)
         setFormas(f || [])
         setCondicoes(c || [])
+        const empresaId = String((o as any)?.empresa_correspondente_id || '').trim()
+        const empresaNomeRef = String((o as any)?.empresa_correspondente || '').trim() || 'Apliflow'
+        const found =
+          (empresaId ? (empresas || []).find((e) => String(e.empresa_id || '').trim() === empresaId) : null) ||
+          (empresas || []).find((e) => String(e.nome_fantasia || '').trim().toLowerCase() === empresaNomeRef.toLowerCase()) ||
+          (empresas || []).find((e) => String(e.razao_social || '').trim().toLowerCase() === empresaNomeRef.toLowerCase()) ||
+          (empresas || []).find((e) => String(e.nome_fantasia || '').trim().toLowerCase() === 'apliflow') ||
+          null
+        setEmpresa(found)
         const mapped = (its || []).map((r: any) => ({
           tipo: r.tipo,
           descricao: r.descricao_item || (r.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'),
@@ -163,45 +185,36 @@ export default function PropostaPreview() {
   const subtotal = useMemo(() => items.reduce((acc, it) => acc + calcItemTotal(it), 0), [items])
   const total = useMemo(() => subtotal * (1 - descontoPropostaPercent / 100), [subtotal, descontoPropostaPercent])
 
-  const empresaNome = useMemo(() => {
-    const raw = String(opp?.empresa_correspondente || 'Apliflow').trim().toUpperCase()
-    if (raw === 'APLIFLOW') return 'APLIFLOW EQUIPAMENTOS INDUSTRIAIS LTDA'
-    if (raw === 'AUTOMAFLOW') return 'AUTOMAFLOW'
-    if (raw === 'TECNOTRON') return 'TECNOTRON'
-    return raw || 'APLIFLOW EQUIPAMENTOS INDUSTRIAIS LTDA'
-  }, [opp])
+  const empresaNomeRef = useMemo(() => String(opp?.empresa_correspondente || '').trim() || 'Apliflow', [opp])
 
-  const empresaInfo = useMemo(() => {
-    const raw = String(opp?.empresa_correspondente || 'Apliflow').trim().toUpperCase()
-    if (raw === 'AUTOMAFLOW') {
-      return {
-        site: 'www.automaflow.com.br',
-        cnpj: '',
-        ie: '',
-        endereco: '',
-        cidade: '',
-        telefone: ''
-      }
-    }
-    if (raw === 'TECNOTRON') {
-      return {
-        site: 'www.tecnotron.com.br',
-        cnpj: '',
-        ie: '',
-        endereco: '',
-        cidade: '',
-        telefone: ''
-      }
-    }
-    return {
-      site: 'www.apliflow.com.br',
-      cnpj: '22.202.421/0001-38',
-      ie: '002.537.835/0093',
-      endereco: 'RUA ARAPARI, 223',
-      cidade: 'BELO HORIZONTE - MG - CEP: 31050-540',
-      telefone: 'Telefone: (31) 3487-1600'
-    }
-  }, [opp])
+  const empresaNomeFantasia = useMemo(() => {
+    const v = String(empresa?.nome_fantasia || empresaNomeRef).trim()
+    return v || '—'
+  }, [empresa, empresaNomeRef])
+
+  const empresaRazaoSocial = useMemo(() => String(empresa?.razao_social || '').trim(), [empresa])
+
+  const empresaNome = useMemo(() => {
+    const v = String(empresa?.razao_social || empresa?.nome_fantasia || empresaNomeRef).trim()
+    return v || '—'
+  }, [empresa, empresaNomeRef])
+
+  const empresaLogoUrl = useMemo(() => getFinEmpresaCorrespondenteLogoUrl(empresa?.logo_path), [empresa])
+
+  const empresaEnderecoLinha = useMemo(() => {
+    const e = String(empresa?.endereco || '').trim()
+    const b = String(empresa?.bairro || '').trim()
+    return [e, b].filter(Boolean).join(' - ')
+  }, [empresa])
+
+  const empresaCidadeUfCep = useMemo(() => {
+    const cidade = String(empresa?.cidade || '').trim()
+    const uf = String(empresa?.uf || '').trim()
+    const cep = String(empresa?.cep || '').trim()
+    const left = [cidade, uf].filter(Boolean).join(' - ')
+    const right = cep ? `CEP: ${cep}` : ''
+    return [left, right].filter(Boolean).join(' - ')
+  }, [empresa])
 
   const propostaCodigo = useMemo(() => String(opp?.cod_oport || opp?.cod_oportunidade || '-').trim() || '-', [opp])
 
@@ -327,16 +340,45 @@ export default function PropostaPreview() {
       doc.setDrawColor(0)
       doc.setLineWidth(0.2)
 
-      textLeft('Apliflow', left, y + 2, 10, true)
-      centerText(empresaNome, y, 10, true)
-      centerText(empresaInfo.site, y + 4.5, 8, false)
+      const toDataUrl = async (url: string) => {
+        const u = String(url || '').trim()
+        if (!u) return ''
+        const res = await fetch(u)
+        if (!res.ok) return ''
+        const blob = await res.blob()
+        const mime = String(blob.type || '')
+        if (!mime.startsWith('image/')) return ''
+        if (mime === 'image/webp') return ''
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onerror = () => reject(new Error('Falha ao ler imagem.'))
+          reader.onload = () => resolve(String(reader.result || ''))
+          reader.readAsDataURL(blob)
+        })
+      }
+
+      let hasLogo = false
+      try {
+        const dataUrl = await toDataUrl(empresaLogoUrl)
+        const mime = dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : ''
+        const fmt = mime.includes('png') ? 'PNG' : (mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : '')
+        if (dataUrl && fmt) {
+          doc.addImage(dataUrl, fmt as any, left, y - 2, 14, 14)
+          hasLogo = true
+        }
+      } catch {
+      }
+
+      textLeft(empresaNomeFantasia, hasLogo ? left + 16 : left, y + 2, 10, true)
+      centerText(empresaNome, y + 2, 10, true)
 
       const empresaLines = [
-        empresaInfo.cnpj ? `CNPJ: ${empresaInfo.cnpj}` : null,
-        empresaInfo.ie ? `Inscrição Estadual: ${empresaInfo.ie}` : null,
-        empresaInfo.endereco ? empresaInfo.endereco : null,
-        empresaInfo.cidade ? empresaInfo.cidade : null,
-        empresaInfo.telefone ? empresaInfo.telefone : null
+        empresa?.cnpj ? `CNPJ: ${empresa.cnpj}` : null,
+        empresa?.inscricao_estadual ? `Inscrição Estadual: ${empresa.inscricao_estadual}` : null,
+        empresa?.inscricao_municipal ? `Inscrição Municipal: ${empresa.inscricao_municipal}` : null,
+        empresaEnderecoLinha ? empresaEnderecoLinha : null,
+        empresaCidadeUfCep ? empresaCidadeUfCep : null,
+        empresa?.telefone ? `Telefone: ${empresa.telefone}` : null
       ].filter(Boolean) as string[]
       {
         let yy = y
@@ -514,18 +556,19 @@ export default function PropostaPreview() {
           <div className="px-10 pt-8 pb-6">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-center gap-2">
-                <img src="/favicon-32x32.png" alt="Logo" className="w-7 h-7" />
+                <img src={empresaLogoUrl || '/favicon-32x32.png'} alt="Logo" className="w-7 h-7 object-contain" />
               </div>
               <div className="flex-1 text-center">
-                <div className="text-sm font-black tracking-wide">{empresaNome}</div>
-                <div className="text-[10px] font-semibold">{empresaInfo.site}</div>
+                <div className="text-sm font-black tracking-wide">{empresaNomeFantasia}</div>
+                {empresaRazaoSocial ? <div className="text-[10px] font-semibold">{empresaRazaoSocial}</div> : null}
               </div>
               <div className="text-right text-[10px] leading-4">
-                {empresaInfo.cnpj ? <div><span className="font-bold">CNPJ:</span> {empresaInfo.cnpj}</div> : null}
-                {empresaInfo.ie ? <div><span className="font-bold">Inscrição Estadual:</span> {empresaInfo.ie}</div> : null}
-                {empresaInfo.endereco ? <div>{empresaInfo.endereco}</div> : null}
-                {empresaInfo.cidade ? <div>{empresaInfo.cidade}</div> : null}
-                {empresaInfo.telefone ? <div>{empresaInfo.telefone}</div> : null}
+                {empresa?.cnpj ? <div><span className="font-bold">CNPJ:</span> {empresa.cnpj}</div> : null}
+                {empresa?.inscricao_estadual ? <div><span className="font-bold">Inscrição Estadual:</span> {empresa.inscricao_estadual}</div> : null}
+                {empresa?.inscricao_municipal ? <div><span className="font-bold">Inscrição Municipal:</span> {empresa.inscricao_municipal}</div> : null}
+                {empresaEnderecoLinha ? <div>{empresaEnderecoLinha}</div> : null}
+                {empresaCidadeUfCep ? <div>{empresaCidadeUfCep}</div> : null}
+                {empresa?.telefone ? <div>Telefone: {empresa.telefone}</div> : null}
               </div>
             </div>
 

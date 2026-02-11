@@ -24,7 +24,7 @@ import { searchProfilesByName } from '@/services/profiles';
 import { fetchFeed, fetchPostById, fetchReactionSummary, uploadMedia, createPostWithMedia, setReaction, fetchReactions, fetchComments, addComment, deletePost, editPost, setCommentReaction, type InstaFlowReaction } from '@/services/instaflow';
 import { isInstaFlowSoundEnabled, playInstaFlowNewPostSound, setInstaFlowSoundEnabled } from '@/utils/instaflowSound';
 import { NotificationPermissionBanner } from '@/components/notifications/NotificationPermissionBanner';
-import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext';
+import { useNotificationPreferences } from '@/contexts/useNotificationPreferences';
 import {
   dismissNotificationPromptForCooldown,
   requestBrowserNotificationPermission,

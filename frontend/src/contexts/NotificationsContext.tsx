@@ -1,7 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { useNotificationPreferences } from '@/contexts/useNotificationPreferences.ts'
 import { setRealtimeAuth } from '@/services/realtime'
 import { playSystemAlertSound } from '@/utils/notificationSound'
 import { showBrowserNotification } from '@/utils/browserNotifications'
@@ -9,23 +9,9 @@ import { chatService } from '@/services/chat'
 import type { Notification } from '@/types'
 import { useToast, openToastUrl } from '@/contexts/ToastContext'
 import { logWarn } from '@/utils/logger'
+import { NotificationsContext } from '@/contexts/NotificationsContextCore'
 
 type UnreadByRoomId = Record<string, number>
-
-type NotificationsContextType = {
-  notifications: Array<Notification & { metadata?: any | null }>
-  unreadCount: number
-  unreadByRoomId: UnreadByRoomId
-  hasAnyChatUnread: boolean
-  activeChatRoomId: string | null
-  setActiveChatRoomId: (roomId: string | null) => void
-  markAsRead: (notificationId: string) => Promise<void>
-  markAllAsRead: () => Promise<void>
-  markChatRoomAsRead: (roomId: string) => Promise<void>
-  refresh: () => Promise<void>
-}
-
-const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined)
 
 function safeRoomIdFromMetadata(metadata: any): string | null {
   const roomId = metadata?.room_id
@@ -470,10 +456,4 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   )
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>
-}
-
-export function useNotifications() {
-  const ctx = useContext(NotificationsContext)
-  if (!ctx) throw new Error('useNotifications must be used within NotificationsProvider')
-  return ctx
 }

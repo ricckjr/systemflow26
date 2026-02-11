@@ -3,7 +3,7 @@ import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Notification } from '@/types'
 import { playSystemAlertSound } from '@/utils/notificationSound'
-import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { useNotificationPreferences } from '@/contexts/useNotificationPreferences'
 import { showBrowserNotification } from '@/utils/browserNotifications'
 import { setRealtimeAuth } from '@/services/realtime'
 

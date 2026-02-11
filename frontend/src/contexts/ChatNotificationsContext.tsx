@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { playChatMessageSound } from '@/utils/notificationSound'
-import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { useNotificationPreferences } from '@/contexts/useNotificationPreferences'
 import { showBrowserNotification } from '@/utils/browserNotifications'
 import { setRealtimeAuth } from '@/services/realtime'
 

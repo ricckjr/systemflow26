@@ -10,7 +10,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { useProfileForm } from '@/hooks/useProfileForm'
-import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { useNotificationPreferences } from '@/contexts/useNotificationPreferences'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 
 const Label = ({ children }: { children: React.ReactNode }) => (

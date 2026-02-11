@@ -1,7 +1,5 @@
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -10,23 +8,8 @@ import React, {
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-
-export type UserStatus = 'online' | 'busy' | 'away' | 'offline'
-
-export type UserPresence = {
-  status: UserStatus
-  statusText?: string
-}
-
-type PresenceContextValue = {
-  myStatus: UserStatus
-  myStatusText: string
-  usersPresence: Record<string, UserPresence>
-  setStatus: (status: UserStatus) => Promise<void>
-  setStatusText: (text: string) => Promise<void>
-}
-
-const PresenceContext = createContext<PresenceContextValue | null>(null)
+import { PresenceContext } from '@/contexts/PresenceContextCore'
+import type { UserPresence, UserStatus } from '@/contexts/PresenceContextCore'
 
 const IDLE_AWAY_MS = 5 * 60 * 1000
 
@@ -198,8 +181,4 @@ export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>
 }
 
-export const usePresence = () => {
-  const ctx = useContext(PresenceContext)
-  if (!ctx) throw new Error('usePresence must be used within PresenceProvider')
-  return ctx
-}
+export type { UserPresence, UserStatus } from '@/contexts/PresenceContextCore'

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, Check, Inbox } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from '@/contexts/NotificationsContext';
+import { useNotifications } from '@/contexts/useNotifications';
 import { formatDateBR, formatTimeBR } from '@/utils/datetime';
 
 interface HeaderProps {

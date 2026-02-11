@@ -87,6 +87,14 @@ export function setupRealtimeAutoRecover(client: SupabaseClient<any>) {
       const sock = getSocket(client as any)
       const state = getConnectionState(sock)
       if (state === 'open') return
+      try {
+        const getChannels = (client as any).getChannels
+        if (typeof getChannels === 'function') {
+          const channels = getChannels.call(client)
+          if (Array.isArray(channels) && channels.length === 0) return
+        }
+      } catch {
+      }
       if (typeof r?.connect === 'function') r.connect()
     } catch {
     }
@@ -104,4 +112,3 @@ export function setupRealtimeAutoRecover(client: SupabaseClient<any>) {
     })
   }
 }
-

@@ -815,6 +815,7 @@ export interface CRM_OportunidadeComentario {
   id_oport: string
   comentario: string
   created_at: string
+  created_by?: string | null
 }
 
 export interface CRM_OportunidadeAtividade {
@@ -823,6 +824,7 @@ export interface CRM_OportunidadeAtividade {
   tipo: string
   payload: any
   created_at: string
+  created_by?: string | null
 }
 
 const isMissingTable = (error: any) => {
@@ -1033,11 +1035,27 @@ export async function replaceOportunidadeItens(
 
 export async function fetchOportunidadeComentarios(oportunidadeId: string) {
   if (!oportunidadeId) return []
-  const { data, error } = await sb
-    .from('crm_oportunidade_comentarios')
-    .select('comentario_id, id_oport, comentario, created_at')
-    .eq('id_oport', oportunidadeId)
-    .order('created_at', { ascending: true })
+  let data: any[] | null = null
+  let error: any = null
+  {
+    const res = await sb
+      .from('crm_oportunidade_comentarios')
+      .select('comentario_id, id_oport, comentario, created_at, created_by')
+      .eq('id_oport', oportunidadeId)
+      .order('created_at', { ascending: true })
+    data = res.data as any[] | null
+    error = res.error
+  }
+
+  if (error && isMissingColumn(error)) {
+    const res2 = await sb
+      .from('crm_oportunidade_comentarios')
+      .select('comentario_id, id_oport, comentario, created_at')
+      .eq('id_oport', oportunidadeId)
+      .order('created_at', { ascending: true })
+    data = res2.data as any[] | null
+    error = res2.error
+  }
 
   if (error) {
     if (isMissingTable(error)) return []
@@ -1055,10 +1073,22 @@ export async function createOportunidadeComentario(oportunidadeId: string, comen
   const { data, error } = await sb
     .from('crm_oportunidade_comentarios')
     .insert({ id_oport: oportunidadeId, comentario: text })
-    .select('comentario_id, id_oport, comentario, created_at')
+    .select('comentario_id, id_oport, comentario, created_at, created_by')
     .single()
 
   if (error) {
+    if (isMissingColumn(error)) {
+      const res2 = await sb
+        .from('crm_oportunidade_comentarios')
+        .insert({ id_oport: oportunidadeId, comentario: text })
+        .select('comentario_id, id_oport, comentario, created_at')
+        .single()
+      if (res2.error) {
+        if (isMissingTable(res2.error)) return null
+        throw res2.error
+      }
+      return res2.data as CRM_OportunidadeComentario
+    }
     if (isMissingTable(error)) return null
     throw error
   }
@@ -1067,11 +1097,27 @@ export async function createOportunidadeComentario(oportunidadeId: string, comen
 
 export async function fetchOportunidadeAtividades(oportunidadeId: string) {
   if (!oportunidadeId) return []
-  const { data, error } = await sb
-    .from('crm_oportunidade_atividades')
-    .select('atividade_id, id_oport, tipo, payload, created_at')
-    .eq('id_oport', oportunidadeId)
-    .order('created_at', { ascending: false })
+  let data: any[] | null = null
+  let error: any = null
+  {
+    const res = await sb
+      .from('crm_oportunidade_atividades')
+      .select('atividade_id, id_oport, tipo, payload, created_at, created_by')
+      .eq('id_oport', oportunidadeId)
+      .order('created_at', { ascending: false })
+    data = res.data as any[] | null
+    error = res.error
+  }
+
+  if (error && isMissingColumn(error)) {
+    const res2 = await sb
+      .from('crm_oportunidade_atividades')
+      .select('atividade_id, id_oport, tipo, payload, created_at')
+      .eq('id_oport', oportunidadeId)
+      .order('created_at', { ascending: false })
+    data = res2.data as any[] | null
+    error = res2.error
+  }
 
   if (error) {
     if (isMissingTable(error)) return []

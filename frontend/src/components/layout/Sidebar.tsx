@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNotifications } from '@/contexts/NotificationsContext';
+import { useNotifications } from '@/contexts/useNotifications';
 import { LogoutModal } from '../ui/LogoutModal';
 
 interface NavItem {

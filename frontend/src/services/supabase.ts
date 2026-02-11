@@ -24,6 +24,57 @@ const useDevProxy =
 
 const supabaseUrl = useDevProxy ? window.location.origin : supabaseRemoteUrl
 
+function isAbortLikeError(err: unknown) {
+  const anyErr = err as any
+  const name = String(anyErr?.name || '')
+  if (name === 'AbortError') return true
+  const causeName = String(anyErr?.cause?.name || '')
+  if (causeName === 'AbortError') return true
+  const message = String(anyErr?.message || '')
+  if (message.includes('AbortError')) return true
+  if (message.includes('ERR_ABORTED')) return true
+  const causeMessage = String(anyErr?.cause?.message || '')
+  if (causeMessage.includes('AbortError')) return true
+  if (causeMessage.includes('ERR_ABORTED')) return true
+  return false
+}
+
+function isPageUnloading() {
+  try {
+    if (typeof window !== 'undefined' && (window as any).__systemflow_unloading) return true
+  } catch {
+  }
+  return false
+}
+
+function isRequestAborted(input: RequestInfo | URL, init?: RequestInit) {
+  try {
+    if (init?.signal?.aborted) return true
+  } catch {
+  }
+  try {
+    if (typeof input !== 'string' && input instanceof Request && input.signal?.aborted) return true
+  } catch {
+  }
+  return false
+}
+
+function createCancelledResponse() {
+  if (typeof Response === 'undefined') return null
+  return new Response(JSON.stringify({ message: 'Request aborted', code: 'ABORTED' }), {
+    status: 499,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+function createNetworkErrorResponse() {
+  if (typeof Response === 'undefined') return null
+  return new Response(JSON.stringify({ message: 'Network error', code: 'NETWORK_ERROR' }), {
+    status: 503,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
 function clearSupabaseAuthStorage() {
   try {
     localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY)
@@ -67,13 +118,15 @@ function createSupabaseClient() {
           return await fetch(input, init)
         } catch (err) {
           try {
-            if (
-              useDevProxy &&
-              supabaseRemoteUrl &&
-              supabaseRemoteUrl !== supabaseUrl &&
-              typeof window !== 'undefined' &&
-              !(window as any).__systemflow_unloading
-            ) {
+            if (isPageUnloading() || isRequestAborted(input, init) || isAbortLikeError(err)) {
+              const cancelled = createCancelledResponse()
+              if (cancelled) return cancelled
+              return new Promise<Response>(() => {})
+            }
+          } catch {
+          }
+          try {
+            if (useDevProxy && supabaseRemoteUrl && supabaseRemoteUrl !== supabaseUrl && typeof window !== 'undefined') {
               const raw =
                 typeof input === 'string'
                   ? input
@@ -87,12 +140,8 @@ function createSupabaseClient() {
             }
           } catch {
           }
-          try {
-            if (typeof window !== 'undefined' && (window as any).__systemflow_unloading) {
-              return new Promise<Response>(() => {})
-            }
-          } catch {
-          }
+          const network = createNetworkErrorResponse()
+          if (network) return network
           throw err
         }
       },

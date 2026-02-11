@@ -1,36 +1,18 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/services/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-
-type NotificationChannelKey = 'system' | 'chat'
-
-export type NotificationChannelPreferences = {
-  inAppEnabled: boolean
-  soundEnabled: boolean
-  nativeEnabled: boolean
-  pushEnabled: boolean
-}
-
-export type NotificationPreferences = {
-  system: NotificationChannelPreferences
-  chat: NotificationChannelPreferences
-  permissionPromptDismissedUntil: string | null
-}
-
-type NotificationPreferencesContextType = {
-  preferences: NotificationPreferences
-  setChannelPreferences: (channel: NotificationChannelKey, next: Partial<NotificationChannelPreferences>) => Promise<void>
-  setPermissionPromptDismissedUntil: (until: string | null) => Promise<void>
-  refresh: () => Promise<void>
-}
+import { NotificationPreferencesContext } from '@/contexts/NotificationPreferencesContextCore'
+import type {
+  NotificationChannelKey,
+  NotificationChannelPreferences,
+  NotificationPreferences,
+} from '@/contexts/NotificationPreferencesContextCore'
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
   system: { inAppEnabled: true, soundEnabled: true, nativeEnabled: false, pushEnabled: false },
   chat: { inAppEnabled: true, soundEnabled: true, nativeEnabled: false, pushEnabled: false },
   permissionPromptDismissedUntil: null,
 }
-
-const NotificationPreferencesContext = createContext<NotificationPreferencesContextType | undefined>(undefined)
 
 function storageKey(userId: string) {
   return `systemflow:notificationPreferences:v1:${userId}`
@@ -184,9 +166,8 @@ export const NotificationPreferencesProvider: React.FC<{ children: React.ReactNo
   return <NotificationPreferencesContext.Provider value={value}>{children}</NotificationPreferencesContext.Provider>
 }
 
-export function useNotificationPreferences() {
-  const ctx = useContext(NotificationPreferencesContext)
-  if (!ctx) throw new Error('useNotificationPreferences must be used within NotificationPreferencesProvider')
-  return ctx
-}
-
+export type {
+  NotificationChannelKey,
+  NotificationChannelPreferences,
+  NotificationPreferences,
+} from '@/contexts/NotificationPreferencesContextCore'

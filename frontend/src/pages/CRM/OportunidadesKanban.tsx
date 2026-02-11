@@ -357,8 +357,7 @@ export default function OportunidadesKanban() {
   const [origemDescById, setOrigemDescById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban')
-  const [searchCliente, setSearchCliente] = useState('')
-  const [searchProdutoCodigo, setSearchProdutoCodigo] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [filterStatusId, setFilterStatusId] = useState<string>('')
   const [filterFaseId, setFilterFaseId] = useState<string>('')
   const [itensSearchByOport, setItensSearchByOport] = useState<Record<string, string>>({})
@@ -478,6 +477,9 @@ export default function OportunidadesKanban() {
   const [statusChangeId, setStatusChangeId] = useState('')
   const [statusChangeObs, setStatusChangeObs] = useState('')
   const [statusChangeError, setStatusChangeError] = useState<string | null>(null)
+  const [statusHistoryOpen, setStatusHistoryOpen] = useState(false)
+  const [statusHistoryError, setStatusHistoryError] = useState<string | null>(null)
+  const [statusHistoryUserById, setStatusHistoryUserById] = useState<Record<string, string>>({})
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteSaving, setDeleteSaving] = useState(false)
@@ -2133,10 +2135,13 @@ export default function OportunidadesKanban() {
           const rows = await fetchOportunidadeComentarios(activeId)
           setComentarios(rows)
         }
-        if (statusChanged && statusObs) {
+        if (statusChanged) {
           const fromDesc = statuses.find((s) => s.status_id === baseline)?.status_desc || '—'
           const toDesc = statuses.find((s) => s.status_id === next)?.status_desc || '—'
-          await createOportunidadeComentario(activeId, `Status alterado: ${fromDesc} → ${toDesc}\nObs: ${statusObs}`)
+          const msg = statusObs
+            ? `Status alterado: ${fromDesc} → ${toDesc}\nComentário: ${statusObs}`
+            : `Status alterado: ${fromDesc} → ${toDesc}`
+          await createOportunidadeComentario(activeId, msg)
         }
       } else {
         const created = await createOportunidade(payload)
@@ -2274,8 +2279,9 @@ export default function OportunidadesKanban() {
   }, [opportunities, stages])
 
   useEffect(() => {
-    const term = searchProdutoCodigo.trim().toLowerCase()
-    if (!term) return
+    const term = searchTerm.trim().toLowerCase()
+    const wantsProduto = !!term && (/[0-9]/.test(term) || term.startsWith('#') || term.startsWith('p:') || term.startsWith('s:'))
+    if (!wantsProduto) return
     if (opportunities.length === 0) return
 
     let cancelled = false
@@ -2382,7 +2388,7 @@ export default function OportunidadesKanban() {
     return () => {
       cancelled = true
     }
-  }, [searchProdutoCodigo, opportunities, produtos, servicos])
+  }, [searchTerm, opportunities, produtos, servicos])
 
   const resolveStageId = useCallback(
     (op: CRM_Oportunidade) => {
@@ -2412,10 +2418,10 @@ export default function OportunidadesKanban() {
   )
 
   const filteredOpportunities = useMemo(() => {
-    const termCliente = searchCliente.trim().toLowerCase()
-    const termProd = searchProdutoCodigo.trim().toLowerCase()
+    const term = searchTerm.trim().toLowerCase()
     const wantStatus = filterStatusId.trim()
     const wantFase = filterFaseId.trim()
+    const wantsProduto = !!term && (/[0-9]/.test(term) || term.startsWith('#') || term.startsWith('p:') || term.startsWith('s:'))
 
     return (opportunities || []).filter((op) => {
       const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
@@ -2430,7 +2436,7 @@ export default function OportunidadesKanban() {
         if (!fid || fid !== wantFase) return false
       }
 
-      if (termCliente) {
+      if (term) {
         const clienteLabel =
           String((op as any)?.cliente_nome || op.cliente || '').trim() ||
           (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
@@ -2438,18 +2444,21 @@ export default function OportunidadesKanban() {
         const vendedorLabel = String((op as any)?.vendedor_nome || op.vendedor || '').trim()
         const solucaoLabel = formatSolucaoLabel(op.solucao).toLowerCase()
         const hay = `${clienteLabel} ${vendedorLabel} ${solucaoLabel}`.toLowerCase()
-        if (!hay.includes(termCliente)) return false
-      }
+        const matchText = hay.includes(term)
+        if (matchText) return true
 
-      if (termProd) {
-        const legacy = `${String((op as any)?.cod_produto || '')} ${String((op as any)?.cod_servico || '')}`.toLowerCase()
-        const idx = (itensSearchByOport[id] || '').toLowerCase()
-        if (!legacy.includes(termProd) && !idx.includes(termProd)) return false
+        if (wantsProduto) {
+          const legacy = `${String((op as any)?.cod_produto || '')} ${String((op as any)?.cod_servico || '')}`.toLowerCase()
+          const idx = (itensSearchByOport[id] || '').toLowerCase()
+          if (legacy.includes(term) || idx.includes(term)) return true
+        }
+
+        return false
       }
 
       return true
     })
-  }, [opportunities, searchCliente, searchProdutoCodigo, filterStatusId, filterFaseId, itensSearchByOport, resolveStageId, resolveStatusId])
+  }, [opportunities, searchTerm, filterStatusId, filterFaseId, itensSearchByOport, resolveStageId, resolveStatusId])
 
   // Agrupamento por etapa
   const visibleStages = useMemo(() => {
@@ -2552,6 +2561,56 @@ export default function OportunidadesKanban() {
     })
     return rows
   }, [filteredOpportunities, listSort, statuses, stages, resolveStageId])
+
+  const statusHistoryRows = useMemo(() => {
+    const rows = (comentarios || [])
+      .filter((c) => String((c as any)?.comentario || '').trim().toLowerCase().startsWith('status alterado:'))
+      .map((c) => {
+        const raw = String((c as any)?.comentario || '').trim()
+        const lines = raw.split('\n')
+        const first = String(lines[0] || '').trim()
+        const statusText = first.replace(/^status alterado:\s*/i, '').trim() || '-'
+        const rest = lines.slice(1).join('\n').trim()
+        const comentarioText = rest.replace(/^(coment[aá]rio|obs)\s*:\s*/i, '').trim()
+        return {
+          id: String((c as any)?.comentario_id || '').trim() || `${(c as any)?.created_at || ''}-${Math.random()}`,
+          when: String((c as any)?.created_at || '').trim(),
+          createdBy: String((c as any)?.created_by || '').trim() || null,
+          statusText,
+          comentario: comentarioText || '-'
+        }
+      })
+      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+    return rows
+  }, [comentarios])
+
+  useEffect(() => {
+    if (!statusHistoryOpen) return
+    const ids = Array.from(new Set(statusHistoryRows.map((r) => r.createdBy).filter(Boolean))) as string[]
+    if (ids.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('profiles')
+          .select('id, nome, email_login, email_corporativo')
+          .in('id', ids)
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const r of (data || []) as any[]) {
+          const id = String(r?.id || '').trim()
+          if (!id) continue
+          map[id] = String(r?.nome || r?.email_corporativo || r?.email_login || id).trim()
+        }
+        setStatusHistoryUserById((prev) => ({ ...prev, ...map }))
+      } catch {
+        if (!cancelled) setStatusHistoryUserById((prev) => prev)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [statusHistoryOpen, statusHistoryRows])
 
   const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
     if (e.defaultPrevented) return
@@ -2672,20 +2731,10 @@ export default function OportunidadesKanban() {
             <div className="relative group">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
               <input
-                value={searchCliente}
-                onChange={(e) => setSearchCliente(e.target.value)}
-                placeholder="Buscar por cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por cliente ou código do produto..."
                 className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-48 transition-all"
-              />
-            </div>
-
-            <div className="relative group">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-              <input
-                value={searchProdutoCodigo}
-                onChange={(e) => setSearchProdutoCodigo(e.target.value)}
-                placeholder="Código do produto..."
-                className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-44 transition-all"
               />
             </div>
 
@@ -3323,7 +3372,8 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => {
-                  setTab('historicos')
+                  setStatusHistoryError(null)
+                  setStatusHistoryOpen(true)
                 }}
                 className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 inline-flex items-center justify-center transition-colors active:scale-[0.99]"
                 title="Histórico de Status"
@@ -4782,6 +4832,64 @@ export default function OportunidadesKanban() {
                 ))}
               </select>
             </div>
+          </div>
+        </Modal>
+
+        <Modal
+          isOpen={statusHistoryOpen}
+          onClose={() => setStatusHistoryOpen(false)}
+          title={
+            <div className="inline-flex items-center gap-2">
+              <Clock size={16} className="text-cyan-300" />
+              Histórico de Status
+            </div>
+          }
+          size="lg"
+          zIndex={215}
+        >
+          <div className="space-y-4">
+            {statusHistoryError ? (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{statusHistoryError}</div>
+            ) : null}
+
+            {!activeId ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
+                Salve a proposta para ver o histórico de status.
+              </div>
+            ) : statusHistoryRows.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
+                Nenhuma alteração de status registrada.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                <div className="overflow-auto custom-scrollbar max-h-[65vh]">
+                  <table className="w-full text-left">
+                    <thead className="sticky top-0 bg-[#0B1220] border-b border-white/10">
+                      <tr className="text-[10px] uppercase tracking-wider text-slate-400">
+                        <th className="px-4 py-3 font-black">Status</th>
+                        <th className="px-4 py-3 font-black whitespace-nowrap">Data/Hora</th>
+                        <th className="px-4 py-3 font-black">Usuário</th>
+                        <th className="px-4 py-3 font-black">Comentário</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statusHistoryRows.map((r) => (
+                        <tr key={r.id} className="border-b border-white/5">
+                          <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">{r.statusText}</td>
+                          <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">
+                            {r.when ? new Date(r.when).toLocaleString('pt-BR') : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[220px] truncate" title={r.createdBy || undefined}>
+                            {r.createdBy ? statusHistoryUserById[r.createdBy] || r.createdBy : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-pre-wrap">{r.comentario}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
 

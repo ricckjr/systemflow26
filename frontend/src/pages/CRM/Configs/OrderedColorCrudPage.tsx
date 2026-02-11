@@ -137,9 +137,11 @@ export const OrderedColorCrudPage: React.FC<OrderedColorCrudPageProps> = ({
         await updateItem(activeId, payload)
       } else {
         await createItem(payload)
+        setDraftDescricao('')
+        setDraftObs('')
+        setDraftOrdem('0')
+        setDraftCor('')
       }
-      setIsFormOpen(false)
-      setActiveId(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')

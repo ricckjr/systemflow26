@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import EmojiPicker, { Theme, EmojiClickData } from 'emoji-picker-react';
 import { Profile } from '@/types';
@@ -1397,6 +1397,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   };
 
   const messagesScrollRef = useRef<HTMLDivElement>(null)
+  const messagesContentRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastSeenMarkAtRef = useRef<number>(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const isAtBottomRef = useRef(true)
@@ -1406,6 +1408,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const isPrependingHistoryRef = useRef(false)
   const ignoreScrollUntilRef = useRef(0)
   const pendingInitialScrollRef = useRef(false)
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const end = messagesEndRef.current
+    if (!end) return
+    end.scrollIntoView({ block: 'end', behavior })
+  }, [])
 
   useEffect(() => {
     const root = messagesScrollRef.current
@@ -1418,9 +1425,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       const el = root
       if (!el) return
       ignoreScrollUntilRef.current = Date.now() + 250
-      el.scrollTop = el.scrollHeight
+      scrollToBottom('auto')
     })
-  }, [activeRoomId])
+  }, [activeRoomId, scrollToBottom])
 
   useEffect(() => {
     const root = messagesScrollRef.current
@@ -1475,7 +1482,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
       pendingInitialScrollRef.current = false
       requestAnimationFrame(() => {
         ignoreScrollUntilRef.current = Date.now() + 250
-        root.scrollTop = root.scrollHeight
+        scrollToBottom('auto')
       })
       return
     }
@@ -1489,9 +1496,32 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
     requestAnimationFrame(() => {
       ignoreScrollUntilRef.current = Date.now() + 250
-      root.scrollTop = root.scrollHeight
+      scrollToBottom('auto')
     })
-  }, [messages]);
+  }, [messages, currentUser?.id, scrollToBottom]);
+
+  useEffect(() => {
+    const root = messagesScrollRef.current
+    const content = messagesContentRef.current
+    if (!root || !content) return
+
+    let raf = 0
+    const observer = new ResizeObserver(() => {
+      if (isPrependingHistoryRef.current) return
+      if (!isAtBottomRef.current && !pendingInitialScrollRef.current) return
+      if (raf) window.cancelAnimationFrame(raf)
+      raf = window.requestAnimationFrame(() => {
+        ignoreScrollUntilRef.current = Date.now() + 250
+        root.scrollTop = root.scrollHeight
+      })
+    })
+
+    observer.observe(content)
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf)
+      observer.disconnect()
+    }
+  }, [activeRoomId])
 
   useEffect(() => {
     if (!activeRoomId) return
@@ -1819,11 +1849,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       </span>
                     )}
                   </div>
-                  {typingStatusText ? (
-                    <div className="text-[11px] text-cyan-300 mt-0.5 truncate max-w-[50vw]">
-                      {typingStatusText}
-                    </div>
-                  ) : activeRoomInfo.type === 'direct' && activeRoomInfo.statusText ? (
+                  {activeRoomInfo.type === 'direct' && activeRoomInfo.statusText ? (
                     <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[50vw]">
                       {activeRoomInfo.statusText}
                     </div>
@@ -1963,6 +1989,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             >
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')] [mask-image:linear-gradient(to_bottom,transparent,black)]"></div>
 
+              <div ref={messagesContentRef} className="flex flex-col gap-4">
               {pinnedItems.length > 0 && (
                 <div className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-[#0B0F14]/85 backdrop-blur border-b border-white/10">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
@@ -2334,10 +2361,18 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                    )}
                              </div>
                            ))}
-                            {msg.content && <p>{renderMessageTextWithMentions(msg.content)}</p>}
+                            {msg.content ? (
+                              <div className="whitespace-pre-wrap">
+                                {renderMessageTextWithMentions(msg.content)}
+                              </div>
+                            ) : null}
                           </div>
                         ) : (
-                          renderMessageTextWithMentions(msg.content)
+                          msg.content ? (
+                            <div className="whitespace-pre-wrap">
+                              {renderMessageTextWithMentions(msg.content)}
+                            </div>
+                          ) : null
                         )}
                       </div>
 
@@ -2380,13 +2415,29 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </React.Fragment>
                 );
               })}
+              {typingStatusText ? (
+                <div className="flex items-end justify-start">
+                  <div className="max-w-[75%] flex flex-col items-start">
+                    <div className="text-[11px] text-[var(--text-soft)] mb-1 truncate max-w-[65vw]">
+                      {typingStatusText}
+                    </div>
+                    <div className="px-4 py-3 bg-[#1E293B] border border-[var(--border)] text-gray-200 rounded-2xl rounded-tl-none shadow-sm">
+                      <div className="flex items-center gap-1.5 h-4">
+                        <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {pendingNewCount > 0 && !isAtBottom && (
                 <div className="sticky bottom-4 z-10 flex justify-center pointer-events-none">
                   <button
                     type="button"
                     onClick={() => {
-                      const root = messagesScrollRef.current
-                      root?.scrollTo({ top: root.scrollHeight, behavior: 'smooth' })
+                      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
                       setPendingNewCount(0)
                       if (activeRoomId) {
                         void markChatRoomAsRead(activeRoomId)
@@ -2400,6 +2451,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </button>
                 </div>
               )}
+              <div ref={messagesEndRef} />
+              </div>
             </div>
 
             {/* Input Area */}
@@ -2607,7 +2660,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             setMentionActiveIndex(0)
                             return
                           }
-                          if (e.key === 'Enter' || e.key === 'Tab') {
+                          if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
                             e.preventDefault()
                             const opt = mentionOptions[Math.max(0, Math.min(mentionOptions.length - 1, mentionActiveIndex))]
                             if (opt) insertMentionToken(opt)

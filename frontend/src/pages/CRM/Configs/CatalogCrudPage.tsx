@@ -395,9 +395,17 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         await updateItem(activeId, payload)
       } else {
         await createItem(payload)
+        setDraftSituacao(true)
+        setDraftDescricao('')
+        setDraftPreco('')
+        setDraftUnidade('UN')
+        setDraftNcmCodigo('')
+        setDraftLocalEstoque('03')
+        setDraftFamiliaId('')
+        setDraftFamiliaNova('')
+        setNcmSearch('')
+        setNcmOptions([])
       }
-      setIsFormOpen(false)
-      setActiveId(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')

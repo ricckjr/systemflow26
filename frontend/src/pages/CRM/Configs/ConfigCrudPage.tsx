@@ -167,9 +167,9 @@ export const ConfigCrudPage: React.FC<ConfigCrudPageProps> = ({
         await updateItem(activeId, payload)
       } else {
         await createItem(payload)
+        setDraftDescricao('')
+        setDraftObs('')
       }
-      setIsFormOpen(false)
-      setActiveId(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')

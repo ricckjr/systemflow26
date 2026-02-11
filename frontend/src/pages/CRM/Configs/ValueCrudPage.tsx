@@ -196,9 +196,10 @@ export const ValueCrudPage: React.FC<ValueCrudPageProps> = ({
         await updateItem(activeId, payload)
       } else {
         await createItem(payload)
+        setDraftDescricao('')
+        setDraftObs('')
+        setDraftValor('')
       }
-      setIsFormOpen(false)
-      setActiveId(null)
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')
@@ -478,4 +479,3 @@ export const ValueCrudPage: React.FC<ValueCrudPageProps> = ({
     </div>
   )
 }
-

@@ -22,8 +22,8 @@ export function useChat() {
 
   const sortRoomsByRecency = useCallback((next: ChatRoom[]) => {
     return [...next].sort((a, b) => {
-      const aRef = a.last_message_at || a.last_message?.created_at || a.updated_at || a.created_at
-      const bRef = b.last_message_at || b.last_message?.created_at || b.updated_at || b.created_at
+      const aRef = a.last_message?.created_at || a.last_message_at || a.updated_at || a.created_at
+      const bRef = b.last_message?.created_at || b.last_message_at || b.updated_at || b.created_at
       return new Date(bRef ?? 0).getTime() - new Date(aRef ?? 0).getTime()
     })
   }, [])
@@ -52,7 +52,7 @@ export function useChat() {
           // Don't set global loading true on refresh to avoid UI flicker if we already have rooms
           if (rooms.length === 0) setLoading(true);
           const data = await chatService.getRooms();
-          setRooms(data);
+          setRooms(sortRoomsByRecency(data));
         } catch (error) {
           console.error('Error loading chat rooms:', error);
         } finally {
@@ -65,7 +65,7 @@ export function useChat() {
     // Subscribe to global room updates (e.g. new messages in any room to update list)
     // For now, we'll just reload rooms on new message event in the list view context
     // Ideally, we'd listen to 'chat_rooms' updates or 'chat_messages' inserts globally
-  }, [profile?.id]);
+  }, [profile?.id, sortRoomsByRecency]);
 
   useEffect(() => {
     const next = new Map<string, { cleared_at: string | null; hidden_at: string | null }>()
@@ -300,7 +300,7 @@ export function useChat() {
     try {
       setLoading(true);
       const data = await chatService.getRooms();
-      setRooms(data);
+      setRooms(sortRoomsByRecency(data));
     } catch (error) {
       console.error('Error loading chat rooms:', error);
     } finally {

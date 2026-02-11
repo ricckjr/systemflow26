@@ -433,6 +433,98 @@ export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
   throw new Error('Falha ao criar a proposta comercial.')
 }
 
+export type CRM_OportunidadeContatoLink = {
+  id: string
+  id_oport: string
+  contato_id: string
+  is_principal: boolean
+  created_at: string
+}
+
+export async function fetchOportunidadeContatos(oportunidadeId: string) {
+  const id = String(oportunidadeId || '').trim()
+  if (!id) return [] as CRM_OportunidadeContatoLink[]
+  const { data, error } = await (supabase as any)
+    .from('crm_oportunidade_contatos')
+    .select('id, id_oport, contato_id, is_principal, created_at')
+    .eq('id_oport', id)
+    .order('is_principal', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    if (error.code === '42P01') return [] as CRM_OportunidadeContatoLink[]
+    throw toUserFacingError(error, 'Falha ao carregar contatos da proposta.')
+  }
+  return (data || []) as CRM_OportunidadeContatoLink[]
+}
+
+export async function linkOportunidadeContato(opts: { oportunidadeId: string; contatoId: string; isPrincipal?: boolean }) {
+  const oportunidadeId = String(opts.oportunidadeId || '').trim()
+  const contatoId = String(opts.contatoId || '').trim()
+  if (!oportunidadeId) throw new Error('Oportunidade inválida.')
+  if (!contatoId) throw new Error('Contato inválido.')
+
+  const { data, error } = await (supabase as any)
+    .from('crm_oportunidade_contatos')
+    .upsert(
+      {
+        id_oport: oportunidadeId,
+        contato_id: contatoId,
+        is_principal: !!opts.isPrincipal
+      },
+      { onConflict: 'id_oport,contato_id' }
+    )
+    .select('id, id_oport, contato_id, is_principal, created_at')
+    .single()
+
+  if (error) {
+    if (error.code === '42P01') throw new Error('Tabela crm_oportunidade_contatos ainda não foi criada.')
+    throw toUserFacingError(error, 'Falha ao vincular contato à proposta.')
+  }
+  return data as CRM_OportunidadeContatoLink
+}
+
+export async function unlinkOportunidadeContato(opts: { oportunidadeId: string; contatoId: string }) {
+  const oportunidadeId = String(opts.oportunidadeId || '').trim()
+  const contatoId = String(opts.contatoId || '').trim()
+  if (!oportunidadeId) return
+  if (!contatoId) return
+  const { error } = await (supabase as any)
+    .from('crm_oportunidade_contatos')
+    .delete()
+    .eq('id_oport', oportunidadeId)
+    .eq('contato_id', contatoId)
+
+  if (error) {
+    if (error.code === '42P01') return
+    throw toUserFacingError(error, 'Falha ao remover contato da proposta.')
+  }
+}
+
+export async function setOportunidadeContatoPrincipal(opts: { oportunidadeId: string; contatoId: string }) {
+  const oportunidadeId = String(opts.oportunidadeId || '').trim()
+  const contatoId = String(opts.contatoId || '').trim()
+  if (!oportunidadeId) throw new Error('Oportunidade inválida.')
+  if (!contatoId) throw new Error('Contato inválido.')
+
+  const sb = supabase as any
+  const clear = await sb.from('crm_oportunidade_contatos').update({ is_principal: false }).eq('id_oport', oportunidadeId)
+  if (clear.error) {
+    if (clear.error.code === '42P01') throw new Error('Tabela crm_oportunidade_contatos ainda não foi criada.')
+    throw toUserFacingError(clear.error, 'Falha ao definir contato principal.')
+  }
+
+  const set = await sb
+    .from('crm_oportunidade_contatos')
+    .update({ is_principal: true })
+    .eq('id_oport', oportunidadeId)
+    .eq('contato_id', contatoId)
+    .select('id, id_oport, contato_id, is_principal, created_at')
+    .single()
+  if (set.error) throw toUserFacingError(set.error, 'Falha ao definir contato principal.')
+  return set.data as CRM_OportunidadeContatoLink
+}
+
 export async function fetchOportunidadeById(id: string) {
   const oportunidadeId = String(id || '').trim()
   if (!oportunidadeId) return null

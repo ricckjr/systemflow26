@@ -116,6 +116,13 @@ function inferMessageType(content: string, attachments: ChatAttachment[]): ChatM
 export const chatService = {
   async getRooms(): Promise<ChatRoom[]> {
     const userId = await getCurrentUserId()
+    const sortRoomsByRecency = (next: ChatRoom[]) => {
+      return [...next].sort((a, b) => {
+        const aRef = a.last_message?.created_at || a.last_message_at || a.updated_at || a.created_at
+        const bRef = b.last_message?.created_at || b.last_message_at || b.updated_at || b.created_at
+        return new Date(bRef ?? 0).getTime() - new Date(aRef ?? 0).getTime()
+      })
+    }
 
     const { data, error } = await supabase
       .from('chat_rooms')
@@ -179,7 +186,7 @@ export const chatService = {
     )
 
     const roomIds = visibleRooms.map((r) => r.id).filter(Boolean)
-    if (roomIds.length === 0) return visibleRooms
+    if (roomIds.length === 0) return sortRoomsByRecency(visibleRooms)
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('chat_messages')
@@ -196,19 +203,21 @@ export const chatService = {
           .in('room_id', roomIds)
           .order('created_at', { ascending: false })
           .limit(Math.min(roomIds.length * 10, 200))
-        if (fallbackError) return visibleRooms
+        if (fallbackError) return sortRoomsByRecency(visibleRooms)
         const lastMessageByRoom = new Map<string, ChatMessage>()
         for (const row of fallbackData ?? []) {
           const roomId = row?.room_id
           if (!roomId || lastMessageByRoom.has(roomId)) continue
           lastMessageByRoom.set(roomId, normalizeMessage(row))
         }
-        return visibleRooms.map((room) => ({
-          ...room,
-          last_message: lastMessageByRoom.get(room.id),
-        }))
+        return sortRoomsByRecency(
+          visibleRooms.map((room) => ({
+            ...room,
+            last_message: lastMessageByRoom.get(room.id),
+          }))
+        )
       }
-      return visibleRooms
+      return sortRoomsByRecency(visibleRooms)
     }
 
     const lastMessageByRoom = new Map<string, ChatMessage>()
@@ -218,10 +227,12 @@ export const chatService = {
       lastMessageByRoom.set(roomId, normalizeMessage(row))
     }
 
-    return visibleRooms.map((room) => ({
-      ...room,
-      last_message: lastMessageByRoom.get(room.id),
-    }))
+    return sortRoomsByRecency(
+      visibleRooms.map((room) => ({
+        ...room,
+        last_message: lastMessageByRoom.get(room.id),
+      }))
+    )
   },
 
   async getMessages(roomId: string, limit = 50, afterCreatedAtExclusive?: string | null): Promise<ChatMessage[]> {

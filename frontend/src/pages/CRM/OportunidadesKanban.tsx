@@ -10,7 +10,9 @@ import {
   Loader2,
   Trash2,
   Pencil,
-  UserPlus
+  UserPlus,
+  Star,
+  LogIn
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import {
@@ -37,6 +39,10 @@ import {
   createOportunidadeComentario,
   updateOportunidade,
   createOportunidade,
+  fetchOportunidadeContatos,
+  linkOportunidadeContato,
+  unlinkOportunidadeContato,
+  setOportunidadeContatoPrincipal,
   replaceOportunidadeItens,
   deleteOportunidade
 } from '@/services/crm'
@@ -343,9 +349,6 @@ export default function OportunidadesKanban() {
   const [createClienteOpen, setCreateClienteOpen] = useState(false)
   const [createClienteLoading, setCreateClienteLoading] = useState(false)
   const [createClienteOptions, setCreateClienteOptions] = useState<Cliente[]>([])
-  const [createContatoId, setCreateContatoId] = useState('')
-  const [createContatoLoading, setCreateContatoLoading] = useState(false)
-  const [createContatoOptions, setCreateContatoOptions] = useState<ClienteContato[]>([])
   const [createOrigemId, setCreateOrigemId] = useState('')
   const [createVendedorId, setCreateVendedorId] = useState('')
   const [createEmpresaCorrespondenteId, setCreateEmpresaCorrespondenteId] = useState<string>('')
@@ -365,6 +368,8 @@ export default function OportunidadesKanban() {
     contato_obs: ''
   })
   const [createContatoSaving, setCreateContatoSaving] = useState(false)
+  const [contatoModalClienteId, setContatoModalClienteId] = useState('')
+  const [contatoModalOportunidadeId, setContatoModalOportunidadeId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -382,6 +387,18 @@ export default function OportunidadesKanban() {
   const [draftContatoTelefone02, setDraftContatoTelefone02] = useState('')
   const [draftContatoEmail, setDraftContatoEmail] = useState('')
   const [snapshotContatoFromId, setSnapshotContatoFromId] = useState<string | null>(null)
+  const [oportunidadeContatos, setOportunidadeContatos] = useState<
+    Array<{ contatoId: string; isPrincipal: boolean; contato: ClienteContato | null }>
+  >([])
+  const [oportunidadeContatosLoading, setOportunidadeContatosLoading] = useState(false)
+  const [oportunidadeContatosError, setOportunidadeContatosError] = useState<string | null>(null)
+  const [oportunidadeContatosSelectedId, setOportunidadeContatosSelectedId] = useState('')
+  const [oportunidadeContatosReloadKey, setOportunidadeContatosReloadKey] = useState(0)
+  const [contatoAddId, setContatoAddId] = useState('')
+  const [contatoAddQuery, setContatoAddQuery] = useState('')
+  const [contatoAddOpen, setContatoAddOpen] = useState(false)
+  const [contatoAddBarOpen, setContatoAddBarOpen] = useState(false)
+  const [contatoOpsSaving, setContatoOpsSaving] = useState(false)
   const [draftFaseId, setDraftFaseId] = useState('')
   const [draftStatusId, setDraftStatusId] = useState('')
   const [baselineStatusId, setBaselineStatusId] = useState<string | null>(null)
@@ -723,20 +740,6 @@ export default function OportunidadesKanban() {
   }, [createOpen, createClienteQuery])
 
   useEffect(() => {
-    if (!createOpen) return
-    const clienteId = createClienteId.trim()
-    if (!clienteId) {
-      setCreateContatoOptions([])
-      setCreateContatoId('')
-      return
-    }
-    setCreateContatoLoading(true)
-    fetchClienteContatos(clienteId)
-      .then((data) => setCreateContatoOptions(data))
-      .finally(() => setCreateContatoLoading(false))
-  }, [createOpen, createClienteId])
-
-  useEffect(() => {
     if (!formOpen) return
     setFormError(null)
     if (active) {
@@ -1045,6 +1048,75 @@ export default function OportunidadesKanban() {
 
   useEffect(() => {
     if (!formOpen) return
+    const oportId = String(activeId || '').trim()
+    const clienteId = draftClienteId.trim()
+    if (!oportId || !clienteId) {
+      setOportunidadeContatos([])
+      setOportunidadeContatosSelectedId('')
+      setOportunidadeContatosError(null)
+      setContatoAddId('')
+      return
+    }
+    let cancelled = false
+    setOportunidadeContatosLoading(true)
+    setOportunidadeContatosError(null)
+    ;(async () => {
+      const linksInitial = await fetchOportunidadeContatos(oportId)
+      let links = linksInitial
+
+      if (links.length === 0) {
+        const legacyContatoId = String((active as any)?.id_contato || (active as any)?.contato_id || '').trim()
+        if (legacyContatoId) {
+          try {
+            await linkOportunidadeContato({ oportunidadeId: oportId, contatoId: legacyContatoId, isPrincipal: true })
+            links = await fetchOportunidadeContatos(oportId)
+          } catch {}
+        }
+      }
+
+      const clienteContatos = await fetchClienteContatos(clienteId)
+      const mapById = new Map(clienteContatos.map((c) => [String(c.contato_id).trim(), c]))
+
+      const items = await Promise.all(
+        links.map(async (l) => {
+          const id = String(l.contato_id || '').trim()
+          let contato = mapById.get(id) || null
+          if (!contato) {
+            try {
+              contato = (await fetchContatoById(id)) || null
+            } catch {
+              contato = null
+            }
+          }
+          return { contatoId: id, isPrincipal: !!l.is_principal, contato }
+        })
+      )
+
+      if (cancelled) return
+      setOportunidadeContatos(items)
+      const principalId = items.find((x) => x.isPrincipal)?.contatoId || items[0]?.contatoId || ''
+      setOportunidadeContatosSelectedId(principalId)
+      setContatoAddId('')
+    })()
+      .catch((e) => {
+        if (cancelled) return
+        setOportunidadeContatos([])
+        setOportunidadeContatosSelectedId('')
+        setContatoAddId('')
+        setOportunidadeContatosError(e instanceof Error ? e.message : 'Falha ao carregar contatos.')
+      })
+      .finally(() => {
+        if (cancelled) return
+        setOportunidadeContatosLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [formOpen, activeId, active, draftClienteId, oportunidadeContatosReloadKey])
+
+  useEffect(() => {
+    if (!formOpen) return
     const id = draftClienteId.trim()
     if (!id) {
       setDraftClienteDocumento('')
@@ -1266,11 +1338,9 @@ export default function OportunidadesKanban() {
     setCreateClienteId('')
     setCreateClienteOpen(false)
     setCreateClienteOptions([])
-    setCreateContatoId('')
-    setCreateContatoOptions([])
     setCreateOrigemId('')
     setCreateVendedorId(canCrmControl ? '' : myUserId)
-    setCreateEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
+    setCreateEmpresaCorrespondenteId('')
     setCreateSolucao('PRODUTO')
     setCreateTicket('')
     setCreatePrevFechamento('')
@@ -1321,21 +1391,16 @@ export default function OportunidadesKanban() {
 
   const handleCreateOportunidade = async () => {
     const clienteId = createClienteId.trim()
-    const contatoId = createContatoId.trim()
     const origemId = createOrigemId.trim()
     const vendedorId = (canCrmControl ? createVendedorId : myUserId).trim()
     const ticketValor = parseMoney(createTicket)
     const prevEntrega = createPrevFechamento.trim() ? `${createPrevFechamento.trim()}-01` : null
     const solicitacao = createSolicitacao.trim()
-    const empresaId = (createEmpresaCorrespondenteId || '').trim() || defaultEmpresaCorrespondenteId
-    const empresaNome = (empresaNomeById.get(empresaId) || '').trim() || 'Apliflow'
+    const empresaId = (createEmpresaCorrespondenteId || '').trim()
+    const empresaNome = empresaId ? (empresaNomeById.get(empresaId) || '').trim() || 'Apliflow' : 'Apliflow'
 
     if (!clienteId) {
       setCreateError('Selecione um cliente.')
-      return
-    }
-    if (!contatoId) {
-      setCreateError('Selecione um contato (ou adicione um novo).')
       return
     }
     if (!origemId) {
@@ -1344,6 +1409,10 @@ export default function OportunidadesKanban() {
     }
     if (!vendedorId) {
       setCreateError('Selecione um vendedor.')
+      return
+    }
+    if (empresasCorrespondentes.length === 0) {
+      setCreateError('Cadastre a empresa correspondente no Financeiro.')
       return
     }
     if (!empresaId) {
@@ -1366,22 +1435,21 @@ export default function OportunidadesKanban() {
       const statusId = andamentoStatusId || null
       const faseLabel = faseId ? (stages.find((s) => s.id === faseId)?.label || null) : null
       const cliente = await fetchClienteById(clienteId)
-      const contato = createContatoOptions.find((c) => c.contato_id === contatoId) || (await fetchContatoById(contatoId))
       const clienteNomeSnapshot = (cliente?.cliente_nome_razao_social || createClienteQuery.trim() || null) as string | null
       const clienteDocSnapshot = (cliente?.cliente_documento_formatado || cliente?.cliente_documento || null) as string | null
 
       const created = await createOportunidade({
         id_cliente: clienteId,
-        id_contato: contatoId,
+        id_contato: null,
         id_origem: origemId,
         id_vendedor: vendedorId,
         cliente_nome: clienteNomeSnapshot,
         cliente_documento: clienteDocSnapshot,
-        contato_nome: contato?.contato_nome || null,
-        contato_cargo: contato?.contato_cargo || null,
-        contato_telefone01: contato?.contato_telefone01 || null,
-        contato_telefone02: contato?.contato_telefone02 || null,
-        contato_email: contato?.contato_email || null,
+        contato_nome: null,
+        contato_cargo: null,
+        contato_telefone01: null,
+        contato_telefone02: null,
+        contato_email: null,
         id_fase: faseId,
         id_status: statusId,
         id_motivo: null,
@@ -1406,16 +1474,16 @@ export default function OportunidadesKanban() {
           ...(created as any),
           cliente_nome: clienteNomeSnapshot,
           cliente_documento: clienteDocSnapshot,
-          contato_nome: (contato as any)?.contato_nome || null,
-          contato_cargo: (contato as any)?.contato_cargo || null,
-          contato_telefone01: (contato as any)?.contato_telefone01 || null,
-          contato_telefone02: (contato as any)?.contato_telefone02 || null,
-          contato_email: (contato as any)?.contato_email || null,
+          contato_nome: null,
+          contato_cargo: null,
+          contato_telefone01: null,
+          contato_telefone02: null,
+          contato_email: null,
           cliente: clienteNomeSnapshot || (createClienteQuery || '').trim() || (created as any)?.cliente || null,
-          nome_contato: (contato?.contato_nome || null) || (created as any)?.nome_contato || null,
-          telefone01_contato: (contato?.contato_telefone01 || null) || (created as any)?.telefone01_contato || null,
-          telefone02_contato: (contato?.contato_telefone02 || null) || (created as any)?.telefone02_contato || null,
-          email: (contato?.contato_email || null) || (created as any)?.email || null,
+          nome_contato: null,
+          telefone01_contato: null,
+          telefone02_contato: null,
+          email: null,
           vendedor: (vendedorNameById[vendedorId] || myUserName || '').trim() || (created as any)?.vendedor || null
         }
         if (!createdId) return prev
@@ -1426,12 +1494,15 @@ export default function OportunidadesKanban() {
         setClienteQuery(clienteNomeSnapshot || '')
         setDraftClienteId(clienteId)
         setDraftClienteDocumento(clienteDocSnapshot || '')
-        setDraftContatoId(contatoId)
-        setDraftContatoNome(((contato as any)?.contato_nome as any) || '')
-        setDraftContatoCargo(((contato as any)?.contato_cargo as any) || '')
-        setDraftContatoTelefone01(((contato as any)?.contato_telefone01 as any) || '')
-        setDraftContatoTelefone02(((contato as any)?.contato_telefone02 as any) || '')
-        setDraftContatoEmail(((contato as any)?.contato_email as any) || '')
+        setDraftContatoId('')
+        setDraftContatoNome('')
+        setDraftContatoCargo('')
+        setDraftContatoTelefone01('')
+        setDraftContatoTelefone02('')
+        setDraftContatoEmail('')
+        setOportunidadeContatos([])
+        setOportunidadeContatosSelectedId('')
+        setContatoAddId('')
         setActiveId(createdId)
         setFormOpen(true)
       }
@@ -1455,6 +1526,199 @@ export default function OportunidadesKanban() {
     else normalized = cleaned.replace(',', '.')
     const v = Number.parseFloat(normalized)
     return Number.isFinite(v) ? v : null
+  }
+
+  const createSubmitDisabled =
+    createSaving ||
+    !createClienteId.trim() ||
+    !createOrigemId.trim() ||
+    !(canCrmControl ? createVendedorId.trim() : myUserId.trim()) ||
+    !createEmpresaCorrespondenteId.trim() ||
+    !createSolicitacao.trim()
+
+  const contatoPrincipal = useMemo(() => {
+    return oportunidadeContatos.find((x) => x.isPrincipal) || null
+  }, [oportunidadeContatos])
+
+  const contatoSelecionado = useMemo(() => {
+    const id = oportunidadeContatosSelectedId.trim()
+    if (!id) return contatoPrincipal?.contato || null
+    return oportunidadeContatos.find((x) => x.contatoId === id)?.contato || null
+  }, [oportunidadeContatos, oportunidadeContatosSelectedId, contatoPrincipal])
+
+  const contatoAddCandidate = useMemo(() => {
+    const id = contatoAddId.trim()
+    if (!id) return null
+    return contatoOptions.find((c) => c.contato_id === id) || null
+  }, [contatoAddId, contatoOptions])
+
+  const contatoAddOptions = useMemo(() => {
+    const linked = new Set(oportunidadeContatos.map((x) => x.contatoId))
+    return contatoOptions.filter((c) => !linked.has(String(c.contato_id).trim()))
+  }, [contatoOptions, oportunidadeContatos])
+
+  const contatoAddFiltered = useMemo(() => {
+    const term = contatoAddQuery.trim().toLowerCase()
+    const base = contatoAddOptions
+    if (!term) return base.slice(0, 12)
+    return base
+      .filter((c) => {
+        const txt = `${c.contato_nome || ''} ${c.contato_email || ''} ${c.contato_telefone01 || ''} ${c.contato_telefone02 || ''} ${c.contato_cargo || ''}`.toLowerCase()
+        return txt.includes(term)
+      })
+      .slice(0, 12)
+  }, [contatoAddOptions, contatoAddQuery])
+
+  const contatoModalClienteNome = useMemo(() => {
+    const id = contatoModalClienteId.trim()
+    if (!id) return ''
+    const cached = String(clienteNameById[id] || '').trim()
+    if (cached) return cached
+    if (draftClienteId.trim() === id) return String(clienteQuery || '').trim()
+    return ''
+  }, [contatoModalClienteId, clienteNameById, draftClienteId, clienteQuery])
+
+  const contatoModalClienteDocumento = useMemo(() => {
+    const id = contatoModalClienteId.trim()
+    if (!id) return ''
+    if (draftClienteId.trim() === id) return String(draftClienteDocumento || '').trim()
+    return ''
+  }, [contatoModalClienteId, draftClienteId, draftClienteDocumento])
+
+  const addContatoToProposta = async () => {
+    const oportId = String(activeId || '').trim()
+    const clienteId = draftClienteId.trim()
+    const contatoId = contatoAddId.trim()
+    if (!oportId) return
+    if (!clienteId) return
+    if (!contatoId) {
+      setOportunidadeContatosError('Selecione um contato para adicionar.')
+      return
+    }
+    if (contatoOpsSaving) return
+    setContatoOpsSaving(true)
+    setOportunidadeContatosError(null)
+    try {
+      await linkOportunidadeContato({ oportunidadeId: oportId, contatoId })
+
+      const shouldSetPrincipal = !contatoPrincipal && oportunidadeContatos.length === 0
+      if (shouldSetPrincipal) {
+        await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId })
+        const contato = contatoAddCandidate || (await fetchContatoById(contatoId))
+        await updateOportunidade(oportId, {
+          id_contato: contatoId,
+          contato_nome: contato?.contato_nome || null,
+          contato_cargo: contato?.contato_cargo || null,
+          contato_telefone01: contato?.contato_telefone01 || null,
+          contato_telefone02: contato?.contato_telefone02 || null,
+          contato_email: contato?.contato_email || null
+        } as any)
+        setDraftContatoId(contatoId)
+      }
+
+      if (contatoAddCandidate?.contato_nome) {
+        setContatoNameById((prev) => ({ ...prev, [String(contatoAddCandidate.contato_id)]: String(contatoAddCandidate.contato_nome) }))
+      }
+      setOportunidadeContatosSelectedId(contatoId)
+      setContatoAddId('')
+      setContatoAddQuery('')
+      setContatoAddOpen(false)
+      setContatoAddBarOpen(false)
+      setOportunidadeContatosReloadKey((prev) => prev + 1)
+      await loadData()
+    } catch (e) {
+      setOportunidadeContatosError(e instanceof Error ? e.message : 'Falha ao adicionar contato.')
+    } finally {
+      setContatoOpsSaving(false)
+    }
+  }
+
+  const setContatoPrincipalOnProposta = async (contatoIdRaw: string) => {
+    const oportId = String(activeId || '').trim()
+    const contatoId = String(contatoIdRaw || '').trim()
+    if (!oportId) return
+    if (!contatoId) return
+    if (contatoOpsSaving) return
+    setContatoOpsSaving(true)
+    setOportunidadeContatosError(null)
+    try {
+      await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId })
+      const contato =
+        oportunidadeContatos.find((x) => x.contatoId === contatoId)?.contato ||
+        contatoOptions.find((c) => c.contato_id === contatoId) ||
+        (await fetchContatoById(contatoId))
+      await updateOportunidade(oportId, {
+        id_contato: contatoId,
+        contato_nome: contato?.contato_nome || null,
+        contato_cargo: contato?.contato_cargo || null,
+        contato_telefone01: contato?.contato_telefone01 || null,
+        contato_telefone02: contato?.contato_telefone02 || null,
+        contato_email: contato?.contato_email || null
+      } as any)
+      setDraftContatoId(contatoId)
+      setOportunidadeContatosSelectedId(contatoId)
+      setOportunidadeContatosReloadKey((prev) => prev + 1)
+      await loadData()
+    } catch (e) {
+      setOportunidadeContatosError(e instanceof Error ? e.message : 'Falha ao definir contato principal.')
+    } finally {
+      setContatoOpsSaving(false)
+    }
+  }
+
+  const removeContatoFromProposta = async (contatoIdRaw: string) => {
+    const oportId = String(activeId || '').trim()
+    const contatoId = String(contatoIdRaw || '').trim()
+    if (!oportId) return
+    if (!contatoId) return
+    if (contatoOpsSaving) return
+    setContatoOpsSaving(true)
+    setOportunidadeContatosError(null)
+    try {
+      const wasPrincipal = !!oportunidadeContatos.find((x) => x.contatoId === contatoId)?.isPrincipal
+      await unlinkOportunidadeContato({ oportunidadeId: oportId, contatoId })
+
+      if (wasPrincipal) {
+        const remaining = await fetchOportunidadeContatos(oportId)
+        if (remaining.length === 0) {
+          await updateOportunidade(oportId, {
+            id_contato: null,
+            contato_nome: null,
+            contato_cargo: null,
+            contato_telefone01: null,
+            contato_telefone02: null,
+            contato_email: null
+          } as any)
+          setDraftContatoId('')
+          setOportunidadeContatosSelectedId('')
+        } else {
+          const nextId = String(remaining[0]?.contato_id || '').trim()
+          if (nextId) {
+            await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId: nextId })
+            const contato =
+              contatoOptions.find((c) => c.contato_id === nextId) ||
+              (await fetchContatoById(nextId))
+            await updateOportunidade(oportId, {
+              id_contato: nextId,
+              contato_nome: contato?.contato_nome || null,
+              contato_cargo: contato?.contato_cargo || null,
+              contato_telefone01: contato?.contato_telefone01 || null,
+              contato_telefone02: contato?.contato_telefone02 || null,
+              contato_email: contato?.contato_email || null
+            } as any)
+            setDraftContatoId(nextId)
+            setOportunidadeContatosSelectedId(nextId)
+          }
+        }
+      }
+
+      setOportunidadeContatosReloadKey((prev) => prev + 1)
+      await loadData()
+    } catch (e) {
+      setOportunidadeContatosError(e instanceof Error ? e.message : 'Falha ao remover contato.')
+    } finally {
+      setContatoOpsSaving(false)
+    }
   }
 
   const handleSave = async (opts?: { skipStatusObsCheck?: boolean; statusObs?: string | null; statusIdOverride?: string | null }) => {
@@ -1605,11 +1869,10 @@ export default function OportunidadesKanban() {
             const toDesc = statuses.find((s) => s.status_id === next)?.status_desc || '—'
             await createOportunidadeComentario(String(newId), `Status alterado: ${fromDesc} → ${toDesc}\nObs: ${statusObs}`)
           }
+          setActiveId(String(newId))
         }
       }
       if (statusChanged) setBaselineStatusId(next)
-      setFormOpen(false)
-      setActiveId(null)
       await loadData()
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Falha ao salvar.')
@@ -1893,7 +2156,7 @@ export default function OportunidadesKanban() {
             <button
               type="button"
               onClick={handleCreateOportunidade}
-              disabled={createSaving}
+              disabled={createSubmitDisabled}
               className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
             >
               {createSaving ? 'Criando...' : 'Criar Oportunidade'}
@@ -1921,11 +2184,14 @@ export default function OportunidadesKanban() {
                   {empresasCorrespondentes.length === 0 ? (
                     <option value="">Cadastre no Financeiro</option>
                   ) : (
-                    empresasCorrespondentes.map((e) => (
-                      <option key={String(e.empresa_id)} value={String(e.empresa_id)}>
-                        {String(e.nome_fantasia || e.razao_social || 'Empresa')}
-                      </option>
-                    ))
+                    <>
+                      <option value="">Selecione...</option>
+                      {empresasCorrespondentes.map((e) => (
+                        <option key={String(e.empresa_id)} value={String(e.empresa_id)}>
+                          {String(e.nome_fantasia || e.razao_social || 'Empresa')}
+                        </option>
+                      ))}
+                    </>
                   )}
                 </select>
               </div>
@@ -1940,8 +2206,6 @@ export default function OportunidadesKanban() {
                   onChange={(e) => {
                     setCreateClienteQuery(e.target.value)
                     setCreateClienteId('')
-                    setCreateContatoId('')
-                    setCreateContatoOptions([])
                     setCreateClienteOpen(true)
                   }}
                   onFocus={() => setCreateClienteOpen(true)}
@@ -1985,45 +2249,6 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Contato</label>
-                <select
-                  value={createContatoId}
-                  onChange={(e) => setCreateContatoId(e.target.value)}
-                  disabled={!createClienteId || createContatoLoading}
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-40"
-                >
-                  <option value="">{createContatoLoading ? 'Carregando...' : '-'}</option>
-                  {createContatoOptions.map((c) => (
-                    <option key={c.contato_id} value={c.contato_id}>
-                      {c.contato_nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCreateContatoError(null)
-                  setCreateContatoDraft({
-                    integ_id: '',
-                    contato_nome: '',
-                    contato_cargo: '',
-                    contato_telefone01: '',
-                    contato_telefone02: '',
-                    contato_email: '',
-                    contato_obs: ''
-                  })
-                  setCreateContatoModalOpen(true)
-                }}
-                disabled={!createClienteId}
-                className="h-[46px] px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold text-xs transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              >
-                Novo Contato
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2103,7 +2328,7 @@ export default function OportunidadesKanban() {
           </div>
         }
         size="xl"
-        zIndex={160}
+        zIndex={180}
         footer={
           <>
             <button
@@ -2117,10 +2342,14 @@ export default function OportunidadesKanban() {
             <button
               type="button"
               onClick={async () => {
-                const clienteId = createClienteId.trim()
+                const clienteId = contatoModalClienteId.trim()
+                const oportunidadeId = String(contatoModalOportunidadeId || '').trim()
                 const nome = createContatoDraft.contato_nome.trim()
                 const email = createContatoDraft.contato_email.trim()
-                if (!clienteId) return
+                if (!clienteId) {
+                  setCreateContatoError('Selecione um cliente para criar o contato.')
+                  return
+                }
                 if (!nome) {
                   setCreateContatoError('Nome do contato é obrigatório.')
                   return
@@ -2153,8 +2382,36 @@ export default function OportunidadesKanban() {
                     deleted_at: null
                   } as any)
                   const refreshed = await fetchClienteContatos(clienteId)
-                  setCreateContatoOptions(refreshed)
-                  setCreateContatoId(created.contato_id)
+                  setContatoOptions(refreshed)
+
+                  if (oportunidadeId) {
+                    try {
+                      await linkOportunidadeContato({ oportunidadeId, contatoId: created.contato_id })
+                      const shouldBecomePrincipal = !oportunidadeContatos.some((x) => x.isPrincipal) && oportunidadeContatos.length === 0
+                      if (shouldBecomePrincipal) {
+                        await setOportunidadeContatoPrincipal({ oportunidadeId, contatoId: created.contato_id })
+                        await updateOportunidade(oportunidadeId, {
+                          id_contato: created.contato_id,
+                          contato_nome: created.contato_nome || null,
+                          contato_cargo: created.contato_cargo || null,
+                          contato_telefone01: created.contato_telefone01 || null,
+                          contato_telefone02: created.contato_telefone02 || null,
+                          contato_email: created.contato_email || null
+                        } as any)
+                        setDraftContatoId(created.contato_id)
+                      }
+                      setOportunidadeContatosReloadKey((prev) => prev + 1)
+                      await loadData()
+                    } catch {}
+                  }
+
+                  setOportunidadeContatos((prev) => {
+                    if (!oportunidadeId) return prev
+                    if (prev.some((p) => p.contatoId === created.contato_id)) return prev
+                    const isPrincipal = prev.length === 0
+                    return [...prev, { contatoId: created.contato_id, isPrincipal, contato: created }]
+                  })
+                  setOportunidadeContatosSelectedId(created.contato_id)
                   setCreateContatoModalOpen(false)
                 } catch (e) {
                   setCreateContatoError(e instanceof Error ? e.message : 'Falha ao salvar contato.')
@@ -2162,7 +2419,9 @@ export default function OportunidadesKanban() {
                   setCreateContatoSaving(false)
                 }
               }}
-              disabled={createContatoSaving || !createClienteId || !createContatoDraft.contato_nome.trim()}
+              disabled={
+                createContatoSaving || !contatoModalClienteId.trim() || !createContatoDraft.contato_nome.trim()
+              }
               className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {createContatoSaving ? (
@@ -2183,6 +2442,28 @@ export default function OportunidadesKanban() {
               {createContatoError}
             </div>
           )}
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+            <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome/Razão Social</label>
+                <input
+                  value={contatoModalClienteNome || contatoModalClienteId.trim() || '-'}
+                  readOnly
+                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">CNPJ/CPF</label>
+                <input
+                  value={contatoModalClienteDocumento || '-'}
+                  readOnly
+                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-2">
@@ -2409,20 +2690,64 @@ export default function OportunidadesKanban() {
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                    <div className="xl:col-span-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente</div>
-                      <div className="mt-4 grid grid-cols-1 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cliente</label>
-                          <input
-                            value={clienteQuery}
-                            readOnly
-                            placeholder="Cliente"
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                          />
+                    <div className="xl:col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente / Contatos</div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOportunidadeContatosError(null)
+                              if (!draftClienteId.trim()) return
+                              setContatoAddBarOpen((prev) => {
+                                const next = !prev
+                                if (next) setContatoAddOpen(true)
+                                return next
+                              })
+                            }}
+                            disabled={!draftClienteId.trim()}
+                            className="h-[36px] px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-wider shadow-lg shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            Adicionar Contato
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!draftClienteId.trim()) return
+                              setCreateContatoError(null)
+                              setCreateContatoDraft({
+                                integ_id: '',
+                                contato_nome: '',
+                                contato_cargo: '',
+                                contato_telefone01: '',
+                                contato_telefone02: '',
+                                contato_email: '',
+                                contato_obs: ''
+                              })
+                              setContatoModalClienteId(draftClienteId.trim())
+                              setContatoModalOportunidadeId(String(activeId || '').trim() || null)
+                              setCreateContatoModalOpen(true)
+                            }}
+                            disabled={createContatoSaving || !draftClienteId.trim()}
+                            className="h-[36px] px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-black text-[10px] uppercase tracking-wider transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-2"
+                          >
+                            <UserPlus size={14} />
+                            Novo Contato
+                          </button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
+                      </div>
+                      <div className="mt-4 space-y-4">
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-end">
+                          <div className="xl:col-span-6 space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cliente</label>
+                            <input
+                              value={clienteQuery}
+                              readOnly
+                              placeholder="Cliente"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            />
+                          </div>
+                          <div className="xl:col-span-3 space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">CNPJ/CPF</label>
                             <input
                               value={draftClienteDocumento || '-'}
@@ -2431,7 +2756,7 @@ export default function OportunidadesKanban() {
                               className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
                             />
                           </div>
-                          <div className="space-y-2">
+                          <div className="xl:col-span-3 space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Origem</label>
                             <div className="relative">
                               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -2475,59 +2800,156 @@ export default function OportunidadesKanban() {
                             </div>
                           </div>
                         </div>
+
+                        <div className="h-px bg-white/10" />
+
+                        {(oportunidadeContatosError || contatoAddBarOpen || oportunidadeContatosLoading || oportunidadeContatos.length > 0) && (
+                          <>
+                            {oportunidadeContatosError && (
+                              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+                                {oportunidadeContatosError}
+                              </div>
+                            )}
+
+                            {contatoAddBarOpen && (
+                              <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
+                                  <div className="relative">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <input
+                                      value={contatoAddQuery}
+                                      onChange={(e) => {
+                                        setContatoAddQuery(e.target.value)
+                                        setContatoAddId('')
+                                        setContatoAddOpen(true)
+                                      }}
+                                      onFocus={() => setContatoAddOpen(true)}
+                                      onBlur={() => window.setTimeout(() => setContatoAddOpen(false), 150)}
+                                      disabled={!draftClienteId.trim() || contatoLoading || oportunidadeContatosLoading}
+                                      placeholder={contatoLoading ? 'Carregando...' : 'Pesquisar contato...'}
+                                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 pl-9 pr-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-40"
+                                    />
+                                    {contatoAddOpen && (
+                                      <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
+                                        <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                                          {contatoAddFiltered.length === 0 ? (
+                                            <div className="px-4 py-3 text-xs text-slate-400">Nenhum contato encontrado.</div>
+                                          ) : (
+                                            contatoAddFiltered.map((c) => (
+                                              <button
+                                                key={c.contato_id}
+                                                type="button"
+                                                onMouseDown={(ev) => {
+                                                  ev.preventDefault()
+                                                  setContatoAddId(c.contato_id)
+                                                  setContatoAddQuery(c.contato_nome)
+                                                  setContatoAddOpen(false)
+                                                }}
+                                                className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
+                                              >
+                                                <div className="text-sm font-semibold text-slate-100 truncate">{c.contato_nome}</div>
+                                                <div className="text-[11px] text-slate-400 truncate">
+                                                  {(c.contato_cargo || '-') +
+                                                    ' · ' +
+                                                    (c.contato_email || '-') +
+                                                    ' · ' +
+                                                    (c.contato_telefone01 || '-')}
+                                                </div>
+                                              </button>
+                                            ))
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={addContatoToProposta}
+                                    disabled={contatoOpsSaving || !contatoAddId.trim() || !draftClienteId.trim()}
+                                    className="h-[46px] px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                                  >
+                                    Adicionar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
+                              <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Contatos</div>
+                                <span className="text-[10px] font-black bg-white/5 text-slate-300 px-2 py-1 rounded-full border border-white/10">
+                                  {oportunidadeContatos.length}
+                                </span>
+                              </div>
+
+                              <div className="hidden xl:grid grid-cols-12 gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-white/10">
+                                <div className="col-span-1">#</div>
+                                <div className="col-span-3">Contato</div>
+                                <div className="col-span-3">Cargo</div>
+                                <div className="col-span-3">E-mail</div>
+                                <div className="col-span-1">Telefone</div>
+                                <div className="col-span-1 text-right">Ações</div>
+                              </div>
+
+                              {oportunidadeContatosLoading ? (
+                                <div className="px-4 py-4 text-xs text-slate-400 flex items-center gap-2">
+                                  <Loader2 className="animate-spin" size={14} />
+                                  Carregando contatos...
+                                </div>
+                              ) : oportunidadeContatos.length === 0 ? (
+                                <div className="px-4 py-4 text-xs text-slate-400">Nenhum contato vinculado ainda.</div>
+                              ) : (
+                                <div className="divide-y divide-white/10">
+                                  {oportunidadeContatos.map((c, idx) => (
+                                    <div key={c.contatoId} className="px-4 py-3 grid grid-cols-1 xl:grid-cols-12 gap-3 items-center">
+                                      <div className="xl:col-span-1 text-xs font-black text-slate-300">{idx + 1}</div>
+                                      <div className="xl:col-span-3 min-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          {c.isPrincipal && <Star size={14} className="text-amber-300 shrink-0" />}
+                                          <div className="text-sm font-bold text-slate-100 truncate">
+                                            {c.contato?.contato_nome || `Contato ${idx + 1}`}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="xl:col-span-3 text-sm font-semibold text-slate-200 truncate">
+                                        {c.contato?.contato_cargo || '-'}
+                                      </div>
+                                      <div className="xl:col-span-3 text-sm font-semibold text-slate-200 truncate">
+                                        {c.contato?.contato_email || '-'}
+                                      </div>
+                                      <div className="xl:col-span-1 text-sm font-semibold text-slate-200 truncate font-mono">
+                                        {c.contato?.contato_telefone01 || '-'}
+                                      </div>
+                                      <div className="xl:col-span-1 flex items-center justify-start xl:justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setContatoPrincipalOnProposta(c.contatoId)}
+                                          disabled={contatoOpsSaving || c.isPrincipal}
+                                          title="Definir como principal"
+                                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
+                                        >
+                                          <LogIn size={16} className="text-amber-300" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeContatoFromProposta(c.contatoId)}
+                                          disabled={contatoOpsSaving}
+                                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
+                                          title="Remover"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    <div className="xl:col-span-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Contato</div>
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2 md:col-span-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Contato</label>
-                          <input
-                            value={draftContatoNome || '-'}
-                            readOnly
-                            placeholder="Nome do contato"
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cargo</label>
-                          <input
-                            value={draftContatoCargo || '-'}
-                            placeholder="Cargo"
-                            readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">E-mail</label>
-                          <input
-                            value={draftContatoEmail || '-'}
-                            placeholder="email@exemplo.com"
-                            readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone 01</label>
-                          <input
-                            value={draftContatoTelefone01 || '-'}
-                            placeholder="Telefone 01"
-                            readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone 02</label>
-                          <input
-                            value={draftContatoTelefone02 || '-'}
-                            placeholder="Telefone 02"
-                            readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -3711,7 +4133,9 @@ export default function OportunidadesKanban() {
                   }
 
                   setDraftItens((prev) => [...prev, next])
-                  setItemModalOpen(false)
+                  setItemSelectedId('')
+                  setItemQuantidade('1')
+                  setItemDesconto('0')
                 }}
                 disabled={!itemSelected}
                 className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"

@@ -64,8 +64,8 @@ export async function primeNotificationAudio() {
         { once: true }
       )
     }
-    if (shouldLoadSystem) systemAudioBase.preload = 'metadata'
-    if (shouldLoadChat) chatAudioBase.preload = 'metadata'
+    if (shouldLoadSystem) systemAudioBase.preload = 'none'
+    if (shouldLoadChat) chatAudioBase.preload = 'none'
   } catch {}
 }
 
@@ -109,8 +109,9 @@ export async function playSystemAlertSound() {
     if (typeof Audio !== 'undefined' && !mp3Disabled) {
       const base = systemAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       systemAudioBase = base
-      base.pause()
-      base.currentTime = 0
+      try {
+        base.currentTime = 0
+      } catch {}
       base.volume = 0.75
       await base.play()
       emitSoundDebug({ type: 'system', ok: true, at: Date.now() })
@@ -160,8 +161,9 @@ export async function playChatMessageSound() {
     if (typeof Audio !== 'undefined' && !mp3Disabled) {
       const base = chatAudioBase ?? Object.assign(new Audio(notificationUrl), { preload: 'auto' })
       chatAudioBase = base
-      base.pause()
-      base.currentTime = 0
+      try {
+        base.currentTime = 0
+      } catch {}
       base.volume = 0.7
       await base.play()
       emitSoundDebug({ type: 'chat', ok: true, at: Date.now() })

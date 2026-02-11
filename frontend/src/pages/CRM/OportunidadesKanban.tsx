@@ -53,6 +53,7 @@ import { fetchClienteContatos, fetchContatoById, ClienteContato, createClienteCo
 import { HorizontalScrollArea, Modal } from '@/components/ui'
 import { useUsuarios, UsuarioSimples } from '@/hooks/useUsuarios'
 import { useAuth } from '@/contexts/AuthContext'
+import { downloadPropostaPdf, openPropostaPdfInNewTab, preloadPropostaPdfDeps } from '@/utils/propostaPdf'
 
 type Stage = { id: string; label: string; ordem: number; cor: string | null }
 
@@ -435,6 +436,9 @@ export default function OportunidadesKanban() {
   const [generateOpen, setGenerateOpen] = useState(false)
   const [generateValidade, setGenerateValidade] = useState('')
   const [generateTipoFrete, setGenerateTipoFrete] = useState<'FOB' | 'CIF' | ''>('')
+  const [generateValoresMode, setGenerateValoresMode] = useState<'COM' | 'SEM'>('COM')
+  const [generatePdfLoading, setGeneratePdfLoading] = useState(false)
+  const [generatePdfError, setGeneratePdfError] = useState<string | null>(null)
 
   const [comentarios, setComentarios] = useState<CRM_OportunidadeComentario[]>([])
   const [comentariosDraft, setComentariosDraft] = useState<Array<{ localId: string; comentario: string; createdAt: string }>>([])
@@ -2688,7 +2692,7 @@ export default function OportunidadesKanban() {
               <div className="px-4 md:px-6 py-4 pb-8">
                 {tab === 'ticket' && (
                   <div className="space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {draftSolucao === 'PRODUTO' ? (
                         <button
                           type="button"
@@ -2766,6 +2770,16 @@ export default function OportunidadesKanban() {
                         ) : (
                           <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Bruto: {formatCurrency(ticketCalculadoBruto)}</div>
                         )}
+                      </div>
+
+                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão de Faturamento</div>
+                        <input
+                          type="date"
+                          value={draftPrevEntrega}
+                          onChange={(e) => setDraftPrevEntrega(e.target.value)}
+                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
                       </div>
                     </div>
 
@@ -3256,10 +3270,13 @@ export default function OportunidadesKanban() {
                       onClick={() => {
                         if (!activeId) return
                         const now = new Date()
-                        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7)
+                        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15)
                         const validade = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
                         setGenerateValidade(validade)
                         setGenerateTipoFrete(draftTipoFrete)
+                        setGenerateValoresMode('COM')
+                        setGeneratePdfError(null)
+                        void preloadPropostaPdfDeps()
                         setGenerateOpen(true)
                       }}
                       className="w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
@@ -3344,31 +3361,75 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setGenerateOpen(false)}
+                disabled={generatePdfLoading}
                 className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={() => {
+                disabled={!activeId || generatePdfLoading}
+                onClick={async () => {
                   if (!activeId) return
-                  const params = new URLSearchParams()
-                  const validade = generateValidade.trim()
-                  if (validade) params.set('validade', validade)
-                  if (generateTipoFrete) params.set('tipoFrete', generateTipoFrete)
-                  const qs = params.toString()
-                  const url = `/crm/proposta/${activeId}/preview${qs ? `?${qs}` : ''}`
-                  window.open(url, '_blank', 'noopener,noreferrer')
-                  setGenerateOpen(false)
+                  setGeneratePdfLoading(true)
+                  setGeneratePdfError(null)
+                  try {
+                    await downloadPropostaPdf({
+                      oportunidadeId: activeId,
+                      validade: generateValidade.trim() || null,
+                      tipoFrete: generateTipoFrete || null,
+                      showValores: generateValoresMode === 'COM'
+                    })
+                    setGenerateOpen(false)
+                  } catch (e) {
+                    setGeneratePdfError(e instanceof Error ? e.message : 'Falha ao gerar PDF.')
+                  } finally {
+                    setGeneratePdfLoading(false)
+                  }
                 }}
-                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50 disabled:shadow-none"
               >
-                Abrir Preview
+                {generatePdfLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Gerando PDF...
+                  </>
+                ) : (
+                  'Baixar PDF'
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={!activeId || generatePdfLoading}
+                onClick={async () => {
+                  if (!activeId) return
+                  setGeneratePdfLoading(true)
+                  setGeneratePdfError(null)
+                  try {
+                    await openPropostaPdfInNewTab({
+                      oportunidadeId: activeId,
+                      validade: generateValidade.trim() || null,
+                      tipoFrete: generateTipoFrete || null,
+                      showValores: generateValoresMode === 'COM'
+                    })
+                    setGenerateOpen(false)
+                  } catch (e) {
+                    setGeneratePdfError(e instanceof Error ? e.message : 'Falha ao abrir PDF.')
+                  } finally {
+                    setGeneratePdfLoading(false)
+                  }
+                }}
+                className="px-7 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Abrir em nova aba
               </button>
             </>
           }
         >
           <div className="space-y-4">
+            {generatePdfError ? (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{generatePdfError}</div>
+            ) : null}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Validade da proposta</label>
               <input
@@ -3389,6 +3450,33 @@ export default function OportunidadesKanban() {
                 <option value="FOB">FOB</option>
                 <option value="CIF">CIF</option>
               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Visualizar proposta</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGenerateValoresMode('COM')}
+                  className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-colors ${
+                    generateValoresMode === 'COM'
+                      ? 'bg-emerald-600 text-white border-emerald-700/30'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-100 border-white/10'
+                  }`}
+                >
+                  Com Valor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerateValoresMode('SEM')}
+                  className={`px-4 py-2.5 rounded-xl border text-sm font-black transition-colors ${
+                    generateValoresMode === 'SEM'
+                      ? 'bg-emerald-600 text-white border-emerald-700/30'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-100 border-white/10'
+                  }`}
+                >
+                  Sem Valor
+                </button>
+              </div>
             </div>
           </div>
         </Modal>

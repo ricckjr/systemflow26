@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useProfileForm } from '@/hooks/useProfileForm'
 import { useNotificationPreferences } from '@/contexts/NotificationPreferencesContext'
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <label className="block text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mb-1">
@@ -77,6 +78,10 @@ export default function Perfil() {
     changePassword
   } = useProfileForm()
   const { preferences, setChannelPreferences } = useNotificationPreferences()
+  const { modal: unsavedChangesModal } = useUnsavedChangesGuard({
+    when: isDirty && !saving && !uploadingAvatar,
+    onSave: () => saveProfile(),
+  })
 
   /* ===========================
      LOADING STATE
@@ -258,6 +263,7 @@ export default function Perfil() {
           </div>
         </form>
       </div>
+      {unsavedChangesModal}
 
       {/* SECURITY */}
       <div className="card-panel">

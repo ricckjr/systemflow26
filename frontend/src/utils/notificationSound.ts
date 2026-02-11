@@ -5,6 +5,27 @@ let systemAudioBase: HTMLAudioElement | null = null
 let chatAudioBase: HTMLAudioElement | null = null
 let mp3Disabled = false
 
+function disableMp3() {
+  mp3Disabled = true
+  systemAudioBase = null
+  chatAudioBase = null
+}
+
+function shouldDisableMp3(err: unknown) {
+  const anyErr = err as any
+  const name = String(anyErr?.name || '')
+  const msg = String(anyErr?.message || '')
+  const lc = `${name}\n${msg}`.toLowerCase()
+  if (name === 'AbortError') return true
+  if (name === 'NotSupportedError') return true
+  if (lc.includes('err_aborted')) return true
+  if (lc.includes('aborterror')) return true
+  if (lc.includes('media_err_src_not_supported')) return true
+  if (lc.includes('failed to load')) return true
+  if (lc.includes('unsupported')) return true
+  return false
+}
+
 function emitSoundDebug(detail: { type: 'system' | 'chat'; ok: boolean; at: number; error?: string }) {
   try {
     if (typeof window === 'undefined') return
@@ -29,9 +50,7 @@ export async function primeNotificationAudio() {
       systemAudioBase.addEventListener(
         'error',
         () => {
-          mp3Disabled = true
-          systemAudioBase = null
-          chatAudioBase = null
+          disableMp3()
         },
         { once: true }
       )
@@ -40,9 +59,7 @@ export async function primeNotificationAudio() {
       chatAudioBase.addEventListener(
         'error',
         () => {
-          mp3Disabled = true
-          systemAudioBase = null
-          chatAudioBase = null
+          disableMp3()
         },
         { once: true }
       )
@@ -100,6 +117,7 @@ export async function playSystemAlertSound() {
       return
     }
   } catch (err) {
+    if (shouldDisableMp3(err)) disableMp3()
     emitSoundDebug({ type: 'system', ok: false, at: Date.now(), error: err instanceof Error ? err.message : String(err) })
   }
 
@@ -150,6 +168,7 @@ export async function playChatMessageSound() {
       return
     }
   } catch (err) {
+    if (shouldDisableMp3(err)) disableMp3()
     emitSoundDebug({ type: 'chat', ok: false, at: Date.now(), error: err instanceof Error ? err.message : String(err) })
   }
 

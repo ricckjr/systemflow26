@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { fetchOportunidadeById, fetchOportunidadeItens } from '@/services/crm'
@@ -50,13 +50,20 @@ export default function PropostaPreview() {
   const query = useMemo(() => new URLSearchParams(location.search || ''), [location.search])
   const validadeParam = useMemo(() => String(query.get('validade') || '').trim() || null, [query])
   const tipoFreteParam = useMemo(() => String(query.get('tipoFrete') || '').trim() || null, [query])
+  const valoresParam = useMemo(() => String(query.get('valores') || '').trim(), [query])
+  const pdfParam = useMemo(() => String(query.get('pdf') || '').trim(), [query])
+  const showValores = useMemo(() => (valoresParam ? valoresParam !== '0' : true), [valoresParam])
+  const autoPdf = useMemo(() => pdfParam === '1', [pdfParam])
+
+  const TZ = 'America/Sao_Paulo'
 
   const formatDateBr = (value: string | null | undefined) => {
     const v = String(value || '').trim()
     if (!v) return '-'
-    const dt = new Date(v)
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    const dt = m?.[1] ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0)) : new Date(v)
     if (!Number.isFinite(dt.getTime())) return v
-    return new Intl.DateTimeFormat('pt-BR').format(dt)
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ }).format(dt)
   }
 
   const formatDateTimeBr = (value: string | null | undefined) => {
@@ -64,11 +71,15 @@ export default function PropostaPreview() {
     if (!v) return '-'
     const dt = new Date(v)
     if (!Number.isFinite(dt.getTime())) return v
-    const d = new Intl.DateTimeFormat('pt-BR').format(dt)
-    const hh = String(dt.getHours()).padStart(2, '0')
-    const mm = String(dt.getMinutes()).padStart(2, '0')
-    const ss = String(dt.getSeconds()).padStart(2, '0')
-    return `${d} às ${hh}:${mm}:${ss}`
+    const d = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ }).format(dt)
+    const time = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: TZ,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(dt)
+    return `${d} às ${time}`
   }
 
   useEffect(() => {
@@ -226,6 +237,12 @@ export default function PropostaPreview() {
     const v = String(cliente?.cliente_documento_formatado || cliente?.cliente_documento || opp?.cliente_documento || '').trim()
     return v || '-'
   }, [cliente, opp])
+  const clienteDocumentoLabel = useMemo(() => {
+    const digits = clienteDocumento.replace(/\D/g, '')
+    if (digits.length === 11) return 'CPF'
+    if (digits.length === 14) return 'CNPJ'
+    return 'CPF/CNPJ'
+  }, [clienteDocumento])
   const clienteEmail = useMemo(() => String(cliente?.cliente_email || '').trim(), [cliente])
   const clienteTelefone = useMemo(() => String(cliente?.cliente_telefone || '').trim(), [cliente])
   const clienteEndereco = useMemo(() => {
@@ -244,6 +261,10 @@ export default function PropostaPreview() {
     const right = cep ? `CEP: ${cep}` : ''
     return [left, right].filter(Boolean).join(' - ')
   }, [cliente])
+  const clienteEnderecoLinha = useMemo(() => {
+    const parts = [clienteEndereco, clienteCidadeUfCep].filter(Boolean).join(' - ')
+    return parts.trim()
+  }, [clienteEndereco, clienteCidadeUfCep])
 
   const contatoNome = useMemo(() => String(contato?.contato_nome || opp?.contato_nome || opp?.nome_contato || '').trim(), [contato, opp])
   const contatoEmail = useMemo(() => String(contato?.contato_email || opp?.contato_email || opp?.email || '').trim(), [contato, opp])
@@ -256,12 +277,65 @@ export default function PropostaPreview() {
     return 'Lista de Itens'
   }, [items])
 
+  const theme = useMemo(() => {
+    const solucao = String(opp?.solucao || '').trim().toUpperCase()
+    const tipos = new Set(items.map((i) => i.tipo))
+    const inferred =
+      solucao === 'PRODUTO' ? 'PRODUTO' : solucao === 'SERVICO' ? 'SERVICO' : tipos.size === 1 ? Array.from(tipos)[0] : null
+
+    if (inferred === 'PRODUTO') {
+      return {
+        kind: 'PRODUTO' as const,
+        label: 'Produto',
+        primaryHex: '#F97316',
+        lightHex: '#FFF7ED',
+        rgb: [249, 115, 22] as [number, number, number],
+        lightRgb: [255, 247, 237] as [number, number, number]
+      }
+    }
+    if (inferred === 'SERVICO') {
+      return {
+        kind: 'SERVICO' as const,
+        label: 'Serviço',
+        primaryHex: '#2563EB',
+        lightHex: '#EFF6FF',
+        rgb: [37, 99, 235] as [number, number, number],
+        lightRgb: [239, 246, 255] as [number, number, number]
+      }
+    }
+    return {
+      kind: 'OUTRO' as const,
+      label: 'Proposta',
+      primaryHex: '#0F172A',
+      lightHex: '#F8FAFC',
+      rgb: [15, 23, 42] as [number, number, number],
+      lightRgb: [248, 250, 252] as [number, number, number]
+    }
+  }, [opp, items])
+
+  const itensHeadLabel = useMemo(() => {
+    if (theme.kind === 'PRODUTO') return 'Descrição do Produto'
+    if (theme.kind === 'SERVICO') return 'Descrição do Serviço'
+    return 'Descrição'
+  }, [theme.kind])
+
   const emissaoLabel = useMemo(() => formatDateTimeBr(opp?.data_inclusao || opp?.criado_em || null), [opp])
   const vendedorLabel = useMemo(() => String(opp?.vendedor_nome || opp?.vendedor || '-').trim() || '-', [opp])
   const vencimentoLabel = useMemo(() => {
     const dt = new Date()
-    return new Intl.DateTimeFormat('pt-BR').format(dt)
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: TZ }).format(dt)
   }, [])
+
+  const autoPdfTriggeredRef = useRef(false)
+  useEffect(() => {
+    if (!autoPdf) return
+    if (loading) return
+    if (!opp) return
+    if (downloadingPdf) return
+    if (autoPdfTriggeredRef.current) return
+    autoPdfTriggeredRef.current = true
+    void handleDownloadPdf()
+  }, [autoPdf, loading, opp, downloadingPdf])
 
   if (loading) {
     return (
@@ -363,13 +437,13 @@ export default function PropostaPreview() {
         const mime = dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : ''
         const fmt = mime.includes('png') ? 'PNG' : (mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : '')
         if (dataUrl && fmt) {
-          doc.addImage(dataUrl, fmt as any, left, y - 2, 14, 14)
+          doc.addImage(dataUrl, fmt as any, left, y - 2, 20, 20)
           hasLogo = true
         }
       } catch {
       }
 
-      textLeft(empresaNomeFantasia, hasLogo ? left + 16 : left, y + 2, 10, true)
+      textLeft(empresaNomeFantasia, hasLogo ? left + 22 : left, y + 2, 10, true)
       centerText(empresaNome, y + 2, 10, true)
 
       const empresaLines = [
@@ -399,32 +473,19 @@ export default function PropostaPreview() {
 
       textLeft(clienteNome.toUpperCase(), left, y, 8.5, true)
       y += 4.5
-      textLeft(`CNPJ: ${clienteDocumento}`, left, y, 8)
+      textLeft(`${clienteDocumentoLabel}: ${clienteDocumento}`, left, y, 8)
       y += 4.5
-      if (clienteEndereco) {
-        textLeft(clienteEndereco, left, y, 8)
-        y += 4.5
-      }
-      if (clienteCidadeUfCep) {
-        textLeft(clienteCidadeUfCep, left, y, 8)
-        y += 4.5
-      }
-      if (clienteEmail) {
-        textLeft(clienteEmail, left, y, 8)
-        y += 4.5
-      }
-      if (clienteTelefone) {
-        textLeft(`Telefone: ${clienteTelefone}`, left, y, 8)
+      if (clienteEnderecoLinha) {
+        textLeft(clienteEnderecoLinha, left, y, 8)
         y += 4.5
       }
 
       const contatoBlockX = pageWidth * 0.6
-      const contatoStartY = y - 22
+      const contatoStartY = y - 13
       if (contatoStartY > 26) {
         textLeft('Contato', contatoBlockX, contatoStartY, 9, true)
         textLeft(contatoNome || '-', contatoBlockX, contatoStartY + 4.5, 8)
         if (contatoEmail) textLeft(contatoEmail, contatoBlockX, contatoStartY + 9, 8)
-        if (contatoTelefone) textLeft(contatoTelefone, contatoBlockX, contatoStartY + 13.5, 8)
       }
 
       y += 6
@@ -434,56 +495,71 @@ export default function PropostaPreview() {
       const rows = items.map((it) => [
         String(it.descricao || ''),
         formatNumber2(it.quantidade),
-        formatNumber2(it.valorUnitario),
-        formatNumber2(calcItemTotal(it))
+        showValores ? formatNumber2(it.valorUnitario) : '',
+        showValores ? formatNumber2(calcItemTotal(it)) : ''
       ])
+
+      const head = showValores
+        ? [itensHeadLabel, 'Quantidade', 'Valor Unit.', 'Valor Total']
+        : [itensHeadLabel, 'Quantidade']
+
+      const body = rows.length
+        ? rows.map((r) => (showValores ? r : [r[0], r[1]]))
+        : [showValores ? ['Nenhum item adicionado.', '', '', ''] : ['Nenhum item adicionado.', '']]
 
       autoTable(doc, {
         startY: y,
         margin: { left, right },
-        head: [['Descrição do Serviço', 'Quantidade', 'Valor Unit.', 'Valor Total']],
-        body: rows.length ? rows : [['Nenhum item adicionado.', '', '', '']],
+        head: [head],
+        body,
         theme: 'striped',
         styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.6, valign: 'middle' },
-        headStyles: { fillColor: [20, 184, 166], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [233, 251, 250] },
-        columnStyles: {
-          0: { cellWidth: 'auto' },
-          1: { halign: 'right', cellWidth: 22 },
-          2: { halign: 'right', cellWidth: 25 },
-          3: { halign: 'right', cellWidth: 25 }
-        }
+        headStyles: { fillColor: theme.rgb, textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: theme.lightRgb },
+        columnStyles: showValores
+          ? {
+              0: { cellWidth: 'auto' },
+              1: { halign: 'right', cellWidth: 22 },
+              2: { halign: 'right', cellWidth: 25 },
+              3: { halign: 'right', cellWidth: 25 }
+            }
+          : {
+              0: { cellWidth: 'auto' },
+              1: { halign: 'right', cellWidth: 22 }
+            }
       })
 
       const finalY = (doc as any).lastAutoTable?.finalY ? Number((doc as any).lastAutoTable.finalY) : y + 10
       y = finalY + 6
 
-      textRight('Total:', right - 25, y, 9, true)
-      textRight(formatNumber2(total), right, y, 9, true)
-      y += 4.5
-      textRight('Total do ISS:', right - 25, y, 9, true)
-      textRight(formatNumber2(0), right, y, 9, true)
-      y += 10
+      if (showValores) {
+        textRight('Total:', right - 25, y, 9, true)
+        textRight(formatNumber2(total), right, y, 9, true)
+        y += 4.5
+        textRight('Total do ISS:', right - 25, y, 9, true)
+        textRight(formatNumber2(0), right, y, 9, true)
+        y += 10
 
-      textLeft('Vencimentos À Vista', left, y, 10, true)
-      y += 6
-      const boxW = 70
-      const boxH = 22
-      doc.setDrawColor(180)
-      doc.rect(left, y, boxW, boxH)
-      doc.setFillColor(233, 251, 250)
-      doc.rect(left, y, boxW, boxH, 'F')
-      doc.setDrawColor(180)
-      doc.rect(left, y, boxW, boxH)
-      doc.line(left + boxW / 2, y, left + boxW / 2, y + boxH)
-      doc.line(left, y + boxH / 3, left + boxW, y + boxH / 3)
-      doc.line(left, y + (2 * boxH) / 3, left + boxW, y + (2 * boxH) / 3)
-      textLeft('Parcela', left + 2, y + 5, 8, true)
-      textRight('1', left + boxW - 2, y + 5, 8, false)
-      textLeft('Vencimento', left + 2, y + 12, 8, true)
-      textRight(vencimentoLabel, left + boxW - 2, y + 12, 8, false)
-      textLeft('Valor', left + 2, y + 19, 8, true)
-      textRight(formatNumber2(total), left + boxW - 2, y + 19, 8, false)
+        textLeft('Vencimentos À Vista', left, y, 10, true)
+        y += 6
+        const boxW = 70
+        const boxH = 22
+        doc.setDrawColor(180)
+        doc.rect(left, y, boxW, boxH)
+        doc.setFillColor(theme.lightRgb[0], theme.lightRgb[1], theme.lightRgb[2])
+        doc.rect(left, y, boxW, boxH, 'F')
+        doc.setDrawColor(180)
+        doc.rect(left, y, boxW, boxH)
+        doc.line(left + boxW / 2, y, left + boxW / 2, y + boxH)
+        doc.line(left, y + boxH / 3, left + boxW, y + boxH / 3)
+        doc.line(left, y + (2 * boxH) / 3, left + boxW, y + (2 * boxH) / 3)
+        textLeft('Parcela', left + 2, y + 5, 8, true)
+        textRight('1', left + boxW - 2, y + 5, 8, false)
+        textLeft('Vencimento', left + 2, y + 12, 8, true)
+        textRight(vencimentoLabel, left + boxW - 2, y + 12, 8, false)
+        textLeft('Valor', left + 2, y + 19, 8, true)
+        textRight(formatNumber2(total), left + boxW - 2, y + 19, 8, false)
+      }
 
       const otherX = left + 90
       let otherY = y
@@ -556,7 +632,7 @@ export default function PropostaPreview() {
           <div className="px-10 pt-8 pb-6">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-center gap-2">
-                <img src={empresaLogoUrl || '/favicon-32x32.png'} alt="Logo" className="w-7 h-7 object-contain" />
+                <img src={empresaLogoUrl || '/favicon-32x32.png'} alt="Logo" className="w-10 h-10 object-contain" />
               </div>
               <div className="flex-1 text-center">
                 <div className="text-sm font-black tracking-wide">{empresaNomeFantasia}</div>
@@ -574,15 +650,20 @@ export default function PropostaPreview() {
 
             <div className="mt-6 grid grid-cols-12 gap-6">
               <div className="col-span-7">
-                <div className="text-xl font-black">Proposta Comercial N° {propostaCodigo}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xl font-black">Proposta Comercial N° {propostaCodigo}</div>
+                  <span
+                    className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black"
+                    style={{ borderColor: theme.primaryHex, color: theme.primaryHex, backgroundColor: theme.lightHex }}
+                  >
+                    {theme.label}
+                  </span>
+                </div>
                 <div className="mt-4 text-sm font-black">Informações do Cliente</div>
                 <div className="mt-3 text-[10px] leading-4">
                   <div className="font-black uppercase">{clienteNome}</div>
-                  <div className="mt-2"><span className="font-bold">CNPJ:</span> {clienteDocumento}</div>
-                  {clienteEndereco ? <div className="mt-2">{clienteEndereco}</div> : null}
-                  {clienteCidadeUfCep ? <div>{clienteCidadeUfCep}</div> : null}
-                  {clienteEmail ? <div className="mt-2">{clienteEmail}</div> : null}
-                  {clienteTelefone ? <div>Telefone: {clienteTelefone}</div> : null}
+                  <div className="mt-2"><span className="font-bold">{clienteDocumentoLabel}:</span> {clienteDocumento}</div>
+                  {clienteEnderecoLinha ? <div className="mt-2">{clienteEnderecoLinha}</div> : null}
                 </div>
               </div>
 
@@ -590,7 +671,6 @@ export default function PropostaPreview() {
                 <div className="font-black">Contato</div>
                 <div className="mt-2">{contatoNome || '-'}</div>
                 {contatoEmail ? <div>{contatoEmail}</div> : null}
-                {contatoTelefone ? <div>{contatoTelefone}</div> : null}
               </div>
             </div>
 
@@ -599,25 +679,33 @@ export default function PropostaPreview() {
               <div className="mt-2 border border-neutral-300">
                 <table className="w-full text-[10px]">
                   <thead>
-                    <tr style={{ backgroundColor: '#14B8A6' }}>
-                      <th className="py-2 px-2 text-left text-white font-black">Descrição do Serviço</th>
+                    <tr style={{ backgroundColor: theme.primaryHex }}>
+                      <th className="py-2 px-2 text-left text-white font-black">{itensHeadLabel}</th>
                       <th className="py-2 px-2 text-right text-white font-black w-[90px]">Quantidade</th>
-                      <th className="py-2 px-2 text-right text-white font-black w-[100px]">Valor Unit.</th>
-                      <th className="py-2 px-2 text-right text-white font-black w-[100px]">Valor Total</th>
+                      {showValores ? (
+                        <>
+                          <th className="py-2 px-2 text-right text-white font-black w-[100px]">Valor Unit.</th>
+                          <th className="py-2 px-2 text-right text-white font-black w-[100px]">Valor Total</th>
+                        </>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-4 px-2 text-neutral-700">Nenhum item adicionado.</td>
+                        <td colSpan={showValores ? 4 : 2} className="py-4 px-2 text-neutral-700">Nenhum item adicionado.</td>
                       </tr>
                     ) : (
                       items.map((it, idx) => (
-                        <tr key={`${idx}-${it.descricao}`} className={idx % 2 === 0 ? 'bg-[#E9FBFA]' : 'bg-white'}>
+                        <tr key={`${idx}-${it.descricao}`} style={{ backgroundColor: idx % 2 === 0 ? theme.lightHex : '#FFFFFF' }}>
                           <td className="py-2 px-2">{it.descricao}</td>
                           <td className="py-2 px-2 text-right">{formatNumber2(it.quantidade)}</td>
-                          <td className="py-2 px-2 text-right">{formatNumber2(it.valorUnitario)}</td>
-                          <td className="py-2 px-2 text-right">{formatNumber2(calcItemTotal(it))}</td>
+                          {showValores ? (
+                            <>
+                              <td className="py-2 px-2 text-right">{formatNumber2(it.valorUnitario)}</td>
+                              <td className="py-2 px-2 text-right">{formatNumber2(calcItemTotal(it))}</td>
+                            </>
+                          ) : null}
                         </tr>
                       ))
                     )}
@@ -625,18 +713,20 @@ export default function PropostaPreview() {
                 </table>
               </div>
 
-              <div className="mt-2 flex justify-end text-[10px]">
-                <div className="w-[260px] space-y-1">
-                  <div className="flex justify-between font-bold">
-                    <div>Total:</div>
-                    <div>{formatNumber2(total)}</div>
-                  </div>
-                  <div className="flex justify-between font-bold">
-                    <div>Total do ISS:</div>
-                    <div>{formatNumber2(0)}</div>
+              {showValores ? (
+                <div className="mt-2 flex justify-end text-[10px]">
+                  <div className="w-[260px] space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <div>Total:</div>
+                      <div>{formatNumber2(total)}</div>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <div>Total do ISS:</div>
+                      <div>{formatNumber2(0)}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="mt-10 grid grid-cols-12 gap-6">
@@ -644,12 +734,12 @@ export default function PropostaPreview() {
                 <div className="text-sm font-black">Vencimentos À Vista</div>
                 <div className="mt-4 w-full max-w-[240px] border border-neutral-300">
                   <div className="grid grid-cols-2 text-[10px]">
-                    <div className="bg-[#E9FBFA] font-bold px-2 py-2 border-b border-neutral-300">Parcela</div>
-                    <div className="bg-[#E9FBFA] px-2 py-2 border-b border-neutral-300 text-right">1</div>
-                    <div className="bg-[#E9FBFA] font-bold px-2 py-2 border-b border-neutral-300">Vencimento</div>
-                    <div className="bg-[#E9FBFA] px-2 py-2 border-b border-neutral-300 text-right">{vencimentoLabel}</div>
-                    <div className="bg-[#E9FBFA] font-bold px-2 py-2">Valor</div>
-                    <div className="bg-[#E9FBFA] px-2 py-2 text-right">{formatNumber2(total)}</div>
+                    <div className="font-bold px-2 py-2 border-b border-neutral-300" style={{ backgroundColor: theme.lightHex }}>Parcela</div>
+                    <div className="px-2 py-2 border-b border-neutral-300 text-right" style={{ backgroundColor: theme.lightHex }}>1</div>
+                    <div className="font-bold px-2 py-2 border-b border-neutral-300" style={{ backgroundColor: theme.lightHex }}>Vencimento</div>
+                    <div className="px-2 py-2 border-b border-neutral-300 text-right" style={{ backgroundColor: theme.lightHex }}>{vencimentoLabel}</div>
+                    <div className="font-bold px-2 py-2" style={{ backgroundColor: theme.lightHex }}>Valor</div>
+                    <div className="px-2 py-2 text-right" style={{ backgroundColor: theme.lightHex }}>{showValores ? formatNumber2(total) : '-'}</div>
                   </div>
                 </div>
               </div>

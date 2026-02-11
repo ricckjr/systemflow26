@@ -151,9 +151,9 @@ export function useProfileForm() {
 
   const saveProfile = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
-    if (!profileReady) return
-    if (!userId) return
-    if (savingRef.current) return
+    if (!profileReady) return false
+    if (!userId) return false
+    if (savingRef.current) return false
 
     setError(null)
     setSuccess(false)
@@ -192,8 +192,10 @@ export function useProfileForm() {
       setAvatarPreview(avatarUrl || '')
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
+      return true
     } catch (err: any) {
       setError(err?.message || 'Erro ao salvar alterações.')
+      return false
     } finally {
       setSaving(false)
       savingRef.current = false

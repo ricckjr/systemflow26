@@ -7,6 +7,8 @@ import {
   Search, 
   Calendar, 
   Clock,
+  List,
+  ArrowUpDown,
   Loader2,
   Trash2,
   Pencil,
@@ -219,7 +221,7 @@ const OpportunityCard = ({
   index,
   onOpen,
   clienteNome,
-  contatoNome,
+  statusLabel,
   vendedorNome,
   vendedorAvatarUrl
 }: {
@@ -227,7 +229,7 @@ const OpportunityCard = ({
   index: number
   onOpen: (id: string) => void
   clienteNome: string | null
-  contatoNome: string | null
+  statusLabel: string | null
   vendedorNome: string | null
   vendedorAvatarUrl: string | null
 }) => {
@@ -239,13 +241,8 @@ const OpportunityCard = ({
     clienteNome ||
     (opportunity.id_cliente ? `Cliente #${String(opportunity.id_cliente).split('-')[0]}` : null) ||
     'Novo Cliente'
-  const contatoLabel =
-    (opportunity as any).contato_nome ||
-    opportunity.nome_contato ||
-    contatoNome ||
-    (opportunity.id_contato ? `Contato #${String(opportunity.id_contato).split('-')[0]}` : null) ||
-    null
   const vendedorLabel = ((opportunity as any).vendedor_nome || opportunity.vendedor || vendedorNome || '').trim() || null
+  const statusText = String(statusLabel || (opportunity as any).status_desc || (opportunity as any).status || '').trim()
   const hasTemperatura =
     (opportunity as any).temperatura !== null &&
     (opportunity as any).temperatura !== undefined &&
@@ -292,10 +289,6 @@ const OpportunityCard = ({
           </div>
 
           <div className="space-y-1">
-            <div className="text-xs text-slate-300">
-              <span className="text-slate-500">Contato: </span>
-              {contatoLabel || '-'}
-            </div>
             <div className="text-[11px] text-slate-400">
               <span className="text-slate-500">Solução: </span>
               {formatSolucaoLabel(opportunity.solucao)}
@@ -317,6 +310,17 @@ const OpportunityCard = ({
                   <span className={`text-[11px] font-black px-3 py-1 rounded-xl border ${tempBadge}`}>{`🌡${Math.min(100, Math.max(0, Math.round(temperatura)))}º`}</span>
                 </div>
               )}
+            </div>
+
+            <div className="flex-1 flex justify-center px-2">
+              {statusText ? (
+                <span
+                  className="max-w-[180px] truncate text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 px-3 py-1 rounded-xl border border-white/10"
+                  title={statusText}
+                >
+                  {statusText}
+                </span>
+              ) : null}
             </div>
 
             <div
@@ -352,7 +356,15 @@ export default function OportunidadesKanban() {
   const [contatoNameById, setContatoNameById] = useState<Record<string, string>>({})
   const [origemDescById, setOrigemDescById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban')
+  const [searchCliente, setSearchCliente] = useState('')
+  const [searchProdutoCodigo, setSearchProdutoCodigo] = useState('')
+  const [filterStatusId, setFilterStatusId] = useState<string>('')
+  const [filterFaseId, setFilterFaseId] = useState<string>('')
+  const [itensSearchByOport, setItensSearchByOport] = useState<Record<string, string>>({})
+  const [itensDisplayByOport, setItensDisplayByOport] = useState<Record<string, string>>({})
+  const [itensSearchLoading, setItensSearchLoading] = useState(false)
+  const [listSort, setListSort] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'valor', direction: 'desc' })
   const [createOpen, setCreateOpen] = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -2261,23 +2273,196 @@ export default function OportunidadesKanban() {
     }
   }, [opportunities, stages])
 
-  // Filtragem
-  const filteredOpportunities = opportunities.filter(op => {
-    const term = search.trim().toLowerCase()
-    if (!term) return true
-    const solucaoLabel = formatSolucaoLabel(op.solucao).toLowerCase()
-    return (
-      (op.cliente?.toLowerCase().includes(term) || false) ||
-      solucaoLabel.includes(term) ||
-      (op.vendedor?.toLowerCase().includes(term) || false)
-    )
-  })
+  useEffect(() => {
+    const term = searchProdutoCodigo.trim().toLowerCase()
+    if (!term) return
+    if (opportunities.length === 0) return
+
+    let cancelled = false
+    ;(async () => {
+      setItensSearchLoading(true)
+      try {
+        const prodRows = produtos.length > 0 ? produtos : await fetchCrmProdutos().catch(() => [])
+        const servRows = servicos.length > 0 ? servicos : await fetchCrmServicos().catch(() => [])
+        if (!cancelled) {
+          if (produtos.length === 0 && prodRows.length > 0) setProdutos(prodRows)
+          if (servicos.length === 0 && servRows.length > 0) setServicos(servRows)
+        }
+
+        const prodMap = new Map<string, string>()
+        const prodCodeMap = new Map<string, string>()
+        for (const p of prodRows || []) {
+          const id = String((p as any)?.prod_id || '').trim()
+          if (!id) continue
+          const code = String((p as any)?.codigo_prod || '').trim()
+          if (code) prodCodeMap.set(id, code)
+          const txt = `${String((p as any)?.codigo_prod || '').trim()} ${String((p as any)?.descricao_prod || '').trim()}`
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase()
+          if (txt) prodMap.set(id, txt)
+        }
+
+        const servMap = new Map<string, string>()
+        const servCodeMap = new Map<string, string>()
+        for (const s of servRows || []) {
+          const id = String((s as any)?.serv_id || '').trim()
+          if (!id) continue
+          const code = String((s as any)?.codigo_serv || '').trim()
+          if (code) servCodeMap.set(id, code)
+          const txt = `${String((s as any)?.codigo_serv || '').trim()} ${String((s as any)?.descricao_serv || '').trim()}`
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase()
+          if (txt) servMap.set(id, txt)
+        }
+
+        const ids = (opportunities || [])
+          .map((o) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim())
+          .filter(Boolean)
+
+        const acc: Record<string, Set<string>> = {}
+        const chunkSize = 200
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize)
+          const { data, error } = await (supabase as any)
+            .from('crm_oportunidade_itens')
+            .select('id_oport, produto_id, servico_id')
+            .in('id_oport', chunk)
+          if (error) throw error
+          for (const r of (data || []) as any[]) {
+            const oportId = String(r?.id_oport || '').trim()
+            if (!oportId) continue
+            if (!acc[oportId]) acc[oportId] = new Set<string>()
+            const prodId = String(r?.produto_id || '').trim()
+            const servId = String(r?.servico_id || '').trim()
+            if (prodId) acc[oportId].add(`p:${prodId}`)
+            if (servId) acc[oportId].add(`s:${servId}`)
+          }
+        }
+
+        const index: Record<string, string> = {}
+        const display: Record<string, string> = {}
+        for (const id of ids) {
+          const set = acc[id]
+          if (!set || set.size === 0) continue
+          const parts: string[] = []
+          const codes: string[] = []
+          for (const ref of set) {
+            const [kind, raw] = ref.split(':')
+            if (kind === 'p' && raw) {
+              const txt = prodMap.get(raw)
+              if (txt) parts.push(txt)
+              const code = prodCodeMap.get(raw)
+              if (code) codes.push(code)
+            }
+            if (kind === 's' && raw) {
+              const txt = servMap.get(raw)
+              if (txt) parts.push(txt)
+              const code = servCodeMap.get(raw)
+              if (code) codes.push(code)
+            }
+            parts.push(ref)
+          }
+          const txt = parts.join(' ').replace(/\s+/g, ' ').trim().toLowerCase()
+          if (txt) index[id] = txt
+          const uniqCodes = Array.from(new Set(codes.map((c) => c.trim()).filter(Boolean)))
+          if (uniqCodes.length > 0) display[id] = uniqCodes.join(', ')
+        }
+
+        if (!cancelled) {
+          setItensSearchByOport(index)
+          setItensDisplayByOport(display)
+        }
+      } finally {
+        if (!cancelled) setItensSearchLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [searchProdutoCodigo, opportunities, produtos, servicos])
+
+  const resolveStageId = useCallback(
+    (op: CRM_Oportunidade) => {
+      const stageIds = new Set(stages.map((s) => s.id))
+      const rawStageId = String((op as any)?.id_fase || '').trim()
+      if (rawStageId && stageIds.has(rawStageId)) return rawStageId
+      const label = String((op as any)?.fase || '').trim()
+      if (label) {
+        const match = stages.find((s) => s.label === label)
+        if (match) return match.id
+      }
+      return stages[0]?.id || FALLBACK_STAGES[0]!.id
+    },
+    [stages]
+  )
+
+  const resolveStatusId = useCallback(
+    (op: CRM_Oportunidade) => {
+      const raw = String((op as any)?.id_status || '').trim()
+      if (raw) return raw
+      const label = String((op as any)?.status || '').trim()
+      if (!label) return ''
+      const match = statuses.find((s) => String(s.status_desc || '').trim().toLowerCase() === label.toLowerCase())
+      return match ? String(match.status_id || '').trim() : ''
+    },
+    [statuses]
+  )
+
+  const filteredOpportunities = useMemo(() => {
+    const termCliente = searchCliente.trim().toLowerCase()
+    const termProd = searchProdutoCodigo.trim().toLowerCase()
+    const wantStatus = filterStatusId.trim()
+    const wantFase = filterFaseId.trim()
+
+    return (opportunities || []).filter((op) => {
+      const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
+
+      if (wantStatus) {
+        const sid = resolveStatusId(op)
+        if (!sid || sid !== wantStatus) return false
+      }
+
+      if (wantFase) {
+        const fid = resolveStageId(op)
+        if (!fid || fid !== wantFase) return false
+      }
+
+      if (termCliente) {
+        const clienteLabel =
+          String((op as any)?.cliente_nome || op.cliente || '').trim() ||
+          (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
+          ''
+        const vendedorLabel = String((op as any)?.vendedor_nome || op.vendedor || '').trim()
+        const solucaoLabel = formatSolucaoLabel(op.solucao).toLowerCase()
+        const hay = `${clienteLabel} ${vendedorLabel} ${solucaoLabel}`.toLowerCase()
+        if (!hay.includes(termCliente)) return false
+      }
+
+      if (termProd) {
+        const legacy = `${String((op as any)?.cod_produto || '')} ${String((op as any)?.cod_servico || '')}`.toLowerCase()
+        const idx = (itensSearchByOport[id] || '').toLowerCase()
+        if (!legacy.includes(termProd) && !idx.includes(termProd)) return false
+      }
+
+      return true
+    })
+  }, [opportunities, searchCliente, searchProdutoCodigo, filterStatusId, filterFaseId, itensSearchByOport, resolveStageId, resolveStatusId])
 
   // Agrupamento por etapa
-  const stageIds = new Set(stages.map((s) => s.id))
-  const defaultStageId = stages[0]?.id || FALLBACK_STAGES[0]!.id
+  const visibleStages = useMemo(() => {
+    const want = filterFaseId.trim()
+    if (!want) return stages
+    const match = stages.find((s) => s.id === want)
+    return match ? [match] : stages
+  }, [stages, filterFaseId])
 
-  const columns = stages
+  const stageIds = new Set(visibleStages.map((s) => s.id))
+  const defaultStageId = visibleStages[0]?.id || stages[0]?.id || FALLBACK_STAGES[0]!.id
+
+  const columns = visibleStages
     .slice()
     .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
     .map(stage => {
@@ -2290,7 +2475,7 @@ export default function OportunidadesKanban() {
 
         const label = (op.fase || '').trim()
         if (label) {
-          const match = stages.find(s => s.label === label)
+          const match = visibleStages.find(s => s.label === label) || stages.find(s => s.label === label)
           if (match) return match.id === stage.id
         }
 
@@ -2302,6 +2487,71 @@ export default function OportunidadesKanban() {
   // Cálculos de totais
   const totalValue = filteredOpportunities.reduce((acc, curr) => acc + getValorNumber(curr), 0)
   const totalCount = filteredOpportunities.length
+
+  const listRows = useMemo(() => {
+    const rows = (filteredOpportunities || []).map((op) => {
+      const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
+      const cod = String((op as any)?.cod_oport ?? (op as any)?.cod_oportunidade ?? '').trim()
+      const codNum = cod ? Number.parseInt(cod.replace(/[^\d]/g, ''), 10) : NaN
+      const clienteLabel =
+        String((op as any)?.cliente_nome || op.cliente || '').trim() ||
+        (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
+        '-'
+      const statusDesc =
+        String(
+          statuses.find((s) => String(s.status_id) === String((op as any)?.id_status))?.status_desc ||
+            (op as any)?.status_desc ||
+            (op as any)?.status ||
+            ''
+        ).trim() || '-'
+      const faseLabel = String(stages.find((s) => s.id === resolveStageId(op))?.label || (op as any)?.fase || '').trim() || '-'
+      const vendedor = String((op as any)?.vendedor_nome || op.vendedor || '').trim() || '-'
+      const valor = getValorNumber(op)
+      const dataMov = String((op as any)?.data_parado ?? (op as any)?.data_alteracao ?? (op as any)?.atualizado_em ?? null)
+      const diasSemMov = calcDaysSince(dataMov ? dataMov : null)
+      return {
+        id,
+        cod,
+        codNum,
+        clienteLabel,
+        solucaoLabel: formatSolucaoLabel(op.solucao),
+        statusDesc,
+        faseLabel,
+        vendedor,
+        valor,
+        diasSemMov
+      }
+    })
+
+    const { key, direction } = listSort
+    const dir = direction === 'asc' ? 1 : -1
+    const norm = (v: unknown) => String(v ?? '').trim().toLowerCase()
+    const num = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v)
+      return Number.isFinite(n) ? n : null
+    }
+
+    rows.sort((a, b) => {
+      if (key === 'valor') return dir * ((a.valor || 0) - (b.valor || 0))
+      if (key === 'diasSemMov') return dir * ((a.diasSemMov ?? -1) - (b.diasSemMov ?? -1))
+      if (key === 'codigo') {
+        const an = Number.isFinite(a.codNum) ? a.codNum : null
+        const bn = Number.isFinite(b.codNum) ? b.codNum : null
+        if (an !== null && bn !== null) return dir * (an - bn)
+        return dir * norm(a.cod).localeCompare(norm(b.cod))
+      }
+      if (key === 'cliente') return dir * norm(a.clienteLabel).localeCompare(norm(b.clienteLabel))
+      if (key === 'solucao') return dir * norm(a.solucaoLabel).localeCompare(norm(b.solucaoLabel))
+      if (key === 'status') return dir * norm(a.statusDesc).localeCompare(norm(b.statusDesc))
+      if (key === 'fase') return dir * norm(a.faseLabel).localeCompare(norm(b.faseLabel))
+      if (key === 'vendedor') return dir * norm(a.vendedor).localeCompare(norm(b.vendedor))
+      const av = num((a as any)[key])
+      const bv = num((b as any)[key])
+      if (av !== null && bv !== null) return dir * (av - bv)
+      return 0
+    })
+    return rows
+  }, [filteredOpportunities, listSort, statuses, stages, resolveStageId])
 
   const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
     if (e.defaultPrevented) return
@@ -2347,135 +2597,293 @@ export default function OportunidadesKanban() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-           <div className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total em Pipeline</span>
-              <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalValue)}</span>
-           </div>
-           <div className="hidden md:flex flex-col items-end mr-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Propostas Comerciais</span>
-              <span className="text-sm font-bold text-slate-200">{totalCount}</span>
-           </div>
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="hidden md:flex flex-col items-end mr-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total em Pipeline</span>
+            <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalValue)}</span>
+          </div>
+          <div className="hidden md:flex flex-col items-end mr-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Propostas Comerciais</span>
+            <span className="text-sm font-bold text-slate-200">{totalCount}</span>
+          </div>
 
-           <div className="relative group">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex rounded-xl overflow-hidden border border-white/10 bg-[#0F172A]">
+              <button
+                type="button"
+                onClick={() => setViewMode('kanban')}
+                className={`px-3 py-2 text-xs font-black inline-flex items-center gap-2 transition-colors ${
+                  viewMode === 'kanban' ? 'bg-cyan-600 text-white' : 'bg-transparent text-slate-200 hover:bg-white/5'
+                }`}
+                title="Visualizar em Kanban"
+              >
+                <LayoutDashboard size={14} />
+                Kanban
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('lista')}
+                className={`px-3 py-2 text-xs font-black inline-flex items-center gap-2 transition-colors ${
+                  viewMode === 'lista' ? 'bg-cyan-600 text-white' : 'bg-transparent text-slate-200 hover:bg-white/5'
+                }`}
+                title="Visualizar em Lista"
+              >
+                <List size={14} />
+                Lista
+              </button>
+            </div>
+
+            <select
+              value={filterFaseId}
+              onChange={(e) => setFilterFaseId(e.target.value)}
+              className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
+              title="Filtrar por Fase"
+            >
+              <option value="">Todas as Fases</option>
+              {stages
+                .slice()
+                .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+            </select>
+
+            <select
+              value={filterStatusId}
+              onChange={(e) => setFilterStatusId(e.target.value)}
+              className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
+              title="Filtrar por Status"
+            >
+              <option value="">Todos os Status</option>
+              {statuses
+                .slice()
+                .sort((a, b) => Number((a as any).status_ordem || 0) - Number((b as any).status_ordem || 0))
+                .map((s) => (
+                  <option key={String(s.status_id)} value={String(s.status_id)}>
+                    {String(s.status_desc || '').trim() || `Status ${String(s.status_id).slice(0, 6)}`}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative group">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-              <input 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar propostas comerciais..."
+              <input
+                value={searchCliente}
+                onChange={(e) => setSearchCliente(e.target.value)}
+                placeholder="Buscar por cliente..."
                 className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-48 transition-all"
               />
-           </div>
+            </div>
 
-           <button
-             type="button"
-             onClick={openCreate}
-             className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
-           >
-             <Plus size={16} />
-             CRIAR OPORTUNIDADE
-           </button>
+            <div className="relative group">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+              <input
+                value={searchProdutoCodigo}
+                onChange={(e) => setSearchProdutoCodigo(e.target.value)}
+                placeholder="Código do produto..."
+                className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-44 transition-all"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={openCreate}
+              className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
+            >
+              <Plus size={16} />
+              CRIAR OPORTUNIDADE
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        {loading && opportunities.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center rounded-2xl border border-white/5 bg-[#0F172A]">
-            <div className="flex items-center gap-3 text-slate-300">
-              <Loader2 className="animate-spin text-cyan-400" size={18} />
-              <span className="text-sm font-semibold">Carregando propostas comerciais...</span>
-            </div>
+      {viewMode === 'lista' ? (
+        <div className="flex-1 min-h-0 rounded-2xl border border-white/5 bg-[#0F172A] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between gap-3">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-300">Lista de Propostas</div>
+            {itensSearchLoading ? (
+              <div className="text-[11px] text-slate-400 inline-flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin" />
+                Buscando itens...
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-x-hidden">
-            <div
-              className="h-full overflow-x-scroll overflow-y-hidden pb-2 kanban-x-scrollbar touch-pan-y"
-              onWheelCapture={onKanbanWheelCapture}
-            >
-              <div className="flex h-full gap-4 min-w-[1400px] px-1">
-                {columns.map(column => (
-                  <div key={column.id} className="flex flex-col w-80 shrink-0 h-full min-h-0" data-kanban-col="1">
-                  <div
-                    className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
-                    style={{
-                      borderBottomColor: column.cor ? hexToRgba(column.cor, 0.55) : undefined,
-                      backgroundColor: column.cor ? hexToRgba(column.cor, 0.08) : undefined
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-xs font-black uppercase tracking-wider"
-                        style={{ color: column.cor || undefined }}
+          <div className="h-full overflow-auto custom-scrollbar">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-[#0B1220] border-b border-white/10">
+                <tr className="text-[10px] uppercase tracking-wider text-slate-400">
+                  {(
+                    [
+                      { key: 'codigo', label: 'Código', align: 'left' as const },
+                      { key: 'cliente', label: 'Cliente', align: 'left' as const },
+                      { key: 'solucao', label: 'Solução', align: 'left' as const },
+                      { key: 'status', label: 'Status', align: 'left' as const },
+                      { key: 'fase', label: 'Fase', align: 'left' as const },
+                      { key: 'vendedor', label: 'Vendedor', align: 'left' as const },
+                      { key: 'valor', label: 'Valor', align: 'right' as const },
+                      { key: 'diasSemMov', label: 'Dias sem Movimentação', align: 'right' as const }
+                    ] as const
+                  ).map((c) => (
+                    <th key={c.key} className={`px-4 py-3 font-black ${c.align === 'right' ? 'text-right' : ''}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setListSort((prev) => {
+                            if (prev.key === c.key) return { key: c.key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+                            return { key: c.key, direction: c.key === 'valor' ? 'desc' : 'asc' }
+                          })
+                        }}
+                        className="inline-flex items-center gap-2 hover:text-cyan-200 transition-colors"
                       >
-                        {column.label}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
-                      {column.items.length}
-                    </span>
-                  </div>
-
-                  <div
-                    className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
-                    style={{ backgroundColor: column.cor ? hexToRgba(column.cor, 0.05) : undefined }}
+                        <span>{c.label}</span>
+                        <ArrowUpDown size={12} className={listSort.key === c.key ? 'text-cyan-300' : 'text-slate-500'} />
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {listRows.map((r) => (
+                  <tr
+                    key={r.id || r.cod}
+                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                    onClick={() => (r.id ? openEdit(r.id) : null)}
                   >
-                    <Droppable droppableId={column.id}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          data-kanban-cards="1"
-                          className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
-                        >
-                          {column.items.map((item, index) => (
-                            <OpportunityCard
-                              key={item.id_oport || (item as any).id_oportunidade}
-                              opportunity={item}
-                              index={index}
-                              onOpen={openEdit}
-                              clienteNome={
-                                String((item as any).id_cliente || (item as any).cliente_id || '').trim()
-                                  ? (clienteNameById[String((item as any).id_cliente || (item as any).cliente_id)] ?? null)
-                                  : null
-                              }
-                              contatoNome={
-                                String((item as any).id_contato || (item as any).contato_id || '').trim()
-                                  ? (contatoNameById[String((item as any).id_contato || (item as any).contato_id)] ?? null)
-                                  : null
-                              }
-                              vendedorNome={item.id_vendedor ? (vendedorNameById[item.id_vendedor] ?? null) : null}
-                              vendedorAvatarUrl={item.id_vendedor ? (vendedorAvatarById[item.id_vendedor] ?? null) : null}
-                            />
-                          ))}
-                          {provided.placeholder}
+                    <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">{r.cod ? `#${r.cod}` : '-'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-200 max-w-[320px] truncate" title={r.clienteLabel}>
+                      {r.clienteLabel}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-nowrap">{r.solucaoLabel}</td>
+                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[180px] truncate" title={r.statusDesc}>
+                      {r.statusDesc}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-slate-300 max-w-[180px] truncate" title={r.faseLabel}>
+                      {r.faseLabel}
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-slate-300 max-w-[180px] truncate" title={r.vendedor}>
+                      {r.vendedor}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-200 text-right whitespace-nowrap">{formatCurrency(r.valor)}</td>
+                    <td className="px-4 py-3 text-xs font-black text-slate-200 text-right whitespace-nowrap">{formatDias(r.diasSemMov)}</td>
+                  </tr>
+                ))}
 
-                          {column.items.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-24 opacity-30">
-                              <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-500 flex items-center justify-center mb-2">
-                                <Plus size={14} className="text-slate-500" />
-                              </div>
-                              <span className="text-[10px] text-slate-500 font-medium">Arraste ou crie aqui</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </Droppable>
-                  </div>
-
-                  <div className="mt-2 px-2 flex justify-between items-center opacity-60">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Total</span>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {formatCurrency(column.items.reduce((acc, i) => acc + getValorNumber(i), 0))}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                {listRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-400">
+                      Nenhuma proposta encontrada com os filtros atuais.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={onDragEnd}>
+          {loading && opportunities.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center rounded-2xl border border-white/5 bg-[#0F172A]">
+              <div className="flex items-center gap-3 text-slate-300">
+                <Loader2 className="animate-spin text-cyan-400" size={18} />
+                <span className="text-sm font-semibold">Carregando propostas comerciais...</span>
               </div>
             </div>
-          </div>
-        )}
-      </DragDropContext>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-x-hidden">
+              <div
+                className="h-full overflow-x-scroll overflow-y-hidden pb-2 kanban-x-scrollbar touch-pan-y"
+                onWheelCapture={onKanbanWheelCapture}
+              >
+                <div className="flex h-full gap-4 min-w-[1400px] px-1">
+                  {columns.map(column => (
+                    <div key={column.id} className="flex flex-col w-80 shrink-0 h-full min-h-0" data-kanban-col="1">
+                    <div
+                      className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
+                      style={{
+                        borderBottomColor: column.cor ? hexToRgba(column.cor, 0.55) : undefined,
+                        backgroundColor: column.cor ? hexToRgba(column.cor, 0.08) : undefined
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="text-xs font-black uppercase tracking-wider"
+                          style={{ color: column.cor || undefined }}
+                        >
+                          {column.label}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
+                        {column.items.length}
+                      </span>
+                    </div>
+
+                    <div
+                      className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
+                      style={{ backgroundColor: column.cor ? hexToRgba(column.cor, 0.05) : undefined }}
+                    >
+                      <Droppable droppableId={column.id}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            data-kanban-cards="1"
+                            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
+                          >
+                            {column.items.map((item, index) => (
+                              <OpportunityCard
+                                key={item.id_oport || (item as any).id_oportunidade}
+                                opportunity={item}
+                                index={index}
+                                onOpen={openEdit}
+                                clienteNome={
+                                  String((item as any).id_cliente || (item as any).cliente_id || '').trim()
+                                    ? (clienteNameById[String((item as any).id_cliente || (item as any).cliente_id)] ?? null)
+                                    : null
+                                }
+                                statusLabel={
+                                  String(
+                                    statuses.find((s) => String(s.status_id) === String((item as any).id_status))?.status_desc ||
+                                      (item as any).status ||
+                                      ''
+                                  ).trim() || null
+                                }
+                                vendedorNome={item.id_vendedor ? (vendedorNameById[item.id_vendedor] ?? null) : null}
+                                vendedorAvatarUrl={item.id_vendedor ? (vendedorAvatarById[item.id_vendedor] ?? null) : null}
+                              />
+                            ))}
+                            {provided.placeholder}
+
+                            {column.items.length === 0 && (
+                              <div className="flex flex-col items-center justify-center h-24 opacity-30">
+                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-500 flex items-center justify-center mb-2">
+                                  <Plus size={14} className="text-slate-500" />
+                                </div>
+                                <span className="text-[10px] text-slate-500 font-medium">Arraste ou crie aqui</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+
+                    <div className="mt-2 px-2 flex justify-between items-center opacity-60">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Total</span>
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {formatCurrency(column.items.reduce((acc, i) => acc + getValorNumber(i), 0))}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DragDropContext>
+      )}
 
       <Modal
         isOpen={createOpen}
@@ -2911,18 +3319,30 @@ export default function OportunidadesKanban() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setStatusChangeError(null)
-                setStatusChangeObs('')
-                setStatusChangeId(draftStatusId)
-                setStatusChangeOpen(true)
-              }}
-              className="shrink-0 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
-            >
-              ANDAMENTO
-            </button>
+            <div className="shrink-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('historicos')
+                }}
+                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 inline-flex items-center justify-center transition-colors active:scale-[0.99]"
+                title="Histórico de Status"
+              >
+                <Clock size={16} className="text-slate-200" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusChangeError(null)
+                  setStatusChangeObs('')
+                  setStatusChangeId(draftStatusId)
+                  setStatusChangeOpen(true)
+                }}
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
+              >
+                ANDAMENTO
+              </button>
+            </div>
           </div>
         }
         size="full"
@@ -3987,6 +4407,11 @@ export default function OportunidadesKanban() {
                               else if (a.tipo === 'MOVEU_KANBAN') {
                                 title = 'Movida no Kanban'
                                 detail = stageDe && stagePara ? `${stageDe} → ${stagePara}` : null
+                              } else if (a.tipo === 'ALTEROU_STATUS') {
+                                title = 'Status alterado'
+                                const fromDesc = statuses.find((s) => String(s.status_id) === String(p?.de || ''))?.status_desc || String(p?.de || '-')
+                                const toDesc = statuses.find((s) => String(s.status_id) === String(p?.para || ''))?.status_desc || String(p?.para || '-')
+                                detail = `${fromDesc} → ${toDesc}`
                               } else if (a.tipo === 'ALTEROU_VALOR') {
                                 title = 'Valor alterado'
                                 detail = `${formatCurrency(p?.de ?? 0)} → ${formatCurrency(p?.para ?? 0)}`

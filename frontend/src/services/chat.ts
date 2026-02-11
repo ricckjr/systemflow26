@@ -89,6 +89,7 @@ function encodeStoragePath(path: string) {
 }
 
 const signedUrlCache = new Map<string, { url: string; expAt: number }>()
+const attachmentSignedUrlCache = new Map<string, { url: string; expAt: number }>()
 
 function getSupabaseBaseUrl() {
   const raw = String(import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
@@ -405,6 +406,7 @@ export const chatService = {
     const signedUrl = data?.signedUrl
     if (!signedUrl) throw new Error('Falha ao gerar link do arquivo')
 
+    attachmentSignedUrlCache.set(path, { url: signedUrl, expAt: Date.now() + 55 * 60 * 1000 })
     return { path, signedUrl }
   },
 
@@ -417,6 +419,19 @@ export const chatService = {
     if (error) throw error
     if (!data?.signedUrl) throw new Error('Falha ao gerar link do arquivo')
     return data.signedUrl
+  },
+
+  async getSignedAttachmentUrlCached(path: string, expiresInSeconds = 60 * 10) {
+    const clean = (path ?? '').trim()
+    if (!clean) throw new Error('Path inválido')
+    const cached = attachmentSignedUrlCache.get(clean)
+    if (cached && cached.expAt > Date.now()) return cached.url
+    const signedUrl = await chatService.getSignedAttachmentUrl(clean, expiresInSeconds)
+    attachmentSignedUrlCache.set(clean, {
+      url: signedUrl,
+      expAt: Date.now() + Math.max(30_000, (expiresInSeconds - 30) * 1000),
+    })
+    return signedUrl
   },
 
   async uploadRoomAvatar(

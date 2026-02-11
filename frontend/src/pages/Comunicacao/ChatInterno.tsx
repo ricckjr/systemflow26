@@ -372,8 +372,8 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ url: string; name?: string } | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; name?: string } | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name?: string; path?: string } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name?: string; path?: string } | null>(null);
   const [previewZoom, setPreviewZoom] = useState(1);
 
   // Hidden File Inputs
@@ -693,6 +693,21 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
     } catch {
       window.open(url, '_blank', 'noopener,noreferrer')
     }
+  }
+
+  const resolveAttachmentUrl = async (att: { url: string; path?: string }) => {
+    const path = String(att?.path || '').trim()
+    if (!path) return att.url
+    try {
+      return await chatService.getSignedAttachmentUrlCached(path, 60 * 60)
+    } catch {
+      return att.url
+    }
+  }
+
+  const downloadAttachment = async (att: { url: string; path?: string; name?: string }) => {
+    const url = await resolveAttachmentUrl(att)
+    return downloadFromUrl(url, att.name)
   }
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -2198,7 +2213,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                    <div className="flex flex-col gap-2">
                                      <button
                                        type="button"
-                                       onClick={() => setPreviewImage({ url: att.url, name: att.name })}
+                                       onClick={() => setPreviewImage({ url: att.url, name: att.name, path: att.path })}
                                        className="block overflow-hidden rounded-lg border border-white/10 hover:border-white/20 transition-colors"
                                        title="Abrir imagem"
                                      >
@@ -2217,7 +2232,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                        <div className="flex items-center gap-1 shrink-0">
                                          <button
                                            type="button"
-                                           onClick={() => setPreviewImage({ url: att.url, name: att.name })}
+                                          onClick={() => setPreviewImage({ url: att.url, name: att.name, path: att.path })}
                                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                            title="Visualizar"
                                          >
@@ -2225,7 +2240,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                          </button>
                                          <button
                                            type="button"
-                                           onClick={() => downloadFromUrl(att.url, att.name)}
+                                          onClick={() => downloadAttachment(att)}
                                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                            title="Baixar"
                                          >
@@ -2249,7 +2264,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                        />
                                        <button
                                          type="button"
-                                         onClick={() => downloadFromUrl(att.url, att.name || 'audio')}
+                                        onClick={() => downloadAttachment(att)}
                                          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                          title="Baixar"
                                        >
@@ -2282,7 +2297,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                       {att.mime_type?.includes('pdf') && (
                                         <button
                                           type="button"
-                                          onClick={() => setPreviewDoc({ url: att.url, name: att.name || 'PDF' })}
+                                          onClick={() => setPreviewDoc({ url: att.url, name: att.name || 'PDF', path: att.path })}
                                           className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                           title="Pré-visualizar"
                                         >
@@ -2300,7 +2315,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                       </a>
                                       <button
                                         type="button"
-                                        onClick={() => downloadFromUrl(att.url, att.name)}
+                                        onClick={() => downloadAttachment(att)}
                                         className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                         title="Baixar"
                                       >
@@ -2333,7 +2348,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                          </a>
                                          <button
                                            type="button"
-                                           onClick={() => downloadFromUrl(att.url, att.name)}
+                                          onClick={() => downloadAttachment(att)}
                                            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
                                            title="Baixar"
                                          >
@@ -2825,7 +2840,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     </button>
                     <button
                       type="button"
-                      onClick={() => downloadFromUrl(previewImage?.url || '', previewImage?.name || '')}
+                      onClick={() => previewImage && downloadAttachment(previewImage)}
                       className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
                       title="Baixar"
                     >
@@ -2883,7 +2898,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             <div className="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                onClick={() => downloadFromUrl(previewDoc?.url || '', previewDoc?.name || '')}
+                onClick={() => previewDoc && downloadAttachment(previewDoc)}
                 className="p-2 rounded-xl hover:bg-[var(--bg-main)] text-[var(--text-main)] transition-colors"
                 title="Baixar"
               >

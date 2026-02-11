@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { fetchOportunidadeById, fetchOportunidadeItens } from '@/services/crm'
+import { fetchOportunidadeById, fetchOportunidadeContatos, fetchOportunidadeItens } from '@/services/crm'
 import {
   fetchFinCondicoesPagamento,
   fetchFinEmpresasCorrespondentes,
@@ -11,6 +11,7 @@ import {
 } from '@/services/financeiro'
 import { supabase } from '@/services/supabase'
 import { fetchContatoById } from '@/services/clienteContatos'
+import { downloadPropostaPdf } from '@/utils/propostaPdf'
 
 type DraftItem = {
   tipo: 'PRODUTO' | 'SERVICO'
@@ -93,9 +94,10 @@ export default function PropostaPreview() {
       fetchOportunidadeItens(oportunidadeId),
       fetchFinFormasPagamento(),
       fetchFinCondicoesPagamento(),
-      fetchFinEmpresasCorrespondentes()
+      fetchFinEmpresasCorrespondentes(),
+      fetchOportunidadeContatos(oportunidadeId)
     ])
-      .then(async ([o, its, f, c, empresas]) => {
+      .then(async ([o, its, f, c, empresas, contatoLinks]) => {
         if (cancelled) return
         setOpp(o)
         setFormas(f || [])
@@ -148,7 +150,10 @@ export default function PropostaPreview() {
           setCliente(null)
         }
 
-        const contatoId = String((o as any)?.id_contato || '').trim()
+        const contatoIdRaw = String((o as any)?.id_contato || '').trim()
+        const linkedPrincipalId =
+          (contatoLinks || []).find((x: any) => !!x?.is_principal)?.contato_id || (contatoLinks || [])[0]?.contato_id || null
+        const contatoId = contatoIdRaw || (linkedPrincipalId ? String(linkedPrincipalId).trim() : '')
         if (contatoId) {
           const ct = await fetchContatoById(contatoId)
           if (!cancelled) setContato(ct)
@@ -204,6 +209,7 @@ export default function PropostaPreview() {
   }, [empresa, empresaNomeRef])
 
   const empresaRazaoSocial = useMemo(() => String(empresa?.razao_social || '').trim(), [empresa])
+  void empresaRazaoSocial
 
   const empresaNome = useMemo(() => {
     const v = String(empresa?.razao_social || empresa?.nome_fantasia || empresaNomeRef).trim()
@@ -385,202 +391,14 @@ export default function PropostaPreview() {
     if (!opp) return
     setDownloadingPdf(true)
     try {
-      const [{ jsPDF }, autoTableModule] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
-      const autoTable = (autoTableModule as any).default
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const left = 14
-      const right = pageWidth - 14
-      let y = 14
-
-      const centerText = (txt: string, yy: number, size: number, bold?: boolean) => {
-        doc.setFont('helvetica', bold ? 'bold' : 'normal')
-        doc.setFontSize(size)
-        doc.text(txt, pageWidth / 2, yy, { align: 'center' })
-      }
-
-      const textRight = (txt: string, xx: number, yy: number, size: number, bold?: boolean) => {
-        doc.setFont('helvetica', bold ? 'bold' : 'normal')
-        doc.setFontSize(size)
-        doc.text(txt, xx, yy, { align: 'right' })
-      }
-
-      const textLeft = (txt: string, xx: number, yy: number, size: number, bold?: boolean) => {
-        doc.setFont('helvetica', bold ? 'bold' : 'normal')
-        doc.setFontSize(size)
-        doc.text(txt, xx, yy)
-      }
-
-      doc.setDrawColor(0)
-      doc.setLineWidth(0.2)
-
-      const toDataUrl = async (url: string) => {
-        const u = String(url || '').trim()
-        if (!u) return ''
-        const res = await fetch(u)
-        if (!res.ok) return ''
-        const blob = await res.blob()
-        const mime = String(blob.type || '')
-        if (!mime.startsWith('image/')) return ''
-        if (mime === 'image/webp') return ''
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onerror = () => reject(new Error('Falha ao ler imagem.'))
-          reader.onload = () => resolve(String(reader.result || ''))
-          reader.readAsDataURL(blob)
-        })
-      }
-
-      let hasLogo = false
-      try {
-        const dataUrl = await toDataUrl(empresaLogoUrl)
-        const mime = dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : ''
-        const fmt = mime.includes('png') ? 'PNG' : (mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : '')
-        if (dataUrl && fmt) {
-          doc.addImage(dataUrl, fmt as any, left, y - 2, 20, 20)
-          hasLogo = true
-        }
-      } catch {
-      }
-
-      textLeft(empresaNomeFantasia, hasLogo ? left + 22 : left, y + 2, 10, true)
-      centerText(empresaNome, y + 2, 10, true)
-
-      const empresaLines = [
-        empresa?.cnpj ? `CNPJ: ${empresa.cnpj}` : null,
-        empresa?.inscricao_estadual ? `Inscrição Estadual: ${empresa.inscricao_estadual}` : null,
-        empresa?.inscricao_municipal ? `Inscrição Municipal: ${empresa.inscricao_municipal}` : null,
-        empresaEnderecoLinha ? empresaEnderecoLinha : null,
-        empresaCidadeUfCep ? empresaCidadeUfCep : null,
-        empresa?.telefone ? `Telefone: ${empresa.telefone}` : null
-      ].filter(Boolean) as string[]
-      {
-        let yy = y
-        for (const line of empresaLines) {
-          textRight(line, right, yy, 7.5, false)
-          yy += 3.6
-        }
-      }
-
-      y += 14
-      doc.line(left, y, right, y)
-      y += 8
-
-      textLeft(`Proposta Comercial N° ${propostaCodigo}`, left, y, 14, true)
-      y += 8
-      textLeft('Informações do Cliente', left, y, 10, true)
-      y += 6
-
-      textLeft(clienteNome.toUpperCase(), left, y, 8.5, true)
-      y += 4.5
-      textLeft(`${clienteDocumentoLabel}: ${clienteDocumento}`, left, y, 8)
-      y += 4.5
-      if (clienteEnderecoLinha) {
-        textLeft(clienteEnderecoLinha, left, y, 8)
-        y += 4.5
-      }
-
-      const contatoBlockX = pageWidth * 0.6
-      const contatoStartY = y - 13
-      if (contatoStartY > 26) {
-        textLeft('Contato', contatoBlockX, contatoStartY, 9, true)
-        textLeft(contatoNome || '-', contatoBlockX, contatoStartY + 4.5, 8)
-        if (contatoEmail) textLeft(contatoEmail, contatoBlockX, contatoStartY + 9, 8)
-      }
-
-      y += 6
-      textLeft(itensLabel, left, y, 10, true)
-      y += 3
-
-      const rows = items.map((it) => [
-        String(it.descricao || ''),
-        formatNumber2(it.quantidade),
-        showValores ? formatNumber2(it.valorUnitario) : '',
-        showValores ? formatNumber2(calcItemTotal(it)) : ''
-      ])
-
-      const head = showValores
-        ? [itensHeadLabel, 'Quantidade', 'Valor Unit.', 'Valor Total']
-        : [itensHeadLabel, 'Quantidade']
-
-      const body = rows.length
-        ? rows.map((r) => (showValores ? r : [r[0], r[1]]))
-        : [showValores ? ['Nenhum item adicionado.', '', '', ''] : ['Nenhum item adicionado.', '']]
-
-      autoTable(doc, {
-        startY: y,
-        margin: { left, right },
-        head: [head],
-        body,
-        theme: 'striped',
-        styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.6, valign: 'middle' },
-        headStyles: { fillColor: theme.rgb, textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: theme.lightRgb },
-        columnStyles: showValores
-          ? {
-              0: { cellWidth: 'auto' },
-              1: { halign: 'right', cellWidth: 22 },
-              2: { halign: 'right', cellWidth: 25 },
-              3: { halign: 'right', cellWidth: 25 }
-            }
-          : {
-              0: { cellWidth: 'auto' },
-              1: { halign: 'right', cellWidth: 22 }
-            }
+      const oportunidadeId = String(id || '').trim()
+      if (!oportunidadeId) throw new Error('ID da proposta inválido.')
+      await downloadPropostaPdf({
+        oportunidadeId,
+        validade: validadeParam,
+        tipoFrete: tipoFreteParam,
+        showValores
       })
-
-      const finalY = (doc as any).lastAutoTable?.finalY ? Number((doc as any).lastAutoTable.finalY) : y + 10
-      y = finalY + 6
-
-      if (showValores) {
-        textRight('Total:', right - 25, y, 9, true)
-        textRight(formatNumber2(total), right, y, 9, true)
-        y += 4.5
-        textRight('Total do ISS:', right - 25, y, 9, true)
-        textRight(formatNumber2(0), right, y, 9, true)
-        y += 10
-
-        textLeft('Vencimentos À Vista', left, y, 10, true)
-        y += 6
-        const boxW = 70
-        const boxH = 22
-        doc.setDrawColor(180)
-        doc.rect(left, y, boxW, boxH)
-        doc.setFillColor(theme.lightRgb[0], theme.lightRgb[1], theme.lightRgb[2])
-        doc.rect(left, y, boxW, boxH, 'F')
-        doc.setDrawColor(180)
-        doc.rect(left, y, boxW, boxH)
-        doc.line(left + boxW / 2, y, left + boxW / 2, y + boxH)
-        doc.line(left, y + boxH / 3, left + boxW, y + boxH / 3)
-        doc.line(left, y + (2 * boxH) / 3, left + boxW, y + (2 * boxH) / 3)
-        textLeft('Parcela', left + 2, y + 5, 8, true)
-        textRight('1', left + boxW - 2, y + 5, 8, false)
-        textLeft('Vencimento', left + 2, y + 12, 8, true)
-        textRight(vencimentoLabel, left + boxW - 2, y + 12, 8, false)
-        textLeft('Valor', left + 2, y + 19, 8, true)
-        textRight(formatNumber2(total), left + boxW - 2, y + 19, 8, false)
-      }
-
-      const otherX = left + 90
-      let otherY = y
-      textLeft('Outras Informações', otherX, otherY, 10, true)
-      otherY += 6
-      textLeft(`Proposta Comercial - incluído em: ${emissaoLabel}`, otherX, otherY, 8)
-      otherY += 4.5
-      textLeft(`Previsão de Faturamento: ${previsaoEntregaLabel}`, otherX, otherY, 8)
-      otherY += 4.5
-      textLeft(`Vendedor: ${vendedorLabel}`, otherX, otherY, 8)
-      otherY += 6
-      textLeft(`FORMA DE PAGAMENTO: ${formaLabel}`, otherX, otherY, 8)
-      otherY += 4.5
-      textLeft(`FRETE: ${tipoFreteLabel}`, otherX, otherY, 8)
-      otherY += 4.5
-      textLeft(`CONDIÇÃO: ${condicaoLabel}`, otherX, otherY, 8)
-      otherY += 4.5
-      textLeft(`VALIDADE: ${validadeLabel}`, otherX, otherY, 8)
-
-      const filename = `Proposta-${propostaCodigo}`.replaceAll('/', '-').replaceAll('\\', '-').replaceAll(':', '-')
-      doc.save(`${filename}.pdf`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao gerar PDF.')
     } finally {
@@ -636,7 +454,6 @@ export default function PropostaPreview() {
               </div>
               <div className="flex-1 text-center">
                 <div className="text-sm font-black tracking-wide">{empresaNomeFantasia}</div>
-                {empresaRazaoSocial ? <div className="text-[10px] font-semibold">{empresaRazaoSocial}</div> : null}
               </div>
               <div className="text-right text-[10px] leading-4">
                 {empresa?.cnpj ? <div><span className="font-bold">CNPJ:</span> {empresa.cnpj}</div> : null}
@@ -671,6 +488,7 @@ export default function PropostaPreview() {
                 <div className="font-black">Contato</div>
                 <div className="mt-2">{contatoNome || '-'}</div>
                 {contatoEmail ? <div>{contatoEmail}</div> : null}
+                {contatoTelefone ? <div>{contatoTelefone}</div> : null}
               </div>
             </div>
 
@@ -754,6 +572,9 @@ export default function PropostaPreview() {
                   <div><span className="font-bold">FRETE:</span> {tipoFreteLabel}</div>
                   <div><span className="font-bold">CONDIÇÃO:</span> {condicaoLabel}</div>
                   <div><span className="font-bold">VALIDADE:</span> {validadeLabel}</div>
+                  <div className="mt-3">
+                    Esta proposta é válida até <span className="font-bold">{validadeLabel}</span>. Após essa data, os valores e condições comerciais poderão ser revisados.
+                  </div>
                 </div>
               </div>
             </div>

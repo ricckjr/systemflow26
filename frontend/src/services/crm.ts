@@ -1002,8 +1002,10 @@ export async function replaceOportunidadeItens(
 
   const del = await sb.from('crm_oportunidade_itens').delete().eq('id_oport', oportunidadeId)
   if (del.error) {
-    if (!isMissingTable(del.error)) throw del.error
-    return
+    if (isMissingTable(del.error)) {
+      throw new Error('Tabela crm_oportunidade_itens ainda não foi criada. Aplique as migrations do CRM e recarregue o schema do Supabase/PostgREST.')
+    }
+    throw del.error
   }
 
   const payload = (items || []).map((i) => ({
@@ -1022,7 +1024,9 @@ export async function replaceOportunidadeItens(
 
   const ins = await sb.from('crm_oportunidade_itens').insert(payload)
   if (ins.error) {
-    if (isMissingTable(ins.error)) return
+    if (isMissingTable(ins.error)) {
+      throw new Error('Tabela crm_oportunidade_itens ainda não foi criada. Aplique as migrations do CRM e recarregue o schema do Supabase/PostgREST.')
+    }
     throw ins.error
   }
 }

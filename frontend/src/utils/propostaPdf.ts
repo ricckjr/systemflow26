@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { fetchOportunidadeById, fetchOportunidadeItens } from '@/services/crm'
+import { fetchOportunidadeById, fetchOportunidadeContatos, fetchOportunidadeItens } from '@/services/crm'
 import { fetchContatoById } from '@/services/clienteContatos'
 import {
   fetchFinCondicoesPagamento,
@@ -14,6 +14,9 @@ type JsPdfDeps = {
 }
 
 let depsPromise: Promise<JsPdfDeps> | null = null
+let finCachePromise: Promise<{ formas: any[]; condicoes: any[]; empresas: any[] }> | null = null
+const logoDataUrlCache = new Map<string, string>()
+const vendedorProfileCache = new Map<string, { email: string }>()
 
 export function preloadPropostaPdfDeps() {
   depsPromise =
@@ -25,7 +28,21 @@ export function preloadPropostaPdfDeps() {
   return depsPromise
 }
 
+async function fetchFinCache() {
+  finCachePromise =
+    finCachePromise ??
+    Promise.all([fetchFinFormasPagamento(), fetchFinCondicoesPagamento(), fetchFinEmpresasCorrespondentes()]).then(
+      ([formas, condicoes, empresas]) => ({
+        formas: formas || [],
+        condicoes: condicoes || [],
+        empresas: empresas || []
+      })
+    )
+  return finCachePromise
+}
+
 const formatNumber2 = (value: number) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0)
+const formatCurrencyBr = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
 
 const calcItemTotal = (item: { quantidade: number; valorUnitario: number; descontoPercent: number }) => {
   const qtd = Number(item.quantidade || 0)
@@ -78,16 +95,19 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const tipoFrete = String(opts.tipoFrete || '').trim()
   const showValores = !!opts.showValores
 
-  const [{ jsPDF, autoTable }, opp, its, formas, condicoes, empresas] = await Promise.all([
+  const [{ jsPDF, autoTable }, opp, its, fin, contatoLinks] = await Promise.all([
     preloadPropostaPdfDeps(),
     fetchOportunidadeById(oportunidadeId),
     fetchOportunidadeItens(oportunidadeId),
-    fetchFinFormasPagamento(),
-    fetchFinCondicoesPagamento(),
-    fetchFinEmpresasCorrespondentes()
+    fetchFinCache(),
+    fetchOportunidadeContatos(oportunidadeId)
   ])
 
   if (!opp) throw new Error('Proposta não encontrada.')
+
+  const formas = fin.formas
+  const condicoes = fin.condicoes
+  const empresas = fin.empresas
 
   const empresaId = String((opp as any)?.empresa_correspondente_id || '').trim()
   const empresaNomeRef = String((opp as any)?.empresa_correspondente || '').trim() || 'Apliflow'
@@ -120,7 +140,8 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
 
   const clienteId = String((opp as any)?.id_cliente || '').trim()
   let cliente: any = null
-  if (clienteId) {
+  const shouldFetchCliente = clienteId && !String((opp as any)?.cliente_documento || '').trim()
+  if (shouldFetchCliente) {
     try {
       const { data, error } = await (supabase as any)
         .from('crm_clientes')
@@ -133,7 +154,10 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
     } catch {}
   }
 
-  const contatoId = String((opp as any)?.id_contato || '').trim()
+  const contatoIdRaw = String((opp as any)?.id_contato || '').trim()
+  const linkedPrincipalId =
+    (contatoLinks || []).find((x: any) => !!x?.is_principal)?.contato_id || (contatoLinks || [])[0]?.contato_id || null
+  const contatoId = contatoIdRaw || (linkedPrincipalId ? String(linkedPrincipalId).trim() : '')
   const contato = contatoId ? await fetchContatoById(contatoId) : null
 
   const propostaCodigo = String((opp as any)?.cod_oport || (opp as any)?.cod_oportunidade || '-').trim() || '-'
@@ -156,6 +180,7 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
 
   const contatoNome = String((contato as any)?.contato_nome || (opp as any)?.contato_nome || (opp as any)?.nome_contato || '').trim() || '-'
   const contatoEmail = String((contato as any)?.contato_email || (opp as any)?.contato_email || (opp as any)?.email || '').trim()
+  const contatoTelefone = String((contato as any)?.contato_telefone01 || (opp as any)?.contato_telefone01 || (opp as any)?.telefone01_contato || '').trim()
 
   const formaId = String((opp as any)?.forma_pagamento_id || '').trim()
   const formaLabel = formaId ? String((formas || []).find((x: any) => String(x.forma_id) === formaId)?.descricao || (formas || []).find((x: any) => String(x.forma_id) === formaId)?.codigo || '-') : '-'
@@ -176,6 +201,27 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const emissaoLabel = formatDateTimeBr((opp as any)?.data_inclusao || (opp as any)?.criado_em || null)
   const previsaoFaturamentoLabel = formatDateBr(String((opp as any)?.prev_entrega || '').slice(0, 10))
   const vendedorLabel = String((opp as any)?.vendedor_nome || (opp as any)?.vendedor || '-').trim() || '-'
+  const vendedorId = String((opp as any)?.id_vendedor || '').trim()
+  let vendedorEmail = ''
+  if (vendedorId) {
+    const cached = vendedorProfileCache.get(vendedorId)
+    if (cached) {
+      vendedorEmail = cached.email
+    } else {
+      try {
+        const { data } = await (supabase as any)
+          .from('profiles')
+          .select('email_corporativo, email_login')
+          .eq('id', vendedorId)
+          .maybeSingle()
+        const email = String((data as any)?.email_corporativo || (data as any)?.email_login || '').trim()
+        vendedorProfileCache.set(vendedorId, { email })
+        vendedorEmail = email
+      } catch {
+        vendedorProfileCache.set(vendedorId, { email: '' })
+      }
+    }
+  }
   const validadeLabel = formatDateBr(validade || null)
   const tipoFreteLabel = (() => {
     const v = (tipoFrete || String((opp as any)?.tipo_frete || '')).trim().toUpperCase()
@@ -190,14 +236,72 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const pageHeight = doc.internal.pageSize.getHeight()
   const left = 14
   const right = pageWidth - 14
-  let y = 14
-
   const maxContentWidth = right - left
+
+  const empresaNomeFantasia = String((empresa as any)?.nome_fantasia || (empresa as any)?.razao_social || empresaNomeRef).trim() || '—'
+  const empresaCnpj = String((empresa as any)?.cnpj || '').trim()
+  const empresaTelefone = String((empresa as any)?.telefone || '').trim()
+  const empresaCidadeUf = [String((empresa as any)?.cidade || '').trim(), String((empresa as any)?.uf || '').trim()].filter(Boolean).join(' - ')
+
+  const logoUrl = getFinEmpresaCorrespondenteLogoUrl((empresa as any)?.logo_path)
+  const toDataUrl = async (url: string) => {
+    const u = String(url || '').trim()
+    if (!u) return ''
+    const cached = logoDataUrlCache.get(u)
+    if (cached !== undefined) return cached
+    try {
+      const res = await fetch(u)
+      if (!res.ok) {
+        logoDataUrlCache.set(u, '')
+        return ''
+      }
+      const blob = await res.blob()
+      const mime = String(blob.type || '')
+      if (!mime.startsWith('image/')) {
+        logoDataUrlCache.set(u, '')
+        return ''
+      }
+      if (mime === 'image/webp') {
+        logoDataUrlCache.set(u, '')
+        return ''
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onerror = () => reject(new Error('Falha ao ler imagem.'))
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.readAsDataURL(blob)
+      })
+      logoDataUrlCache.set(u, dataUrl)
+      return dataUrl
+    } catch {
+      logoDataUrlCache.set(u, '')
+      return ''
+    }
+  }
+
+  const logoDataUrl = await toDataUrl(logoUrl)
+
+  const headerLineY = 36
+  const marginTop = headerLineY + 10
+  const marginBottom = 14
+  let y = marginTop
 
   const centerText = (txt: string, yy: number, size: number, bold?: boolean) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal')
     doc.setFontSize(size)
     doc.text(txt, pageWidth / 2, yy, { align: 'center' })
+  }
+
+  const wrapCenter = (txt: string, yy: number, maxWidth: number, size: number, bold?: boolean, lineH = 3.8) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    const lines = doc.splitTextToSize(String(txt || ''), maxWidth) as string[]
+    let y0 = yy
+    for (const line of lines) {
+      doc.text(line, pageWidth / 2, y0, { align: 'center' })
+      y0 += lineH
+    }
+    return y0
   }
 
   const textRight = (txt: string, xx: number, yy: number, size: number, bold?: boolean) => {
@@ -236,86 +340,98 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
     return y0
   }
 
-  const toDataUrl = async (url: string) => {
-    const u = String(url || '').trim()
-    if (!u) return ''
-    const res = await fetch(u)
-    if (!res.ok) return ''
-    const blob = await res.blob()
-    const mime = String(blob.type || '')
-    if (!mime.startsWith('image/')) return ''
-    if (mime === 'image/webp') return ''
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onerror = () => reject(new Error('Falha ao ler imagem.'))
-      reader.onload = () => resolve(String(reader.result || ''))
-      reader.readAsDataURL(blob)
-    })
+  const drawHeader = () => {
+    doc.setDrawColor(160)
+    doc.setLineWidth(0.2)
+
+    let hasLogo = false
+    if (logoDataUrl) {
+      const mime = logoDataUrl.startsWith('data:') ? logoDataUrl.slice(5, logoDataUrl.indexOf(';')) : ''
+      const fmt = mime.includes('png') ? 'PNG' : mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : ''
+      if (fmt) {
+        doc.addImage(logoDataUrl, fmt as any, left, 10, 18, 18)
+        hasLogo = true
+      }
+    }
+
+    const empresaRazaoSocial = String((empresa as any)?.razao_social || '').trim()
+    const empresaNomeFantasiaLocal = String((empresa as any)?.nome_fantasia || '').trim()
+    const empresaNomeCentro = (empresaRazaoSocial || empresaNomeFantasiaLocal || empresaNomeRef || '—').trim() || '—'
+    const empresaSub = empresaRazaoSocial && empresaNomeFantasiaLocal && empresaRazaoSocial !== empresaNomeFantasiaLocal ? empresaNomeFantasiaLocal : ''
+
+    centerText(empresaNomeCentro.toUpperCase(), 16, 11, true)
+    if (empresaSub) centerText(empresaSub, 21, 8.5, false)
+
+    const empresaEnderecoLinha = [String((empresa as any)?.endereco || '').trim(), String((empresa as any)?.bairro || '').trim()].filter(Boolean).join(' - ')
+    const empresaCidadeUfCep = [
+      [String((empresa as any)?.cidade || '').trim(), String((empresa as any)?.uf || '').trim()].filter(Boolean).join(' - '),
+      String((empresa as any)?.cep || '').trim() ? `CEP: ${String((empresa as any)?.cep || '').trim()}` : ''
+    ]
+      .filter(Boolean)
+      .join(' - ')
+
+    const empresaLines = [
+      String((empresa as any)?.cnpj || '').trim() ? `CNPJ: ${String((empresa as any)?.cnpj || '').trim()}` : null,
+      String((empresa as any)?.inscricao_estadual || '').trim() ? `Inscrição Estadual: ${String((empresa as any)?.inscricao_estadual || '').trim()}` : null,
+      String((empresa as any)?.inscricao_municipal || '').trim() ? `Inscrição Municipal: ${String((empresa as any)?.inscricao_municipal || '').trim()}` : null,
+      empresaEnderecoLinha ? empresaEnderecoLinha : null,
+      empresaCidadeUfCep ? empresaCidadeUfCep : null,
+      String((empresa as any)?.telefone || '').trim() ? `Telefone: ${String((empresa as any)?.telefone || '').trim()}` : null
+    ].filter(Boolean) as string[]
+
+    {
+      let yy = 12
+      for (const line of empresaLines) {
+        yy = wrapRight(line, right, yy, 82, 7.2, false, 3.4)
+      }
+    }
+
+    if (hasLogo) {
+      doc.setDrawColor(220)
+      doc.rect(left, 10, 18, 18)
+      doc.setDrawColor(160)
+    }
+
+    doc.line(left, headerLineY, right, headerLineY)
   }
 
-  const empresaLogoUrl = getFinEmpresaCorrespondenteLogoUrl((empresa as any)?.logo_path)
-  const empresaNomeFantasia = String((empresa as any)?.nome_fantasia || empresaNomeRef).trim() || '—'
-  const empresaNome = String((empresa as any)?.razao_social || (empresa as any)?.nome_fantasia || empresaNomeRef).trim() || '—'
-  const empresaEnderecoLinha = [String((empresa as any)?.endereco || '').trim(), String((empresa as any)?.bairro || '').trim()].filter(Boolean).join(' - ')
-  const empresaCidadeUfCep = [
-    [String((empresa as any)?.cidade || '').trim(), String((empresa as any)?.uf || '').trim()].filter(Boolean).join(' - '),
-    String((empresa as any)?.cep || '').trim() ? `CEP: ${String((empresa as any)?.cep || '').trim()}` : ''
-  ]
-    .filter(Boolean)
-    .join(' - ')
-
-  let hasLogo = false
-  try {
-    const dataUrl = await toDataUrl(empresaLogoUrl)
-    const mime = dataUrl.startsWith('data:') ? dataUrl.slice(5, dataUrl.indexOf(';')) : ''
-    const fmt = mime.includes('png') ? 'PNG' : mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : ''
-    if (dataUrl && fmt) {
-      doc.addImage(dataUrl, fmt as any, left, y - 2, 20, 20)
-      hasLogo = true
-    }
-  } catch {}
-
-  const headerTopY = y + 2
-  const leftHeaderX = hasLogo ? left + 22 : left
-  wrapLeft(empresaNomeFantasia, leftHeaderX, headerTopY, 70, 10, true, 4)
-  centerText(empresaNome, headerTopY, 10, true)
-
-  const empresaLines = [
-    (empresa as any)?.cnpj ? `CNPJ: ${(empresa as any).cnpj}` : null,
-    (empresa as any)?.inscricao_estadual ? `Inscrição Estadual: ${(empresa as any).inscricao_estadual}` : null,
-    (empresa as any)?.inscricao_municipal ? `Inscrição Municipal: ${(empresa as any).inscricao_municipal}` : null,
-    empresaEnderecoLinha ? empresaEnderecoLinha : null,
-    empresaCidadeUfCep ? empresaCidadeUfCep : null,
-    (empresa as any)?.telefone ? `Telefone: ${(empresa as any).telefone}` : null
-  ].filter(Boolean) as string[]
-  {
-    let yy = y
-    for (const line of empresaLines) {
-      yy = wrapRight(line, right, yy, 78, 7.2, false, 3.4)
-    }
+  const drawFooter = (pageNumber: number, pageCount: number) => {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(100)
+    doc.text(`Página ${pageNumber} de ${pageCount}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+    doc.setTextColor(0)
   }
 
-  y += 22
-  doc.line(left, y, right, y)
-  y += 8
+  const ensureSpace = (needed: number) => {
+    if (y + needed <= pageHeight - marginBottom) return
+    doc.addPage()
+    drawHeader()
+    y = marginTop
+  }
+
+  drawHeader()
+  y = marginTop
 
   textLeft(`Proposta Comercial N° ${propostaCodigo}`, left, y, 14, true)
   y += 8
+
   textLeft('Informações do Cliente', left, y, 10, true)
   y += 6
 
   y = wrapLeft(clienteNome.toUpperCase(), left, y, 110, 8.5, true, 4.2)
-  y = wrapLeft(`${clienteDocumentoLabel}: ${clienteDocumento}`, left, y, 110, 8, false, 4.2)
+  y = wrapLeft(`CNPJ/CPF: ${clienteDocumento}`, left, y, 110, 8, false, 4.2)
   if (clienteEnderecoLinha) {
-    y = wrapLeft(clienteEnderecoLinha, left, y, 110, 8, false, 4.2)
+    y = wrapLeft(`Endereço: ${clienteEnderecoLinha}`, left, y, 110, 8, false, 4.2)
   }
 
   const contatoBlockX = left + 120
   const contatoStartY = y - 12.6
-  if (contatoStartY > 26) {
+  if (contatoStartY > marginTop - 6) {
     textLeft('Contato', contatoBlockX, contatoStartY, 9, true)
     wrapLeft(contatoNome || '-', contatoBlockX, contatoStartY + 4.5, right - contatoBlockX, 8, false, 4.2)
     if (contatoEmail) wrapLeft(contatoEmail, contatoBlockX, contatoStartY + 8.7, right - contatoBlockX, 8, false, 4.2)
+    if (contatoTelefone) wrapLeft(contatoTelefone, contatoBlockX, contatoStartY + 12.9, right - contatoBlockX, 8, false, 4.2)
   }
 
   y += 6
@@ -326,8 +442,8 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const rows = items.map((it) => [
     String(it.descricao || ''),
     formatNumber2(it.quantidade),
-    showValores ? formatNumber2(it.valorUnitario) : '',
-    showValores ? formatNumber2(calcItemTotal(it)) : ''
+    showValores ? formatCurrencyBr(it.valorUnitario) : '',
+    showValores ? formatCurrencyBr(calcItemTotal(it)) : ''
   ])
 
   const head = showValores ? [itensHeadLabel, 'Quantidade', 'Valor Unit.', 'Valor Total'] : [itensHeadLabel, 'Quantidade']
@@ -340,7 +456,7 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
 
   autoTable(doc, {
     startY: y,
-    margin: { left, right },
+    margin: { top: marginTop, left, right },
     tableWidth: tableW,
     head: [head],
     body,
@@ -348,6 +464,9 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
     styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.6, valign: 'middle', overflow: 'linebreak' },
     headStyles: { fillColor: theme.rgb, textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: theme.lightRgb },
+    didDrawPage: () => {
+      drawHeader()
+    },
     columnStyles: showValores
       ? {
           0: { cellWidth: descW },
@@ -361,43 +480,68 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
         }
   })
 
-  const finalY = (doc as any).lastAutoTable?.finalY ? Number((doc as any).lastAutoTable.finalY) : y + 10
-  y = finalY + 6
-
-  if (y > pageHeight - 40) {
-    doc.addPage()
-    y = 18
-  }
+  y = ((doc as any).lastAutoTable?.finalY ? Number((doc as any).lastAutoTable.finalY) : y + 10) + 6
 
   if (showValores) {
-    textRight('Total:', right - 25, y, 9, true)
-    textRight(formatNumber2(total), right, y, 9, true)
+    textRight('Total:', right - 35, y, 9, true)
+    textRight(formatCurrencyBr(total), right, y, 9, true)
     y += 4.5
-    textRight('Total do ISS:', right - 25, y, 9, true)
-    textRight(formatNumber2(0), right, y, 9, true)
+    textRight('Total do ISS:', right - 35, y, 9, true)
+    textRight(formatCurrencyBr(0), right, y, 9, true)
     y += 10
   }
 
-  const otherX = left
-  let otherY = y
-  textLeft('Outras Informações', otherX, otherY, 10, true)
-  otherY += 6
-  textLeft(`Proposta Comercial - incluído em: ${emissaoLabel}`, otherX, otherY, 8)
-  otherY += 4.5
-  textLeft(`Previsão de Faturamento: ${previsaoFaturamentoLabel}`, otherX, otherY, 8)
-  otherY += 4.5
-  textLeft(`Vendedor: ${vendedorLabel}`, otherX, otherY, 8)
-  otherY += 6
-  textLeft(`FORMA DE PAGAMENTO: ${formaLabel}`, otherX, otherY, 8)
-  otherY += 4.5
-  textLeft(`FRETE: ${tipoFreteLabel}`, otherX, otherY, 8)
-  otherY += 4.5
-  textLeft(`CONDIÇÃO: ${condicaoLabel}`, otherX, otherY, 8)
-  otherY += 4.5
-  textLeft(`VALIDADE: ${validadeLabel}`, otherX, otherY, 8)
+  ensureSpace(60)
+  textLeft('Pagamentos e Vencimentos', left, y, 10, true)
+  y += 6
+  y = wrapLeft(`Forma: ${formaLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Condição: ${condicaoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Desconto: ${formatNumber2(descontoPropostaPercent)}%`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Frete: ${tipoFreteLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Previsão de Faturamento: ${previsaoFaturamentoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y += 6
+
+  textLeft('Vencimentos À Vista', left, y, 10, true)
+  y += 6
+  const boxW = 70
+  const boxH = 22
+  doc.setDrawColor(180)
+  doc.rect(left, y, boxW, boxH)
+  doc.setFillColor(theme.lightRgb[0], theme.lightRgb[1], theme.lightRgb[2])
+  doc.rect(left, y, boxW, boxH, 'F')
+  doc.setDrawColor(180)
+  doc.rect(left, y, boxW, boxH)
+  doc.line(left + boxW / 2, y, left + boxW / 2, y + boxH)
+  doc.line(left, y + boxH / 3, left + boxW, y + boxH / 3)
+  doc.line(left, y + (2 * boxH) / 3, left + boxW, y + (2 * boxH) / 3)
+  textLeft('Parcela', left + 2, y + 5, 8, true)
+  textRight('1', left + boxW - 2, y + 5, 8, false)
+  textLeft('Vencimento', left + 2, y + 12, 8, true)
+  textRight('À vista', left + boxW - 2, y + 12, 8, false)
+  textLeft('Valor', left + 2, y + 19, 8, true)
+  textRight(showValores ? formatCurrencyBr(total) : '-', left + boxW - 2, y + 19, 8, false)
+  y += boxH + 10
+
+  ensureSpace(45)
+  textLeft('Outras Informações', left, y, 10, true)
+  y += 6
+  y = wrapLeft(`Proposta Comercial: ${emissaoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Vendedor: ${vendedorLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Email Vendedor: ${vendedorEmail || '-'}`, left, y, maxContentWidth, 8, false, 4.2)
+  y += 6
+
+  const solucaoTexto =
+    inferred === 'PRODUTO' ? 'fornecimento de produto' : inferred === 'SERVICO' ? 'prestação de serviço' : 'fornecimento de produto ou prestação de serviço'
+  const paragrafo = `Esta proposta comercial foi gerada automaticamente pelo sistema CRM, com base na oportunidade vinculada ao cliente '${clienteNome}', referente à solução '${solucaoTexto}', elaborada pelo usuário '${vendedorLabel}' em '${emissaoLabel}'. O presente documento possui validade até '${validadeLabel}'. Após este prazo, os valores e as condições comerciais estarão sujeitos à reavaliação.`
+  wrapLeft(paragrafo, left, y, maxContentWidth, 7.4, false, 3.8)
 
   const filenameBase = `Proposta-${propostaCodigo}`.replaceAll('/', '-').replaceAll('\\', '-').replaceAll(':', '-')
   const filename = `${filenameBase}.pdf`
+  const pageCount = (doc as any).getNumberOfPages ? (doc as any).getNumberOfPages() : (doc as any).internal.pages?.length - 1
+  for (let i = 1; i <= pageCount; i += 1) {
+    doc.setPage(i)
+    drawFooter(i, pageCount)
+  }
   const blob = doc.output('blob') as Blob
   return { blob, filename }
 }

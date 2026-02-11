@@ -28,6 +28,51 @@ export function useChat() {
     })
   }, [])
 
+  const hydrateSignedAttachmentUrls = useCallback(async (input: ChatMessage[]) => {
+    const uniquePaths = new Set<string>()
+    for (const msg of input) {
+      for (const att of msg?.attachments ?? []) {
+        if (typeof att?.path === 'string' && att.path.trim()) uniquePaths.add(att.path.trim())
+      }
+    }
+    if (uniquePaths.size === 0) return input
+
+    const pairs = await Promise.all(
+      [...uniquePaths].map(async (path) => {
+        try {
+          const url = await chatService.getSignedAttachmentUrlCached(path, 60 * 60)
+          return [path, url] as const
+        } catch {
+          return [path, null] as const
+        }
+      })
+    )
+    const urlByPath = new Map<string, string>()
+    for (const [path, url] of pairs) {
+      if (url) urlByPath.set(path, url)
+    }
+
+    let changed = false
+    const next = input.map((msg) => {
+      const atts = msg?.attachments ?? []
+      if (atts.length === 0) return msg
+      let msgChanged = false
+      const nextAtts = atts.map((att) => {
+        const path = typeof att?.path === 'string' ? att.path.trim() : ''
+        if (!path) return att
+        const nextUrl = urlByPath.get(path)
+        if (!nextUrl || nextUrl === att.url) return att
+        msgChanged = true
+        changed = true
+        return { ...att, url: nextUrl }
+      })
+      if (!msgChanged) return msg
+      return { ...msg, attachments: nextAtts }
+    })
+
+    return changed ? next : input
+  }, [])
+
   const upsertRoomLastMessage = useCallback((roomId: string, msg: ChatMessage) => {
     setRooms((prev) => {
       const idx = prev.findIndex((r) => r.id === roomId)
@@ -124,15 +169,26 @@ export function useChat() {
       setMessages([]);
       return;
     }
+    let disposed = false
     const cached = messagesCacheRef.current.get(activeRoomId)
-    if (cached && cached.length > 0) setMessages(cached)
+    if (cached && cached.length > 0) {
+      setMessages(cached)
+      void (async () => {
+        const hydrated = await hydrateSignedAttachmentUrls(cached)
+        if (disposed) return
+        if (hydrated === cached) return
+        setMessages(hydrated)
+        messagesCacheRef.current.set(activeRoomId, hydrated)
+      })()
+    }
 
     const loadMessages = async () => {
       try {
         const clearedAt = myRoomStateRef.current.get(activeRoomId)?.cleared_at ?? null
         const msgs = await chatService.getMessages(activeRoomId, 50, clearedAt);
-        setMessages(msgs);
-        messagesCacheRef.current.set(activeRoomId, msgs)
+        const hydrated = await hydrateSignedAttachmentUrls(msgs)
+        setMessages(hydrated);
+        messagesCacheRef.current.set(activeRoomId, hydrated)
         
         if (typeof document === 'undefined' || document.visibilityState === 'visible') {
           await chatService.markAsRead(activeRoomId);
@@ -180,11 +236,12 @@ export function useChat() {
     activeRoomUnsubscribe.current = chatService.subscribeToNewMessages(
       activeRoomId,
       async (enrichedMessage) => {
+        const [hydrated] = await hydrateSignedAttachmentUrls([enrichedMessage])
         setMessages((prev) => {
-          if (prev.some((m) => m.id === enrichedMessage.id)) return prev
-          return [...prev, enrichedMessage]
+          if (prev.some((m) => m.id === hydrated.id)) return prev
+          return [...prev, hydrated]
         })
-        upsertRoomLastMessage(activeRoomId, enrichedMessage)
+        upsertRoomLastMessage(activeRoomId, hydrated)
 
         try {
           if (typeof document === 'undefined' || document.visibilityState === 'visible') {
@@ -269,6 +326,7 @@ export function useChat() {
     )
 
     return () => {
+      disposed = true
       if (activeRoomUnsubscribe.current) {
         try {
           activeRoomUnsubscribe.current()
@@ -478,10 +536,11 @@ export function useChat() {
     try {
       const clearedAt = myRoomStateRef.current.get(activeRoomId)?.cleared_at ?? null
       const older = await chatService.getMessagesBefore(activeRoomId, oldest, limit, clearedAt)
+      const hydratedOlder = await hydrateSignedAttachmentUrls(older)
       if (older.length === 0) return 0
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id))
-        const uniqueOlder = older.filter((m) => !existingIds.has(m.id))
+        const uniqueOlder = hydratedOlder.filter((m) => !existingIds.has(m.id))
         return [...uniqueOlder, ...prev]
       })
       return older.length

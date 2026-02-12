@@ -1,29 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Box, ChevronDown, Image as ImageIcon, Loader2, Plus, Search } from 'lucide-react'
+import { Box, ChevronDown, Loader2, Pencil, Plus, Search } from 'lucide-react'
 import { createCrmProduto, fetchCrmProdutos, updateCrmProduto, type CRM_Produto } from '@/services/crm'
 import { supabase } from '@/services/supabase'
+import { api } from '@/services/api'
 import { Modal } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-
-type LocalCode = '03' | '04'
-
-const LOCAIS: { code: LocalCode; label: string }[] = [
-  { code: '03', label: 'Estoque de Produto (Revenda)' },
-  { code: '04', label: 'Estoque de Consumo' }
-]
-
-const normalizeLocal = (v: CRM_Produto['local_estoque']): LocalCode => {
-  if (v === '04' || v === 'INTERNO') return '04'
-  return '03'
-}
 
 const formatCurrency = (value: number | null) => {
   const num = Number(value ?? 0)
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
-
-const localLabel = (code: LocalCode) => LOCAIS.find((l) => l.code === code)?.label ?? code
 
 const parseMoneyInput = (input: string) => {
   const raw = (input || '').trim()
@@ -43,44 +30,56 @@ const parseMoneyInput = (input: string) => {
   return value
 }
 
-type ProdutoTab =
-  | 'estoque'
-  | 'custo_estoque'
-  | 'fornecedores'
-  | 'historicos'
-  | 'info_adicionais'
-  | 'caracteristicas'
-  | 'recomendacoes_fiscais'
-  | 'observadores'
-
-type MovimentoTipo = 'ENTRADA' | 'SAIDA'
-
-type MovimentoEstoque = {
-  movimento_id: string
-  prod_id: string
-  tipo: MovimentoTipo
-  data: string
-  local: LocalCode
-  quantidade: number
-  valor_unitario: number
-  motivo: string
-  observacao: string
+const formatUnknownError = (err: unknown) => {
+  if (err instanceof Error) return err.message || 'Erro'
+  if (typeof err === 'string') return err || 'Erro'
+  if (!err || typeof err !== 'object') return 'Erro'
+  const anyErr = err as any
+  const message =
+    typeof anyErr?.message === 'string'
+      ? anyErr.message
+      : typeof anyErr?.error_description === 'string'
+        ? anyErr.error_description
+        : typeof anyErr?.error === 'string'
+          ? anyErr.error
+          : ''
+  const details = typeof anyErr?.details === 'string' ? anyErr.details : ''
+  const hint = typeof anyErr?.hint === 'string' ? anyErr.hint : ''
+  const code = typeof anyErr?.code === 'string' ? anyErr.code : ''
+  const status = typeof anyErr?.status === 'number' ? String(anyErr.status) : ''
+  const parts = [message, details, hint].map((p) => String(p || '').trim()).filter(Boolean)
+  const base = parts[0] || 'Erro'
+  const extra = parts.slice(1).join(' — ')
+  const meta = [code ? `code=${code}` : '', status ? `status=${status}` : ''].filter(Boolean).join(' ')
+  return [base, extra].filter(Boolean).join(' — ') + (meta ? ` (${meta})` : '')
 }
 
-const PRODUTO_TABS: { key: ProdutoTab; label: string }[] = [
-  { key: 'estoque', label: 'Estoque' },
-  { key: 'custo_estoque', label: 'Custo do Estoque' },
-  { key: 'fornecedores', label: 'Fornecedores' },
-  { key: 'historicos', label: 'Históricos' },
-  { key: 'info_adicionais', label: 'Informações Adicionais' },
-  { key: 'caracteristicas', label: 'Características' },
-  { key: 'recomendacoes_fiscais', label: 'Recomendações fiscais' },
-  { key: 'observadores', label: 'Observadores' }
-]
+type MovimentoTipo = 'Entrada' | 'Saida' | 'Ajuste' | 'Transferencia'
+
+type MovimentoEstoque = {
+  mov_id: string
+  prod_id: string
+  tipo_movimentacao: 'Entrada' | 'Saida' | 'Ajuste' | 'Transferencia'
+  data_movimentacao: string
+  local_estoque: string
+  quantidade: number
+  motivo: string | null
+  user_id: string | null
+}
+
+type LocalEstoque = {
+  local_id: string
+  nome: string
+  ativo: boolean
+}
+
+type ProdutoInfoTab = 'detalhada' | 'local' | 'observacoes' | 'historico'
 
 const MOV_TIPOS: { key: MovimentoTipo; label: string }[] = [
-  { key: 'ENTRADA', label: 'Criar um movimento de entrada' },
-  { key: 'SAIDA', label: 'Criar um movimento de saída' }
+  { key: 'Entrada', label: 'Entrada' },
+  { key: 'Saida', label: 'Saída' },
+  { key: 'Ajuste', label: 'Ajuste (diferença)' },
+  { key: 'Transferencia', label: 'Transferência' }
 ]
 
 const MOV_MOTIVOS: string[] = ['Ajuste por Inventário', 'Compra', 'Venda', 'Consumo', 'Outros']
@@ -92,12 +91,6 @@ const formatDateBR = (isoDate: string) => {
   return `${d}/${m}/${y}`
 }
 
-const randomId = () => {
-  const anyCrypto = globalThis as any
-  if (anyCrypto?.crypto?.randomUUID) return anyCrypto.crypto.randomUUID()
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
-}
-
 const Estoque: React.FC = () => {
   const { isAdmin } = useAuth()
   const location = useLocation()
@@ -107,9 +100,11 @@ const Estoque: React.FC = () => {
   const [items, setItems] = useState<CRM_Produto[]>([])
   const [familiasById, setFamiliasById] = useState<Record<string, string>>({})
   const [familiaOptions, setFamiliaOptions] = useState<{ familia_id: string; nome: string }[]>([])
+  const [locais, setLocais] = useState<LocalEstoque[]>([])
+  const locaisAtivos = useMemo(() => locais.filter((l) => l.ativo), [locais])
 
   const [search, setSearch] = useState('')
-  const [localFilter, setLocalFilter] = useState<'TODOS' | LocalCode>('TODOS')
+  const [localFilter, setLocalFilter] = useState<'TODOS' | string>('TODOS')
   const [isLocalOpen, setIsLocalOpen] = useState(false)
   const localPickerRef = useRef<HTMLDivElement | null>(null)
 
@@ -119,13 +114,16 @@ const Estoque: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null)
   const [draftSituacao, setDraftSituacao] = useState(true)
   const [draftDescricao, setDraftDescricao] = useState('')
-  const [draftGtinEan, setDraftGtinEan] = useState('')
+  const [draftModelo, setDraftModelo] = useState('')
+  const [draftMarca, setDraftMarca] = useState('')
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('UN')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
-  const [draftLocalEstoque, setDraftLocalEstoque] = useState<LocalCode>('03')
+  const [draftFinalidadeItem, setDraftFinalidadeItem] = useState<'Revenda' | 'Consumo Interno'>('Revenda')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
+  const [draftDescricaoDetalhada, setDraftDescricaoDetalhada] = useState('')
+  const [draftObsProd, setDraftObsProd] = useState('')
   const [familiaSaving, setFamiliaSaving] = useState(false)
 
   const [ncmSearch, setNcmSearch] = useState('')
@@ -134,55 +132,58 @@ const Estoque: React.FC = () => {
   const [isNcmOpen, setIsNcmOpen] = useState(false)
   const ncmPickerRef = useRef<HTMLDivElement | null>(null)
   const [savedProduto, setSavedProduto] = useState<CRM_Produto | null>(null)
-  const [produtoTab, setProdutoTab] = useState<ProdutoTab>('estoque')
-
-  const [imagemUploading, setImagemUploading] = useState(false)
-  const imagemInputRef = useRef<HTMLInputElement | null>(null)
+  const [produtoInfoTab, setProdutoInfoTab] = useState<ProdutoInfoTab>('detalhada')
 
   const [movimentosByProdutoId, setMovimentosByProdutoId] = useState<Record<string, MovimentoEstoque[]>>({})
+  const [saldosByProdutoId, setSaldosByProdutoId] = useState<Record<string, Record<string, number>>>({})
   const [isMovimentoOpen, setIsMovimentoOpen] = useState(false)
   const [movimentoError, setMovimentoError] = useState<string | null>(null)
-  const [movTipo, setMovTipo] = useState<MovimentoTipo>('ENTRADA')
+  const [movimentoSaving, setMovimentoSaving] = useState(false)
+  const [movTipo, setMovTipo] = useState<'Entrada' | 'Saida' | 'Ajuste' | 'Transferencia'>('Entrada')
   const [movData, setMovData] = useState(new Date().toISOString().slice(0, 10))
-  const [movLocal, setMovLocal] = useState<LocalCode>('03')
+  const [movLocalOrigem, setMovLocalOrigem] = useState('')
+  const [movLocalDestino, setMovLocalDestino] = useState('')
   const [movQuantidade, setMovQuantidade] = useState('')
-  const [movValorUnitario, setMovValorUnitario] = useState('')
   const [movMotivo, setMovMotivo] = useState(MOV_MOTIVOS[0] || 'Ajuste por Inventário')
-  const [movObservacao, setMovObservacao] = useState('')
 
-  const getSaldoLocal = (prodId: string, local: LocalCode) => {
-    const list = movimentosByProdutoId[prodId] || []
-    let qty = 0
-    for (const m of list) {
-      if (m.local !== local) continue
-      qty += m.tipo === 'ENTRADA' ? m.quantidade : -m.quantidade
-    }
-    return qty
+  const getSaldoLocal = (prodId: string, local: string) => {
+    return Number(saldosByProdutoId[prodId]?.[local] ?? 0)
   }
 
   const openMovimentoModal = (p: CRM_Produto) => {
     setMovimentoError(null)
-    setMovTipo('ENTRADA')
+    setMovTipo('Entrada')
     setMovData(new Date().toISOString().slice(0, 10))
-    setMovLocal(normalizeLocal(p.local_estoque))
+    const defaultLocal = localFilter === 'TODOS' ? (locaisAtivos[0]?.nome || '') : localFilter
+    setMovLocalOrigem(defaultLocal)
+    setMovLocalDestino(locaisAtivos.find((l) => l.nome !== defaultLocal)?.nome || '')
     setMovQuantidade('')
-    setMovValorUnitario(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
     setMovMotivo(MOV_MOTIVOS[0] || 'Ajuste por Inventário')
-    setMovObservacao('')
     setIsMovimentoOpen(true)
   }
 
-  const handleSalvarMovimento = () => {
+  const handleSalvarMovimento = async () => {
     if (!savedProduto) return
     setMovimentoError(null)
-    const quantidade = parseMoneyInput(movQuantidade) ?? Number(movQuantidade)
-    if (!Number.isFinite(quantidade) || quantidade <= 0) {
-      setMovimentoError('A "Quantidade" do movimento de estoque deve ser maior que zero.')
+
+    const localOrigem = String(movLocalOrigem || '').trim()
+    if (!localOrigem) {
+      setMovimentoError('Selecione o local de estoque.')
       return
     }
-    const valorUnit = parseMoneyInput(movValorUnitario) ?? Number(movValorUnitario)
-    if (!Number.isFinite(valorUnit) || valorUnit < 0) {
-      setMovimentoError('Informe um valor unitário válido.')
+    const localDestino = String(movLocalDestino || '').trim()
+    if (movTipo === 'Transferencia' && !localDestino) {
+      setMovimentoError('Selecione o local de destino.')
+      return
+    }
+
+    const quantidade = parseMoneyInput(movQuantidade) ?? Number(movQuantidade)
+    if (!Number.isFinite(quantidade) || quantidade === 0) {
+      setMovimentoError('A "Quantidade" do movimento de estoque é inválida.')
+      return
+    }
+    if (movTipo !== 'Ajuste' && quantidade < 0) {
+      setMovimentoError('A "Quantidade" deve ser maior que zero.')
       return
     }
     const data = String(movData || '').slice(0, 10)
@@ -196,78 +197,46 @@ const Estoque: React.FC = () => {
       return
     }
 
-    const movimento: MovimentoEstoque = {
-      movimento_id: randomId(),
-      prod_id: savedProduto.prod_id,
-      tipo: movTipo,
-      data,
-      local: movLocal,
-      quantidade,
-      valor_unitario: valorUnit,
-      motivo,
-      observacao: movObservacao.trim()
+    if (movTipo === 'Transferencia' && localOrigem === localDestino) {
+      setMovimentoError('Para transferência, escolha locais diferentes.')
+      return
     }
-    setMovimentosByProdutoId((prev) => {
-      const list = prev[savedProduto.prod_id] || []
-      const next = [...list, movimento].sort((a, b) => String(b.data).localeCompare(String(a.data)))
-      return { ...prev, [savedProduto.prod_id]: next }
-    })
-    setIsMovimentoOpen(false)
-    setProdutoTab('historicos')
-  }
 
-
-  const getProdutoImagemUrl = (p: CRM_Produto | null) => {
-    const path = p?.imagem_path
-    if (!path) return null
-    return supabase.storage.from('produtos').getPublicUrl(path).data.publicUrl
-  }
-
-  const handlePickImagem = () => {
-    if (!savedProduto) return
-    imagemInputRef.current?.click()
-  }
-
-  const handleUploadImagem = async (file: File) => {
-    if (!savedProduto) return
-    setCreateError(null)
-    setImagemUploading(true)
+    setMovimentoSaving(true)
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData?.user?.id
-      if (!userId) throw new Error('Sessão expirada. Faça login novamente.')
+      await api.estoque.movimentar({
+        prod_id: savedProduto.prod_id,
+        tipo_movimentacao: movTipo,
+        quantidade,
+        local_estoque: localOrigem,
+        local_estoque_destino: movTipo === 'Transferencia' ? localDestino : null,
+        motivo,
+        data_movimentacao: data
+      })
 
-      const parts = String(file.name || '').split('.')
-      const ext = (parts.length > 1 ? parts[parts.length - 1] : 'png').toLowerCase()
-      const safeExt = ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' ? ext : 'png'
-      const path = `produtos/${userId}/${savedProduto.prod_id}-${Date.now()}.${safeExt}`
-
-      const { error: upError } = await supabase.storage.from('produtos').upload(path, file, { upsert: true })
-      if (upError) throw upError
-
-      const updated = await updateCrmProduto(savedProduto.prod_id, { imagem_path: path })
-      setSavedProduto(updated)
-      try {
-        await (supabase as any).from('crm_produtos_imagens').insert({ prod_id: savedProduto.prod_id, storage_path: path })
-      } catch {}
-      await reloadProdutos()
+      await loadMovimentos(savedProduto.prod_id)
+      await loadSaldos([savedProduto.prod_id])
+      setIsMovimentoOpen(false)
     } catch (e) {
-      setCreateError(e instanceof Error ? e.message : 'Falha ao enviar imagem')
+      setMovimentoError(e instanceof Error ? e.message : 'Falha ao salvar movimento')
     } finally {
-      setImagemUploading(false)
+      setMovimentoSaving(false)
     }
   }
 
   const fillDraftFromProduto = (p: CRM_Produto) => {
     setDraftSituacao(!!p.situacao_prod)
     setDraftDescricao(p.descricao_prod || '')
-    setDraftGtinEan(p.gtin_ean || '')
+    setDraftModelo(p.modelo_prod || '')
+    setDraftMarca(p.marca_prod || '')
     setDraftPreco(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
     setDraftUnidade(p.unidade_prod || 'UN')
     setDraftNcmCodigo(p.ncm_codigo || '')
-    setDraftLocalEstoque(normalizeLocal(p.local_estoque))
+    setDraftFinalidadeItem(p.finalidade_item === 'Consumo Interno' ? 'Consumo Interno' : 'Revenda')
     setDraftFamiliaId(p.familia_id || '')
     setDraftFamiliaNova('')
+    setDraftDescricaoDetalhada(p.descricao_detalhada || '')
+    setDraftObsProd(p.obs_prod || '')
     setNcmSearch('')
     setNcmOptions([])
     setIsNcmOpen(false)
@@ -276,9 +245,10 @@ const Estoque: React.FC = () => {
   const openProdutoModal = (p: CRM_Produto) => {
     setCreateError(null)
     setSavedProduto(p)
-    setProdutoTab('estoque')
+    setProdutoInfoTab('detalhada')
     setEditing(false)
     setIsCreateOpen(true)
+    void loadMovimentos(p.prod_id)
   }
 
   useEffect(() => {
@@ -287,10 +257,15 @@ const Estoque: React.FC = () => {
       setLoading(true)
       setError(null)
       try {
+        await loadLocais()
         const produtos = await fetchCrmProdutos()
-        if (!cancelled) setItems(produtos)
+        if (!cancelled) {
+          setItems(produtos)
+          const ids = produtos.map((p) => p.prod_id).filter(Boolean)
+          await loadSaldos(ids)
+        }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Falha ao carregar')
+        if (!cancelled) setError(formatUnknownError(e) || 'Falha ao carregar')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -304,6 +279,74 @@ const Estoque: React.FC = () => {
   const reloadProdutos = async () => {
     const produtos = await fetchCrmProdutos()
     setItems(produtos)
+    await loadSaldos(produtos.map((p) => p.prod_id).filter(Boolean))
+  }
+
+  const loadLocais = async () => {
+    try {
+      const { data, error: qError } = await (supabase as any)
+        .from('crm_locais_estoque')
+        .select('local_id,nome,ativo')
+        .order('nome', { ascending: true })
+      if (qError) throw qError
+      setLocais((data || []) as LocalEstoque[])
+    } catch {
+      setLocais([])
+    }
+  }
+
+  const loadSaldos = async (prodIds: string[]) => {
+    const ids = (prodIds || []).filter(Boolean)
+    if (ids.length === 0) return
+    try {
+      const { data, error: qError } = await (supabase as any)
+        .from('vw_saldo_produto')
+        .select('prod_id,local_estoque,saldo')
+        .in('prod_id', ids)
+
+      if (qError) throw qError
+
+      setSaldosByProdutoId((prev) => {
+        const next: Record<string, Record<string, number>> = { ...prev }
+        for (const id of ids) next[id] = {}
+        for (const row of (data || []) as any[]) {
+          const pid = String(row?.prod_id || '')
+          const loc = String(row?.local_estoque || '')
+          const saldo = Number(row?.saldo ?? 0)
+          if (!pid) continue
+          if (!loc) continue
+          if (!next[pid]) next[pid] = {}
+          next[pid][loc] = saldo
+        }
+        return next
+      })
+    } catch (e) {
+      setSaldosByProdutoId((prev) => {
+        const next: Record<string, Record<string, number>> = { ...prev }
+        for (const id of ids) next[id] = {}
+        return next
+      })
+      setError((prev) => prev || `Saldo indisponível: ${formatUnknownError(e)}`)
+    }
+  }
+
+  const loadMovimentos = async (prodId: string) => {
+    if (!prodId) return
+    try {
+      const { data, error: qError } = await (supabase as any)
+        .from('crm_movimentacoes_estoque')
+        .select('mov_id,prod_id,tipo_movimentacao,data_movimentacao,quantidade,local_estoque,motivo,user_id')
+        .eq('prod_id', prodId)
+        .order('data_movimentacao', { ascending: false })
+        .limit(200)
+
+      if (qError) throw qError
+
+      setMovimentosByProdutoId((prev) => ({ ...prev, [prodId]: (data || []) as any }))
+    } catch (e) {
+      setMovimentosByProdutoId((prev) => ({ ...prev, [prodId]: [] }))
+      setError((prev) => prev || `Histórico indisponível: ${formatUnknownError(e)}`)
+    }
   }
 
   useEffect(() => {
@@ -359,16 +402,18 @@ const Estoque: React.FC = () => {
     setNcmOptions([])
     if (savedProduto) return
     setEditing(false)
-    setProdutoTab('estoque')
     setDraftSituacao(true)
     setDraftDescricao('')
-    setDraftGtinEan('')
+    setDraftModelo('')
+    setDraftMarca('')
     setDraftPreco('')
     setDraftUnidade('UN')
     setDraftNcmCodigo('')
-    setDraftLocalEstoque(localFilter === 'TODOS' ? '03' : localFilter)
+    setDraftFinalidadeItem('Revenda')
     setDraftFamiliaId('')
     setDraftFamiliaNova('')
+    setDraftDescricaoDetalhada('')
+    setDraftObsProd('')
   }, [isCreateOpen, localFilter, savedProduto])
 
   useEffect(() => {
@@ -466,6 +511,16 @@ const Estoque: React.FC = () => {
       setCreateError('A descrição é obrigatória.')
       return
     }
+    const modelo = draftModelo.trim()
+    if (!modelo) {
+      setCreateError('O modelo é obrigatório.')
+      return
+    }
+    const marca = draftMarca.trim()
+    if (!marca) {
+      setCreateError('A marca é obrigatória.')
+      return
+    }
     const unidade = draftUnidade.trim()
     if (!unidade) {
       setCreateError('A unidade é obrigatória.')
@@ -476,45 +531,52 @@ const Estoque: React.FC = () => {
       setCreateError('O NCM deve ter 8 dígitos.')
       return
     }
+    const finalidade = draftFinalidadeItem
+    if (!finalidade) {
+      setCreateError('A finalidade do item é obrigatória.')
+      return
+    }
 
     setCreating(true)
     setCreateError(null)
     try {
       const valor = parseMoneyInput(draftPreco) ?? 0
-      const gtinDigits = draftGtinEan.replace(/\D/g, '')
-      const gtinEan = gtinDigits ? gtinDigits : null
+      const descricaoDetalhada = draftDescricaoDetalhada.trim() || null
+      const obs = draftObsProd.trim() || null
       if (savedProduto && editing) {
         const updated = await updateCrmProduto(savedProduto.prod_id, {
+          situacao_prod: draftSituacao,
+          marca_prod: marca,
+          modelo_prod: modelo,
           descricao_prod: descricao,
-          gtin_ean: gtinEan,
+          descricao_detalhada: descricaoDetalhada,
+          finalidade_item: finalidade,
           cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_codigo: maskedNcm,
-          local_estoque: draftLocalEstoque,
           familia_id: draftFamiliaId || null,
+          obs_prod: obs,
           produto_valor: valor
         })
         setSavedProduto(updated)
         setEditing(false)
-        setProdutoTab('estoque')
       } else {
         const created = await createCrmProduto({
           integ_id: null,
           situacao_prod: draftSituacao,
-          marca_prod: null,
-          modelo_prod: null,
+          marca_prod: marca,
+          modelo_prod: modelo,
           descricao_prod: descricao,
-          gtin_ean: gtinEan,
+          descricao_detalhada: descricaoDetalhada,
+          finalidade_item: finalidade,
           cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_codigo: maskedNcm,
-          local_estoque: draftLocalEstoque,
           familia_id: draftFamiliaId || null,
-          obs_prod: null,
+          obs_prod: obs,
           produto_valor: valor
         })
         setSavedProduto(created)
-        setProdutoTab('estoque')
       }
       await reloadProdutos()
     } catch (e) {
@@ -535,9 +597,9 @@ const Estoque: React.FC = () => {
       })
       .filter((p) => {
         if (localFilter === 'TODOS') return true
-        return normalizeLocal(p.local_estoque) === localFilter
+        return getSaldoLocal(p.prod_id, localFilter) !== 0
       })
-  }, [items, search, localFilter])
+  }, [items, search, localFilter, saldosByProdutoId])
 
   const filteredSorted = useMemo(() => {
     return [...filtered].sort((a, b) =>
@@ -553,34 +615,34 @@ const Estoque: React.FC = () => {
           Estoque
         </div>
 
-        {!isConsultaEstoque && (
-          <button
-            type="button"
-            onClick={() => {
-              setSavedProduto(null)
-              setEditing(false)
-              setProdutoTab('estoque')
-              setCreateError(null)
-              setDraftSituacao(true)
-              setDraftDescricao('')
-              setDraftGtinEan('')
-              setDraftPreco('')
-              setDraftUnidade('UN')
-              setDraftNcmCodigo('')
-              setDraftLocalEstoque(localFilter === 'TODOS' ? '03' : localFilter)
-              setDraftFamiliaId('')
-              setDraftFamiliaNova('')
-              setNcmSearch('')
-              setNcmOptions([])
-              setIsNcmOpen(false)
-              setIsCreateOpen(true)
-            }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95"
-          >
-            <Plus size={16} />
-            Adicionar Produto
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            setSavedProduto(null)
+            setEditing(false)
+            setCreateError(null)
+            setDraftSituacao(true)
+            setDraftDescricao('')
+            setDraftModelo('')
+            setDraftMarca('')
+            setDraftPreco('')
+            setDraftUnidade('UN')
+            setDraftNcmCodigo('')
+            setDraftFinalidadeItem('Revenda')
+            setDraftFamiliaId('')
+            setDraftFamiliaNova('')
+            setDraftDescricaoDetalhada('')
+            setDraftObsProd('')
+            setNcmSearch('')
+            setNcmOptions([])
+            setIsNcmOpen(false)
+            setIsCreateOpen(true)
+          }}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-500/15 transition-all active:scale-95"
+        >
+          <Plus size={16} />
+          NOVO PRODUTO
+        </button>
       </div>
 
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 md:p-6 space-y-4">
@@ -602,7 +664,7 @@ const Estoque: React.FC = () => {
               className="w-full inline-flex items-center justify-between gap-2 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all hover:bg-white/5"
             >
               <span className="truncate">
-                {localFilter === 'TODOS' ? 'Todos os locais' : localLabel(localFilter)}
+                {localFilter === 'TODOS' ? 'Todos os locais' : localFilter}
               </span>
               <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isLocalOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -624,21 +686,21 @@ const Estoque: React.FC = () => {
                   >
                     Todos os locais
                   </button>
-                  {LOCAIS.map((l) => (
+                  {locaisAtivos.map((l) => (
                     <button
-                      key={l.code}
+                      key={l.local_id}
                       type="button"
                       onClick={() => {
-                        setLocalFilter(l.code)
+                        setLocalFilter(l.nome)
                         setIsLocalOpen(false)
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        localFilter === l.code
+                        localFilter === l.nome
                           ? 'bg-emerald-500/15 text-emerald-200'
                           : 'text-slate-200 hover:bg-white/5'
                       }`}
                     >
-                      {l.label}
+                      {l.nome}
                     </button>
                   ))}
                 </div>
@@ -672,7 +734,7 @@ const Estoque: React.FC = () => {
                   <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)]">
                     <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
                     <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
-                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Local</div>
+                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
                     <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
@@ -681,7 +743,10 @@ const Estoque: React.FC = () => {
 
                   <div className="divide-y divide-[var(--border)]">
                     {filteredSorted.map((p) => {
-                      const loc = normalizeLocal(p.local_estoque)
+                      const saldos = saldosByProdutoId[p.prod_id] || {}
+                      const total = Object.values(saldos).reduce((acc, v) => acc + Number(v || 0), 0)
+                      const qtdLocais = Object.keys(saldos).length
+                      const saldoSelecionado = localFilter === 'TODOS' ? null : getSaldoLocal(p.prod_id, localFilter)
                       return (
                         <div
                           key={p.prod_id}
@@ -701,9 +766,25 @@ const Estoque: React.FC = () => {
                             <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.ncm_codigo || '-'}</div>
                           </div>
                           <div className="col-span-2 min-w-0">
-                            <div className="text-sm text-[var(--text)] truncate" title={localLabel(loc)}>
-                              {localLabel(loc)}
-                            </div>
+                            {localFilter === 'TODOS' ? (
+                              <>
+                                <div className="text-sm text-[var(--text)] font-mono truncate">
+                                  Total: {total.toLocaleString('pt-BR')}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                                  Locais: {qtdLocais}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-sm text-[var(--text)] font-mono truncate">
+                                  {saldoSelecionado?.toLocaleString('pt-BR') ?? '0'}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] truncate" title={localFilter}>
+                                  {localFilter}
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="col-span-1 min-w-0">
                             <div className="text-sm text-[var(--text)] font-mono truncate">{p.unidade_prod || '-'}</div>
@@ -821,21 +902,6 @@ const Estoque: React.FC = () => {
                 >
                   Novo Movimento
                 </button>
-                {!isConsultaEstoque && isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!savedProduto) return
-                      setCreateError(null)
-                      fillDraftFromProduto(savedProduto)
-                      setEditing(true)
-                    }}
-                    disabled={creating || familiaSaving}
-                    className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
-                  >
-                    Editar
-                  </button>
-                )}
               </>
             )
           ) : (
@@ -871,127 +937,106 @@ const Estoque: React.FC = () => {
           )
         }
       >
-        <input
-          ref={imagemInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            e.target.value = ''
-            if (!f) return
-            void handleUploadImagem(f)
-          }}
-        />
-
         {savedProduto && !editing ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-3 rounded-2xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="relative aspect-square rounded-xl border border-white/10 bg-black/20 overflow-hidden flex items-center justify-center">
-                  {getProdutoImagemUrl(savedProduto) ? (
-                    <img
-                      src={getProdutoImagemUrl(savedProduto) as string}
-                      alt={savedProduto.descricao_prod}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <ImageIcon size={26} className="text-slate-500" />
-                  )}
-                  {imagemUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="animate-spin text-slate-200" size={22} />
-                    </div>
-                  )}
-                </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-black uppercase tracking-widest text-slate-300">Dados do Produto</div>
                 {isAdmin ? (
                   <button
                     type="button"
-                    onClick={handlePickImagem}
-                    disabled={!savedProduto || imagemUploading}
-                    className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                    onClick={() => {
+                      if (!savedProduto) return
+                      setCreateError(null)
+                      fillDraftFromProduto(savedProduto)
+                      setEditing(true)
+                    }}
+                    disabled={creating || familiaSaving}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    title="Editar"
                   >
-                    Alterar
+                    <Pencil size={14} />
+                    Editar
                   </button>
                 ) : null}
-                <div className="mt-2 text-center text-[11px] text-slate-500">
-                  {savedProduto.imagem_path ? 'Imagem cadastrada' : 'Nenhuma imagem'}
-                </div>
               </div>
-
-              <div className="lg:col-span-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição do Produto</label>
-                  <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100">
-                    {savedProduto.descricao_prod}
-                  </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Descrição</div>
+                  <div className="text-sm font-semibold text-slate-100 break-words">{savedProduto.descricao_prod || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.codigo_prod || '-'}</div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
-                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
-                      {savedProduto.codigo_prod || '-'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código EAN (GTIN)</label>
-                    <div
-                      className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium font-mono ${
-                        savedProduto.gtin_ean ? 'text-slate-100' : 'text-slate-500'
-                      }`}
-                    >
-                      {savedProduto.gtin_ean || 'Opcional'}
-                    </div>
-                  </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Marca</div>
+                  <div className="text-sm font-semibold text-slate-100">{savedProduto.marca_prod || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Modelo</div>
+                  <div className="text-sm font-semibold text-slate-100">{savedProduto.modelo_prod || '-'}</div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Unidade</label>
-                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100">
-                      {savedProduto.unidade_prod || '-'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Preço Unitário de Venda</label>
-                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono text-right">
-                      {formatCurrency(savedProduto.produto_valor)}
-                    </div>
-                  </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Finalidade</div>
+                  <div className="text-sm font-semibold text-slate-100">{savedProduto.finalidade_item || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Situação</div>
+                  <div className="text-sm font-semibold text-slate-100">{savedProduto.situacao_prod ? 'Ativo' : 'Inativo'}</div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código NCM</label>
-                    <div className="relative">
-                      <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 pr-10 text-sm font-medium text-slate-100 font-mono">
-                        {savedProduto.ncm_codigo || '-'}
-                      </div>
-                      <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Unidade</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.unidade_prod || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.ncm_codigo || '-'}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Família</div>
+                  <div className="text-sm font-semibold text-slate-100">
+                    {savedProduto.familia_id ? familiasById[savedProduto.familia_id] || '-' : '-'}
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Família de Produto</label>
-                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 truncate">
-                      {savedProduto.familia_id ? familiasById[savedProduto.familia_id] || '-' : '-'}
-                    </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Preço Unitário</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrency(savedProduto.produto_valor)}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ref. Proposta</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.cod_proposta_ref || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Atualizado em</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">
+                    {savedProduto.atualizado_em ? formatDateBR(savedProduto.atualizado_em) : '-'}
                   </div>
                 </div>
               </div>
-
-              <div className="lg:col-span-3" />
             </div>
 
             <div className="border-b border-white/10 overflow-x-auto custom-scrollbar">
               <div className="flex items-center gap-1 min-w-max">
-                {PRODUTO_TABS.map((t) => (
+                {(
+                  [
+                    { key: 'detalhada', label: 'Descrição Detalhada' },
+                    { key: 'local', label: 'Local do Estoque' },
+                    { key: 'observacoes', label: 'Observações' },
+                    { key: 'historico', label: 'Histórico' }
+                  ] as Array<{ key: ProdutoInfoTab; label: string }>
+                ).map((t) => (
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setProdutoTab(t.key)}
+                    onClick={() => setProdutoInfoTab(t.key)}
                     className={`px-3 py-2 text-xs font-bold uppercase tracking-widest rounded-t-lg transition-colors whitespace-nowrap ${
-                      produtoTab === t.key ? 'text-emerald-200 bg-emerald-500/10' : 'text-slate-400 hover:text-slate-200'
+                      produtoInfoTab === t.key ? 'text-emerald-200 bg-emerald-500/10' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {t.label}
@@ -1001,65 +1046,36 @@ const Estoque: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-4">
-              {produtoTab === 'estoque' && (
-                <div className="space-y-4">
-                  <div className="overflow-auto">
-                    <div className="min-w-[860px]">
-                      <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10">
-                        <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Local Estoque</div>
-                        <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Quantidade disponível</div>
-                        <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Unitário</div>
-                        <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Total</div>
-                        <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Estoque Mínimo</div>
-                      </div>
-                      {(() => {
-                        const local = normalizeLocal(savedProduto.local_estoque)
-                        const qty = getSaldoLocal(savedProduto.prod_id, local)
-                        const unit = Number(savedProduto.produto_valor ?? 0)
-                        const total = qty * unit
-                        return (
-                          <div className="grid grid-cols-12 gap-3 px-4 py-3">
-                            <div className="col-span-3 text-sm text-slate-100 truncate" title={localLabel(local)}>
-                              {localLabel(local)}
-                            </div>
-                            <div className="col-span-2 text-sm font-mono text-slate-100">{qty.toLocaleString('pt-BR')}</div>
-                            <div className="col-span-2 text-sm font-mono text-slate-100 text-right">{formatCurrency(unit)}</div>
-                            <div className="col-span-2 text-sm font-mono text-slate-100 text-right">{formatCurrency(total)}</div>
-                            <div className="col-span-3 text-sm font-mono text-slate-100 text-right">-</div>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  </div>
+              {produtoInfoTab === 'detalhada' && (
+                <div className="text-sm text-slate-100 whitespace-pre-wrap break-words">
+                  {savedProduto.descricao_detalhada?.trim() ? savedProduto.descricao_detalhada : '-'}
                 </div>
               )}
 
-              {produtoTab === 'custo_estoque' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-              {produtoTab === 'fornecedores' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-              {produtoTab === 'historicos' && (
+              {produtoInfoTab === 'observacoes' && (
+                <div className="text-sm text-slate-100 whitespace-pre-wrap break-words">
+                  {savedProduto.obs_prod?.trim() ? savedProduto.obs_prod : '-'}
+                </div>
+              )}
+
+              {produtoInfoTab === 'local' && (
                 <div className="overflow-auto">
-                  <div className="min-w-[980px]">
-                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10">
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</div>
-                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Quantidade</div>
-                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Unit.</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Total</div>
+                  <div className="min-w-[520px]">
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10 rounded-xl">
+                      <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
+                      <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Disponível</div>
                     </div>
-                    {(movimentosByProdutoId[savedProduto.prod_id] || []).length === 0 ? (
-                      <div className="px-4 py-4 text-xs text-slate-400">Nenhum movimento registrado.</div>
+                    {locaisAtivos.length === 0 ? (
+                      <div className="px-4 py-4 text-xs text-slate-400">Nenhum local de estoque cadastrado.</div>
                     ) : (
-                      (movimentosByProdutoId[savedProduto.prod_id] || []).map((m) => {
-                        const total = m.quantidade * m.valor_unitario
+                      locaisAtivos.map((l) => {
+                        const qty = getSaldoLocal(savedProduto.prod_id, l.nome)
                         return (
-                          <div key={m.movimento_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
-                            <div className="col-span-2 text-sm text-slate-100 font-mono">{formatDateBR(m.data)}</div>
-                            <div className="col-span-3 text-sm text-slate-100">{m.tipo === 'ENTRADA' ? 'Entrada' : 'Saída'}</div>
-                            <div className="col-span-2 text-sm text-slate-100">{localLabel(m.local)}</div>
-                            <div className="col-span-2 text-sm text-slate-100 font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
-                            <div className="col-span-1 text-sm text-slate-100 font-mono text-right">{formatCurrency(m.valor_unitario)}</div>
-                            <div className="col-span-2 text-sm text-slate-100 font-mono text-right">{formatCurrency(total)}</div>
+                          <div key={l.local_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
+                            <div className="col-span-8 text-sm text-slate-100 truncate" title={l.nome}>
+                              {l.nome}
+                            </div>
+                            <div className="col-span-4 text-sm font-mono text-slate-100 text-right">{qty.toLocaleString('pt-BR')}</div>
                           </div>
                         )
                       })
@@ -1068,28 +1084,34 @@ const Estoque: React.FC = () => {
                 </div>
               )}
 
-              {produtoTab === 'info_adicionais' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Unidade</div>
-                    <div className="text-sm font-semibold text-slate-100 mt-1 font-mono">{savedProduto.unidade_prod || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
-                    <div className="text-sm font-semibold text-slate-100 mt-1 font-mono">{savedProduto.ncm_codigo || '-'}</div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Família de Produto</div>
-                    <div className="text-sm font-semibold text-slate-100 mt-1">
-                      {savedProduto.familia_id ? familiasById[savedProduto.familia_id] || '-' : '-'}
+              {produtoInfoTab === 'historico' && (
+                <div className="overflow-auto">
+                  <div className="min-w-[980px]">
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10 rounded-xl">
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</div>
+                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Quantidade</div>
+                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Motivo</div>
                     </div>
+                    {(movimentosByProdutoId[savedProduto.prod_id] || []).length === 0 ? (
+                      <div className="px-4 py-4 text-xs text-slate-400">Nenhum movimento registrado.</div>
+                    ) : (
+                      (movimentosByProdutoId[savedProduto.prod_id] || []).map((m) => (
+                        <div key={m.mov_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
+                          <div className="col-span-2 text-sm text-slate-100 font-mono">{formatDateBR(m.data_movimentacao)}</div>
+                          <div className="col-span-3 text-sm text-slate-100">{m.tipo_movimentacao}</div>
+                          <div className="col-span-2 text-sm text-slate-100">{m.local_estoque}</div>
+                          <div className="col-span-2 text-sm text-slate-100 font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
+                          <div className="col-span-3 text-sm text-slate-100 truncate" title={m.motivo || ''}>
+                            {m.motivo || '-'}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
-
-              {produtoTab === 'caracteristicas' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-              {produtoTab === 'recomendacoes_fiscais' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-              {produtoTab === 'observadores' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
             </div>
           </div>
         ) : (
@@ -1101,37 +1123,7 @@ const Estoque: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-3 rounded-2xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="relative aspect-square rounded-xl border border-white/10 bg-black/20 overflow-hidden flex items-center justify-center">
-                  {getProdutoImagemUrl(savedProduto) ? (
-                    <img
-                      src={getProdutoImagemUrl(savedProduto) as string}
-                      alt={draftDescricao || savedProduto?.descricao_prod || 'Produto'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <ImageIcon size={26} className="text-slate-500" />
-                  )}
-                  {imagemUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="animate-spin text-slate-200" size={22} />
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handlePickImagem}
-                  disabled={!savedProduto || imagemUploading}
-                  className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
-                >
-                  Alterar
-                </button>
-                <div className="mt-2 text-center text-[11px] text-slate-500">
-                  {savedProduto?.imagem_path ? 'Imagem cadastrada' : 'Nenhuma imagem'}
-                </div>
-              </div>
-
-              <div className="lg:col-span-6 space-y-4">
+              <div className="lg:col-span-9 space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição do Produto</label>
                   <input
@@ -1144,36 +1136,59 @@ const Estoque: React.FC = () => {
                 </div>
 
                 {savedProduto ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
-                      <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
-                        {savedProduto.codigo_prod || '-'}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código EAN (GTIN)</label>
-                      <input
-                        value={draftGtinEan}
-                        onChange={(e) => setDraftGtinEan(e.target.value)}
-                        className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono"
-                        placeholder="Opcional"
-                      />
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
+                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
+                      {savedProduto.codigo_prod || '-'}
                     </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código EAN (GTIN)</label>
-                      <input
-                        value={draftGtinEan}
-                        onChange={(e) => setDraftGtinEan(e.target.value)}
-                        className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono"
-                        placeholder="Opcional"
-                      />
-                    </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Marca</label>
+                    <input
+                      value={draftMarca}
+                      onChange={(e) => setDraftMarca(e.target.value)}
+                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      placeholder="Ex: DJI"
+                    />
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Modelo</label>
+                    <input
+                      value={draftModelo}
+                      onChange={(e) => setDraftModelo(e.target.value)}
+                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      placeholder="Ex: Mavic 3"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Finalidade do Item</label>
+                    <select
+                      value={draftFinalidadeItem}
+                      onChange={(e) => setDraftFinalidadeItem(e.target.value === 'Consumo Interno' ? 'Consumo Interno' : 'Revenda')}
+                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                    >
+                      <option value="Revenda">Revenda</option>
+                      <option value="Consumo Interno">Consumo Interno</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Situação</label>
+                    <select
+                      value={draftSituacao ? 'ATIVO' : 'INATIVO'}
+                      onChange={(e) => setDraftSituacao(e.target.value === 'ATIVO')}
+                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                    >
+                      <option value="ATIVO">Ativo</option>
+                      <option value="INATIVO">Inativo</option>
+                    </select>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1322,96 +1337,41 @@ const Estoque: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição detalhada</label>
+                    <textarea
+                      value={draftDescricaoDetalhada}
+                      onChange={(e) => setDraftDescricaoDetalhada(e.target.value)}
+                      className="w-full min-h-[140px] rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      placeholder=""
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+                    <textarea
+                      value={draftObsProd}
+                      onChange={(e) => setDraftObsProd(e.target.value)}
+                      className="w-full min-h-[140px] rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      placeholder=""
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="lg:col-span-3" />
             </div>
-
-            {savedProduto && (
-              <>
-                <div className="border-b border-white/10 overflow-x-auto custom-scrollbar">
-                  <div className="flex items-center gap-1 min-w-max">
-                    {PRODUTO_TABS.map((t) => (
-                      <button
-                        key={t.key}
-                        type="button"
-                        onClick={() => setProdutoTab(t.key)}
-                        className={`px-3 py-2 text-xs font-bold uppercase tracking-widest rounded-t-lg transition-colors whitespace-nowrap ${
-                          produtoTab === t.key ? 'text-emerald-200 bg-emerald-500/10' : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-4">
-                  {produtoTab === 'estoque' && (
-                    <div className="space-y-4">
-                      <div className="overflow-auto">
-                        <div className="min-w-[860px]">
-                          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10">
-                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Local Estoque</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Quantidade disponível</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Unitário</div>
-                            <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Valor Total</div>
-                            <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Estoque Mínimo</div>
-                          </div>
-                          {(() => {
-                            const qty = getSaldoLocal(savedProduto.prod_id, draftLocalEstoque)
-                            const unit = parseMoneyInput(draftPreco) ?? Number(savedProduto.produto_valor ?? 0)
-                            const total = qty * unit
-                            return (
-                              <div className="grid grid-cols-12 gap-3 px-4 py-3">
-                                <div className="col-span-3 text-sm text-slate-100 truncate" title={localLabel(draftLocalEstoque)}>
-                                  {localLabel(draftLocalEstoque)}
-                                </div>
-                                <div className="col-span-2 text-sm font-mono text-slate-100">{qty.toLocaleString('pt-BR')}</div>
-                                <div className="col-span-2 text-sm font-mono text-slate-100 text-right">{formatCurrency(unit)}</div>
-                                <div className="col-span-2 text-sm font-mono text-slate-100 text-right">{formatCurrency(total)}</div>
-                                <div className="col-span-3 text-sm font-mono text-slate-100 text-right">-</div>
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {produtoTab === 'custo_estoque' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                  {produtoTab === 'fornecedores' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                  {produtoTab === 'historicos' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                  {produtoTab === 'info_adicionais' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Unidade</div>
-                        <div className="text-sm font-semibold text-slate-100 mt-1 font-mono">{draftUnidade || '-'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
-                        <div className="text-sm font-semibold text-slate-100 mt-1 font-mono">{draftNcmCodigo || '-'}</div>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Família de Produto</div>
-                        <div className="text-sm font-semibold text-slate-100 mt-1">
-                          {draftFamiliaId ? familiasById[draftFamiliaId] || '-' : '-'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {produtoTab === 'caracteristicas' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                  {produtoTab === 'recomendacoes_fiscais' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                  {produtoTab === 'observadores' && <div className="text-xs text-slate-400">Sem dados para exibir.</div>}
-                </div>
-              </>
-            )}
           </div>
         )}
       </Modal>
 
       <Modal
         isOpen={isMovimentoOpen}
-        onClose={() => setIsMovimentoOpen(false)}
+        onClose={() => {
+          if (movimentoSaving) return
+          setIsMovimentoOpen(false)
+        }}
         size="xl"
         className="max-w-4xl"
         zIndex={120}
@@ -1425,17 +1385,22 @@ const Estoque: React.FC = () => {
           <>
             <button
               type="button"
-              onClick={() => setIsMovimentoOpen(false)}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              onClick={() => {
+                if (movimentoSaving) return
+                setIsMovimentoOpen(false)
+              }}
+              disabled={movimentoSaving}
+              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-60 disabled:pointer-events-none"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleSalvarMovimento}
-              className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95"
+              disabled={movimentoSaving}
+              className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
             >
-              Salvar Movimento
+              {movimentoSaving ? 'Salvando...' : 'Salvar Movimento'}
             </button>
           </>
         }
@@ -1452,7 +1417,7 @@ const Estoque: React.FC = () => {
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Tipo do Movimento de Estoque</label>
               <select
                 value={movTipo}
-                onChange={(e) => setMovTipo(e.target.value === 'SAIDA' ? 'SAIDA' : 'ENTRADA')}
+                onChange={(e) => setMovTipo(e.target.value as any)}
                 className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
               >
                 {MOV_TIPOS.map((t) => (
@@ -1472,7 +1437,9 @@ const Estoque: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Quantidade (PC)</label>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">
+                Quantidade ({savedProduto?.unidade_prod || 'UN'})
+              </label>
               <input
                 value={movQuantidade}
                 onChange={(e) => setMovQuantidade(e.target.value)}
@@ -1481,30 +1448,56 @@ const Estoque: React.FC = () => {
                 placeholder="0,000000"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor Unitário</label>
-              <input
-                value={movValorUnitario}
-                onChange={(e) => setMovValorUnitario(e.target.value)}
-                inputMode="decimal"
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
-                placeholder="0,000000"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Estoque</label>
-              <select
-                value={movLocal}
-                onChange={(e) => setMovLocal(e.target.value === '04' ? '04' : '03')}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
-              >
-                {LOCAIS.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {movTipo === 'Transferencia' ? (
+              <>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Origem</label>
+                  <select
+                    value={movLocalOrigem}
+                    onChange={(e) => setMovLocalOrigem(e.target.value)}
+                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                  >
+                    {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
+                    {locaisAtivos.map((l) => (
+                      <option key={l.local_id} value={l.nome}>
+                        {l.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Destino</label>
+                  <select
+                    value={movLocalDestino}
+                    onChange={(e) => setMovLocalDestino(e.target.value)}
+                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                  >
+                    {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
+                    {locaisAtivos.map((l) => (
+                      <option key={l.local_id} value={l.nome}>
+                        {l.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Estoque</label>
+                <select
+                  value={movLocalOrigem}
+                  onChange={(e) => setMovLocalOrigem(e.target.value)}
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                >
+                  {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
+                  {locaisAtivos.map((l) => (
+                    <option key={l.local_id} value={l.nome}>
+                      {l.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-2 sm:col-span-2">
               <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Motivo do Movimento de Estoque</label>
               <select
@@ -1519,16 +1512,6 @@ const Estoque: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observação</label>
-            <textarea
-              value={movObservacao}
-              onChange={(e) => setMovObservacao(e.target.value)}
-              className="w-full min-h-[140px] rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
-              placeholder=""
-            />
           </div>
         </div>
       </Modal>

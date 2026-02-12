@@ -17,16 +17,32 @@ type Permissao = {
 
 const APPLICABLE_MODULES = [
   'DASHBOARD',
-  'UNIVERSIDADE',
   'CRM',
-  'COMPRAS_E_ESTOQUE',
   'PRODUCAO',
+  'COMPRAS_E_ESTOQUE',
+  'FINANCEIRO',
   'FROTA',
   'SMARTFLOW',
+  'COMUNIDADE',
+  'UNIVERSIDADE',
   'CONFIGURACOES'
 ] as const
 
 const ACTIONS = ['VIEW', 'EDIT', 'CONTROL'] as const
+
+function prettyModuleLabel(modulo: string) {
+  if (modulo === 'DASHBOARD') return 'DASHBOARD'
+  if (modulo === 'CRM') return 'CRM'
+  if (modulo === 'PRODUCAO') return 'PRODUÇÃO'
+  if (modulo === 'COMPRAS_E_ESTOQUE') return 'COMPRAS E ESTOQUE'
+  if (modulo === 'FINANCEIRO') return 'FINANCEIRO'
+  if (modulo === 'FROTA') return 'FROTA'
+  if (modulo === 'SMARTFLOW') return 'SMARTFLOW'
+  if (modulo === 'COMUNIDADE') return 'COMUNIDADE'
+  if (modulo === 'UNIVERSIDADE') return 'UNIVERSIDADE'
+  if (modulo === 'CONFIGURACOES') return 'CONFIG GERAIS'
+  return modulo
+}
 
 function prettyActionLabel(acao: string) {
   if (acao === 'VIEW') return 'View'
@@ -331,7 +347,7 @@ export default function PermissoesRbac() {
         <div className="flex-1 overflow-y-auto pr-1 space-y-4">
           {grouped.map(([modulo, list]) => (
             <div key={modulo} className="rounded-2xl border border-industrial-border bg-industrial-bg/20 p-4">
-              <div className="text-xs font-black text-[#38BDF8] uppercase tracking-wider mb-3">{modulo}</div>
+              <div className="text-xs font-black text-[#38BDF8] uppercase tracking-wider mb-3">{prettyModuleLabel(modulo)}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {ACTIONS.map((acao) => {
                   const p = list.find(x => x.acao === acao) || null

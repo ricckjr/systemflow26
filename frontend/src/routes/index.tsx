@@ -129,15 +129,11 @@ export const router = createBrowserRouter([
       { path: 'cadastros/clientes', element: <Navigate to="/app/crm/clientes" replace /> },
       { path: 'cadastros/contatos', element: <Navigate to="/app/crm/clientes" replace /> },
       { path: 'cadastros/fornecedores', element: <Navigate to="/app/crm/clientes" replace /> },
+      { path: 'cadastros/transportadora', element: <Navigate to="/app/compras-estoque/transportadora" replace /> },
+      { path: 'cadastros/produtos', element: <Navigate to="/app/compras-estoque/consultar-estoque" replace /> },
+      { path: 'cadastros/servicos', element: <Navigate to="/app/compras-estoque/servicos" replace /> },
 
-      {
-        path: 'config-gerais/transportadora',
-        element: lazyElement(
-          () => import('@/pages/ConfigGerais/Transportadora'),
-          'Carregando Transportadora...',
-          (node) => <RequirePermission modulo="CONFIGURACOES" acao="VIEW">{node}</RequirePermission>
-        )
-      },
+      { path: 'config-gerais/transportadora', element: <Navigate to="/app/compras-estoque/transportadora" replace /> },
       {
         path: 'config-gerais/ibge',
         element: <Navigate to="/app/financeiro/ibge" replace />
@@ -230,7 +226,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'crm/configs/produtos',
-        element: <Navigate to="/app/compras-estoque/produtos" replace />
+        element: <Navigate to="/app/compras-estoque/consultar-estoque" replace />
       },
       {
         path: 'crm/configs/servicos',
@@ -359,18 +355,34 @@ export const router = createBrowserRouter([
         )
       },
       {
-        path: 'compras-estoque/servicos',
+        path: 'compras-estoque/movimentacao',
         element: lazyElement(
-          () => import('@/pages/ComprasEstoque/Servicos'),
-          'Carregando Serviços...',
+          () => import('@/pages/ComprasEstoque/MovimentacaoEstoque'),
+          'Carregando Movimentação...',
           (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
         )
       },
       {
-        path: 'compras-estoque/produtos',
+        path: 'compras-estoque/locais-estoque',
         element: lazyElement(
-          () => import('@/pages/ComprasEstoque/CadastrarProdutos'),
-          'Carregando Produtos...',
+          () => import('@/pages/ComprasEstoque/LocaisEstoque'),
+          'Carregando Locais do Estoque...',
+          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'compras-estoque/transportadora',
+        element: lazyElement(
+          () => import('@/pages/ConfigGerais/Transportadora'),
+          'Carregando Transportadora...',
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="VIEW">{node}</RequirePermission>
+        )
+      },
+      {
+        path: 'compras-estoque/servicos',
+        element: lazyElement(
+          () => import('@/pages/ComprasEstoque/Servicos'),
+          'Carregando Serviços...',
           (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
         )
       },

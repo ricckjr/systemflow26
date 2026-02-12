@@ -10,7 +10,6 @@ export type CatalogCrudItem = {
   situacao: boolean
   unidade?: string | null
   ncmCodigo?: string | null
-  localEstoque?: '03' | '04' | 'PADRAO' | 'INTERNO' | string | null
   familiaId?: string | null
   descricao: string
   preco: number | null
@@ -106,11 +105,6 @@ const parseMoneyInput = (input: string) => {
   return value
 }
 
-const formatLocalEstoque = (value: CatalogCrudItem['localEstoque']) => {
-  if (value === '04' || value === 'INTERNO') return 'Estoque de Consumo'
-  return 'Estoque de Produto (Revenda)'
-}
-
 const renderSituacaoBadge = (situacao: boolean) => {
   if (situacao) {
     return (
@@ -159,7 +153,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
-  const [draftLocalEstoque, setDraftLocalEstoque] = useState<'03' | '04'>('03')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
   const [familiaOptions, setFamiliaOptions] = useState<{ familia_id: string; nome: string }[]>([])
@@ -200,7 +193,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       setDraftPreco(active.preco === null || active.preco === undefined ? '' : String(active.preco))
       setDraftUnidade(active.unidade || '')
       setDraftNcmCodigo(active.ncmCodigo || '')
-      setDraftLocalEstoque(active.localEstoque === '04' || active.localEstoque === 'INTERNO' ? '04' : '03')
       setDraftFamiliaId(active.familiaId || '')
       setDraftFamiliaNova('')
       setNcmSearch(active.ncmCodigo || '')
@@ -212,7 +204,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     setDraftPreco('')
     setDraftUnidade('UN')
     setDraftNcmCodigo('')
-    setDraftLocalEstoque('03')
     setDraftFamiliaId('')
     setDraftFamiliaNova('')
     setNcmSearch('')
@@ -329,7 +320,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         i.descricao || '',
         i.unidade || '',
         i.ncmCodigo || '',
-        i.localEstoque || '',
         i.situacao ? 'ativo' : 'inativo'
       ]
       return parts.join(' ').toLowerCase().includes(term)
@@ -384,7 +374,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
       payload.unidade = unidade
       payload.ncmCodigo = maskedNcm
-      payload.localEstoque = draftLocalEstoque
       payload.familiaId = draftFamiliaId || null
     }
 
@@ -400,7 +389,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         setDraftPreco('')
         setDraftUnidade('UN')
         setDraftNcmCodigo('')
-        setDraftLocalEstoque('03')
         setDraftFamiliaId('')
         setDraftFamiliaNova('')
         setNcmSearch('')
@@ -498,7 +486,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 {isProduto && <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">NCM</div>}
                 <div className={`${isProduto ? 'col-span-2' : 'col-span-6'} text-[10px] font-black uppercase tracking-widest text-slate-400`}>Descrição</div>
                 <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Preço</div>
-                {isProduto && <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Estoque</div>}
                 <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
@@ -534,13 +521,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     <div className="col-span-2 min-w-0">
                       <div className="text-sm text-slate-300 truncate">{formatCurrency(i.preco)}</div>
                     </div>
-                    {isProduto && (
-                      <div className="col-span-1 min-w-0">
-                        <div className="text-xs text-slate-300 truncate">
-                          {formatLocalEstoque(i.localEstoque)}
-                        </div>
-                      </div>
-                    )}
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
                         type="button"
@@ -691,18 +671,6 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                   <option value="FD">Fardo</option>
                   <option value="SC">Saco</option>
                   <option value="T">Ton</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local do Estoque</label>
-                <select
-                  value={draftLocalEstoque}
-                  onChange={(e) => setDraftLocalEstoque(e.target.value === '04' ? '04' : '03')}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
-                >
-                  <option value="03">Estoque de Produto (Revenda)</option>
-                  <option value="04">Estoque de Consumo</option>
                 </select>
               </div>
             </div>

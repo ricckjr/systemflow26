@@ -53,10 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/crm/vendedores': 'CRM — RANKING',
       '/app/crm/clientes': 'CRM — CLIENTES',
 
-      '/app/cadastros/clientes': 'CRM — CLIENTES',
-      '/app/cadastros/contatos': 'CRM — CLIENTES',
-      '/app/cadastros/fornecedores': 'CRM — CLIENTES',
-
       '/app/crm/configs/origem-leads': 'CONFIG GERAIS — ORIGEM DE LEADS',
       '/app/crm/configs/motivos': 'CONFIG GERAIS — MOTIVOS',
       '/app/crm/configs/verticais': 'CONFIG GERAIS — VERTICAIS',
@@ -78,8 +74,10 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/compras-estoque/compras': 'COMPRAS — KANBAN',
       '/app/compras-estoque/estoque': 'COMPRAS E ESTOQUE — ESTOQUE',
       '/app/compras-estoque/consultar-estoque': 'COMPRAS E ESTOQUE — CONSULTAR ESTOQUE',
+      '/app/compras-estoque/movimentacao': 'COMPRAS E ESTOQUE — MOVIMENTAÇÃO',
+      '/app/compras-estoque/locais-estoque': 'COMPRAS E ESTOQUE — LOCAIS DO ESTOQUE',
+      '/app/compras-estoque/transportadora': 'COMPRAS E ESTOQUE — TRANSPORTADORA',
       '/app/compras-estoque/servicos': 'COMPRAS E ESTOQUE — SERVIÇOS',
-      '/app/compras-estoque/produtos': 'COMPRAS E ESTOQUE — PRODUTOS',
       '/app/compras-estoque/ncm': 'COMPRAS E ESTOQUE — NCM',
 
       '/app/producao/propostas': 'PRODUÇÃO — PROPOSTAS',

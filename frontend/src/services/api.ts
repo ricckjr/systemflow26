@@ -111,5 +111,20 @@ export const api = {
   },
   taskflow: {
     fixBoard: () => request('/taskflow/fix-board', { method: 'POST' })
+  },
+  estoque: {
+    movimentar: (payload: {
+      prod_id: string
+      tipo_movimentacao: 'Entrada' | 'Saida' | 'Ajuste' | 'Transferencia'
+      quantidade: number
+      local_estoque: string
+      local_estoque_destino?: string | null
+      motivo?: string | null
+      data_movimentacao?: string | null
+    }) =>
+      request('/estoque/movimentar', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
   }
 }

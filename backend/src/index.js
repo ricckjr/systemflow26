@@ -21,6 +21,7 @@ process.env.TZ = process.env.TZ || 'America/Sao_Paulo';
 const adminRoutes = require('./routes/admin');
 const taskflowRoutes = require('./routes/taskflow');
 const debugRoutes = require('./routes/debug');
+const estoqueRoutes = require('./routes/estoque');
 const { authenticate } = require('./middleware/auth');
 
 const app = express();
@@ -59,6 +60,7 @@ app.get('/health', (req, res) => {
 app.use('/admin', adminRoutes);
 app.use('/taskflow', taskflowRoutes);
 app.use('/debug', debugRoutes);
+app.use('/estoque', estoqueRoutes);
 
 // Rota Exemplo Protegida
 app.get('/me', authenticate, (req, res) => {

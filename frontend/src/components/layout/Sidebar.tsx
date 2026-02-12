@@ -14,7 +14,7 @@ import {
   Factory,
   GraduationCap,
   Car,
-  Box
+  Box,
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,6 +49,78 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'CRM',
+    icon: Briefcase,
+    modulo: 'crm',
+    requires: { modulo: 'CRM', acao: 'VIEW' },
+    subItems: [
+      { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban' },
+      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
+      { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes' },
+    ],
+  },
+  {
+    label: 'PRODUÇÃO',
+    icon: Factory,
+    modulo: 'producao',
+    requires: { modulo: 'PRODUCAO', acao: 'VIEW' },
+    subItems: [
+      { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
+      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
+      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia' },
+    ],
+  },
+  {
+    label: 'COMPRAS E ESTOQUE',
+    icon: Box,
+    modulo: 'compras-estoque',
+    requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'VIEW' },
+    subItems: [
+      { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque' },
+      { label: 'Movimentação', path: '/app/compras-estoque/movimentacao', submodulo: 'movimentacao', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
+      { label: 'Locais do Estoque', path: '/app/compras-estoque/locais-estoque', submodulo: 'locais-estoque', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
+      { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
+      { label: 'Transportadora', path: '/app/compras-estoque/transportadora', submodulo: 'transportadora', requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' } },
+      { label: 'Cadastrar Serviço', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
+      { label: 'Cadastrar NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
+    ],
+  },
+  {
+    label: 'FINANCEIRO',
+    icon: Wallet,
+    modulo: 'financeiro',
+    requires: { modulo: 'FINANCEIRO', acao: 'VIEW' },
+    subItems: [
+      { label: 'Conta a Receber', path: '/app/financeiro/contas-receber', submodulo: 'contas-receber', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
+      { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
+      { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Empresas Correspondentes', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+    ],
+  },
+  {
+    label: 'FROTA',
+    icon: Car,
+    modulo: 'frota',
+    requires: { modulo: 'FROTA', acao: 'VIEW' },
+    subItems: [
+      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
+      { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
+    ],
+  },
+  {
+    label: 'SMARTFLOW',
+    icon: MessageSquare,
+    modulo: 'smartflow',
+    requires: { modulo: 'SMARTFLOW', acao: 'VIEW' },
+    subItems: [
+      { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
+      { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
+    ],
+  },
+  {
     label: 'COMUNIDADE',
     icon: Sparkles,
     modulo: 'comunidade',
@@ -72,77 +144,6 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'CRM',
-    icon: Briefcase,
-    modulo: 'crm',
-    requires: { modulo: 'CRM', acao: 'VIEW' },
-    subItems: [
-      { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban' },
-      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
-      { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes' },
-    ],
-  },
-  {
-    label: 'PRODUÇÃO',
-    icon: Factory,
-    modulo: 'producao',
-    requires: { modulo: 'PRODUCAO', acao: 'VIEW' },
-    subItems: [
-      { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
-      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
-      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia' },
-    ],
-  },
-  {
-    label: 'FROTA',
-    icon: Car,
-    modulo: 'frota',
-    requires: { modulo: 'FROTA', acao: 'VIEW' },
-    subItems: [
-      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
-      { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
-    ],
-  },
-  {
-    label: 'COMPRAS E ESTOQUE',
-    icon: Box,
-    modulo: 'compras-estoque',
-    requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'VIEW' },
-    subItems: [
-      { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque' },
-      { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
-      { label: 'Cadastrar Serviço', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
-      { label: 'Cadastrar Produto', path: '/app/compras-estoque/produtos', submodulo: 'produtos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
-      { label: 'Cadastrar NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
-    ],
-  },
-  {
-    label: 'SMARTFLOW',
-    icon: MessageSquare,
-    modulo: 'smartflow',
-    requires: { modulo: 'SMARTFLOW', acao: 'VIEW' },
-    subItems: [
-      { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
-      { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
-    ],
-  },
-  {
-    label: 'FINANCEIRO',
-    icon: Wallet,
-    modulo: 'financeiro',
-    requires: { modulo: 'FINANCEIRO', acao: 'VIEW' },
-    subItems: [
-      { label: 'Clientes', path: '/app/financeiro/clientes', submodulo: 'clientes', requires: { modulo: 'CRM', acao: 'VIEW' } },
-      { label: 'Conta a Receber', path: '/app/financeiro/contas-receber', submodulo: 'contas-receber', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
-      { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
-      { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Empresas Correspondentes', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-    ],
-  },
-  {
     label: 'CONFIG GERAIS',
     icon: Settings,
     modulo: 'config-gerais',
@@ -150,7 +151,6 @@ const navItems: NavItem[] = [
     subItems: [
       { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
-      { label: 'Transportadora', path: '/app/config-gerais/transportadora', submodulo: 'transportadora' },
       { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },

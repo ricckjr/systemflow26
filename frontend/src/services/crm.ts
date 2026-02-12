@@ -739,12 +739,11 @@ export interface CRM_Produto {
   marca_prod: string | null
   modelo_prod: string | null
   descricao_prod: string
-  gtin_ean?: string | null
-  imagem_path?: string | null
+  descricao_detalhada?: string | null
   cod_proposta_ref?: string | null
   unidade_prod?: string | null
   ncm_codigo?: string | null
-  local_estoque?: '03' | '04' | 'PADRAO' | 'INTERNO' | string | null
+  finalidade_item?: string | null
   familia_id?: string | null
   obs_prod: string | null
   produto_valor: number | null
@@ -1231,12 +1230,11 @@ export async function fetchCrmProdutos() {
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
-    'gtin_ean',
-    'imagem_path',
+    'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
-    'local_estoque',
+    'finalidade_item',
     'familia_id',
     'obs_prod',
     'produto_valor',
@@ -1276,16 +1274,16 @@ export async function createCrmProduto(
     CRM_Produto,
     | 'integ_id'
     | 'descricao_prod'
+    | 'descricao_detalhada'
     | 'obs_prod'
     | 'produto_valor'
     | 'situacao_prod'
     | 'marca_prod'
     | 'modelo_prod'
-    | 'gtin_ean'
     | 'cod_proposta_ref'
     | 'unidade_prod'
     | 'ncm_codigo'
-    | 'local_estoque'
+    | 'finalidade_item'
     | 'familia_id'
   >
 ) {
@@ -1298,12 +1296,11 @@ export async function createCrmProduto(
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
-    'gtin_ean',
-    'imagem_path',
+    'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
-    'local_estoque',
+    'finalidade_item',
     'familia_id',
     'obs_prod',
     'produto_valor',
@@ -1316,11 +1313,11 @@ export async function createCrmProduto(
     marca_prod: payload.marca_prod || null,
     modelo_prod: payload.modelo_prod || null,
     descricao_prod: payload.descricao_prod,
-    gtin_ean: payload.gtin_ean || null,
+    descricao_detalhada: payload.descricao_detalhada || null,
     cod_proposta_ref: payload.cod_proposta_ref || null,
     unidade_prod: payload.unidade_prod || null,
     ncm_codigo: payload.ncm_codigo || null,
-    local_estoque: payload.local_estoque || '03',
+    finalidade_item: payload.finalidade_item || null,
     familia_id: payload.familia_id || null,
     obs_prod: payload.obs_prod || null,
     produto_valor: payload.produto_valor ?? 0
@@ -1360,17 +1357,16 @@ export async function updateCrmProduto(
       CRM_Produto,
       | 'integ_id'
       | 'descricao_prod'
+      | 'descricao_detalhada'
       | 'obs_prod'
       | 'produto_valor'
       | 'situacao_prod'
       | 'marca_prod'
       | 'modelo_prod'
-      | 'gtin_ean'
-      | 'imagem_path'
       | 'cod_proposta_ref'
       | 'unidade_prod'
       | 'ncm_codigo'
-      | 'local_estoque'
+      | 'finalidade_item'
       | 'familia_id'
     >
   >
@@ -1384,12 +1380,11 @@ export async function updateCrmProduto(
     'marca_prod',
     'modelo_prod',
     'descricao_prod',
-    'gtin_ean',
-    'imagem_path',
+    'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
     'ncm_codigo',
-    'local_estoque',
+    'finalidade_item',
     'familia_id',
     'obs_prod',
     'produto_valor',

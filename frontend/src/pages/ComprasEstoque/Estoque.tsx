@@ -119,7 +119,7 @@ const Estoque: React.FC = () => {
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('UN')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
-  const [draftFinalidadeItem, setDraftFinalidadeItem] = useState<'Revenda' | 'Consumo Interno'>('Revenda')
+  const [draftFinalidadeItem, setDraftFinalidadeItem] = useState<'Revenda' | 'Consumo Interno' | 'Venda'>('Revenda')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
   const [draftDescricaoDetalhada, setDraftDescricaoDetalhada] = useState('')
@@ -232,7 +232,7 @@ const Estoque: React.FC = () => {
     setDraftPreco(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
     setDraftUnidade(p.unidade_prod || 'UN')
     setDraftNcmCodigo(p.ncm_codigo || '')
-    setDraftFinalidadeItem(p.finalidade_item === 'Consumo Interno' ? 'Consumo Interno' : 'Revenda')
+    setDraftFinalidadeItem(p.finalidade_item === 'Consumo Interno' ? 'Consumo Interno' : p.finalidade_item === 'Venda' ? 'Venda' : 'Revenda')
     setDraftFamiliaId(p.familia_id || '')
     setDraftFamiliaNova('')
     setDraftDescricaoDetalhada(p.descricao_detalhada || '')
@@ -1170,11 +1170,15 @@ const Estoque: React.FC = () => {
                     <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Finalidade do Item</label>
                     <select
                       value={draftFinalidadeItem}
-                      onChange={(e) => setDraftFinalidadeItem(e.target.value === 'Consumo Interno' ? 'Consumo Interno' : 'Revenda')}
+                      onChange={(e) => {
+                        const v = e.target.value as 'Revenda' | 'Consumo Interno' | 'Venda'
+                        setDraftFinalidadeItem(v)
+                      }}
                       className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
                     >
                       <option value="Revenda">Revenda</option>
                       <option value="Consumo Interno">Consumo Interno</option>
+                      <option value="Venda">Venda</option>
                     </select>
                   </div>
                   <div className="space-y-2">

@@ -39,6 +39,7 @@ const formatUnknownError = (err: unknown) => {
   if (pgCode === '23503') return 'Não é possível excluir: este item possui vínculos.'
   if (pgCode === '23514') return 'Não é possível excluir: este item está vinculado e a operação violaria uma regra.'
   if (pgCode === '42501') return 'Permissão negada.'
+  if (pgCode === 'NETWORK_ERROR') return 'Falha de rede ao acessar o Supabase (CORS/proxy).'
   const message =
     typeof anyErr?.message === 'string'
       ? anyErr.message
@@ -117,9 +118,9 @@ const Estoque: React.FC = () => {
   const locaisAtivos = useMemo(() => locais.filter((l) => l.ativo), [locais])
 
   const [search, setSearch] = useState('')
-  const [localFilter, setLocalFilter] = useState<'TODOS' | string>('TODOS')
-  const [isLocalOpen, setIsLocalOpen] = useState(false)
-  const localPickerRef = useRef<HTMLDivElement | null>(null)
+  const [finalidadeFilter, setFinalidadeFilter] = useState<'TODAS' | 'Revenda' | 'Venda' | 'Consumo Interno'>('TODAS')
+  const [isFinalidadeOpen, setIsFinalidadeOpen] = useState(false)
+  const finalidadePickerRef = useRef<HTMLDivElement | null>(null)
 
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -172,7 +173,7 @@ const Estoque: React.FC = () => {
     setMovimentoError(null)
     setMovTipo('Entrada')
     setMovData(new Date().toISOString().slice(0, 10))
-    const defaultLocal = localFilter === 'TODOS' ? (locaisAtivos[0]?.nome || '') : localFilter
+    const defaultLocal = locaisAtivos[0]?.nome || ''
     setMovLocalOrigem(defaultLocal)
     setMovLocalDestino(locaisAtivos.find((l) => l.nome !== defaultLocal)?.nome || '')
     setMovQuantidade('')
@@ -369,15 +370,15 @@ const Estoque: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!isLocalOpen) return
+    if (!isFinalidadeOpen) return
     const onDown = (ev: MouseEvent) => {
-      const el = localPickerRef.current
+      const el = finalidadePickerRef.current
       if (!el) return
-      if (!el.contains(ev.target as Node)) setIsLocalOpen(false)
+      if (!el.contains(ev.target as Node)) setIsFinalidadeOpen(false)
     }
     window.addEventListener('mousedown', onDown, true)
     return () => window.removeEventListener('mousedown', onDown, true)
-  }, [isLocalOpen])
+  }, [isFinalidadeOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -434,7 +435,7 @@ const Estoque: React.FC = () => {
     setDraftFamiliaNova('')
     setDraftDescricaoDetalhada('')
     setDraftObsProd('')
-  }, [isCreateOpen, localFilter, savedProduto])
+  }, [isCreateOpen, savedProduto])
 
   useEffect(() => {
     if (!isCreateOpen || !isNcmOpen) return
@@ -717,13 +718,14 @@ const Estoque: React.FC = () => {
         if (!term) return true
         const desc = String(p.descricao_prod || '').toLowerCase()
         const cod = String(p.codigo_prod || '').toLowerCase()
-        return desc.includes(term) || cod.includes(term)
+        const finalidade = String(p.finalidade_item || '').toLowerCase()
+        return desc.includes(term) || cod.includes(term) || finalidade.includes(term)
       })
       .filter((p) => {
-        if (localFilter === 'TODOS') return true
-        return getSaldoLocal(p.prod_id, localFilter) !== 0
+        if (finalidadeFilter === 'TODAS') return true
+        return String(p.finalidade_item || '').trim().toLowerCase() === String(finalidadeFilter).toLowerCase()
       })
-  }, [items, search, localFilter, saldosByProdutoId])
+  }, [items, search, finalidadeFilter])
 
   const filteredSorted = useMemo(() => {
     return [...filtered].sort((a, b) =>
@@ -777,55 +779,42 @@ const Estoque: React.FC = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por código ou descrição..."
+              placeholder="Buscar por código, descrição ou finalidade..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
             />
           </div>
-
-          <div className="relative md:w-[360px]" ref={localPickerRef}>
+          <div className="relative md:w-[260px]" ref={finalidadePickerRef}>
             <button
               type="button"
-              onClick={() => setIsLocalOpen((v) => !v)}
+              onClick={() => setIsFinalidadeOpen((v) => !v)}
               className="w-full inline-flex items-center justify-between gap-2 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all hover:bg-white/5"
             >
               <span className="truncate">
-                {localFilter === 'TODOS' ? 'Todos os locais' : localFilter}
+                {finalidadeFilter === 'TODAS' ? 'Todas as finalidades' : finalidadeFilter}
               </span>
-              <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isLocalOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isFinalidadeOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {isLocalOpen && (
+            {isFinalidadeOpen && (
               <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0B1220] shadow-xl">
                 <div className="py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLocalFilter('TODOS')
-                      setIsLocalOpen(false)
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      localFilter === 'TODOS'
-                        ? 'bg-emerald-500/15 text-emerald-200'
-                        : 'text-slate-200 hover:bg-white/5'
-                    }`}
-                  >
-                    Todos os locais
-                  </button>
-                  {locaisAtivos.map((l) => (
+                  {(
+                    ['TODAS', 'Revenda', 'Venda', 'Consumo Interno'] as Array<
+                      'TODAS' | 'Revenda' | 'Venda' | 'Consumo Interno'
+                    >
+                  ).map((opt) => (
                     <button
-                      key={l.local_id}
+                      key={opt}
                       type="button"
                       onClick={() => {
-                        setLocalFilter(l.nome)
-                        setIsLocalOpen(false)
+                        setFinalidadeFilter(opt)
+                        setIsFinalidadeOpen(false)
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        localFilter === l.nome
-                          ? 'bg-emerald-500/15 text-emerald-200'
-                          : 'text-slate-200 hover:bg-white/5'
+                        finalidadeFilter === opt ? 'bg-emerald-500/15 text-emerald-200' : 'text-slate-200 hover:bg-white/5'
                       }`}
                     >
-                      {l.nome}
+                      {opt === 'TODAS' ? 'Todas as finalidades' : opt}
                     </button>
                   ))}
                 </div>
@@ -880,8 +869,7 @@ const Estoque: React.FC = () => {
                       const saldos = saldosByProdutoId[p.prod_id] || {}
                       const total = Object.values(saldos).reduce((acc, v) => acc + Number(v || 0), 0)
                       const qtdLocais = Object.keys(saldos).length
-                      const saldoSelecionado = localFilter === 'TODOS' ? null : getSaldoLocal(p.prod_id, localFilter)
-                      const quantidade = localFilter === 'TODOS' ? total : saldoSelecionado ?? 0
+                      const quantidade = total
                       return (
                         <div
                           key={p.prod_id}
@@ -894,7 +882,7 @@ const Estoque: React.FC = () => {
                                 <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
                                   {p.codigo_prod || '-'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.unidade_prod || 'UN'}</div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.finalidade_item || '-'}</div>
                               </div>
                               <div className="col-span-6 min-w-0">
                                 <div className="text-sm text-[var(--text)] font-semibold truncate" title={p.descricao_prod}>
@@ -916,8 +904,8 @@ const Estoque: React.FC = () => {
                                     {quantidade.toLocaleString('pt-BR')}
                                   </span>
                                 </div>
-                                <div className="mt-1 text-[10px] text-[var(--text-muted)] truncate" title={localFilter === 'TODOS' ? `Locais: ${qtdLocais}` : localFilter}>
-                                  {localFilter === 'TODOS' ? `Locais: ${qtdLocais}` : localFilter}
+                                <div className="mt-1 text-[10px] text-[var(--text-muted)] truncate" title={`Locais: ${qtdLocais}`}>
+                                  Locais: {qtdLocais}
                                 </div>
                               </div>
                             </>
@@ -936,25 +924,12 @@ const Estoque: React.FC = () => {
                                 <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
                               </div>
                               <div className="col-span-2 min-w-0">
-                                {localFilter === 'TODOS' ? (
-                                  <>
-                                    <div className="text-sm text-[var(--text)] font-mono truncate">
-                                      Total: {total.toLocaleString('pt-BR')}
-                                    </div>
-                                    <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
-                                      Locais: {qtdLocais}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="text-sm text-[var(--text)] font-mono truncate">
-                                      {saldoSelecionado?.toLocaleString('pt-BR') ?? '0'}
-                                    </div>
-                                    <div className="text-[10px] text-[var(--text-muted)] truncate" title={localFilter}>
-                                      {localFilter}
-                                    </div>
-                                  </>
-                                )}
+                                <div className="text-sm text-[var(--text)] font-mono truncate">
+                                  Total: {total.toLocaleString('pt-BR')}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                                  Locais: {qtdLocais}
+                                </div>
                               </div>
                               <div className="col-span-1 min-w-0">
                                 <div className="text-sm text-[var(--text)] font-mono truncate">{p.unidade_prod || '-'}</div>
@@ -1189,11 +1164,6 @@ const Estoque: React.FC = () => {
                 <div className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Preço Unitário</div>
                   <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrency(savedProduto.produto_valor)}</div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ref. Proposta</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.cod_proposta_ref || '-'}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Atualizado em</div>
@@ -1451,7 +1421,7 @@ const Estoque: React.FC = () => {
                               <input
                                 value={ncmSearch}
                                 onChange={(e) => setNcmSearch(e.target.value)}
-                                placeholder="Buscar por código ou descrição..."
+                                placeholder="Buscar por código, descrição ou finalidade..."
                                 className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-black/20 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
                               />
                             </div>

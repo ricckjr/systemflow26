@@ -140,6 +140,24 @@ function createSupabaseClient() {
             }
           } catch {
           }
+          try {
+            if (!useDevProxy && supabaseRemoteUrl && typeof window !== 'undefined' && window.location?.origin) {
+              const origin = String(window.location.origin || '').trim().replace(/\/+$/, '')
+              if (origin && origin !== supabaseRemoteUrl) {
+                const raw =
+                  typeof input === 'string'
+                    ? input
+                    : input instanceof URL
+                      ? input.toString()
+                      : (input as Request).url
+                if (raw && raw.startsWith(supabaseRemoteUrl)) {
+                  const fallbackUrl = `${origin}${raw.slice(supabaseRemoteUrl.length)}`
+                  return await fetch(fallbackUrl, init)
+                }
+              }
+            }
+          } catch {
+          }
           const network = createNetworkErrorResponse()
           if (network) return network
           throw err

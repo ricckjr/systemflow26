@@ -9,7 +9,7 @@ export type CatalogCrudItem = {
   codigo: string | null
   situacao: boolean
   unidade?: string | null
-  ncmCodigo?: string | null
+  ncmId?: string | null
   familiaId?: string | null
   descricao: string
   preco: number | null
@@ -105,6 +105,12 @@ const parseMoneyInput = (input: string) => {
   return value
 }
 
+const formatNcmCodigo = (raw: string) => {
+  const digits = String(raw || '').replace(/\D/g, '')
+  if (digits.length !== 8) return raw || ''
+  return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`
+}
+
 const renderSituacaoBadge = (situacao: boolean) => {
   if (situacao) {
     return (
@@ -152,7 +158,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [draftDescricao, setDraftDescricao] = useState('')
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('')
-  const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
+  const [draftNcmId, setDraftNcmId] = useState('')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
   const [familiaOptions, setFamiliaOptions] = useState<{ familia_id: string; nome: string }[]>([])
@@ -160,7 +166,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [familiaSaving, setFamiliaSaving] = useState(false)
 
   const [ncmSearch, setNcmSearch] = useState('')
-  const [ncmOptions, setNcmOptions] = useState<{ codigo: string; descricao: string }[]>([])
+  const [ncmOptions, setNcmOptions] = useState<{ ncm_id: string; codigo: string; descricao: string }[]>([])
   const [ncmLoading, setNcmLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -192,10 +198,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       setDraftDescricao(active.descricao || '')
       setDraftPreco(active.preco === null || active.preco === undefined ? '' : String(active.preco))
       setDraftUnidade(active.unidade || '')
-      setDraftNcmCodigo(active.ncmCodigo || '')
+      setDraftNcmId(active.ncmId || '')
       setDraftFamiliaId(active.familiaId || '')
       setDraftFamiliaNova('')
-      setNcmSearch(active.ncmCodigo || '')
+      setNcmSearch(formatNcmCodigo(active.ncmId || ''))
       return
     }
 
@@ -203,7 +209,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     setDraftDescricao('')
     setDraftPreco('')
     setDraftUnidade('UN')
-    setDraftNcmCodigo('')
+    setDraftNcmId('')
     setDraftFamiliaId('')
     setDraftFamiliaNova('')
     setNcmSearch('')
@@ -219,13 +225,13 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     const handle = setTimeout(async () => {
       setNcmLoading(true)
       try {
-        const baseQuery = supabase.from('ncm').select('codigo,descricao').order('codigo', { ascending: true }).limit(50)
+        const baseQuery = supabase.from('ncm').select('ncm_id,codigo,descricao').order('codigo', { ascending: true }).limit(50)
         const { data, error: qError } = term
           ? await baseQuery.or(`codigo.ilike.%${term}%,descricao.ilike.%${term}%`)
           : await baseQuery
 
         if (qError) throw qError
-        setNcmOptions(((data || []) as any[]).map((row) => ({ codigo: row.codigo, descricao: row.descricao })))
+        setNcmOptions(((data || []) as any[]).map((row) => ({ ncm_id: row.ncm_id, codigo: row.codigo, descricao: row.descricao })))
       } catch (e) {
         setNcmOptions([])
       } finally {
@@ -319,7 +325,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         i.codigo || '',
         i.descricao || '',
         i.unidade || '',
-        i.ncmCodigo || '',
+        i.ncmId || '',
         i.situacao ? 'ativo' : 'inativo'
       ]
       return parts.join(' ').toLowerCase().includes(term)
@@ -364,16 +370,14 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         return
       }
 
-      const ncmDigits = draftNcmCodigo.replace(/\D/g, '')
+      const ncmDigits = String(draftNcmId || '').replace(/\D/g, '')
       if (ncmDigits.length !== 8) {
         setError('O NCM deve ter 8 dígitos.')
         return
       }
 
-      const maskedNcm = `${ncmDigits.slice(0, 4)}.${ncmDigits.slice(4, 6)}.${ncmDigits.slice(6, 8)}`
-
       payload.unidade = unidade
-      payload.ncmCodigo = maskedNcm
+      payload.ncmId = ncmDigits
       payload.familiaId = draftFamiliaId || null
     }
 
@@ -388,7 +392,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         setDraftDescricao('')
         setDraftPreco('')
         setDraftUnidade('UN')
-        setDraftNcmCodigo('')
+        setDraftNcmId('')
         setDraftFamiliaId('')
         setDraftFamiliaNova('')
         setNcmSearch('')
@@ -508,8 +512,8 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     )}
                     {isProduto && (
                       <div className="col-span-2 min-w-0">
-                        <div className="text-sm text-slate-300 font-mono truncate" title={i.ncmCodigo || ''}>
-                          {i.ncmCodigo || '-'}
+                        <div className="text-sm text-slate-300 font-mono truncate" title={i.ncmId || ''}>
+                          {formatNcmCodigo(i.ncmId || '') || '-'}
                         </div>
                       </div>
                     )}
@@ -729,7 +733,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                   onChange={(e) => {
                     const v = e.target.value
                     setNcmSearch(v)
-                    setDraftNcmCodigo(v)
+                    setDraftNcmId('')
                   }}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-10 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
                   placeholder="Buscar NCM por código ou descrição..."
@@ -753,9 +757,9 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     ncmOptions.map((opt) => (
                       <button
                         type="button"
-                        key={opt.codigo}
+                        key={opt.ncm_id}
                         onClick={() => {
-                          setDraftNcmCodigo(opt.codigo)
+                          setDraftNcmId(opt.ncm_id)
                           setNcmSearch(opt.codigo)
                         }}
                         className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"

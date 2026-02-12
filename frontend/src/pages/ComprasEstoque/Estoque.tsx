@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Box, ChevronDown, Loader2, Pencil, Plus, Search } from 'lucide-react'
-import { createCrmProduto, fetchCrmProdutos, updateCrmProduto, type CRM_Produto } from '@/services/crm'
+import { createCrmProduto, deleteCrmProduto, fetchCrmProdutos, updateCrmProduto, type CRM_Produto } from '@/services/crm'
 import { supabase } from '@/services/supabase'
 import { api } from '@/services/api'
 import { Modal } from '@/components/ui'
@@ -35,6 +35,10 @@ const formatUnknownError = (err: unknown) => {
   if (typeof err === 'string') return err || 'Erro'
   if (!err || typeof err !== 'object') return 'Erro'
   const anyErr = err as any
+  const pgCode = typeof anyErr?.code === 'string' ? anyErr.code : ''
+  if (pgCode === '23503') return 'Não é possível excluir: este item possui vínculos.'
+  if (pgCode === '23514') return 'Não é possível excluir: este item está vinculado e a operação violaria uma regra.'
+  if (pgCode === '42501') return 'Permissão negada.'
   const message =
     typeof anyErr?.message === 'string'
       ? anyErr.message
@@ -75,6 +79,15 @@ type LocalEstoque = {
 
 type ProdutoInfoTab = 'detalhada' | 'local' | 'observacoes' | 'historico'
 
+type ProdutoDeleteInfo = {
+  movimentosCount: number
+  saldoTotal: number
+  locaisComSaldo: number
+  locais: Array<{ local: string; saldo: number }>
+  oportunidadesItensCount: number
+  oportunidades: Array<{ id_oport: string; descricao_item: string | null }>
+}
+
 const MOV_TIPOS: { key: MovimentoTipo; label: string }[] = [
   { key: 'Entrada', label: 'Entrada' },
   { key: 'Saida', label: 'Saída' },
@@ -112,6 +125,10 @@ const Estoque: React.FC = () => {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteInfoLoading, setDeleteInfoLoading] = useState(false)
+  const [deleteInfo, setDeleteInfo] = useState<ProdutoDeleteInfo | null>(null)
   const [draftSituacao, setDraftSituacao] = useState(true)
   const [draftDescricao, setDraftDescricao] = useState('')
   const [draftModelo, setDraftModelo] = useState('')
@@ -119,6 +136,7 @@ const Estoque: React.FC = () => {
   const [draftPreco, setDraftPreco] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('UN')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
+  const [draftNcmId, setDraftNcmId] = useState('')
   const [draftFinalidadeItem, setDraftFinalidadeItem] = useState<'Revenda' | 'Consumo Interno' | 'Venda'>('Revenda')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
@@ -127,7 +145,7 @@ const Estoque: React.FC = () => {
   const [familiaSaving, setFamiliaSaving] = useState(false)
 
   const [ncmSearch, setNcmSearch] = useState('')
-  const [ncmOptions, setNcmOptions] = useState<{ codigo: string; descricao: string }[]>([])
+  const [ncmOptions, setNcmOptions] = useState<{ ncm_id: string; codigo: string; descricao: string }[]>([])
   const [ncmLoading, setNcmLoading] = useState(false)
   const [isNcmOpen, setIsNcmOpen] = useState(false)
   const ncmPickerRef = useRef<HTMLDivElement | null>(null)
@@ -231,7 +249,8 @@ const Estoque: React.FC = () => {
     setDraftMarca(p.marca_prod || '')
     setDraftPreco(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
     setDraftUnidade(p.unidade_prod || 'UN')
-    setDraftNcmCodigo(p.ncm_codigo || '')
+    setDraftNcmId(p.ncm_id || '')
+    setDraftNcmCodigo(formatNcmCodigo(p.ncm_id || '') || '')
     setDraftFinalidadeItem(p.finalidade_item === 'Consumo Interno' ? 'Consumo Interno' : p.finalidade_item === 'Venda' ? 'Venda' : 'Revenda')
     setDraftFamiliaId(p.familia_id || '')
     setDraftFamiliaNova('')
@@ -409,6 +428,7 @@ const Estoque: React.FC = () => {
     setDraftPreco('')
     setDraftUnidade('UN')
     setDraftNcmCodigo('')
+    setDraftNcmId('')
     setDraftFinalidadeItem('Revenda')
     setDraftFamiliaId('')
     setDraftFamiliaNova('')
@@ -423,14 +443,14 @@ const Estoque: React.FC = () => {
     const handle = setTimeout(async () => {
       setNcmLoading(true)
       try {
-        const query = supabase.from('ncm').select('codigo,descricao').order('codigo', { ascending: true }).limit(50)
+        const query = supabase.from('ncm').select('ncm_id,codigo,descricao').order('codigo', { ascending: true }).limit(50)
         const { data, error: qError } =
           term.length === 0
             ? await query
             : await query.or(`codigo.ilike.%${term}%,descricao.ilike.%${term}%`)
 
         if (qError) throw qError
-        setNcmOptions(((data || []) as any[]).map((row) => ({ codigo: row.codigo, descricao: row.descricao })))
+        setNcmOptions(((data || []) as any[]).map((row) => ({ ncm_id: row.ncm_id, codigo: row.codigo, descricao: row.descricao })))
       } catch {
         setNcmOptions([])
       } finally {
@@ -502,6 +522,12 @@ const Estoque: React.FC = () => {
   const normalizeNcmCodigoInput = (raw: string) => {
     const digits = String(raw || '').replace(/\D/g, '')
     if (digits.length !== 8) return null
+    return digits
+  }
+
+  const formatNcmCodigo = (raw: string) => {
+    const digits = String(raw || '').replace(/\D/g, '')
+    if (digits.length !== 8) return raw || ''
     return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`
   }
 
@@ -526,8 +552,8 @@ const Estoque: React.FC = () => {
       setCreateError('A unidade é obrigatória.')
       return
     }
-    const maskedNcm = normalizeNcmCodigoInput(draftNcmCodigo)
-    if (!maskedNcm) {
+    const ncmId = normalizeNcmCodigoInput(draftNcmId || draftNcmCodigo)
+    if (!ncmId) {
       setCreateError('O NCM deve ter 8 dígitos.')
       return
     }
@@ -553,7 +579,7 @@ const Estoque: React.FC = () => {
           finalidade_item: finalidade,
           cod_proposta_ref: null,
           unidade_prod: unidade,
-          ncm_codigo: maskedNcm,
+          ncm_id: ncmId,
           familia_id: draftFamiliaId || null,
           obs_prod: obs,
           produto_valor: valor
@@ -571,7 +597,7 @@ const Estoque: React.FC = () => {
           finalidade_item: finalidade,
           cod_proposta_ref: null,
           unidade_prod: unidade,
-          ncm_codigo: maskedNcm,
+          ncm_id: ncmId,
           familia_id: draftFamiliaId || null,
           obs_prod: obs,
           produto_valor: valor
@@ -585,6 +611,104 @@ const Estoque: React.FC = () => {
       setCreating(false)
     }
   }
+
+  const handleDeleteProduto = async () => {
+    if (!savedProduto) return
+    if (
+      deleteInfo &&
+      (deleteInfo.movimentosCount > 0 || Math.abs(deleteInfo.saldoTotal) > 0 || deleteInfo.oportunidadesItensCount > 0)
+    ) {
+      setCreateError('Não é possível excluir: existem vínculos (estoque e/ou propostas).')
+      return
+    }
+    setDeleting(true)
+    setCreateError(null)
+    try {
+      await deleteCrmProduto(savedProduto.prod_id)
+      setIsDeleteOpen(false)
+      setSavedProduto(null)
+      setEditing(false)
+      setIsCreateOpen(false)
+      await reloadProdutos()
+    } catch (e) {
+      setCreateError(formatUnknownError(e))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isDeleteOpen || !savedProduto) return
+    let cancelled = false
+    const run = async () => {
+      setDeleteInfoLoading(true)
+      setDeleteInfo(null)
+      try {
+        const { count: movCount, error: movError } = await (supabase as any)
+          .from('crm_movimentacoes_estoque')
+          .select('mov_id', { count: 'exact', head: true })
+          .eq('prod_id', savedProduto.prod_id)
+        if (movError) throw movError
+
+        const { data: saldos, error: saldoError } = await (supabase as any)
+          .from('vw_saldo_produto')
+          .select('local_estoque,saldo')
+          .eq('prod_id', savedProduto.prod_id)
+        if (saldoError) throw saldoError
+
+        const { count: itensCount, error: itensCountError } = await (supabase as any)
+          .from('crm_oportunidade_itens')
+          .select('item_id', { count: 'exact', head: true })
+          .eq('tipo', 'PRODUTO')
+          .eq('produto_id', savedProduto.prod_id)
+        if (itensCountError) throw itensCountError
+
+        const { data: itensEx, error: itensExError } = await (supabase as any)
+          .from('crm_oportunidade_itens')
+          .select('id_oport,descricao_item')
+          .eq('tipo', 'PRODUTO')
+          .eq('produto_id', savedProduto.prod_id)
+          .order('updated_at', { ascending: false })
+          .limit(6)
+        if (itensExError) throw itensExError
+
+        const locais: Array<{ local: string; saldo: number }> = []
+        let saldoTotal = 0
+        let locaisComSaldo = 0
+        for (const row of (saldos || []) as any[]) {
+          const local = String(row?.local_estoque || '').trim()
+          const saldo = Number(row?.saldo ?? 0)
+          if (!local || !Number.isFinite(saldo)) continue
+          saldoTotal += saldo
+          if (saldo !== 0) locaisComSaldo += 1
+          locais.push({ local, saldo })
+        }
+        locais.sort((a, b) => Math.abs(b.saldo) - Math.abs(a.saldo))
+
+        const info: ProdutoDeleteInfo = {
+          movimentosCount: Number(movCount ?? 0) || 0,
+          saldoTotal: Number(saldoTotal) || 0,
+          locaisComSaldo,
+          locais: locais.slice(0, 8),
+          oportunidadesItensCount: Number(itensCount ?? 0) || 0,
+          oportunidades: ((itensEx || []) as any[]).map((r) => ({
+            id_oport: String(r?.id_oport || ''),
+            descricao_item: typeof r?.descricao_item === 'string' ? r.descricao_item : null
+          }))
+        }
+
+        if (!cancelled) setDeleteInfo(info)
+      } catch {
+        if (!cancelled) setDeleteInfo(null)
+      } finally {
+        if (!cancelled) setDeleteInfoLoading(false)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [isDeleteOpen, savedProduto])
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -628,6 +752,7 @@ const Estoque: React.FC = () => {
             setDraftPreco('')
             setDraftUnidade('UN')
             setDraftNcmCodigo('')
+            setDraftNcmId('')
             setDraftFinalidadeItem('Revenda')
             setDraftFamiliaId('')
             setDraftFamiliaNova('')
@@ -731,15 +856,24 @@ const Estoque: React.FC = () => {
             ) : (
               <div className="overflow-auto">
                 <div className="min-w-[980px]">
-                  <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)]">
-                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
-                    <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
-                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo</div>
-                    <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
-                    <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
-                    <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
-                    <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
-                  </div>
+                  {isConsultaEstoque ? (
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)] sticky top-0 backdrop-blur supports-[backdrop-filter]:bg-white/5">
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                      <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Quantidade</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)] sticky top-0 backdrop-blur supports-[backdrop-filter]:bg-white/5">
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo</div>
+                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
+                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
+                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
+                    </div>
+                  )}
 
                   <div className="divide-y divide-[var(--border)]">
                     {filteredSorted.map((p) => {
@@ -747,68 +881,106 @@ const Estoque: React.FC = () => {
                       const total = Object.values(saldos).reduce((acc, v) => acc + Number(v || 0), 0)
                       const qtdLocais = Object.keys(saldos).length
                       const saldoSelecionado = localFilter === 'TODOS' ? null : getSaldoLocal(p.prod_id, localFilter)
+                      const quantidade = localFilter === 'TODOS' ? total : saldoSelecionado ?? 0
                       return (
                         <div
                           key={p.prod_id}
                           onClick={() => openProdutoModal(p)}
                           className="grid grid-cols-12 gap-3 px-4 py-3 text-left w-full hover:bg-white/5 transition-colors cursor-pointer"
                         >
-                          <div className="col-span-2 min-w-0">
-                            <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
-                              {p.codigo_prod || '-'}
-                            </div>
-                            <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">#{p.prod_id.split('-')[0]}</div>
-                          </div>
-                          <div className="col-span-3 min-w-0">
-                            <div className="text-sm text-[var(--text)] truncate" title={p.descricao_prod}>
-                              {p.descricao_prod}
-                            </div>
-                            <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.ncm_codigo || '-'}</div>
-                          </div>
-                          <div className="col-span-2 min-w-0">
-                            {localFilter === 'TODOS' ? (
-                              <>
-                                <div className="text-sm text-[var(--text)] font-mono truncate">
-                                  Total: {total.toLocaleString('pt-BR')}
+                          {isConsultaEstoque ? (
+                            <>
+                              <div className="col-span-2 min-w-0">
+                                <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
+                                  {p.codigo_prod || '-'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
-                                  Locais: {qtdLocais}
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.unidade_prod || 'UN'}</div>
+                              </div>
+                              <div className="col-span-6 min-w-0">
+                                <div className="text-sm text-[var(--text)] font-semibold truncate" title={p.descricao_prod}>
+                                  {p.descricao_prod}
                                 </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-[var(--text)] font-mono truncate">
-                                  {saldoSelecionado?.toLocaleString('pt-BR') ?? '0'}
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
+                              </div>
+                              <div className="col-span-2 min-w-0">
+                                <div
+                                  className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[var(--text)] truncate"
+                                  title={p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
+                                >
+                                  {p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] truncate" title={localFilter}>
-                                  {localFilter}
+                              </div>
+                              <div className="col-span-2 min-w-0 text-right">
+                                <div className="inline-flex items-center justify-end gap-2">
+                                  <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-sm font-mono font-semibold text-emerald-200">
+                                    {quantidade.toLocaleString('pt-BR')}
+                                  </span>
                                 </div>
-                              </>
-                            )}
-                          </div>
-                          <div className="col-span-1 min-w-0">
-                            <div className="text-sm text-[var(--text)] font-mono truncate">{p.unidade_prod || '-'}</div>
-                          </div>
-                          <div className="col-span-1 min-w-0">
-                            <div className="text-sm text-[var(--text)] truncate">
-                              {p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
-                            </div>
-                          </div>
-                          <div className="col-span-1 min-w-0 text-right">
-                            <div className="text-sm text-[var(--text)] truncate">{formatCurrency(p.produto_valor)}</div>
-                          </div>
-                          <div className="col-span-2 min-w-0 flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openMovimentoModal(p)
-                              }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
-                            >
-                              Nova Movimentação
-                            </button>
-                          </div>
+                                <div className="mt-1 text-[10px] text-[var(--text-muted)] truncate" title={localFilter === 'TODOS' ? `Locais: ${qtdLocais}` : localFilter}>
+                                  {localFilter === 'TODOS' ? `Locais: ${qtdLocais}` : localFilter}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="col-span-2 min-w-0">
+                                <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
+                                  {p.codigo_prod || '-'}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">#{p.prod_id.split('-')[0]}</div>
+                              </div>
+                              <div className="col-span-3 min-w-0">
+                                <div className="text-sm text-[var(--text)] truncate" title={p.descricao_prod}>
+                                  {p.descricao_prod}
+                                </div>
+                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
+                              </div>
+                              <div className="col-span-2 min-w-0">
+                                {localFilter === 'TODOS' ? (
+                                  <>
+                                    <div className="text-sm text-[var(--text)] font-mono truncate">
+                                      Total: {total.toLocaleString('pt-BR')}
+                                    </div>
+                                    <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                                      Locais: {qtdLocais}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="text-sm text-[var(--text)] font-mono truncate">
+                                      {saldoSelecionado?.toLocaleString('pt-BR') ?? '0'}
+                                    </div>
+                                    <div className="text-[10px] text-[var(--text-muted)] truncate" title={localFilter}>
+                                      {localFilter}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              <div className="col-span-1 min-w-0">
+                                <div className="text-sm text-[var(--text)] font-mono truncate">{p.unidade_prod || '-'}</div>
+                              </div>
+                              <div className="col-span-1 min-w-0">
+                                <div className="text-sm text-[var(--text)] truncate">
+                                  {p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
+                                </div>
+                              </div>
+                              <div className="col-span-1 min-w-0 text-right">
+                                <div className="text-sm text-[var(--text)] truncate">{formatCurrency(p.produto_valor)}</div>
+                              </div>
+                              <div className="col-span-2 min-w-0 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openMovimentoModal(p)
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                                >
+                                  Nova Movimentação
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )
                     })}
@@ -823,9 +995,10 @@ const Estoque: React.FC = () => {
       <Modal
         isOpen={isCreateOpen}
         onClose={() => {
-          if (creating || familiaSaving) return
+          if (creating || familiaSaving || deleting) return
           setSavedProduto(null)
           setEditing(false)
+          setIsDeleteOpen(false)
           setIsCreateOpen(false)
         }}
         size="full"
@@ -856,15 +1029,25 @@ const Estoque: React.FC = () => {
                     setNcmSearch('')
                     setNcmOptions([])
                   }}
-                  disabled={creating || familiaSaving}
+                  disabled={creating || familiaSaving || deleting}
                   className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Cancelar
                 </button>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsDeleteOpen(true)}
+                    disabled={creating || familiaSaving || deleting}
+                    className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                  >
+                    Excluir Produto
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleSaveProduto}
-                  disabled={creating || familiaSaving || !draftDescricao.trim()}
+                  disabled={creating || familiaSaving || deleting || !draftDescricao.trim()}
                   className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
                 >
                   {creating ? (
@@ -886,7 +1069,7 @@ const Estoque: React.FC = () => {
                     setEditing(false)
                     setIsCreateOpen(false)
                   }}
-                  disabled={creating || familiaSaving}
+                  disabled={creating || familiaSaving || deleting}
                   className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Fechar
@@ -897,7 +1080,7 @@ const Estoque: React.FC = () => {
                     if (!savedProduto) return
                     openMovimentoModal(savedProduto)
                   }}
-                  disabled={creating || familiaSaving}
+                  disabled={creating || familiaSaving || deleting}
                   className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                 >
                   Novo Movimento
@@ -994,7 +1177,7 @@ const Estoque: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.ncm_codigo || '-'}</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatNcmCodigo(savedProduto.ncm_id || '') || '-'}</div>
                 </div>
 
                 <div className="space-y-1">
@@ -1283,9 +1466,10 @@ const Estoque: React.FC = () => {
                               ncmOptions.map((opt) => (
                                 <button
                                   type="button"
-                                  key={opt.codigo}
+                                  key={opt.ncm_id}
                                   onClick={() => {
                                     setDraftNcmCodigo(opt.codigo)
+                                    setDraftNcmId(opt.ncm_id)
                                     setIsNcmOpen(false)
                                   }}
                                   className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
@@ -1368,6 +1552,139 @@ const Estoque: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          if (deleting) return
+          setIsDeleteOpen(false)
+        }}
+        size="md"
+        className="max-w-lg"
+        zIndex={130}
+        title={
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Produtos</div>
+            <div className="text-base font-bold text-[var(--text-main)] truncate">Excluir Produto</div>
+          </div>
+        }
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsDeleteOpen(false)}
+              disabled={deleting}
+              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteProduto}
+              disabled={
+                deleting ||
+                deleteInfoLoading ||
+                !!(
+                  deleteInfo &&
+                  (deleteInfo.movimentosCount > 0 || Math.abs(deleteInfo.saldoTotal) > 0 || deleteInfo.oportunidadesItensCount > 0)
+                )
+              }
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="text-sm text-slate-200">
+            Tem certeza que deseja excluir o produto <span className="font-semibold">{savedProduto?.descricao_prod || '-'}</span>?
+          </div>
+          <div className="text-xs text-slate-400">Esta ação não pode ser desfeita.</div>
+          {deleteInfoLoading ? (
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Loader2 className="animate-spin" size={14} />
+              Verificando vínculos...
+            </div>
+          ) : deleteInfo ? (
+            <>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saldo total</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-emerald-200">{deleteInfo.saldoTotal.toLocaleString('pt-BR')}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Locais com saldo</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{deleteInfo.locaisComSaldo.toLocaleString('pt-BR')}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Movimentações</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{deleteInfo.movimentosCount.toLocaleString('pt-BR')}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Propostas (itens)</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">
+                    {deleteInfo.oportunidadesItensCount.toLocaleString('pt-BR')}
+                  </div>
+                </div>
+              </div>
+
+              {deleteInfo.movimentosCount > 0 || Math.abs(deleteInfo.saldoTotal) > 0 || deleteInfo.oportunidadesItensCount > 0 ? (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                  Não é possível excluir este produto porque há vínculos com estoque e/ou propostas.
+                </div>
+              ) : null}
+
+              {deleteInfo.oportunidades.length > 0 ? (
+                <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
+                  <div className="px-4 py-2.5 bg-white/5 border-b border-white/10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Exemplo</div>
+                    <div className="text-xs text-slate-400 mt-1">Itens de proposta que usam este produto</div>
+                  </div>
+                  <div className="divide-y divide-white/10">
+                    {deleteInfo.oportunidades.map((it) => (
+                      <div key={it.id_oport} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm text-slate-100 truncate" title={it.descricao_item || ''}>
+                            {it.descricao_item || 'Item de proposta'}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate">{it.id_oport}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {deleteInfo.locais.length > 0 ? (
+                <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
+                  <div className="px-4 py-2.5 bg-white/5 border-b border-white/10">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Exemplo</div>
+                    <div className="text-xs text-slate-400 mt-1">Saldo por local (top 8)</div>
+                  </div>
+                  <div className="divide-y divide-white/10">
+                    {deleteInfo.locais.map((l) => (
+                      <div key={l.local} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                        <div className="text-sm text-slate-100 truncate" title={l.local}>
+                          {l.local}
+                        </div>
+                        <div className="text-sm font-mono font-semibold text-emerald-200">{Number(l.saldo).toLocaleString('pt-BR')}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </Modal>
 
       <Modal

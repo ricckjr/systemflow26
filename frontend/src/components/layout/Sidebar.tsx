@@ -77,7 +77,6 @@ const navItems: NavItem[] = [
     requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'VIEW' },
     subItems: [
       { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque' },
-      { label: 'Movimentação', path: '/app/compras-estoque/movimentacao', submodulo: 'movimentacao', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
       { label: 'Locais do Estoque', path: '/app/compras-estoque/locais-estoque', submodulo: 'locais-estoque', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
       { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
       { label: 'Transportadora', path: '/app/compras-estoque/transportadora', submodulo: 'transportadora', requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' } },

@@ -742,7 +742,7 @@ export interface CRM_Produto {
   descricao_detalhada?: string | null
   cod_proposta_ref?: string | null
   unidade_prod?: string | null
-  ncm_codigo?: string | null
+  ncm_id?: string | null
   finalidade_item?: string | null
   familia_id?: string | null
   obs_prod: string | null
@@ -1233,7 +1233,7 @@ export async function fetchCrmProdutos() {
     'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
-    'ncm_codigo',
+    'ncm_id',
     'finalidade_item',
     'familia_id',
     'obs_prod',
@@ -1282,7 +1282,7 @@ export async function createCrmProduto(
     | 'modelo_prod'
     | 'cod_proposta_ref'
     | 'unidade_prod'
-    | 'ncm_codigo'
+    | 'ncm_id'
     | 'finalidade_item'
     | 'familia_id'
   >
@@ -1299,7 +1299,7 @@ export async function createCrmProduto(
     'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
-    'ncm_codigo',
+    'ncm_id',
     'finalidade_item',
     'familia_id',
     'obs_prod',
@@ -1316,7 +1316,7 @@ export async function createCrmProduto(
     descricao_detalhada: payload.descricao_detalhada || null,
     cod_proposta_ref: payload.cod_proposta_ref || null,
     unidade_prod: payload.unidade_prod || null,
-    ncm_codigo: payload.ncm_codigo || null,
+    ncm_id: payload.ncm_id || null,
     finalidade_item: payload.finalidade_item || null,
     familia_id: payload.familia_id || null,
     obs_prod: payload.obs_prod || null,
@@ -1365,7 +1365,7 @@ export async function updateCrmProduto(
       | 'modelo_prod'
       | 'cod_proposta_ref'
       | 'unidade_prod'
-      | 'ncm_codigo'
+      | 'ncm_id'
       | 'finalidade_item'
       | 'familia_id'
     >
@@ -1383,7 +1383,7 @@ export async function updateCrmProduto(
     'descricao_detalhada',
     'cod_proposta_ref',
     'unidade_prod',
-    'ncm_codigo',
+    'ncm_id',
     'finalidade_item',
     'familia_id',
     'obs_prod',

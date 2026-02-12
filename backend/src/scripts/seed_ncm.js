@@ -68,9 +68,9 @@ async function main() {
       const descricao = stripHtml(item?.descricao ?? '');
 
       return {
+        ncm_id: digits,
         codigo,
-        descricao: descricao || codigo,
-        cod_sem_mascara: Number(digits)
+        descricao: descricao || codigo
       };
     })
     .filter(Boolean);

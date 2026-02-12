@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
-import router from '@/routes'
 
 type ToastKind = 'system' | 'chat'
 
@@ -130,14 +129,19 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export function useToast() {
   const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast must be used within ToastProvider')
-  return ctx
+  if (ctx) return ctx
+  return {
+    pushToast: () => {},
+    dismissToast: () => {},
+    dismissAll: () => {}
+  }
 }
 
 export function openToastUrl(url: string) {
   try {
-    router.navigate(url)
+    void import('@/routes')
+      .then((m: any) => m?.default?.navigate?.(url))
+      .catch(() => {})
   } catch {
   }
 }
-

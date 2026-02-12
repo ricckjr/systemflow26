@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Box, Loader2, Search } from 'lucide-react'
+import { Box, Loader2, Plus, Search } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 
 type NcmItem = {
@@ -7,7 +7,6 @@ type NcmItem = {
   codigo: string
   descricao: string
   created_at: string
-  cod_sem_mascara: number | null
 }
 
 const PAGE_SIZE = 50
@@ -20,6 +19,12 @@ const formatCodigo = (codigo: string) => {
   return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`
 }
 
+const toDigits8 = (input: string) => {
+  const digits = String(input || '').replace(/\D/g, '')
+  if (digits.length !== 8) return null
+  return digits
+}
+
 export default function CadastroNcm() {
   const [items, setItems] = useState<NcmItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,6 +32,9 @@ export default function CadastroNcm() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState<number | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [novoCodigo, setNovoCodigo] = useState('')
+  const [novaDescricao, setNovaDescricao] = useState('')
 
   const totalPages = useMemo(() => {
     if (!total) return 1
@@ -42,7 +50,7 @@ export default function CadastroNcm() {
 
       let query = supabase
         .from('ncm')
-        .select('ncm_id,codigo,descricao,cod_sem_mascara,created_at', { count: 'exact' })
+        .select('ncm_id,codigo,descricao,created_at', { count: 'exact' })
         .order('codigo', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
 
@@ -75,6 +83,40 @@ export default function CadastroNcm() {
     setPage(1)
   }, [search])
 
+  const handleCreate = async () => {
+    const digits = toDigits8(novoCodigo)
+    if (!digits) {
+      setError('O código NCM deve ter 8 dígitos.')
+      return
+    }
+    const codigo = formatCodigo(digits)
+    const descricao = novaDescricao.trim()
+    if (!descricao) {
+      setError('Informe a descrição.')
+      return
+    }
+
+    setCreating(true)
+    setError(null)
+    try {
+      const payload = { ncm_id: digits, codigo, descricao }
+      const { error: insError } = await (supabase as any).from('ncm').insert(payload)
+      if (insError) throw insError
+      setNovoCodigo('')
+      setNovaDescricao('')
+      await load()
+    } catch (e: any) {
+      const code = typeof e?.code === 'string' ? e.code : ''
+      if (code === '23505') {
+        setError('Já existe um NCM com esse código.')
+      } else {
+        setError(e instanceof Error ? e.message : 'Falha ao cadastrar NCM')
+      }
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="pt-4 pb-6 max-w-[1600px] mx-auto px-4 md:px-6 space-y-4">
       <div className="flex items-center gap-2 text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
@@ -105,6 +147,43 @@ export default function CadastroNcm() {
 
           <div className="shrink-0 text-xs text-[var(--text-muted)]">
             {typeof total === 'number' ? `${total.toLocaleString('pt-BR')} registros` : '-'}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-[#0B1220]/40 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Código NCM</div>
+              <input
+                value={novoCodigo}
+                onChange={(e) => setNovoCodigo(e.target.value)}
+                placeholder="1234.56.78"
+                className="w-full px-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+              />
+              <div className="mt-1 text-[10px] text-slate-500 font-mono">
+                Sem máscara: {toDigits8(novoCodigo) ?? '-'}
+              </div>
+            </div>
+            <div className="md:col-span-7">
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Descrição</div>
+              <input
+                value={novaDescricao}
+                onChange={(e) => setNovaDescricao(e.target.value)}
+                placeholder="Descrição do NCM"
+                className="w-full px-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+              />
+            </div>
+            <div className="md:col-span-2 flex items-end">
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={creating || !toDigits8(novoCodigo) || !novaDescricao.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {creating ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+                Cadastrar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -152,7 +231,7 @@ export default function CadastroNcm() {
                     </div>
                   </div>
                   <div className="col-span-2 min-w-0">
-                    <div className="text-xs text-slate-300 font-mono truncate">{i.cod_sem_mascara ?? '-'}</div>
+                    <div className="text-xs text-slate-300 font-mono truncate">{i.ncm_id}</div>
                   </div>
                 </div>
               ))}

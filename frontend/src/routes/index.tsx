@@ -356,11 +356,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'compras-estoque/movimentacao',
-        element: lazyElement(
-          () => import('@/pages/ComprasEstoque/MovimentacaoEstoque'),
-          'Carregando Movimentação...',
-          (node) => <RequirePermission modulo="COMPRAS_E_ESTOQUE" acao="EDIT">{node}</RequirePermission>
-        )
+        element: <Navigate to="/app/compras-estoque/consultar-estoque" replace />
       },
       {
         path: 'compras-estoque/locais-estoque',

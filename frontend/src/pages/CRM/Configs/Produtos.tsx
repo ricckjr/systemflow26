@@ -18,7 +18,7 @@ export default function Produtos() {
           situacao: p.situacao_prod ?? true,
           descricao: p.descricao_prod,
           unidade: p.unidade_prod ?? null,
-          ncmCodigo: p.ncm_codigo ?? null,
+          ncmId: p.ncm_id ?? null,
           familiaId: p.familia_id ?? null,
           preco: p.produto_valor ?? 0
         }))
@@ -31,7 +31,7 @@ export default function Produtos() {
           modelo_prod: null,
           descricao_prod: payload.descricao,
           unidade_prod: payload.unidade ?? null,
-          ncm_codigo: payload.ncmCodigo ?? null,
+          ncm_id: payload.ncmId ?? null,
           familia_id: payload.familiaId ?? null,
           obs_prod: null,
           produto_valor: payload.preco ?? 0
@@ -43,7 +43,7 @@ export default function Produtos() {
           situacao_prod: payload.situacao,
           descricao_prod: payload.descricao,
           unidade_prod: payload.unidade ?? null,
-          ncm_codigo: payload.ncmCodigo ?? null,
+          ncm_id: payload.ncmId ?? null,
           familia_id: payload.familiaId ?? null,
           obs_prod: null,
           produto_valor: payload.preco ?? 0

@@ -1374,7 +1374,7 @@ export default function OportunidadesKanban() {
     const mapped = list.map((x: any) => ({
       id: itemModalTipo === 'PRODUTO' ? x.prod_id : x.serv_id,
       label: itemModalTipo === 'PRODUTO' ? x.descricao_prod : x.descricao_serv,
-      valor: Number(itemModalTipo === 'PRODUTO' ? x.produto_valor : x.servicos_valor) || 0
+      valor: Number(itemModalTipo === 'PRODUTO' ? x.produto_valor : x.valor_serv) || 0
     }))
     if (!term) return mapped.slice(0, 12)
     return mapped
@@ -1392,7 +1392,7 @@ export default function OportunidadesKanban() {
     }
     const s = servicos.find((x) => String((x as any).serv_id || '').trim() === id)
     if (!s) return null
-    return { tipo: 'SERVICO' as const, id: s.serv_id, descricao: s.descricao_serv, valorUnitario: Number(s.servicos_valor || 0) }
+    return { tipo: 'SERVICO' as const, id: s.serv_id, descricao: s.descricao_serv, valorUnitario: Number((s as any).valor_serv ?? 0) }
   }, [itemSelectedId, itemModalTipo, produtos, servicos])
 
   const contatoFiltered = useMemo(() => {

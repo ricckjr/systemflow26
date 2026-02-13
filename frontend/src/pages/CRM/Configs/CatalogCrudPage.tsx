@@ -11,6 +11,10 @@ export type CatalogCrudItem = {
   unidade?: string | null
   ncmId?: string | null
   familiaId?: string | null
+  categoria?: string | null
+  codNbs?: string | null
+  codLc116?: string | null
+  descricaoDetalhada?: string | null
   descricao: string
   preco: number | null
 }
@@ -140,6 +144,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const { isAdmin } = useAuth()
   const colors = ACCENTS[accent]
   const isProduto = kind === 'produto'
+  const isServico = kind === 'servico'
   const canEditExisting = isAdmin
 
   const [items, setItems] = useState<CatalogCrudItem[]>([])
@@ -160,6 +165,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [draftUnidade, setDraftUnidade] = useState('')
   const [draftNcmId, setDraftNcmId] = useState('')
   const [draftFamiliaId, setDraftFamiliaId] = useState('')
+  const [draftCategoria, setDraftCategoria] = useState('Clientes - Serviços Prestados')
+  const [draftCodNbs, setDraftCodNbs] = useState('')
+  const [draftCodLc116, setDraftCodLc116] = useState('')
+  const [draftDescricaoDetalhada, setDraftDescricaoDetalhada] = useState('')
   const [draftFamiliaNova, setDraftFamiliaNova] = useState('')
   const [familiaOptions, setFamiliaOptions] = useState<{ familia_id: string; nome: string }[]>([])
   const [familiaLoading, setFamiliaLoading] = useState(false)
@@ -200,6 +209,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       setDraftUnidade(active.unidade || '')
       setDraftNcmId(active.ncmId || '')
       setDraftFamiliaId(active.familiaId || '')
+      setDraftCategoria(active.categoria || 'Clientes - Serviços Prestados')
+      setDraftCodNbs(active.codNbs || '')
+      setDraftCodLc116(active.codLc116 || '')
+      setDraftDescricaoDetalhada(active.descricaoDetalhada || '')
       setDraftFamiliaNova('')
       setNcmSearch(formatNcmCodigo(active.ncmId || ''))
       return
@@ -211,6 +224,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     setDraftUnidade('UN')
     setDraftNcmId('')
     setDraftFamiliaId('')
+    setDraftCategoria('Clientes - Serviços Prestados')
+    setDraftCodNbs('')
+    setDraftCodLc116('')
+    setDraftDescricaoDetalhada('')
     setDraftFamiliaNova('')
     setNcmSearch('')
     setNcmOptions([])
@@ -324,6 +341,9 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       const parts = [
         i.codigo || '',
         i.descricao || '',
+        i.categoria || '',
+        i.codNbs || '',
+        i.codLc116 || '',
         i.unidade || '',
         i.ncmId || '',
         i.situacao ? 'ativo' : 'inativo'
@@ -379,6 +399,28 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       payload.unidade = unidade
       payload.ncmId = ncmDigits
       payload.familiaId = draftFamiliaId || null
+    } else {
+      const categoria = draftCategoria.trim() || 'Clientes - Serviços Prestados'
+      const codNbs = draftCodNbs.trim() || null
+      const codLc116 = draftCodLc116.trim() || null
+      const detalhada = draftDescricaoDetalhada.trim()
+      if (!detalhada) {
+        setError('A descrição detalhada do serviço é obrigatória.')
+        return
+      }
+      if (payload.preco === null || payload.preco === undefined || !Number.isFinite(Number(payload.preco))) {
+        setError('O valor unitário é obrigatório.')
+        return
+      }
+      if (Number(payload.preco) < 0) {
+        setError('O valor unitário não pode ser negativo.')
+        return
+      }
+
+      payload.categoria = categoria
+      payload.codNbs = codNbs
+      payload.codLc116 = codLc116
+      payload.descricaoDetalhada = detalhada
     }
 
     setSaving(true)
@@ -394,11 +436,17 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         setDraftUnidade('UN')
         setDraftNcmId('')
         setDraftFamiliaId('')
+        setDraftCategoria('Clientes - Serviços Prestados')
+        setDraftCodNbs('')
+        setDraftCodLc116('')
+        setDraftDescricaoDetalhada('')
         setDraftFamiliaNova('')
         setNcmSearch('')
         setNcmOptions([])
       }
       await load()
+      setIsFormOpen(false)
+      setActiveId(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')
     } finally {
@@ -489,7 +537,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 {isProduto && <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Unid.</div>}
                 {isProduto && <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">NCM</div>}
                 <div className={`${isProduto ? 'col-span-2' : 'col-span-6'} text-[10px] font-black uppercase tracking-widest text-slate-400`}>Descrição</div>
-                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Preço</div>
+                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">{isServico ? 'Valor Unit.' : 'Preço'}</div>
                 <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
@@ -638,7 +686,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição</label>
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{isServico ? 'Descrição Serviço' : 'Descrição'}</label>
             <input
               value={draftDescricao}
               onChange={(e) => setDraftDescricao(e.target.value)}
@@ -647,6 +695,54 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               autoFocus
             />
           </div>
+
+          {isServico && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Categorias</label>
+              <input
+                value={draftCategoria}
+                readOnly
+                disabled
+                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 opacity-80 outline-none placeholder:text-slate-500"
+              />
+            </div>
+          )}
+
+          {isServico && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código (NBS)</label>
+                <input
+                  value={draftCodNbs}
+                  onChange={(e) => setDraftCodNbs(e.target.value)}
+                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  placeholder="Ex: 1.01.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código da LC 116</label>
+                <input
+                  value={draftCodLc116}
+                  onChange={(e) => setDraftCodLc116(e.target.value)}
+                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  placeholder="Ex: 14.01"
+                />
+              </div>
+            </div>
+          )}
+
+          {isServico && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição Detalhada do Serviço</label>
+              <textarea
+                value={draftDescricaoDetalhada}
+                onChange={(e) => setDraftDescricaoDetalhada(e.target.value)}
+                rows={4}
+                className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
+                placeholder="Descreva o serviço em detalhes..."
+              />
+            </div>
+          )}
 
           {isProduto && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -777,7 +873,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Preço (R$)</label>
+            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{isServico ? 'Valor Unitário (R$)' : 'Preço (R$)'}</label>
             <input
               value={draftPreco}
               onChange={(e) => setDraftPreco(e.target.value)}

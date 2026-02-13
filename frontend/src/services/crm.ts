@@ -755,10 +755,13 @@ export interface CRM_Servico {
   serv_id: string
   integ_id: string | null
   codigo_serv: string | null
+  categ_serv?: string | null
+  cod_lc116?: string | null
+  cod_nbs?: string | null
+  descricao_detalhada?: string | null
+  valor_serv?: number | null
   situacao_serv: boolean
   descricao_serv: string
-  obs_serv: string | null
-  servicos_valor: number | null
   criado_em: string | null
   atualizado_em: string | null
 }
@@ -1431,10 +1434,13 @@ export async function fetchCrmServicos() {
     'serv_id',
     'integ_id',
     'codigo_serv',
+    'categ_serv',
+    'cod_lc116',
+    'cod_nbs',
+    'descricao_detalhada',
+    'valor_serv',
     'situacao_serv',
     'descricao_serv',
-    'obs_serv',
-    'servicos_valor',
     'criado_em',
     'atualizado_em'
   ]
@@ -1467,26 +1473,35 @@ export async function fetchCrmServicos() {
 }
 
 export async function createCrmServico(
-  payload: Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor' | 'situacao_serv'>
+  payload: Pick<
+    CRM_Servico,
+    'integ_id' | 'descricao_serv' | 'valor_serv' | 'categ_serv' | 'cod_lc116' | 'cod_nbs' | 'descricao_detalhada' | 'situacao_serv'
+  >
 ) {
   const table = 'crm_servicos'
   const cols = [
     'serv_id',
     'integ_id',
     'codigo_serv',
+    'categ_serv',
+    'cod_lc116',
+    'cod_nbs',
+    'descricao_detalhada',
+    'valor_serv',
     'situacao_serv',
     'descricao_serv',
-    'obs_serv',
-    'servicos_valor',
     'criado_em',
     'atualizado_em'
   ]
   const insertPayload: any = {
     integ_id: payload.integ_id || null,
     situacao_serv: payload.situacao_serv ?? true,
+    categ_serv: payload.categ_serv || 'Clientes - Serviços Prestados',
+    cod_lc116: payload.cod_lc116 || null,
+    cod_nbs: payload.cod_nbs || null,
+    descricao_detalhada: payload.descricao_detalhada || null,
     descricao_serv: payload.descricao_serv,
-    obs_serv: payload.obs_serv || null,
-    servicos_valor: payload.servicos_valor ?? 0
+    valor_serv: payload.valor_serv ?? 0
   }
 
   for (let i = 0; i < cols.length; i++) {
@@ -1517,17 +1532,32 @@ export async function createCrmServico(
 
 export async function updateCrmServico(
   id: string,
-  updates: Partial<Pick<CRM_Servico, 'integ_id' | 'descricao_serv' | 'obs_serv' | 'servicos_valor' | 'situacao_serv'>>
+  updates: Partial<
+    Pick<
+      CRM_Servico,
+      | 'integ_id'
+      | 'descricao_serv'
+      | 'valor_serv'
+      | 'categ_serv'
+      | 'cod_lc116'
+      | 'cod_nbs'
+      | 'descricao_detalhada'
+      | 'situacao_serv'
+    >
+  >
 ) {
   const table = 'crm_servicos'
   const cols = [
     'serv_id',
     'integ_id',
     'codigo_serv',
+    'categ_serv',
+    'cod_lc116',
+    'cod_nbs',
+    'descricao_detalhada',
+    'valor_serv',
     'situacao_serv',
     'descricao_serv',
-    'obs_serv',
-    'servicos_valor',
     'criado_em',
     'atualizado_em'
   ]

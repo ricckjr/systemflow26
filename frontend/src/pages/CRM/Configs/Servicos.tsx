@@ -17,7 +17,11 @@ export default function Servicos() {
           codigo: s.codigo_serv ?? null,
           situacao: s.situacao_serv ?? true,
           descricao: s.descricao_serv,
-          preco: s.servicos_valor ?? 0
+          preco: s.valor_serv ?? 0,
+          categoria: s.categ_serv ?? 'Clientes - Serviços Prestados',
+          codNbs: s.cod_nbs ?? null,
+          codLc116: s.cod_lc116 ?? null,
+          descricaoDetalhada: s.descricao_detalhada ?? null
         }))
       }}
       createItem={async payload => {
@@ -25,8 +29,11 @@ export default function Servicos() {
           integ_id: null,
           situacao_serv: payload.situacao,
           descricao_serv: payload.descricao,
-          obs_serv: null,
-          servicos_valor: payload.preco ?? 0
+          valor_serv: payload.preco ?? 0,
+          categ_serv: payload.categoria ?? 'Clientes - Serviços Prestados',
+          cod_nbs: payload.codNbs ?? null,
+          cod_lc116: payload.codLc116 ?? null,
+          descricao_detalhada: payload.descricaoDetalhada ?? null
         })
       }}
       updateItem={async (id, payload) => {
@@ -34,8 +41,11 @@ export default function Servicos() {
           integ_id: null,
           situacao_serv: payload.situacao,
           descricao_serv: payload.descricao,
-          obs_serv: null,
-          servicos_valor: payload.preco ?? 0
+          valor_serv: payload.preco ?? 0,
+          categ_serv: payload.categoria ?? 'Clientes - Serviços Prestados',
+          cod_nbs: payload.codNbs ?? null,
+          cod_lc116: payload.codLc116 ?? null,
+          descricao_detalhada: payload.descricaoDetalhada ?? null
         })
       }}
       deleteItem={async id => {

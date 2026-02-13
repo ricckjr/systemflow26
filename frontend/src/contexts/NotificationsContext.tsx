@@ -68,6 +68,18 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   const realtimeSubscribedRef = useRef(false)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const retryTimeoutRef = useRef<number | null>(null)
+  const refreshInFlightRef = useRef<Promise<void> | null>(null)
+  const refreshChatInFlightRef = useRef<Promise<void> | null>(null)
+  const lastRefreshAtRef = useRef<number>(0)
+  const lastChatRefreshAtRef = useRef<number>(0)
+
+  const isUnloading = () => {
+    try {
+      return typeof window !== 'undefined' && Boolean((window as any).__systemflow_unloading)
+    } catch {
+      return false
+    }
+  }
 
   useEffect(() => {
     activeChatRoomIdRef.current = activeChatRoomId
@@ -85,55 +97,86 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refresh = useCallback(async () => {
     if (!authReady || !userId) return
+    if (isUnloading()) return
+    const now = Date.now()
+    if (now - (lastRefreshAtRef.current || 0) < 500) return
+    lastRefreshAtRef.current = now
+    if (refreshInFlightRef.current) return await refreshInFlightRef.current
+
+    const promise = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(30)
+
+        if (error) return
+
+        const rows = (data ?? []) as Array<Notification & { metadata?: any | null }>
+        setNotifications(rows)
+        recomputeUnreadCount(rows)
+      } catch (error) {
+        logWarn('notifications', 'refresh failed', error)
+      }
+    })()
+
+    refreshInFlightRef.current = promise
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(30)
-
-      if (error) return
-
-      const rows = (data ?? []) as Array<Notification & { metadata?: any | null }>
-      setNotifications(rows)
-      recomputeUnreadCount(rows)
-    } catch (error) {
-      logWarn('notifications', 'refresh failed', error)
+      await promise
+    } finally {
+      if (refreshInFlightRef.current === promise) refreshInFlightRef.current = null
     }
   }, [authReady, recomputeUnreadCount, userId])
 
   const refreshChatUnreadByRoom = useCallback(async () => {
     if (!authReady || !userId) return
+    if (isUnloading()) return
+    const now = Date.now()
+    if (now - (lastChatRefreshAtRef.current || 0) < 800) return
+    lastChatRefreshAtRef.current = now
+    if (refreshChatInFlightRef.current) return await refreshChatInFlightRef.current
+
     const aggregated: UnreadByRoomId = {}
     const pageSize = 1000
     let from = 0
-    try {
-      while (true) {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('metadata')
-          .eq('user_id', userId)
-          .eq('type', 'chat')
-          .eq('is_read', false)
-          .range(from, from + pageSize - 1)
 
-        if (error) break
-        const rows = (data ?? []) as any[]
+    const promise = (async () => {
+      try {
+        while (true) {
+          const { data, error } = await supabase
+            .from('notifications')
+            .select('metadata')
+            .eq('user_id', userId)
+            .eq('type', 'chat')
+            .eq('is_read', false)
+            .range(from, from + pageSize - 1)
 
-        for (const row of rows) {
-          const roomId = safeRoomIdFromMetadata(row?.metadata)
-          if (!roomId) continue
-          aggregated[roomId] = (aggregated[roomId] ?? 0) + 1
+          if (error) break
+          const rows = (data ?? []) as any[]
+
+          for (const row of rows) {
+            const roomId = safeRoomIdFromMetadata(row?.metadata)
+            if (!roomId) continue
+            aggregated[roomId] = (aggregated[roomId] ?? 0) + 1
+          }
+
+          if (rows.length < pageSize) break
+          from += pageSize
         }
 
-        if (rows.length < pageSize) break
-        from += pageSize
+        setUnreadByRoomId(aggregated)
+      } catch (error) {
+        logWarn('notifications', 'refresh chat unread failed', error)
       }
+    })()
 
-      setUnreadByRoomId(aggregated)
-    } catch (error) {
-      logWarn('notifications', 'refresh chat unread failed', error)
+    refreshChatInFlightRef.current = promise
+    try {
+      await promise
+    } finally {
+      if (refreshChatInFlightRef.current === promise) refreshChatInFlightRef.current = null
     }
   }, [authReady, userId])
 
@@ -334,6 +377,9 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return
+      try {
+        if (typeof window !== 'undefined' && Boolean((window as any).__systemflow_unloading)) return
+      } catch {}
       void refresh()
       void refreshChatUnreadByRoom()
     }

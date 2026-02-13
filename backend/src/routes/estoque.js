@@ -15,6 +15,7 @@ router.post('/movimentar', async (req, res) => {
     local_estoque,
     motivo,
     local_estoque_destino,
+    valor_compra_unit,
     data_movimentacao,
   } = req.body || {};
 
@@ -34,9 +35,13 @@ router.post('/movimentar', async (req, res) => {
   }
 
   const isoDate = data_movimentacao ? new Date(data_movimentacao).toISOString() : null;
+  const valorCompraUnit = valor_compra_unit === null || valor_compra_unit === undefined ? null : Number(valor_compra_unit);
+  if (valorCompraUnit !== null && (!Number.isFinite(valorCompraUnit) || valorCompraUnit < 0)) {
+    return res.status(400).json({ error: 'valor_compra_unit inválido' });
+  }
 
   try {
-    const { data, error } = await supabaseAdmin.rpc('crm_movimentar_estoque_admin', {
+    const rpcArgs = {
       p_prod_id: prod_id,
       p_tipo_movimentacao: tipo,
       p_quantidade: quant,
@@ -45,7 +50,26 @@ router.post('/movimentar', async (req, res) => {
       p_user_id: req.user.id,
       p_local_destino: tipo === 'Transferencia' ? localDestino : null,
       p_data_movimentacao: isoDate ?? null,
-    });
+    };
+    if (valorCompraUnit !== null) rpcArgs.p_valor_compra_unit = valorCompraUnit;
+
+    let { data, error } = await supabaseAdmin.rpc('crm_movimentar_estoque_admin', rpcArgs);
+
+    if (error && valorCompraUnit !== null) {
+      const msg = String(error.message || '');
+      const retryable =
+        msg.includes('p_valor_compra_unit') ||
+        msg.toLowerCase().includes('could not find the function') ||
+        msg.toLowerCase().includes('function') ||
+        msg.toLowerCase().includes('not exist');
+
+      if (retryable) {
+        const { p_valor_compra_unit: _ignored, ...fallbackArgs } = rpcArgs;
+        const retry = await supabaseAdmin.rpc('crm_movimentar_estoque_admin', fallbackArgs);
+        data = retry.data;
+        error = retry.error;
+      }
+    }
 
     if (error) {
       const msg = error.message || 'Falha ao movimentar estoque';
@@ -60,4 +84,3 @@ router.post('/movimentar', async (req, res) => {
 });
 
 module.exports = router;
-

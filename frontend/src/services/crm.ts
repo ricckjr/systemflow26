@@ -740,13 +740,13 @@ export interface CRM_Produto {
   modelo_prod: string | null
   descricao_prod: string
   descricao_detalhada?: string | null
-  cod_proposta_ref?: string | null
   unidade_prod?: string | null
   ncm_id?: string | null
   finalidade_item?: string | null
   familia_id?: string | null
-  obs_prod: string | null
+  obs_interna: string | null
   produto_valor: number | null
+  valor_compra?: number | null
   criado_em: string | null
   atualizado_em: string | null
 }
@@ -1231,13 +1231,13 @@ export async function fetchCrmProdutos() {
     'modelo_prod',
     'descricao_prod',
     'descricao_detalhada',
-    'cod_proposta_ref',
     'unidade_prod',
     'ncm_id',
     'finalidade_item',
     'familia_id',
-    'obs_prod',
+    'obs_interna',
     'produto_valor',
+    'valor_compra',
     'criado_em',
     'atualizado_em'
   ]
@@ -1275,12 +1275,12 @@ export async function createCrmProduto(
     | 'integ_id'
     | 'descricao_prod'
     | 'descricao_detalhada'
-    | 'obs_prod'
+    | 'obs_interna'
     | 'produto_valor'
+    | 'valor_compra'
     | 'situacao_prod'
     | 'marca_prod'
     | 'modelo_prod'
-    | 'cod_proposta_ref'
     | 'unidade_prod'
     | 'ncm_id'
     | 'finalidade_item'
@@ -1297,13 +1297,13 @@ export async function createCrmProduto(
     'modelo_prod',
     'descricao_prod',
     'descricao_detalhada',
-    'cod_proposta_ref',
     'unidade_prod',
     'ncm_id',
     'finalidade_item',
     'familia_id',
-    'obs_prod',
+    'obs_interna',
     'produto_valor',
+    'valor_compra',
     'criado_em',
     'atualizado_em'
   ]
@@ -1314,13 +1314,13 @@ export async function createCrmProduto(
     modelo_prod: payload.modelo_prod || null,
     descricao_prod: payload.descricao_prod,
     descricao_detalhada: payload.descricao_detalhada || null,
-    cod_proposta_ref: payload.cod_proposta_ref || null,
     unidade_prod: payload.unidade_prod || null,
     ncm_id: payload.ncm_id || null,
     finalidade_item: payload.finalidade_item || null,
     familia_id: payload.familia_id || null,
-    obs_prod: payload.obs_prod || null,
-    produto_valor: payload.produto_valor ?? 0
+    obs_interna: payload.obs_interna || null,
+    produto_valor: payload.produto_valor ?? 0,
+    valor_compra: payload.valor_compra ?? null
   }
 
   for (let i = 0; i < cols.length; i++) {
@@ -1358,12 +1358,12 @@ export async function updateCrmProduto(
       | 'integ_id'
       | 'descricao_prod'
       | 'descricao_detalhada'
-      | 'obs_prod'
+      | 'obs_interna'
       | 'produto_valor'
+      | 'valor_compra'
       | 'situacao_prod'
       | 'marca_prod'
       | 'modelo_prod'
-      | 'cod_proposta_ref'
       | 'unidade_prod'
       | 'ncm_id'
       | 'finalidade_item'
@@ -1381,13 +1381,13 @@ export async function updateCrmProduto(
     'modelo_prod',
     'descricao_prod',
     'descricao_detalhada',
-    'cod_proposta_ref',
     'unidade_prod',
     'ncm_id',
     'finalidade_item',
     'familia_id',
-    'obs_prod',
+    'obs_interna',
     'produto_valor',
+    'valor_compra',
     'criado_em',
     'atualizado_em'
   ]

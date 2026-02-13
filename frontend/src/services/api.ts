@@ -119,6 +119,7 @@ export const api = {
       quantidade: number
       local_estoque: string
       local_estoque_destino?: string | null
+      valor_compra_unit?: number | null
       motivo?: string | null
       data_movimentacao?: string | null
     }) =>

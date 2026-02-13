@@ -33,7 +33,7 @@ export default function Produtos() {
           unidade_prod: payload.unidade ?? null,
           ncm_id: payload.ncmId ?? null,
           familia_id: payload.familiaId ?? null,
-          obs_prod: null,
+          obs_interna: null,
           produto_valor: payload.preco ?? 0
         })
       }}
@@ -45,7 +45,7 @@ export default function Produtos() {
           unidade_prod: payload.unidade ?? null,
           ncm_id: payload.ncmId ?? null,
           familia_id: payload.familiaId ?? null,
-          obs_prod: null,
+          obs_interna: null,
           produto_valor: payload.preco ?? 0
         })
       }}

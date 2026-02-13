@@ -12,6 +12,11 @@ const formatCurrency = (value: number | null) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
 
+const formatCurrencyOrDash = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return '-'
+  return formatCurrency(value)
+}
+
 const parseMoneyInput = (input: string) => {
   const raw = (input || '').trim()
   if (!raw) return null
@@ -54,6 +59,13 @@ const formatUnknownError = (err: unknown) => {
   const status = typeof anyErr?.status === 'number' ? String(anyErr.status) : ''
   const parts = [message, details, hint].map((p) => String(p || '').trim()).filter(Boolean)
   const base = parts[0] || 'Erro'
+  const baseLower = base.toLowerCase()
+  if (baseLower.includes('<html') || baseLower.includes('<head') || baseLower.includes('<body')) {
+    const statusFromErr = typeof anyErr?.status === 'number' ? anyErr.status : null
+    const looks502 = baseLower.includes('502') || statusFromErr === 502
+    if (looks502) return 'Serviço indisponível (502). Tente novamente em instantes.'
+    return 'Resposta inválida do servidor. Tente novamente em instantes.'
+  }
   const extra = parts.slice(1).join(' — ')
   const meta = [code ? `code=${code}` : '', status ? `status=${status}` : ''].filter(Boolean).join(' ')
   return [base, extra].filter(Boolean).join(' — ') + (meta ? ` (${meta})` : '')
@@ -68,6 +80,7 @@ type MovimentoEstoque = {
   data_movimentacao: string
   local_estoque: string
   quantidade: number
+  valor_compra_unit: number | null
   motivo: string | null
   user_id: string | null
 }
@@ -109,6 +122,7 @@ const Estoque: React.FC = () => {
   const { isAdmin } = useAuth()
   const location = useLocation()
   const isConsultaEstoque = location.pathname.includes('/compras-estoque/consultar-estoque')
+  const isMountedRef = useRef(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<CRM_Produto[]>([])
@@ -135,6 +149,7 @@ const Estoque: React.FC = () => {
   const [draftModelo, setDraftModelo] = useState('')
   const [draftMarca, setDraftMarca] = useState('')
   const [draftPreco, setDraftPreco] = useState('')
+  const [draftValorCompra, setDraftValorCompra] = useState('')
   const [draftUnidade, setDraftUnidade] = useState('UN')
   const [draftNcmCodigo, setDraftNcmCodigo] = useState('')
   const [draftNcmId, setDraftNcmId] = useState('')
@@ -155,6 +170,8 @@ const Estoque: React.FC = () => {
 
   const [movimentosByProdutoId, setMovimentosByProdutoId] = useState<Record<string, MovimentoEstoque[]>>({})
   const [saldosByProdutoId, setSaldosByProdutoId] = useState<Record<string, Record<string, number>>>({})
+  const saldosLoadingCountRef = useRef(0)
+  const [saldosLoading, setSaldosLoading] = useState(false)
   const [isMovimentoOpen, setIsMovimentoOpen] = useState(false)
   const [movimentoError, setMovimentoError] = useState<string | null>(null)
   const [movimentoSaving, setMovimentoSaving] = useState(false)
@@ -163,13 +180,46 @@ const Estoque: React.FC = () => {
   const [movLocalOrigem, setMovLocalOrigem] = useState('')
   const [movLocalDestino, setMovLocalDestino] = useState('')
   const [movQuantidade, setMovQuantidade] = useState('')
+  const [movValorCompra, setMovValorCompra] = useState('')
   const [movMotivo, setMovMotivo] = useState(MOV_MOTIVOS[0] || 'Ajuste por Inventário')
 
+  const normalizeLocalKey = (value: string) => String(value || '').trim().toLowerCase()
+
   const getSaldoLocal = (prodId: string, local: string) => {
-    return Number(saldosByProdutoId[prodId]?.[local] ?? 0)
+    const map = saldosByProdutoId[prodId] || {}
+    if (Object.prototype.hasOwnProperty.call(map, local)) return Number((map as any)[local] ?? 0)
+    const wanted = normalizeLocalKey(local)
+    for (const [k, v] of Object.entries(map)) {
+      if (normalizeLocalKey(k) === wanted) return Number(v ?? 0)
+    }
+    return 0
   }
 
+  const saldosResumoMov = useMemo(() => {
+    if (!savedProduto?.prod_id) return { total: 0, locais: 0, byLocal: {} as Record<string, number> }
+    const movimentos = movimentosByProdutoId[savedProduto.prod_id] || []
+    const byLocal: Record<string, number> = {}
+    for (const m of movimentos as any[]) {
+      const local = String(m?.local_estoque || '').trim()
+      if (!local) continue
+      const tipo = String(m?.tipo_movimentacao || '').trim()
+      const quantidade = Number(m?.quantidade ?? 0)
+      if (!quantidade) continue
+      let delta = 0
+      if (tipo === 'Entrada') delta = quantidade
+      else if (tipo === 'Saida') delta = -quantidade
+      else if (tipo === 'Ajuste') delta = quantidade
+      else delta = 0
+      if (!byLocal[local]) byLocal[local] = 0
+      byLocal[local] += delta
+    }
+    const total = Object.values(byLocal).reduce((acc, v) => acc + Number(v || 0), 0)
+    const locais = Object.keys(byLocal).length
+    return { total, locais, byLocal }
+  }, [savedProduto, movimentosByProdutoId])
+
   const openMovimentoModal = (p: CRM_Produto) => {
+    setSavedProduto(p)
     setMovimentoError(null)
     setMovTipo('Entrada')
     setMovData(new Date().toISOString().slice(0, 10))
@@ -177,6 +227,7 @@ const Estoque: React.FC = () => {
     setMovLocalOrigem(defaultLocal)
     setMovLocalDestino(locaisAtivos.find((l) => l.nome !== defaultLocal)?.nome || '')
     setMovQuantidade('')
+    setMovValorCompra(p?.valor_compra === null || p?.valor_compra === undefined ? '' : String(p.valor_compra))
     setMovMotivo(MOV_MOTIVOS[0] || 'Ajuste por Inventário')
     setIsMovimentoOpen(true)
   }
@@ -216,6 +267,13 @@ const Estoque: React.FC = () => {
       return
     }
 
+    const valorCompraUnit =
+      movValorCompra.trim().length === 0 ? null : (parseMoneyInput(movValorCompra) ?? Number(movValorCompra))
+    if (valorCompraUnit !== null && (!Number.isFinite(valorCompraUnit) || valorCompraUnit < 0)) {
+      setMovimentoError('O "Valor de Compra (unitário)" é inválido.')
+      return
+    }
+
     if (movTipo === 'Transferencia' && localOrigem === localDestino) {
       setMovimentoError('Para transferência, escolha locais diferentes.')
       return
@@ -229,9 +287,17 @@ const Estoque: React.FC = () => {
         quantidade,
         local_estoque: localOrigem,
         local_estoque_destino: movTipo === 'Transferencia' ? localDestino : null,
+        valor_compra_unit: valorCompraUnit,
         motivo,
         data_movimentacao: data
       })
+
+      if (valorCompraUnit !== null && movTipo === 'Entrada') {
+        try {
+          const updated = await updateCrmProduto(savedProduto.prod_id, { valor_compra: valorCompraUnit })
+          setSavedProduto(updated)
+        } catch {}
+      }
 
       await loadMovimentos(savedProduto.prod_id)
       await loadSaldos([savedProduto.prod_id])
@@ -249,6 +315,7 @@ const Estoque: React.FC = () => {
     setDraftModelo(p.modelo_prod || '')
     setDraftMarca(p.marca_prod || '')
     setDraftPreco(p.produto_valor === null || p.produto_valor === undefined ? '' : String(p.produto_valor))
+    setDraftValorCompra(p.valor_compra === null || p.valor_compra === undefined ? '' : String(p.valor_compra))
     setDraftUnidade(p.unidade_prod || 'UN')
     setDraftNcmId(p.ncm_id || '')
     setDraftNcmCodigo(formatNcmCodigo(p.ncm_id || '') || '')
@@ -256,7 +323,7 @@ const Estoque: React.FC = () => {
     setDraftFamiliaId(p.familia_id || '')
     setDraftFamiliaNova('')
     setDraftDescricaoDetalhada(p.descricao_detalhada || '')
-    setDraftObsProd(p.obs_prod || '')
+    setDraftObsProd(p.obs_interna || '')
     setNcmSearch('')
     setNcmOptions([])
     setIsNcmOpen(false)
@@ -272,6 +339,13 @@ const Estoque: React.FC = () => {
   }
 
   useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
     const run = async () => {
       setLoading(true)
@@ -282,7 +356,7 @@ const Estoque: React.FC = () => {
         if (!cancelled) {
           setItems(produtos)
           const ids = produtos.map((p) => p.prod_id).filter(Boolean)
-          await loadSaldos(ids)
+          void loadSaldos(ids)
         }
       } catch (e) {
         if (!cancelled) setError(formatUnknownError(e) || 'Falha ao carregar')
@@ -316,22 +390,78 @@ const Estoque: React.FC = () => {
   }
 
   const loadSaldos = async (prodIds: string[]) => {
-    const ids = (prodIds || []).filter(Boolean)
+    const ids = Array.from(new Set((prodIds || []).filter(Boolean)))
     if (ids.length === 0) return
+    saldosLoadingCountRef.current += 1
+    if (isMountedRef.current) setSaldosLoading(true)
     try {
-      const { data, error: qError } = await (supabase as any)
-        .from('vw_saldo_produto')
-        .select('prod_id,local_estoque,saldo')
-        .in('prod_id', ids)
+      const chunkSize = 60
+      const concurrency = 2
+      const chunks: string[][] = []
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        chunks.push(ids.slice(i, i + chunkSize))
+      }
 
-      if (qError) throw qError
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+      const rows: any[] = []
+      const errors: unknown[] = []
+      const okProdIds = new Set<string>()
+      let cursor = 0
+
+      const workers = Array.from({ length: Math.min(concurrency, chunks.length) }, async () => {
+        while (true) {
+          const index = cursor++
+          if (index >= chunks.length) return
+          const chunkIds = chunks[index] || []
+          if (chunkIds.length === 0) continue
+
+          try {
+            let lastError: unknown = null
+            let data: any[] | null = null
+
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              const result = await (supabase as any)
+                .from('vw_saldo_produto')
+                .select('prod_id,local_estoque,saldo')
+                .in('prod_id', chunkIds)
+
+              const qError = (result as any)?.error
+              if (!qError) {
+                data = ((result as any)?.data || []) as any[]
+                lastError = null
+                break
+              }
+              lastError = qError
+              const status = typeof (qError as any)?.status === 'number' ? (qError as any).status : null
+              const msg = String((qError as any)?.message || '')
+              const retryable = status === 502 || status === 503 || msg.includes('502') || msg.includes('503')
+              if (!retryable || attempt === 3) break
+              await sleep(350 * attempt)
+            }
+
+            if (lastError) throw lastError
+
+            for (const id of chunkIds) okProdIds.add(id)
+            for (const row of (data || []) as any[]) rows.push(row)
+          } catch (e) {
+            errors.push(e)
+          }
+        }
+      })
+
+      await Promise.all(workers)
+
+      if (!isMountedRef.current) return
 
       setSaldosByProdutoId((prev) => {
         const next: Record<string, Record<string, number>> = { ...prev }
-        for (const id of ids) next[id] = {}
-        for (const row of (data || []) as any[]) {
+        for (const id of ids) {
+          if (okProdIds.has(id)) next[id] = {}
+          else if (!next[id]) next[id] = {}
+        }
+        for (const row of rows as any[]) {
           const pid = String(row?.prod_id || '')
-          const loc = String(row?.local_estoque || '')
+          const loc = String(row?.local_estoque || '').trim()
           const saldo = Number(row?.saldo ?? 0)
           if (!pid) continue
           if (!loc) continue
@@ -340,25 +470,42 @@ const Estoque: React.FC = () => {
         }
         return next
       })
+
+      if (errors.length > 0) {
+        setError((prev) => prev || `Saldo indisponível: ${formatUnknownError(errors[0])}`)
+      }
     } catch (e) {
-      setSaldosByProdutoId((prev) => {
-        const next: Record<string, Record<string, number>> = { ...prev }
-        for (const id of ids) next[id] = {}
-        return next
-      })
+      if (!isMountedRef.current) return
       setError((prev) => prev || `Saldo indisponível: ${formatUnknownError(e)}`)
+    } finally {
+      saldosLoadingCountRef.current = Math.max(0, saldosLoadingCountRef.current - 1)
+      if (isMountedRef.current && saldosLoadingCountRef.current === 0) setSaldosLoading(false)
     }
   }
 
   const loadMovimentos = async (prodId: string) => {
     if (!prodId) return
     try {
-      const { data, error: qError } = await (supabase as any)
-        .from('crm_movimentacoes_estoque')
-        .select('mov_id,prod_id,tipo_movimentacao,data_movimentacao,quantidade,local_estoque,motivo,user_id')
+      const base = (supabase as any).from('crm_movimentacoes_estoque')
+      let { data, error: qError } = await base
+        .select('mov_id,prod_id,tipo_movimentacao,data_movimentacao,quantidade,valor_compra_unit,local_estoque,motivo,user_id')
         .eq('prod_id', prodId)
         .order('data_movimentacao', { ascending: false })
         .limit(200)
+
+      if (qError) {
+        const msg = String((qError as any)?.message || '')
+        const missingCol = msg.toLowerCase().includes('valor_compra_unit') && msg.toLowerCase().includes('column')
+        if (missingCol) {
+          const retry = await base
+            .select('mov_id,prod_id,tipo_movimentacao,data_movimentacao,quantidade,local_estoque,motivo,user_id')
+            .eq('prod_id', prodId)
+            .order('data_movimentacao', { ascending: false })
+            .limit(200)
+          data = retry.data
+          qError = retry.error
+        }
+      }
 
       if (qError) throw qError
 
@@ -427,6 +574,7 @@ const Estoque: React.FC = () => {
     setDraftModelo('')
     setDraftMarca('')
     setDraftPreco('')
+    setDraftValorCompra('')
     setDraftUnidade('UN')
     setDraftNcmCodigo('')
     setDraftNcmId('')
@@ -568,6 +716,7 @@ const Estoque: React.FC = () => {
     setCreateError(null)
     try {
       const valor = parseMoneyInput(draftPreco) ?? 0
+      const valorCompra = parseMoneyInput(draftValorCompra)
       const descricaoDetalhada = draftDescricaoDetalhada.trim() || null
       const obs = draftObsProd.trim() || null
       if (savedProduto && editing) {
@@ -578,12 +727,12 @@ const Estoque: React.FC = () => {
           descricao_prod: descricao,
           descricao_detalhada: descricaoDetalhada,
           finalidade_item: finalidade,
-          cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_id: ncmId,
           familia_id: draftFamiliaId || null,
-          obs_prod: obs,
-          produto_valor: valor
+          obs_interna: obs,
+          produto_valor: valor,
+          valor_compra: valorCompra
         })
         setSavedProduto(updated)
         setEditing(false)
@@ -596,12 +745,12 @@ const Estoque: React.FC = () => {
           descricao_prod: descricao,
           descricao_detalhada: descricaoDetalhada,
           finalidade_item: finalidade,
-          cod_proposta_ref: null,
           unidade_prod: unidade,
           ncm_id: ncmId,
           familia_id: draftFamiliaId || null,
-          obs_prod: obs,
-          produto_valor: valor
+          obs_interna: obs,
+          produto_valor: valor,
+          valor_compra: valorCompra
         })
         setSavedProduto(created)
       }
@@ -733,6 +882,16 @@ const Estoque: React.FC = () => {
     )
   }, [filtered])
 
+  const saldosResumoByProdutoId = useMemo(() => {
+    const next: Record<string, { total: number; locais: number }> = {}
+    for (const [prodId, byLocal] of Object.entries(saldosByProdutoId)) {
+      const values = Object.values(byLocal || {})
+      const total = values.reduce((acc, v) => acc + Number(v || 0), 0)
+      next[prodId] = { total, locais: Object.keys(byLocal || {}).length }
+    }
+    return next
+  }, [saldosByProdutoId])
+
   return (
     <div className="pt-4 pb-6 max-w-[1600px] mx-auto px-4 md:px-6 space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -752,6 +911,7 @@ const Estoque: React.FC = () => {
             setDraftModelo('')
             setDraftMarca('')
             setDraftPreco('')
+            setDraftValorCompra('')
             setDraftUnidade('UN')
             setDraftNcmCodigo('')
             setDraftNcmId('')
@@ -866,9 +1026,10 @@ const Estoque: React.FC = () => {
 
                   <div className="divide-y divide-[var(--border)]">
                     {filteredSorted.map((p) => {
-                      const saldos = saldosByProdutoId[p.prod_id] || {}
-                      const total = Object.values(saldos).reduce((acc, v) => acc + Number(v || 0), 0)
-                      const qtdLocais = Object.keys(saldos).length
+                      const hasSaldo = Object.prototype.hasOwnProperty.call(saldosByProdutoId, p.prod_id)
+                      const resumo = saldosResumoByProdutoId[p.prod_id] || { total: 0, locais: 0 }
+                      const total = resumo.total
+                      const qtdLocais = resumo.locais
                       const quantidade = total
                       return (
                         <div
@@ -901,11 +1062,11 @@ const Estoque: React.FC = () => {
                               <div className="col-span-2 min-w-0 text-right">
                                 <div className="inline-flex items-center justify-end gap-2">
                                   <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-sm font-mono font-semibold text-emerald-200">
-                                    {quantidade.toLocaleString('pt-BR')}
+                                    {hasSaldo ? quantidade.toLocaleString('pt-BR') : saldosLoading ? '...' : '—'}
                                   </span>
                                 </div>
                                 <div className="mt-1 text-[10px] text-[var(--text-muted)] truncate" title={`Locais: ${qtdLocais}`}>
-                                  Locais: {qtdLocais}
+                                  Locais: {hasSaldo ? qtdLocais : saldosLoading ? '...' : '—'}
                                 </div>
                               </div>
                             </>
@@ -925,10 +1086,10 @@ const Estoque: React.FC = () => {
                               </div>
                               <div className="col-span-2 min-w-0">
                                 <div className="text-sm text-[var(--text)] font-mono truncate">
-                                  Total: {total.toLocaleString('pt-BR')}
+                                  Total: {hasSaldo ? total.toLocaleString('pt-BR') : saldosLoading ? '...' : '—'}
                                 </div>
                                 <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
-                                  Locais: {qtdLocais}
+                                  Locais: {hasSaldo ? qtdLocais : saldosLoading ? '...' : '—'}
                                 </div>
                               </div>
                               <div className="col-span-1 min-w-0">
@@ -1151,6 +1312,13 @@ const Estoque: React.FC = () => {
                   <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.unidade_prod || '-'}</div>
                 </div>
                 <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    Saldo Total ({savedProduto.unidade_prod || 'UN'})
+                  </div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{saldosResumoMov.total.toLocaleString('pt-BR')}</div>
+                  <div className="text-[10px] text-slate-500">Locais: {saldosResumoMov.locais.toLocaleString('pt-BR')}</div>
+                </div>
+                <div className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
                   <div className="text-sm font-semibold text-slate-100 font-mono">{formatNcmCodigo(savedProduto.ncm_id || '') || '-'}</div>
                 </div>
@@ -1162,8 +1330,12 @@ const Estoque: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Preço Unitário</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Preço Unitário (Venda)</div>
                   <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrency(savedProduto.produto_valor)}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor de Compra (Unit.)</div>
+                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrencyOrDash(savedProduto.valor_compra)}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Atualizado em</div>
@@ -1180,8 +1352,8 @@ const Estoque: React.FC = () => {
                   [
                     { key: 'detalhada', label: 'Descrição Detalhada' },
                     { key: 'local', label: 'Local do Estoque' },
-                    { key: 'observacoes', label: 'Observações' },
-                    { key: 'historico', label: 'Histórico' }
+                    { key: 'observacoes', label: 'Observações Internas' },
+                    { key: 'historico', label: 'Histórico de Movimentação' }
                   ] as Array<{ key: ProdutoInfoTab; label: string }>
                 ).map((t) => (
                   <button
@@ -1207,7 +1379,7 @@ const Estoque: React.FC = () => {
 
               {produtoInfoTab === 'observacoes' && (
                 <div className="text-sm text-slate-100 whitespace-pre-wrap break-words">
-                  {savedProduto.obs_prod?.trim() ? savedProduto.obs_prod : '-'}
+                  {savedProduto.obs_interna?.trim() ? savedProduto.obs_interna : '-'}
                 </div>
               )}
 
@@ -1218,21 +1390,41 @@ const Estoque: React.FC = () => {
                       <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
                       <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Disponível</div>
                     </div>
-                    {locaisAtivos.length === 0 ? (
-                      <div className="px-4 py-4 text-xs text-slate-400">Nenhum local de estoque cadastrado.</div>
-                    ) : (
-                      locaisAtivos.map((l) => {
-                        const qty = getSaldoLocal(savedProduto.prod_id, l.nome)
-                        return (
-                          <div key={l.local_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
-                            <div className="col-span-8 text-sm text-slate-100 truncate" title={l.nome}>
-                              {l.nome}
-                            </div>
-                            <div className="col-span-4 text-sm font-mono text-slate-100 text-right">{qty.toLocaleString('pt-BR')}</div>
+                    {(() => {
+                      const saldos = saldosResumoMov.byLocal || {}
+                      const fromSaldos = Object.entries(saldos)
+                        .map(([local, saldo]) => ({ key: local, nome: local, qty: Number(saldo || 0) }))
+                        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }))
+
+                      const rows =
+                        locaisAtivos.length > 0
+                          ? [
+                              ...locaisAtivos.map((l) => ({
+                                key: l.local_id,
+                                nome: l.nome,
+                                qty: Number(
+                                  saldos[Object.keys(saldos).find((k) => normalizeLocalKey(k) === normalizeLocalKey(l.nome)) || l.nome] ?? 0
+                                )
+                              })),
+                              ...fromSaldos
+                                .filter((r) => !locaisAtivos.some((l) => normalizeLocalKey(l.nome) === normalizeLocalKey(r.nome)))
+                                .map((r) => ({ ...r, key: `saldo:${r.nome}` }))
+                            ]
+                          : fromSaldos
+
+                      if (rows.length === 0) {
+                        return <div className="px-4 py-4 text-xs text-slate-400">Saldo indisponível.</div>
+                      }
+
+                      return rows.map((r) => (
+                        <div key={r.key} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
+                          <div className="col-span-8 text-sm text-slate-100 truncate" title={r.nome}>
+                            {r.nome}
                           </div>
-                        )
-                      })
-                    )}
+                          <div className="col-span-4 text-sm font-mono text-slate-100 text-right">{r.qty.toLocaleString('pt-BR')}</div>
+                        </div>
+                      ))
+                    })()}
                   </div>
                 </div>
               )}
@@ -1244,7 +1436,7 @@ const Estoque: React.FC = () => {
                       <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</div>
                       <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo</div>
                       <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Quantidade</div>
+                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Qtd / Compra</div>
                       <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Motivo</div>
                     </div>
                     {(movimentosByProdutoId[savedProduto.prod_id] || []).length === 0 ? (
@@ -1255,7 +1447,10 @@ const Estoque: React.FC = () => {
                           <div className="col-span-2 text-sm text-slate-100 font-mono">{formatDateBR(m.data_movimentacao)}</div>
                           <div className="col-span-3 text-sm text-slate-100">{m.tipo_movimentacao}</div>
                           <div className="col-span-2 text-sm text-slate-100">{m.local_estoque}</div>
-                          <div className="col-span-2 text-sm text-slate-100 font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
+                          <div className="col-span-2">
+                            <div className="text-sm text-slate-100 font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{formatCurrencyOrDash(m.valor_compra_unit)}</div>
+                          </div>
                           <div className="col-span-3 text-sm text-slate-100 truncate" title={m.motivo || ''}>
                             {m.motivo || '-'}
                           </div>
@@ -1347,7 +1542,7 @@ const Estoque: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Unidade</label>
                     <select
@@ -1374,6 +1569,17 @@ const Estoque: React.FC = () => {
                       <option value="SC">Saco</option>
                       <option value="T">Ton</option>
                     </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
+                    <input
+                      value={draftValorCompra}
+                      onChange={(e) => setDraftValorCompra(e.target.value)}
+                      inputMode="decimal"
+                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                      placeholder="Ex: 149,90"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -1507,7 +1713,7 @@ const Estoque: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações internas</label>
                     <textarea
                       value={draftObsProd}
                       onChange={(e) => setDraftObsProd(e.target.value)}
@@ -1737,6 +1943,17 @@ const Estoque: React.FC = () => {
                 inputMode="decimal"
                 className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
                 placeholder="0,000000"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
+              <input
+                value={movValorCompra}
+                onChange={(e) => setMovValorCompra(e.target.value)}
+                inputMode="decimal"
+                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                placeholder="Ex: 149,90"
               />
             </div>
             {movTipo === 'Transferencia' ? (

@@ -155,9 +155,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [viewOnly, setViewOnly] = useState(false)
 
   const active = useMemo(() => items.find((i) => i.id === activeId) || null, [items, activeId])
   const isEditing = !!active
+  const readOnlyForm = viewOnly && isEditing
 
   const [draftSituacao, setDraftSituacao] = useState(true)
   const [draftDescricao, setDraftDescricao] = useState('')
@@ -354,6 +356,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
   const handleOpenCreate = () => {
     setActiveId(null)
+    setViewOnly(false)
     setIsFormOpen(true)
   }
 
@@ -363,6 +366,13 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
       return
     }
     setActiveId(id)
+    setViewOnly(false)
+    setIsFormOpen(true)
+  }
+
+  const handleOpenDetails = (id: string) => {
+    setActiveId(id)
+    setViewOnly(true)
     setIsFormOpen(true)
   }
 
@@ -544,7 +554,8 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 {filtered.map((i) => (
                   <div
                     key={i.id}
-                    className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors"
+                    onClick={() => handleOpenDetails(i.id)}
+                    className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors cursor-pointer"
                   >
                     <div className="col-span-2 min-w-0">
                       <div className="text-sm font-semibold text-slate-200 truncate" title={i.codigo || ''}>
@@ -576,7 +587,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
                         type="button"
-                        onClick={() => handleOpenEdit(i.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenEdit(i.id)
+                        }}
                         className={`p-2 rounded-lg border transition-colors ${
                           canEditExisting
                             ? 'text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-transparent hover:border-cyan-500/20'
@@ -588,7 +602,10 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleAskDelete(i.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleAskDelete(i.id)
+                        }}
                         className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
                         title="Excluir"
                       >
@@ -609,46 +626,62 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           if (saving) return
           setIsFormOpen(false)
           setActiveId(null)
+          setViewOnly(false)
         }}
         title={
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-xl ${colors.iconBg} border ${colors.iconBorder} flex items-center justify-center`}>
               <Settings size={16} className={colors.iconText} />
             </div>
-            {isEditing ? `Editar ${singularLabel}` : `Novo ${singularLabel}`}
+            {readOnlyForm ? `${singularLabel} (Detalhes)` : isEditing ? `Editar ${singularLabel}` : `Novo ${singularLabel}`}
           </div>
         }
         size="lg"
         footer={
-          <>
+          readOnlyForm ? (
             <button
               type="button"
               onClick={() => {
-                if (saving) return
                 setIsFormOpen(false)
                 setActiveId(null)
+                setViewOnly(false)
               }}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
-              disabled={saving}
+              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
             >
-              Cancelar
+              Fechar
             </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || !draftDescricao.trim()}
-              className={`px-7 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white font-bold text-sm shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2`}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="animate-spin" size={16} />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar'
-              )}
-            </button>
-          </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (saving) return
+                  setIsFormOpen(false)
+                  setActiveId(null)
+                  setViewOnly(false)
+                }}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={saving || !draftDescricao.trim()}
+                className={`px-7 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white font-bold text-sm shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar'
+                )}
+              </button>
+            </>
+          )
         }
       >
         <div className="space-y-4">
@@ -664,6 +697,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               <select
                 value={draftSituacao ? 'ATIVO' : 'INATIVO'}
                 onChange={(e) => setDraftSituacao(e.target.value === 'ATIVO')}
+                disabled={readOnlyForm}
                 className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
               >
                 <option value="ATIVO">Ativo</option>
@@ -690,6 +724,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
             <input
               value={draftDescricao}
               onChange={(e) => setDraftDescricao(e.target.value)}
+              readOnly={readOnlyForm}
               className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
               placeholder={`Ex: ${singularLabel} A`}
               autoFocus
@@ -715,6 +750,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 <input
                   value={draftCodNbs}
                   onChange={(e) => setDraftCodNbs(e.target.value)}
+                  readOnly={readOnlyForm}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
                   placeholder="Ex: 1.01.01"
                 />
@@ -724,6 +760,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 <input
                   value={draftCodLc116}
                   onChange={(e) => setDraftCodLc116(e.target.value)}
+                  readOnly={readOnlyForm}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
                   placeholder="Ex: 14.01"
                 />
@@ -738,6 +775,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 value={draftDescricaoDetalhada}
                 onChange={(e) => setDraftDescricaoDetalhada(e.target.value)}
                 rows={4}
+                readOnly={readOnlyForm}
                 className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
                 placeholder="Descreva o serviço em detalhes..."
               />
@@ -751,6 +789,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 <select
                   value={draftUnidade}
                   onChange={(e) => setDraftUnidade(e.target.value)}
+                  disabled={readOnlyForm}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
                 >
                   <option value="UN">UN</option>
@@ -783,7 +822,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 value={draftFamiliaId}
                 onChange={(e) => setDraftFamiliaId(e.target.value)}
                 className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
-                disabled={familiaLoading}
+                disabled={familiaLoading || readOnlyForm}
               >
                 <option value="">{familiaLoading ? 'Carregando...' : 'Selecione (opcional)'}</option>
                 {familiaOptions.map((f) => (
@@ -797,13 +836,14 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 <input
                   value={draftFamiliaNova}
                   onChange={(e) => setDraftFamiliaNova(e.target.value)}
+                  readOnly={readOnlyForm}
                   className={`flex-1 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
                   placeholder="Criar nova família..."
                 />
                 <button
                   type="button"
                   onClick={handleCreateFamilia}
-                  disabled={familiaSaving || !draftFamiliaNova.trim()}
+                  disabled={readOnlyForm || familiaSaving || !draftFamiliaNova.trim()}
                   className={`px-5 py-3 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2`}
                 >
                   {familiaSaving ? (
@@ -831,6 +871,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     setNcmSearch(v)
                     setDraftNcmId('')
                   }}
+                  readOnly={readOnlyForm}
                   className={`w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-10 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
                   placeholder="Buscar NCM por código ou descrição..."
                 />
@@ -855,9 +896,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                         type="button"
                         key={opt.ncm_id}
                         onClick={() => {
+                          if (readOnlyForm) return
                           setDraftNcmId(opt.ncm_id)
                           setNcmSearch(opt.codigo)
                         }}
+                        disabled={readOnlyForm}
                         className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
                       >
                         <div className="grid grid-cols-12 gap-3 items-start">
@@ -878,6 +921,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               value={draftPreco}
               onChange={(e) => setDraftPreco(e.target.value)}
               inputMode="decimal"
+              readOnly={readOnlyForm}
               className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
               placeholder="Ex: 199,90"
             />

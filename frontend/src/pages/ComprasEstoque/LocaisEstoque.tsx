@@ -134,12 +134,12 @@ export default function LocaisEstoque() {
       }
 
       const { error: insError } = await (supabase as any).from('crm_locais_estoque').insert({ nome, ativo: true })
-      if (insError) throw insError
-      setNovoNome('')
+      const { error: rpcError } = await (supabase as any).rpc('crm_criar_local_estoque_admin', { p_nome: nome, p_ativo: true })
+      if (rpcError) throw rpcError
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao criar local')
-    } finally {
+      setError(formatUnknownError(e))
       setSaving(false)
     }
   }
@@ -149,17 +149,18 @@ export default function LocaisEstoque() {
     setError(null)
     try {
       const { error: upError } = await (supabase as any)
-        .from('crm_locais_estoque')
-        .update({ ativo: !item.ativo, atualizado_em: new Date().toISOString() })
-        .eq('local_id', item.local_id)
-      if (upError) throw upError
-      await load()
+      const { error: rpcError } = await (supabase as any).rpc('crm_set_local_estoque_ativo_admin', {
+        p_local_id: item.local_id,
+        p_ativo: !item.ativo
+      })
+      if (rpcError) throw rpcError
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao atualizar local')
-    } finally {
+      setError(formatUnknownError(e))
       setSaving(false)
     }
   }
+
 
   const startEdit = (item: LocalEstoque) => {
     setError(null)

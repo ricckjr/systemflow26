@@ -1099,7 +1099,7 @@ export default function Colaboradores() {
               className="text-left rounded-2xl border border-white/10 bg-[#0F172A] p-5 hover:border-cyan-500/30 hover:bg-[#0B1220] transition-colors group relative"
             >
               {docAlert === 'vencido' ? (
-                <div className="absolute -top-2 -right-2 p-1.5 bg-amber-500 rounded-full shadow-lg shadow-amber-500/20 animate-pulse z-10" title="Documentos vencidos">
+                <div className="absolute -top-2 -right-2 p-1.5 bg-orange-500 rounded-full shadow-lg shadow-orange-500/20 animate-pulse z-10" title="Documentos inválidos">
                   <AlertTriangle size={16} className="text-white" />
                 </div>
               ) : docAlert === 'vencendo' ? (
@@ -1667,6 +1667,7 @@ export default function Colaboradores() {
                         <th className="px-4 py-3">Nome</th>
                         <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
                         <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Status</th>
                         <th className="px-4 py-3 text-right">Ações</th>
                       </tr>
                     </thead>
@@ -1675,6 +1676,7 @@ export default function Colaboradores() {
                         const isAtivo = activeColaborador.usuario.ativo !== false
                         const vencido = isAtivo && isVencido(d.dataVencimento)
                         const vencendo = isAtivo && isVencendo(d.dataVencimento)
+                        const statusDoc = vencido ? 'Inválido' : 'Válido'
                         return (
                           <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
                             <td className="px-4 py-3">
@@ -1706,6 +1708,17 @@ export default function Colaboradores() {
                                   </span>
                                 ) : null}
                               </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {statusDoc === 'Inválido' ? (
+                                <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
+                                  Inválido
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                  Válido
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-2">

@@ -585,8 +585,8 @@ export default function EmpresasCorrespondentes() {
                   <div className="col-span-5 min-w-0">
                     <div className="text-sm text-slate-200 truncate flex items-center gap-2">
                       {docAlert ? (
-                        <span title={docAlert === 'vencido' ? 'Documentos vencidos' : 'Documentos vencendo em breve'}>
-                          <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                        <span title={docAlert === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
+                          <AlertTriangle size={14} className={`${docAlert === 'vencido' ? 'text-orange-500' : 'text-amber-500'} shrink-0`} />
                         </span>
                       ) : null}
                       <span className="truncate">{i.nome_fantasia || '-'}</span>
@@ -774,6 +774,7 @@ export default function EmpresasCorrespondentes() {
                         <th className="px-4 py-3">Nome</th>
                         <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
                         <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Status</th>
                         <th className="px-4 py-3 text-right">Ações</th>
                       </tr>
                     </thead>
@@ -782,12 +783,13 @@ export default function EmpresasCorrespondentes() {
                         const isAtivo = Boolean(active.ativo)
                         const vencido = isAtivo && isVencido(d.dataVencimento)
                         const vencendo = isAtivo && isVencendo(d.dataVencimento)
+                        const statusDoc = vencido ? 'Inválido' : 'Válido'
                         return (
                           <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2 min-w-0">
                                 {vencido ? (
-                                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                  <AlertTriangle size={14} className="text-orange-500 shrink-0" />
                                 ) : vencendo ? (
                                   <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                                 ) : null}
@@ -811,6 +813,17 @@ export default function EmpresasCorrespondentes() {
                                   </span>
                                 ) : null}
                               </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {statusDoc === 'Inválido' ? (
+                                <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
+                                  Inválido
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                  Válido
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-2">

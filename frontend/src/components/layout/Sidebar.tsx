@@ -15,11 +15,13 @@ import {
   GraduationCap,
   Car,
   Box,
+  AlertTriangle,
 } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/useNotifications';
 import { LogoutModal } from '../ui/LogoutModal';
+import { supabase } from '@/services/supabase';
 
 interface NavItem {
   label: string;
@@ -178,6 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { hasAnyChatUnread } = useNotifications();
+  const [docsInvalidMenu, setDocsInvalidMenu] = useState({ colabs: false, empresas: false });
 
   const canSee = useMemo(() => {
     if (!permissions) return (_modulo: string, _acao: string) => false
@@ -249,6 +252,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const key = `${menu.label}:${activeGroup.submodulo}`
     setExpandedSubmenus((prev) => (prev[key] ? prev : { ...prev, [key]: true }))
   }, [activeMenuLabel, location.pathname, showText]);
+
+  useEffect(() => {
+    let mounted = true
+    const sb = supabase as any
+    async function loadInvalidDocs() {
+      try {
+        const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
+        const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+
+        let colabs = false
+        try {
+          const r = await sb
+            .from('colaboradores_documentos')
+            .select('colaborador_id, data_vencimento')
+            .lt('data_vencimento', hojeISO)
+            .not('data_vencimento', 'is', null)
+
+          if (r?.error) throw r.error
+          const ids = Array.from(new Set((r?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
+          if (ids.length > 0) {
+            try {
+              const r2 = await sb
+                .from('colaboradores')
+                .select('id, usuario:profiles(ativo)')
+                .in('id', ids)
+              if (r2?.error) throw r2.error
+              colabs = (r2?.data ?? []).some((row: any) => row?.usuario?.ativo !== false)
+            } catch (e) {
+              colabs = true
+            }
+          }
+        } catch (e) {
+          colabs = false
+        }
+
+        let empresas = false
+        try {
+          const r = await sb
+            .from('fin_empresas_correspondentes_documentos')
+            .select('empresa_id, data_vencimento')
+            .lt('data_vencimento', hojeISO)
+            .not('data_vencimento', 'is', null)
+
+          if (r?.error) throw r.error
+          const ids = Array.from(new Set((r?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
+          if (ids.length > 0) {
+            try {
+              const r2 = await sb
+                .from('fin_empresas_correspondentes')
+                .select('empresa_id, ativo')
+                .in('empresa_id', ids)
+                .eq('ativo', true)
+              if (r2?.error) throw r2.error
+              empresas = (r2?.data ?? []).length > 0
+            } catch (e) {
+              empresas = true
+            }
+          }
+        } catch (e) {
+          empresas = false
+        }
+
+        if (!mounted) return
+        setDocsInvalidMenu({ colabs, empresas })
+      } catch (e) {
+        if (!mounted) return
+        setDocsInvalidMenu({ colabs: false, empresas: false })
+      }
+    }
+    loadInvalidDocs()
+    return () => { mounted = false }
+  }, [])
 
   const toggleMenu = (label: string) => {
     if (isCollapsed && setIsExpanded) {
@@ -335,6 +411,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {item.modulo === 'comunidade' && hasAnyChatUnread && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
                     )}
+                    {item.label === 'ADMINISTRATIVO' && (docsInvalidMenu.colabs || docsInvalidMenu.empresas) && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full border border-[#0F172A]" />
+                    )}
                   </div>
                   {showText && (
                     <span className="text-[11px] font-bold tracking-widest uppercase">
@@ -381,9 +460,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                           <div className="flex items-center justify-between">
                             <span>{sub.label}</span>
-                            {sub.path === '/app/comunidade/chat' && hasAnyChatUnread && (
-                              <span className="w-2 h-2 bg-cyan-500 rounded-full" />
-                            )}
+                            <div className="flex items-center gap-2">
+                              {sub.path === '/app/comunidade/chat' && hasAnyChatUnread && (
+                                <span className="w-2 h-2 bg-cyan-500 rounded-full" />
+                              )}
+                              {sub.path === '/app/administrativo/colaboradores' && docsInvalidMenu.colabs && (
+                                <span title="Documentos inválidos">
+                                  <AlertTriangle size={14} className="text-orange-500" />
+                                </span>
+                              )}
+                              {sub.path === '/app/financeiro/empresas-correspondentes' && docsInvalidMenu.empresas && (
+                                <span title="Documentos inválidos">
+                                  <AlertTriangle size={14} className="text-orange-500" />
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </Link>
                       );

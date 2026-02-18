@@ -65,6 +65,12 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(userData)
       }),
+
+    setAvatar: (id: string, dataUrl: string) =>
+      request(`/admin/users/${id}/avatar`, {
+        method: 'POST',
+        body: JSON.stringify({ dataUrl })
+      }),
     
     disable: (id: string) => 
       request(`/admin/users/${id}/disable`, {

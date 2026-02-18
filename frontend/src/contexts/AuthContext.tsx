@@ -479,7 +479,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return list.some(p => p.modulo === modulo && p.acao === acao)
     },
     isAdmin:
-      profile?.cargo === 'ADMIN' ||
+      String(profile?.cargo || '').toUpperCase() === 'ADMIN' ||
+      String(profile?.cargo || '').toUpperCase() === 'ADMINISTRADOR' ||
       !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && p.acao === 'CONTROL')
   }), [
     session,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, FilePlus, Calendar, Building2, User, UserPlus, Key, Info, CheckCircle2, AlertTriangle, Download, Trash2, Upload } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { useUsuarios, UsuarioSimples } from '@/hooks/useUsuarios'
@@ -233,14 +233,9 @@ export default function Colaboradores() {
   const [novoEmailCorporativo, setNovoEmailCorporativo] = useState('')
   const [novoRamal, setNovoRamal] = useState('')
 
-  // Acesso / Usuário
-  const [tipoSistema, setTipoSistema] = useState<'criar' | 'vincular' | 'sem_acesso'>('criar')
-  
-  // Vincular existente
-  const [vincularUsuarioId, setVincularUsuarioId] = useState('')
-  const [vincularSearch, setVincularSearch] = useState('')
-  const [isVincularDropdownOpen, setIsVincularDropdownOpen] = useState(false)
-  const vincularRef = useRef<HTMLDivElement>(null)
+  const [completarUsuario, setCompletarUsuario] = useState<UsuarioSistema | null>(null)
+  const [novoAvatarFile, setNovoAvatarFile] = useState<File | null>(null)
+  const [novoAvatarPreview, setNovoAvatarPreview] = useState('')
 
   // Criar novo
   const [novoAcessoEmail, setNovoAcessoEmail] = useState('') // Login
@@ -284,6 +279,8 @@ export default function Colaboradores() {
   const [editDataAdmissao, setEditDataAdmissao] = useState('')
   const [editEmailCorporativo, setEditEmailCorporativo] = useState('')
   const [editRamal, setEditRamal] = useState('')
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null)
+  const [editAvatarPreview, setEditAvatarPreview] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
 
@@ -426,46 +423,52 @@ export default function Colaboradores() {
     }
   }, [novoEmailCorporativo])
 
-  // Click outside para fechar dropdown de vincular
   useEffect(() => {
-    if (!isVincularDropdownOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (vincularRef.current && !vincularRef.current.contains(e.target as Node)) {
-        setIsVincularDropdownOpen(false)
-      }
+    if (!novoAvatarFile) {
+      setNovoAvatarPreview('')
+      return
     }
-    window.addEventListener('mousedown', handleClick)
-    return () => window.removeEventListener('mousedown', handleClick)
-  }, [isVincularDropdownOpen])
+    const url = URL.createObjectURL(novoAvatarFile)
+    setNovoAvatarPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [novoAvatarFile])
+
+  useEffect(() => {
+    if (!editAvatarFile) {
+      setEditAvatarPreview('')
+      return
+    }
+    const url = URL.createObjectURL(editAvatarFile)
+    setEditAvatarPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [editAvatarFile])
 
   // --- Filtros ---
 
-  const filteredColaboradores = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const base = colaboradores.filter((c) => {
-      const ativo = c.usuario.ativo !== false
-      return statusFilter === 'ativos' ? ativo : !ativo
+  const colaboradoresByUserId = useMemo(() => {
+    const map: Record<string, Colaborador> = {}
+    colaboradores.forEach((c) => {
+      const userId = String(c.usuario?.id || '')
+      if (!userId) return
+      map[userId] = c
     })
+    return map
+  }, [colaboradores])
+
+  const filteredCards = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const base = allUsers.filter((u) => {
+      const ativo = u.ativo !== false
+      return statusFilter === 'ativos' ? ativo : !ativo
+    }).map((u) => ({ user: u, colab: colaboradoresByUserId[u.id] ?? null }))
     if (!q) return base
-    return base.filter((c) => {
-      const nome = (c.usuario.nome || c.nomeCompleto || '').toLowerCase()
-      const cargo = (c.usuario.cargo || '').toLowerCase()
-      const empresaNome = (c.empresaNome || '').toLowerCase()
+    return base.filter(({ user, colab }) => {
+      const nome = String(user.nome || '').toLowerCase()
+      const cargo = String(user.cargo || colab?.departamento || '').toLowerCase()
+      const empresaNome = String(colab?.empresaNome || '').toLowerCase()
       return nome.includes(q) || cargo.includes(q) || empresaNome.includes(q)
     })
-  }, [colaboradores, search, statusFilter])
-
-  const usuariosParaVincular = useMemo(() => {
-    const q = vincularSearch.trim().toLowerCase()
-    if (!q) return allUsers.slice(0, 10)
-    return allUsers
-      .filter((u) => (u.nome || '').toLowerCase().includes(q) || (u.email_login || '').toLowerCase().includes(q))
-      .slice(0, 10)
-  }, [vincularSearch, allUsers])
-
-  const usuarioVinculadoSelecionado = useMemo(() => 
-    allUsers.find(u => u.id === vincularUsuarioId), 
-  [vincularUsuarioId, allUsers])
+  }, [allUsers, colaboradoresByUserId, search, statusFilter])
 
   // --- Actions ---
 
@@ -571,15 +574,41 @@ export default function Colaboradores() {
     setNovoDataAdmissao('')
     setNovoEmailCorporativo('')
     setNovoRamal('')
-    
-    setTipoSistema('criar')
-    setVincularUsuarioId('')
-    setVincularSearch('')
+
+    setCompletarUsuario(null)
+    setNovoAvatarFile(null)
     setNovoAcessoEmail('')
     setNovoAcessoSenha('')
     // Tenta selecionar perfil padrão
     const defPerfil = perfis.find(p => p.perfil_nome === 'VENDEDOR' || p.perfil_nome === 'COMERCIAL')
     setNovoAcessoPerfilId(defPerfil?.perfil_id || '')
+
+    setNovoError(null)
+    setIsNovoOpen(true)
+  }
+
+  const openCompletarCadastroFromUser = (u: UsuarioSistema) => {
+    setCurrentTab('pessoal')
+    setCompletarUsuario(u)
+    setNovoAvatarFile(null)
+
+    setNovoNomeCompleto(u.nome || '')
+    setNovoCpf('')
+    setNovoDataNascimento('')
+    setNovoEmailPessoal(u.email_login || '')
+    setNovoTelefone(u.telefone || '')
+    setNovoEndereco('')
+    setNovoCep('')
+
+    setNovoEmpresaId('')
+    setNovoMatricula('')
+    setNovoDepartamento(u.cargo || '')
+    setNovoDataAdmissao('')
+    setNovoEmailCorporativo(u.email_corporativo || '')
+    setNovoRamal(u.ramal || '')
+    setNovoAcessoEmail('')
+    setNovoAcessoSenha('')
+    setNovoAcessoPerfilId('')
 
     setNovoError(null)
     setIsNovoOpen(true)
@@ -617,6 +646,7 @@ export default function Colaboradores() {
 
   const openEditar = () => {
     if (!activeColaborador) return
+    setEditAvatarFile(null)
     setEditNomeCompleto(activeColaborador.nomeCompleto)
     setEditCpf(activeColaborador.cpf)
     setEditDataNascimento(activeColaborador.dataNascimento)
@@ -633,6 +663,15 @@ export default function Colaboradores() {
     setEditError(null)
     setIsEditarOpen(true)
   }
+
+  const fileToDataUrl = useCallback((file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(new Error('Falha ao ler arquivo.'))
+      reader.readAsDataURL(file)
+    })
+  }, [])
 
   const handleSave = async () => {
     setNovoError(null)
@@ -656,13 +695,14 @@ export default function Colaboradores() {
       let usuarioFinal: UsuarioSistema | null = null
 
       // 2. Lógica de Usuário
-      if (tipoSistema === 'criar') {
+      if (completarUsuario) {
+        usuarioFinal = completarUsuario
+      } else {
         if (!novoAcessoEmail) throw new Error('Email de Login é obrigatório para criar usuário.')
         if (!novoAcessoSenha || novoAcessoSenha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
         if (!novoAcessoPerfilId) throw new Error('Perfil de Acesso é obrigatório.')
 
-        // Cria usuário no backend
-        const cargo = novoDepartamento // Usa departamento como cargo inicial ou mapeia
+        const cargo = novoDepartamento
         const userPayload = {
           nome: novoNomeCompleto,
           email_login: novoAcessoEmail,
@@ -678,10 +718,8 @@ export default function Colaboradores() {
         const userId = resp?.user?.id
         if (!userId) throw new Error('Falha ao criar usuário no sistema.')
 
-        // Atribui perfil RBAC
         await api.rbac.assignUserPerfil(userId, novoAcessoPerfilId)
 
-        // Monta objeto usuario local
         usuarioFinal = {
           id: userId,
           nome: novoNomeCompleto,
@@ -693,25 +731,17 @@ export default function Colaboradores() {
           avatar_url: null,
           ativo: true
         }
-        
-        // Atualiza lista local de usuários
-        setAllUsers(prev => [usuarioFinal!, ...prev])
 
-      } else if (tipoSistema === 'vincular') {
-        if (!vincularUsuarioId) throw new Error('Selecione um usuário existente para vincular.')
-        usuarioFinal = usuarioVinculadoSelecionado || null
-        if (!usuarioFinal) throw new Error('Usuário selecionado não encontrado.')
-      } else {
-        // Sem acesso (apenas cadastro de colaborador? Por enquanto o sistema exige usuarioSimples na tipagem)
-        // Vou criar um objeto "fake" ou impedir. O requisito diz "criar acesso dele tbm", então 'sem_acesso' talvez não deva existir ou cria um user inativo?
-        // Vou assumir que TODO colaborador DEVE ter um usuário, ou cria um placeholder.
-        // Se a opção for "sem acesso", vamos criar um usuário desativado sem senha? Não, o backend exige.
-        // Vou bloquear 'sem_acesso' por enquanto ou forçar criação.
-        // Para simplificar: se 'sem_acesso', não cria usuário. Mas a interface Colaborador exige `usuario`.
-        // Vou criar um usuário "dummy" na memória apenas para o card, mas sem ID de sistema real? Não, isso quebra consistência.
-        // Decisão: Todo colaborador tem um User vinculado. Se 'sem_acesso', não faz sentido no sistema atual.
-        // Vou manter apenas Criar ou Vincular.
-        throw new Error('Todo colaborador deve ter um usuário de sistema vinculado (novo ou existente).')
+        setAllUsers(prev => [usuarioFinal!, ...prev])
+      }
+
+      if (novoAvatarFile) {
+        const dataUrl = await fileToDataUrl(novoAvatarFile)
+        const r = await api.users.setAvatar(usuarioFinal!.id, dataUrl)
+        const avatarUrl = r?.avatar_url ?? null
+        usuarioFinal = { ...usuarioFinal!, avatar_url: avatarUrl }
+        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, avatar_url: avatarUrl } : u)))
+        setCompletarUsuario((prev) => (prev?.id === usuarioFinal!.id ? { ...prev, avatar_url: avatarUrl } : prev))
       }
 
       // 3. Criar Colaborador no Banco
@@ -773,6 +803,7 @@ export default function Colaboradores() {
 
       setColaboradores(prev => [novoColaborador, ...prev])
       setIsNovoOpen(false)
+      setCompletarUsuario(null)
 
     } catch (err: any) {
       setNovoError(err.message || 'Erro ao salvar.')
@@ -932,6 +963,14 @@ export default function Colaboradores() {
         cargo: editDepartamento
       })
 
+      let avatarUrl: string | null | undefined = undefined
+      if (editAvatarFile) {
+        const dataUrl = await fileToDataUrl(editAvatarFile)
+        const r = await api.users.setAvatar(activeColaborador.usuario.id, dataUrl)
+        avatarUrl = r?.avatar_url ?? null
+        setAllUsers((prev) => prev.map((u) => (u.id === activeColaborador.usuario.id ? { ...u, avatar_url: avatarUrl } : u)))
+      }
+
       const empresa = empresas.find((e) => e.empresa_id === editEmpresaId)
       const empresaNome = empresa?.nome_fantasia || empresa?.razao_social || activeColaborador.empresaNome
 
@@ -958,7 +997,8 @@ export default function Colaboradores() {
                   telefone: editTelefone,
                   email_corporativo: editEmailCorporativo || null,
                   ramal: editRamal || null,
-                  cargo: editDepartamento
+                  cargo: editDepartamento,
+                  avatar_url: avatarUrl === undefined ? c.usuario.avatar_url : avatarUrl
                 }
               }
             : c
@@ -1075,27 +1115,27 @@ export default function Colaboradores() {
             </div>
           ))}
         </div>
-      ) : filteredColaboradores.length === 0 ? (
+      ) : filteredCards.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-12 text-center flex flex-col items-center">
           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
             <UserPlus size={32} className="text-slate-500" />
           </div>
-          <p className="text-base font-semibold text-slate-200">Nenhum colaborador encontrado</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-xs">Cadastre novos colaboradores para gerenciar seus dados e acessos ao sistema.</p>
+          <p className="text-base font-semibold text-slate-200">Nenhum usuário encontrado</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs">Crie usuários ou complete o cadastro para exibir nos cards.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredColaboradores.map((c) => {
-            const isAtivo = c.usuario.ativo !== false
-            const statusLoaded = c.docsLoaded
-              ? c.documentos.reduce<DocAlertStatus | null>((acc, d) => mergeDocAlertStatus(acc, getDocAlertStatus(d.dataVencimento)), null)
+          {filteredCards.map(({ user, colab }) => {
+            const isAtivo = user.ativo !== false
+            const statusLoaded = colab?.docsLoaded
+              ? colab.documentos.reduce<DocAlertStatus | null>((acc, d) => mergeDocAlertStatus(acc, getDocAlertStatus(d.dataVencimento)), null)
               : null
-            const docAlert = isAtivo ? mergeDocAlertStatus(docsAlertaMap[c.id], statusLoaded) : null
+            const docAlert = colab && isAtivo ? mergeDocAlertStatus(docsAlertaMap[colab.id], statusLoaded) : null
             return (
             <button
-              key={c.id}
+              key={user.id}
               type="button"
-              onClick={() => openDetalhe(c.id)}
+              onClick={() => (colab ? openDetalhe(colab.id) : openCompletarCadastroFromUser(user))}
               className="text-left rounded-2xl border border-white/10 bg-[#0F172A] p-5 hover:border-cyan-500/30 hover:bg-[#0B1220] transition-colors group relative"
             >
               {docAlert === 'vencido' ? (
@@ -1109,27 +1149,29 @@ export default function Colaboradores() {
               ) : null}
 
               <div className="flex items-center gap-3">
-                <Avatar nome={c.usuario.nome} avatarUrl={c.usuario.avatar_url} size={48} />
+                <Avatar nome={user.nome} avatarUrl={user.avatar_url} size={48} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">{c.usuario.nome}</div>
-                  <div className="text-xs text-slate-400 truncate">{c.usuario.cargo || c.departamento || '—'}</div>
+                  <div className="text-sm font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">{user.nome}</div>
+                  <div className="text-xs text-slate-400 truncate">{user.cargo || colab?.departamento || '—'}</div>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Building2 size={14} className="text-slate-500" />
-                  <span className="truncate">{c.empresaNome}</span>
+                  <span className="truncate">{colab?.empresaNome || '—'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Calendar size={14} className="text-slate-500" />
-                  <span>Admissão: {formatDateBR(c.dataAdmissao)}</span>
+                  <span>Admissão: {colab?.dataAdmissao ? formatDateBR(colab.dataAdmissao) : '—'}</span>
                 </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">{c.docsLoaded ? `${c.documentos.length} documentos` : '— documentos'}</span>
-                {c.usuario.ativo === false ? (
+                <span className="text-slate-500">{colab?.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
+                {!colab ? (
+                  <span className="text-orange-400 font-medium">Cadastro incompleto</span>
+                ) : user.ativo === false ? (
                   <span className="text-rose-400 font-medium">Desativado</span>
                 ) : (
                   <span className="text-emerald-400 font-medium">Ativo</span>
@@ -1206,6 +1248,44 @@ export default function Colaboradores() {
             {/* Tab: Pessoal */}
             {currentTab === 'pessoal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto de Perfil</label>
+                  <div className="flex items-center gap-3">
+                    <Avatar
+                      nome={novoNomeCompleto || completarUsuario?.nome || 'Usuário'}
+                      avatarUrl={novoAvatarPreview || completarUsuario?.avatar_url || ''}
+                      size={48}
+                    />
+                    <input
+                      type="file"
+                      id="colab-avatar-novo"
+                      accept="image/png,image/jpeg"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null
+                        if (!f) { setNovoAvatarFile(null); return }
+                        if (f.size > 3 * 1024 * 1024) { setNovoError('Imagem muito grande (máx 3MB).'); setNovoAvatarFile(null); return }
+                        if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setNovoError('Formato inválido. Use PNG ou JPEG.'); setNovoAvatarFile(null); return }
+                        setNovoAvatarFile(f)
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="colab-avatar-novo"
+                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      Selecionar foto
+                    </label>
+                    {novoAvatarFile && (
+                      <button
+                        type="button"
+                        onClick={() => setNovoAvatarFile(null)}
+                        className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
                   <input
@@ -1354,25 +1434,7 @@ export default function Colaboradores() {
             {/* Tab: Acesso */}
             {currentTab === 'acesso' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${tipoSistema === 'criar' ? 'border-cyan-500 bg-cyan-500/20' : 'border-slate-500'}`}>
-                      {tipoSistema === 'criar' && <div className="w-2.5 h-2.5 rounded-full bg-cyan-500" />}
-                    </div>
-                    <input type="radio" className="hidden" checked={tipoSistema === 'criar'} onChange={() => setTipoSistema('criar')} />
-                    <span className={`text-sm font-medium ${tipoSistema === 'criar' ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>Criar Novo Usuário</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${tipoSistema === 'vincular' ? 'border-cyan-500 bg-cyan-500/20' : 'border-slate-500'}`}>
-                      {tipoSistema === 'vincular' && <div className="w-2.5 h-2.5 rounded-full bg-cyan-500" />}
-                    </div>
-                    <input type="radio" className="hidden" checked={tipoSistema === 'vincular'} onChange={() => setTipoSistema('vincular')} />
-                    <span className={`text-sm font-medium ${tipoSistema === 'vincular' ? 'text-white' : 'text-slate-400 group-hover:text-slate-300'}`}>Vincular Existente</span>
-                  </label>
-                </div>
-
-                {tipoSistema === 'criar' && (
+                {!completarUsuario ? (
                   <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
                     <div className="flex items-start gap-3 mb-2">
                       <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
@@ -1420,75 +1482,23 @@ export default function Colaboradores() {
                       </div>
                     </div>
                   </div>
-                )}
-
-                {tipoSistema === 'vincular' && (
-                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-start gap-3 mb-2">
+                ) : (
+                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                    <div className="flex items-start gap-3">
                       <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
                         <CheckCircle2 size={20} />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">Vincular Usuário Existente</h4>
-                        <p className="text-xs text-slate-400">Selecione um usuário já cadastrado para associar a este colaborador.</p>
+                        <h4 className="text-sm font-bold text-white">Usuário já criado</h4>
+                        <p className="text-xs text-slate-400">Complete os dados do colaborador e salve.</p>
                       </div>
                     </div>
-
-                    <div className="relative" ref={vincularRef}>
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Buscar Usuário</label>
-                      <input
-                        value={vincularSearch}
-                        onChange={(e) => {
-                          setVincularSearch(e.target.value)
-                          setIsVincularDropdownOpen(true)
-                          setVincularUsuarioId('')
-                        }}
-                        onFocus={() => setIsVincularDropdownOpen(true)}
-                        placeholder="Nome ou email..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      />
-                      <Search size={16} className="absolute left-3 top-[38px] text-slate-500" />
-
-                      {isVincularDropdownOpen && usuariosParaVincular.length > 0 && !vincularUsuarioId && (
-                        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0B1220] shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
-                          {usuariosParaVincular.map((u) => (
-                            <button
-                              key={u.id}
-                              onClick={() => {
-                                setVincularUsuarioId(u.id)
-                                setVincularSearch(u.nome)
-                                setIsVincularDropdownOpen(false)
-                              }}
-                              className="w-full px-4 py-3 hover:bg-white/5 text-left flex items-center gap-3 border-b border-white/5 last:border-0"
-                            >
-                              <Avatar nome={u.nome} avatarUrl={u.avatar_url} size={32} />
-                              <div>
-                                <div className="text-sm text-slate-200">{u.nome}</div>
-                                <div className="text-xs text-slate-500">{u.email_login}</div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {usuarioVinculadoSelecionado && (
-                        <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-                          <Avatar nome={usuarioVinculadoSelecionado.nome} avatarUrl={usuarioVinculadoSelecionado.avatar_url} size={40} />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-emerald-400">{usuarioVinculadoSelecionado.nome}</div>
-                            <div className="text-xs text-emerald-500/70 truncate">{usuarioVinculadoSelecionado.email_login}</div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              setVincularUsuarioId('')
-                              setVincularSearch('')
-                            }}
-                            className="text-xs font-bold text-emerald-400 hover:text-emerald-300"
-                          >
-                            Alterar
-                          </button>
-                        </div>
-                      )}
+                    <div className="p-3 rounded-xl bg-[#0B1220] border border-white/10 flex items-center gap-3">
+                      <Avatar nome={completarUsuario.nome} avatarUrl={completarUsuario.avatar_url} size={40} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-200 truncate">{completarUsuario.nome}</div>
+                        <div className="text-xs text-slate-500 truncate">{completarUsuario.email_login}</div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1907,6 +1917,40 @@ export default function Colaboradores() {
             {/* Tab: Pessoal */}
             {currentTab === 'pessoal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto de Perfil</label>
+                  <div className="flex items-center gap-3">
+                    <Avatar nome={editNomeCompleto || 'Usuário'} avatarUrl={editAvatarPreview || activeColaborador?.usuario.avatar_url || ''} size={48} />
+                    <input
+                      type="file"
+                      id="colab-avatar-edit"
+                      accept="image/png,image/jpeg"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null
+                        if (!f) { setEditAvatarFile(null); return }
+                        if (f.size > 3 * 1024 * 1024) { setEditError('Imagem muito grande (máx 3MB).'); setEditAvatarFile(null); return }
+                        if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setEditError('Formato inválido. Use PNG ou JPEG.'); setEditAvatarFile(null); return }
+                        setEditAvatarFile(f)
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="colab-avatar-edit"
+                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      Selecionar foto
+                    </label>
+                    {editAvatarFile && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAvatarFile(null)}
+                        className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
                   <input

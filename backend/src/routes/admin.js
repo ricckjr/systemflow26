@@ -55,6 +55,17 @@ function normalizeCargo(input) {
   return 'VENDEDOR';
 }
 
+function parseAvatarDataUrl(dataUrl) {
+  const raw = String(dataUrl || '')
+  const m = raw.match(/^data:(image\/png|image\/jpeg);base64,([A-Za-z0-9+/=]+)$/)
+  if (!m) return null
+  const contentType = m[1]
+  const b64 = m[2]
+  const buffer = Buffer.from(b64, 'base64')
+  const ext = contentType === 'image/png' ? 'png' : 'jpg'
+  return { buffer, contentType, ext }
+}
+
 // === 1. LIST USERS ===
 router.get('/users', async (req, res) => {
   const { page = 1, limit = 50, search } = req.query;
@@ -263,6 +274,36 @@ router.patch('/users/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+router.post('/users/:id/avatar', async (req, res) => {
+  const { id } = req.params
+  const { dataUrl } = req.body || {}
+  const parsed = parseAvatarDataUrl(dataUrl)
+  if (!parsed) return res.status(400).json({ error: 'Avatar inválido. Envie PNG/JPEG em dataUrl base64.' })
+  if (parsed.buffer.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'Avatar muito grande. Máximo 3MB.' })
+
+  try {
+    const path = `avatars/${id}-${Date.now()}.${parsed.ext}`
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(path, parsed.buffer, { contentType: parsed.contentType, upsert: true })
+    if (uploadError) throw uploadError
+
+    const { data: pub } = supabaseAdmin.storage.from('avatars').getPublicUrl(path)
+    const avatar_url = pub?.publicUrl || null
+
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ avatar_url, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    if (profileError) throw profileError
+
+    res.json({ avatar_url })
+  } catch (err) {
+    console.error('Set Avatar Error:', err)
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // === 5. DISABLE USER ===
 router.patch('/users/:id/disable', async (req, res) => {

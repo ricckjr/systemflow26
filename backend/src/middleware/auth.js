@@ -52,6 +52,11 @@ const requirePermission = (modulo, acao) => {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
+      const cargo = String(req.profile?.cargo || '').toUpperCase().trim();
+      if (cargo === 'ADMIN' || cargo === 'ADMINISTRADOR') {
+        return next();
+      }
+
       const { data, error } = await supabaseAdmin.rpc('has_permission', {
         user_id: req.user.id,
         modulo,
@@ -77,7 +82,8 @@ const requirePermission = (modulo, acao) => {
 
 const requireAdmin = (req, res, next) => {
   // Check 'cargo' instead of non-existent 'is_admin' column
-  if (!req.profile || req.profile.cargo !== 'ADMIN') {
+  const cargo = String(req.profile?.cargo || '').toUpperCase().trim();
+  if (cargo !== 'ADMIN' && cargo !== 'ADMINISTRADOR') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();

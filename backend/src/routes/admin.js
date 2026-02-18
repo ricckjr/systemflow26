@@ -1,11 +1,37 @@
 const express = require('express');
 const { supabaseAdmin } = require('../supabase');
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
-router.use(requirePermission('CONFIGURACOES', 'CONTROL'));
+router.use(async (req, res, next) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+
+    const cargo = String(req.profile?.cargo || '').toUpperCase().trim();
+    if (cargo === 'ADMIN' || cargo === 'ADMINISTRADOR') return next();
+
+    const acoes = ['CONTROL', 'MANAGE'];
+    for (const acao of acoes) {
+      const { data, error } = await supabaseAdmin.rpc('has_permission', {
+        user_id: req.user.id,
+        modulo: 'CONFIGURACOES',
+        acao
+      });
+      if (error) {
+        console.error('Permission check error:', error);
+        return res.status(500).json({ error: 'Permission check failed' });
+      }
+      if (data) return next();
+    }
+
+    return res.status(403).json({ error: 'Permission denied' });
+  } catch (err) {
+    console.error('Permission middleware error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 async function attachPerfisToUsers(users) {
   const userIds = (users || []).map((u) => u.id).filter(Boolean);

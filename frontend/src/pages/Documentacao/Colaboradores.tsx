@@ -197,6 +197,7 @@ export default function Colaboradores() {
   const [perfis, setPerfis] = useState<Perfil[]>([])
   const [loadingInit, setLoadingInit] = useState(true)
   const [loadingAux, setLoadingAux] = useState(true)
+  const [usersLoadError, setUsersLoadError] = useState<string | null>(null)
   const [docsAlertaMap, setDocsAlertaMap] = useState<Record<string, DocAlertStatus>>({})
 
   const [search, setSearch] = useState('')
@@ -381,6 +382,7 @@ export default function Colaboradores() {
         setLoadingAux(true)
         ;(async () => {
           try {
+            if (mounted) setUsersLoadError(null)
             const [empresasData, perfisData, usersData] = await Promise.all([
               fetchFinEmpresasCorrespondentes(),
               api.rbac.listPerfis(),
@@ -403,8 +405,9 @@ export default function Colaboradores() {
               ativo: u.ativo
             }))
             setAllUsers(mappedUsers)
-          } catch (e) {
+          } catch (e: any) {
             console.error(e)
+            if (mounted) setUsersLoadError(String(e?.message || 'Falha ao carregar usuários.'))
           } finally {
             if (mounted) setLoadingAux(false)
           }
@@ -1153,8 +1156,8 @@ export default function Colaboradores() {
           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
             <UserPlus size={32} className="text-slate-500" />
           </div>
-          <p className="text-base font-semibold text-slate-200">Nenhum usuário encontrado</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-xs">Crie usuários ou complete o cadastro para exibir nos cards.</p>
+          <p className="text-base font-semibold text-slate-200">{usersLoadError ? 'Não foi possível carregar os usuários' : 'Nenhum usuário encontrado'}</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs">{usersLoadError ? usersLoadError : 'Crie usuários ou complete o cadastro para exibir nos cards.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

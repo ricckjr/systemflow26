@@ -409,6 +409,19 @@ export const router = createBrowserRouter([
         )
       },
 
+      {
+        path: 'administrativo/colaboradores',
+        element: lazyElement(
+          () => import('@/pages/Documentacao/Colaboradores'),
+          'Carregando Colaboradores...',
+          (node) => <RequirePermission modulo="CONFIGURACOES" acao="CONTROL" fallbackTo="/app/dashboard/comercial">{node}</RequirePermission>
+        )
+      },
+
+      { path: 'documentacao/funcionarios', element: <Navigate to="/app/administrativo/colaboradores" replace /> },
+      { path: 'documentacao/colaboradores', element: <Navigate to="/app/administrativo/colaboradores" replace /> },
+      { path: 'documentacao/empresa', element: lazyElement(() => import('@/pages/Documentacao/Empresa'), 'Carregando Empresa...') },
+
       { path: 'infra/supabase', element: lazyElement(() => import('@/pages/Infra/SupabaseHealth'), 'Carregando Monitoramento...') },
 
       {

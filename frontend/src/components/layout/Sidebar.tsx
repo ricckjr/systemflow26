@@ -96,7 +96,6 @@ const navItems: NavItem[] = [
       { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
       { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
       { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Empresas Correspondentes', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
     ],
   },
   {
@@ -143,12 +142,13 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'CONFIG GERAIS',
+    label: 'ADMINISTRATIVO',
     icon: Settings,
     modulo: 'config-gerais',
     requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' },
     subItems: [
-      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Empresa Correspondente', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Colaboradores', path: '/app/administrativo/colaboradores', submodulo: 'colaboradores', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },

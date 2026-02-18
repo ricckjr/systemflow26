@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Pencil, Plus, Search, Settings, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, Download, FilePlus, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -11,10 +11,86 @@ import {
   updateFinEmpresaCorrespondente,
   uploadFinEmpresaCorrespondenteLogo
 } from '@/services/financeiro'
+import { supabase } from '@/services/supabase'
+
+type EmpresaDocumento = {
+  id: string
+  nome: string
+  arquivoNome?: string | null
+  arquivoUrl?: string | null
+  dataEmissao?: string | null
+  dataVencimento?: string | null
+  createdAt: string
+}
+
+const ALERTA_VENCIMENTO_DIAS = 30
+
+function formatDateBR(dateISO: string) {
+  if (!dateISO) return '-'
+  const [y, m, d] = dateISO.split('-')
+  if (!y || !m || !d) return dateISO
+  return `${d}/${m}/${y}`
+}
+
+function getDiffDaysToVencimento(dataVencimento?: string | null) {
+  const raw = String(dataVencimento || '').trim()
+  if (!raw) return false
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  let y: number | null = null
+  let m: number | null = null
+  let d: number | null = null
+  const s = raw.includes('T') ? raw.slice(0, 10) : raw
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const parts = s.split('-').map(Number)
+    y = parts[0]
+    m = parts[1]
+    d = parts[2]
+  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    const parts = s.split('/').map(Number)
+    d = parts[0]
+    m = parts[1]
+    y = parts[2]
+  }
+  if (!y || !m || !d) return false
+  const venc = new Date(y, m - 1, d)
+  if (Number.isNaN(venc.getTime())) return false
+  const diffTime = venc.getTime() - hoje.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
+
+function isVencido(dataVencimento?: string | null) {
+  const diffDays = getDiffDaysToVencimento(dataVencimento)
+  if (diffDays === false) return false
+  return diffDays < 0
+}
+
+function isVencendo(dataVencimento?: string | null) {
+  const diffDays = getDiffDaysToVencimento(dataVencimento)
+  if (diffDays === false) return false
+  return diffDays >= 0 && diffDays <= ALERTA_VENCIMENTO_DIAS
+}
+
+type DocAlertStatus = 'vencido' | 'vencendo'
+
+function getDocAlertStatus(dataVencimento?: string | null): DocAlertStatus | null {
+  if (isVencido(dataVencimento)) return 'vencido'
+  if (isVencendo(dataVencimento)) return 'vencendo'
+  return null
+}
+
+function mergeDocAlertStatus(a: DocAlertStatus | null | undefined, b: DocAlertStatus | null | undefined): DocAlertStatus | null {
+  if (a === 'vencido' || b === 'vencido') return 'vencido'
+  if (a === 'vencendo' || b === 'vencendo') return 'vencendo'
+  return null
+}
 
 const HeaderCard = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">{children}</div>
 )
+
+const sb = supabase as any
 
 export default function EmpresasCorrespondentes() {
   const { session, profile } = useAuth()
@@ -27,8 +103,17 @@ export default function EmpresasCorrespondentes() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDetalheOpen, setIsDetalheOpen] = useState(false)
+  const [isDocumentoOpen, setIsDocumentoOpen] = useState(false)
+  const [isDeleteDocOpen, setIsDeleteDocOpen] = useState(false)
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const active = useMemo(() => items.find((i) => i.empresa_id === activeId) || null, [items, activeId])
+  const detalheReturnIdRef = useRef<string | null>(null)
+  const [docsByEmpresa, setDocsByEmpresa] = useState<Record<string, EmpresaDocumento[]>>({})
+  const [docsLoaded, setDocsLoaded] = useState<Record<string, boolean>>({})
+  const activeDocs = useMemo(() => (activeId ? docsByEmpresa[activeId] ?? [] : []), [docsByEmpresa, activeId])
+  const [docsAlertaMap, setDocsAlertaMap] = useState<Record<string, DocAlertStatus>>({})
 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -49,12 +134,45 @@ export default function EmpresasCorrespondentes() {
   const [logoPreview, setLogoPreview] = useState<string>('')
   const logoInputRef = useRef<HTMLInputElement | null>(null)
 
+  const [docNome, setDocNome] = useState('')
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [docEmissao, setDocEmissao] = useState('')
+  const [docVencimento, setDocVencimento] = useState('')
+  const [docError, setDocError] = useState<string | null>(null)
+  const [savingDoc, setSavingDoc] = useState(false)
+  const savingDocRef = useRef(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const data = await fetchFinEmpresasCorrespondentes()
       setItems(data)
+      try {
+        const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
+        const limite = new Date(hoje)
+        limite.setDate(limite.getDate() + ALERTA_VENCIMENTO_DIAS)
+        const limiteISO = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+        const { data: docsData, error: docsError } = await sb
+          .from('fin_empresas_correspondentes_documentos')
+          .select('empresa_id, data_vencimento')
+          .lte('data_vencimento', limiteISO)
+          .not('data_vencimento', 'is', null)
+
+        if (docsError) throw docsError
+        const map: Record<string, DocAlertStatus> = {}
+        ;(docsData ?? []).forEach((row: any) => {
+          const id = String(row?.empresa_id || '')
+          if (!id) return
+          const status = getDocAlertStatus(row?.data_vencimento)
+          if (!status) return
+          map[id] = mergeDocAlertStatus(map[id], status) as DocAlertStatus
+        })
+        setDocsAlertaMap(map)
+      } catch (e) {
+        setDocsAlertaMap({})
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao carregar')
     } finally {
@@ -136,6 +254,49 @@ export default function EmpresasCorrespondentes() {
     setIsFormOpen(true)
   }
 
+  const openDetalhe = async (id: string) => {
+    setActiveId(id)
+    setIsDetalheOpen(true)
+    try {
+      if (docsLoaded[id]) return
+      const { data, error } = await sb
+        .from('fin_empresas_correspondentes_documentos')
+        .select('id, nome, arquivo_nome, arquivo_url, data_emissao, data_vencimento, created_at')
+        .eq('empresa_id', id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      const docs: EmpresaDocumento[] = (data ?? []).map((d: any) => ({
+        id: d.id,
+        nome: d.nome,
+        arquivoNome: d.arquivo_nome,
+        arquivoUrl: d.arquivo_url,
+        dataEmissao: d.data_emissao,
+        dataVencimento: d.data_vencimento,
+        createdAt: d.created_at
+      }))
+      setDocsByEmpresa((prev) => ({ ...prev, [id]: docs }))
+      setDocsLoaded((prev) => ({ ...prev, [id]: true }))
+    } catch (e) {
+      console.error(e)
+      setDocsByEmpresa((prev) => ({ ...prev, [id]: [] }))
+      setDocsLoaded((prev) => ({ ...prev, [id]: true }))
+    }
+  }
+
+  const openDocumento = () => {
+    if (!activeId) return
+    setDocNome('')
+    setDocFile(null)
+    setDocEmissao('')
+    setDocVencimento('')
+    setDocError(null)
+    setSavingDoc(false)
+    savingDocRef.current = false
+    setIsDocumentoOpen(true)
+    setIsDetalheOpen(false)
+  }
+
   const askDelete = (id: string) => {
     setActiveId(id)
     setIsDeleteOpen(true)
@@ -195,10 +356,16 @@ export default function EmpresasCorrespondentes() {
       }
 
       setIsFormOpen(false)
-      setActiveId(null)
+      const returnId = detalheReturnIdRef.current
+      if (!returnId) setActiveId(null)
       setLogoFile(null)
       setLogoPreview('')
       await load()
+      if (returnId) {
+        detalheReturnIdRef.current = null
+        setActiveId(saved.empresa_id)
+        setIsDetalheOpen(true)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar')
     } finally {
@@ -219,6 +386,124 @@ export default function EmpresasCorrespondentes() {
       setError(e instanceof Error ? e.message : 'Falha ao excluir')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleToggleAtivo = async (ativo: boolean) => {
+    if (!active) return
+    setSaving(true)
+    setError(null)
+    try {
+      const updated = await updateFinEmpresaCorrespondente(active.empresa_id, { ativo })
+      setItems((prev) => prev.map((it) => (it.empresa_id === updated.empresa_id ? updated : it)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao atualizar situação')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const askDeleteDocumento = (docId: string) => {
+    setDeleteDocId(docId)
+    setIsDeleteDocOpen(true)
+  }
+
+  const handleConfirmDeleteDocumento = async () => {
+    if (!activeId) return
+    const docId = deleteDocId
+    if (!docId) return
+    try {
+      const { error } = await sb.from('fin_empresas_correspondentes_documentos').delete().eq('id', docId)
+      if (error) throw error
+      setDocsByEmpresa((prev) => {
+        const nextDocs = (prev[activeId] ?? []).filter((d) => d.id !== docId)
+        setDocsAlertaMap((prevMap) => {
+          const status = nextDocs.reduce<DocAlertStatus | null>((acc, d) => mergeDocAlertStatus(acc, getDocAlertStatus(d.dataVencimento)), null)
+          const next = { ...prevMap }
+          if (status) next[activeId] = status
+          else delete next[activeId]
+          return next
+        })
+        return { ...prev, [activeId]: nextDocs }
+      })
+      setIsDeleteDocOpen(false)
+      setDeleteDocId(null)
+    } catch (e: any) {
+      alert(e?.message || 'Erro ao excluir documento.')
+    }
+  }
+
+  const handleSalvarDocumento = async () => {
+    if (savingDocRef.current) return
+    if (!activeId) return
+    if (!userId) { setDocError('Sessão não encontrada. Faça login novamente.'); return }
+    if (!docNome.trim()) { setDocError('Informe o nome do documento.'); return }
+    if (!docFile) { setDocError('Selecione um arquivo.'); return }
+
+    try {
+      setSavingDoc(true)
+      savingDocRef.current = true
+      setDocError(null)
+
+      const parts = String(docFile.name || '').split('.')
+      const ext = parts.length > 1 ? parts[parts.length - 1] : ''
+      const safeExt = ext ? `.${ext}` : ''
+      const path = `fin-empresas-correspondentes-docs/${userId}/${activeId}/${Date.now()}_${Math.random().toString(36).slice(2)}${safeExt}`
+
+      const { error: uploadError } = await supabase.storage.from('fin-empresas-correspondentes-docs').upload(path, docFile)
+      if (uploadError) {
+        const msg = String(uploadError?.message || '')
+        if (msg.toLowerCase().includes('bucket') && msg.toLowerCase().includes('not found')) {
+          throw new Error("Bucket 'fin-empresas-correspondentes-docs' não existe. Aplique a migration 20260220_fin_empresas_correspondentes_documentos.sql.")
+        }
+        throw uploadError
+      }
+
+      const { data: pub } = supabase.storage.from('fin-empresas-correspondentes-docs').getPublicUrl(path)
+
+      const { data: newDoc, error } = await sb
+        .from('fin_empresas_correspondentes_documentos')
+        .insert({
+          empresa_id: activeId,
+          nome: docNome.trim(),
+          arquivo_nome: docFile.name,
+          arquivo_url: pub.publicUrl,
+          data_emissao: docEmissao || null,
+          data_vencimento: docVencimento || null
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const mapped: EmpresaDocumento = {
+        id: newDoc.id,
+        nome: newDoc.nome,
+        arquivoNome: newDoc.arquivo_nome,
+        arquivoUrl: newDoc.arquivo_url,
+        dataEmissao: newDoc.data_emissao,
+        dataVencimento: newDoc.data_vencimento,
+        createdAt: newDoc.created_at
+      }
+
+      setDocsByEmpresa((prev) => ({
+        ...prev,
+        [activeId]: [mapped, ...(prev[activeId] ?? [])]
+      }))
+      setDocsLoaded((prev) => ({ ...prev, [activeId]: true }))
+
+      setIsDocumentoOpen(false)
+      setIsDetalheOpen(true)
+      setDocNome('')
+      setDocFile(null)
+      setDocEmissao('')
+      setDocVencimento('')
+      setDocError(null)
+    } catch (e: any) {
+      setDocError(e?.message || 'Erro ao salvar documento.')
+    } finally {
+      setSavingDoc(false)
+      savingDocRef.current = false
     }
   }
 
@@ -280,8 +565,16 @@ export default function EmpresasCorrespondentes() {
           <div className="divide-y divide-white/5">
             {filtered.map((i) => {
               const logoUrl = getFinEmpresaCorrespondenteLogoUrl(i.logo_path)
+              const docAlert = i.ativo ? docsAlertaMap[i.empresa_id] ?? null : null
               return (
-                <div key={i.empresa_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
+                <div
+                  key={i.empresa_id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openDetalhe(i.empresa_id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') openDetalhe(i.empresa_id) }}
+                  className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors cursor-pointer"
+                >
                   <div className="col-span-1 flex items-center">
                     {logoUrl ? (
                       <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-lg object-contain bg-white/5 border border-white/10" />
@@ -290,7 +583,23 @@ export default function EmpresasCorrespondentes() {
                     )}
                   </div>
                   <div className="col-span-5 min-w-0">
-                    <div className="text-sm text-slate-200 truncate">{i.nome_fantasia || '-'}</div>
+                    <div className="text-sm text-slate-200 truncate flex items-center gap-2">
+                      {docAlert ? (
+                        <span title={docAlert === 'vencido' ? 'Documentos vencidos' : 'Documentos vencendo em breve'}>
+                          <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                        </span>
+                      ) : null}
+                      <span className="truncate">{i.nome_fantasia || '-'}</span>
+                      {i.ativo ? (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20 shrink-0">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20 shrink-0">
+                          Desativado
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-slate-400 truncate">{[i.cidade, i.uf].filter(Boolean).join(' / ') || '-'}</div>
                   </div>
                   <div className="col-span-4 min-w-0">
@@ -303,7 +612,7 @@ export default function EmpresasCorrespondentes() {
                   <div className="col-span-1 flex items-center justify-end gap-1">
                     <button
                       type="button"
-                      onClick={() => openEdit(i.empresa_id)}
+                      onClick={(e) => { e.stopPropagation(); openEdit(i.empresa_id) }}
                       className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
                       title="Editar"
                     >
@@ -311,7 +620,7 @@ export default function EmpresasCorrespondentes() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => askDelete(i.empresa_id)}
+                      onClick={(e) => { e.stopPropagation(); askDelete(i.empresa_id) }}
                       className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
                       title="Excluir"
                     >
@@ -326,10 +635,337 @@ export default function EmpresasCorrespondentes() {
       )}
 
       <Modal
+        isOpen={isDetalheOpen}
+        onClose={() => setIsDetalheOpen(false)}
+        title={active ? `Empresa: ${active.nome_fantasia || active.razao_social || 'Empresa'}` : 'Empresa'}
+        size="3xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsDetalheOpen(false)}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+            >
+              Fechar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!activeId) return
+                detalheReturnIdRef.current = activeId
+                setIsDetalheOpen(false)
+                openEdit(activeId)
+              }}
+              disabled={!active}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Editar Dados
+            </button>
+            {active?.ativo ? (
+              <button
+                type="button"
+                onClick={() => handleToggleAtivo(false)}
+                disabled={!active || saving}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Desativar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleToggleAtivo(true)}
+                disabled={!active || saving}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Ativar
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={openDocumento}
+              disabled={!active}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <FilePlus size={16} />
+              Adicionar Documento
+            </button>
+          </>
+        }
+      >
+        {!active ? (
+          <div className="text-sm text-slate-400">Selecione uma empresa.</div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              {getFinEmpresaCorrespondenteLogoUrl(active.logo_path) ? (
+                <img
+                  src={getFinEmpresaCorrespondenteLogoUrl(active.logo_path)}
+                  alt="Logo"
+                  className="w-16 h-16 rounded-xl object-contain bg-white/5 border border-white/10"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10" />
+              )}
+              <div className="min-w-0">
+                <div className="text-lg font-extrabold text-white truncate">{active.nome_fantasia || active.razao_social || '—'}</div>
+                <div className="text-sm text-slate-400 truncate">{active.codigo ? `Código: ${active.codigo}` : '—'}</div>
+                <div className="mt-2">
+                  {active.ativo ? (
+                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                      Ativo
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[11px] font-bold uppercase tracking-wider border border-rose-500/20">
+                      Desativado
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="col-span-full">
+                <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">Dados da Empresa</h4>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Razão Social</div>
+                <div className="text-sm text-slate-200 mt-1">{active.razao_social || '—'}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CNPJ</div>
+                <div className="text-sm text-slate-200 mt-1">{active.cnpj || '—'}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
+                <div className="text-sm text-slate-200 mt-1">{active.telefone || '—'}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inscrição Estadual</div>
+                <div className="text-sm text-slate-200 mt-1">{active.inscricao_estadual || '—'}</div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inscrição Municipal</div>
+                <div className="text-sm text-slate-200 mt-1">{active.inscricao_municipal || '—'}</div>
+              </div>
+              <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
+                <div className="text-sm text-slate-200 mt-1">
+                  {[active.endereco, active.bairro, [active.cidade, active.uf].filter(Boolean).join(' - '), active.cep ? `CEP: ${active.cep}` : null]
+                    .filter(Boolean)
+                    .join(' • ') || '—'}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-5 mt-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-bold text-slate-200">Documentos</div>
+                <div className="text-xs text-slate-500">{docsLoaded[active.empresa_id] ? activeDocs.length : '...'}</div>
+              </div>
+              {!docsLoaded[active.empresa_id] ? (
+                <div className="mt-3 text-sm text-slate-500">Carregando documentos...</div>
+              ) : activeDocs.length === 0 ? (
+                <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
+              ) : (
+                <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+                  <table className="min-w-full text-left">
+                    <thead className="bg-white/5">
+                      <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        <th className="px-4 py-3">Nome</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
+                        <th className="px-4 py-3 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10 bg-white/0">
+                      {activeDocs.map((d) => {
+                        const isAtivo = Boolean(active.ativo)
+                        const vencido = isAtivo && isVencido(d.dataVencimento)
+                        const vencendo = isAtivo && isVencendo(d.dataVencimento)
+                        return (
+                          <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {vencido ? (
+                                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                ) : vencendo ? (
+                                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                ) : null}
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-slate-200 truncate">{d.nome}</div>
+                                  {d.arquivoNome && <div className="text-xs text-slate-500 truncate">{d.arquivoNome}</div>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
+                              <div className="flex items-center gap-2">
+                                <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
+                                {vencido ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
+                                    Vencido
+                                  </span>
+                                ) : vencendo ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                    Vence em breve
+                                  </span>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                {d.arquivoUrl && (
+                                  <a
+                                    href={d.arquivoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                                    title="Baixar Documento"
+                                  >
+                                    <Download size={16} />
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => askDeleteDocumento(d.id)}
+                                  className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                                  title="Excluir Documento"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteDocOpen}
+        onClose={() => { setIsDeleteDocOpen(false); setDeleteDocId(null) }}
+        title="Excluir Documento"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => { setIsDeleteDocOpen(false); setDeleteDocId(null) }}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDeleteDocumento}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors"
+            >
+              Excluir
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">Tem certeza que deseja excluir este documento?</p>
+          <p className="text-xs text-slate-500">Essa ação não pode ser desfeita.</p>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isDocumentoOpen}
+        onClose={() => { setIsDocumentoOpen(false); setIsDetalheOpen(true) }}
+        title="Adicionar Documento"
+        size="lg"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => { setIsDocumentoOpen(false); setIsDetalheOpen(true) }}
+              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSalvarDocumento}
+              disabled={savingDoc}
+              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {savingDoc ? 'Salvando...' : 'Adicionar'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {docError && <div className="text-rose-400 text-xs">{docError}</div>}
+          <div className="space-y-2">
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome do Documento</label>
+            <input
+              value={docNome}
+              onChange={(e) => setDocNome(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Emissão</label>
+              <input
+                type="date"
+                value={docEmissao}
+                onChange={(e) => setDocEmissao(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Vencimento</label>
+              <input
+                type="date"
+                value={docVencimento}
+                onChange={(e) => setDocVencimento(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Arquivo</label>
+            <div className="relative group">
+              <input
+                type="file"
+                id="empresa-doc-file-upload"
+                onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+              <label
+                htmlFor="empresa-doc-file-upload"
+                className="flex items-center justify-center gap-2 w-full px-3 py-4 rounded-xl bg-[#0B1220] border border-dashed border-white/20 text-sm text-slate-400 cursor-pointer hover:border-cyan-500/50 hover:bg-white/5 transition-all"
+              >
+                <Upload size={16} />
+                {docFile ? <span className="text-cyan-400 font-medium">{docFile.name}</span> : <span>Clique para selecionar um arquivo</span>}
+              </label>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={isFormOpen}
         onClose={() => {
           if (saving) return
+          const backId = detalheReturnIdRef.current
           setIsFormOpen(false)
+          if (backId) {
+            detalheReturnIdRef.current = null
+            setActiveId(backId)
+            setIsDetalheOpen(true)
+            return
+          }
           setActiveId(null)
         }}
         title={active ? `Editar Empresa (${active.nome_fantasia || active.razao_social || 'Empresa'})` : 'Nova Empresa'}
@@ -338,7 +974,17 @@ export default function EmpresasCorrespondentes() {
           <>
             <button
               type="button"
-              onClick={() => setIsFormOpen(false)}
+              onClick={() => {
+                const backId = detalheReturnIdRef.current
+                setIsFormOpen(false)
+                if (backId) {
+                  detalheReturnIdRef.current = null
+                  setActiveId(backId)
+                  setIsDetalheOpen(true)
+                  return
+                }
+                setActiveId(null)
+              }}
               disabled={saving}
               className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
             >
@@ -550,6 +1196,7 @@ export default function EmpresasCorrespondentes() {
         }
       >
         <div className="space-y-3">
+          <p className="text-sm text-slate-300">Tem certeza que deseja excluir esta empresa?</p>
           <p className="text-sm text-slate-300">Essa ação não pode ser desfeita.</p>
         </div>
       </Modal>

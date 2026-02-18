@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS public.colaboradores (
 -- Enable RLS for Colaboradores
 ALTER TABLE public.colaboradores ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.colaboradores;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.colaboradores;
+DROP POLICY IF EXISTS "Enable update for authenticated users" ON public.colaboradores;
+DROP POLICY IF EXISTS "Enable delete for authenticated users" ON public.colaboradores;
+
 CREATE POLICY "Enable read access for authenticated users" ON public.colaboradores
   FOR SELECT TO authenticated USING (true);
 
@@ -70,6 +75,10 @@ CREATE TABLE IF NOT EXISTS public.colaboradores_documentos (
 
 -- Enable RLS for Documentos
 ALTER TABLE public.colaboradores_documentos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.colaboradores_documentos;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.colaboradores_documentos;
+DROP POLICY IF EXISTS "Enable delete for authenticated users" ON public.colaboradores_documentos;
 
 CREATE POLICY "Enable read access for authenticated users" ON public.colaboradores_documentos
   FOR SELECT TO authenticated USING (true);

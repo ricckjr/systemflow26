@@ -211,7 +211,10 @@ export default function Colaboradores() {
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null)
   
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [detalheTab, setDetalheTab] = useState<'pessoal' | 'corporativo' | 'acesso' | 'documentacao'>('pessoal')
   const activeColaborador = useMemo(() => colaboradores.find((c) => c.id === activeId) ?? null, [activeId, colaboradores])
+  const [acessoCargo, setAcessoCargo] = useState('')
+  const [savingAcessoCargo, setSavingAcessoCargo] = useState(false)
 
   // --- Form Novo Colaborador ---
   const [currentTab, setCurrentTab] = useState<'pessoal' | 'corporativo' | 'acesso'>('pessoal')
@@ -443,6 +446,11 @@ export default function Colaboradores() {
     return () => URL.revokeObjectURL(url)
   }, [editAvatarFile])
 
+  useEffect(() => {
+    if (!isDetalheOpen || !activeColaborador) return
+    setAcessoCargo(activeColaborador.usuario.cargo || '')
+  }, [isDetalheOpen, activeColaborador])
+
   // --- Filtros ---
 
   const colaboradoresByUserId = useMemo(() => {
@@ -488,7 +496,11 @@ export default function Colaboradores() {
     if (colaboradorId) query = query.eq('colaborador_id', colaboradorId)
 
     const { data, error } = await query
-    if (error) throw error
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase()
+      if (msg.includes('data_vencimento') && msg.includes('does not exist')) return
+      throw error
+    }
 
     if (colaboradorId) {
       let status: DocAlertStatus | null = null
@@ -519,11 +531,31 @@ export default function Colaboradores() {
     const target = colaboradores.find((c) => c.id === colaboradorId)
     if (!target || target.docsLoaded) return
 
-    const { data, error } = await supabase
+    let data: any[] | null = null
+    let error: any = null
+
+    ;({ data, error } = await supabase
       .from('colaboradores_documentos')
       .select('id, nome, arquivo_nome, arquivo_url, data_emissao, data_vencimento, created_at')
       .eq('colaborador_id', colaboradorId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }))
+
+    if (error) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('data_emissao') && msg.includes('does not exist')) {
+        ;({ data, error } = await supabase
+          .from('colaboradores_documentos')
+          .select('id, nome, arquivo_nome, arquivo_url, created_at')
+          .eq('colaborador_id', colaboradorId)
+          .order('created_at', { ascending: false }))
+      } else if (msg.includes('data_vencimento') && msg.includes('does not exist')) {
+        ;({ data, error } = await supabase
+          .from('colaboradores_documentos')
+          .select('id, nome, arquivo_nome, arquivo_url, created_at')
+          .eq('colaborador_id', colaboradorId)
+          .order('created_at', { ascending: false }))
+      }
+    }
 
     if (error) {
       if (isMissingTable(error)) return
@@ -550,8 +582,9 @@ export default function Colaboradores() {
     }
   }
 
-  const openDetalhe = (colaboradorId: string) => {
+  const openDetalhe = (colaboradorId: string, tab: 'pessoal' | 'corporativo' | 'acesso' | 'documentacao' = 'pessoal') => {
     setActiveId(colaboradorId)
+    setDetalheTab(tab)
     setIsDetalheOpen(true)
     void ensureDocsLoaded(colaboradorId)
   }
@@ -1093,7 +1126,7 @@ export default function Colaboradores() {
       </div>
 
       {/* Listagem */}
-      {loadingInit ? (
+      {loadingInit || loadingAux ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, idx) => (
             <div key={idx} className="rounded-2xl border border-white/10 bg-[#0F172A] p-5 animate-pulse">
@@ -1131,12 +1164,17 @@ export default function Colaboradores() {
               ? colab.documentos.reduce<DocAlertStatus | null>((acc, d) => mergeDocAlertStatus(acc, getDocAlertStatus(d.dataVencimento)), null)
               : null
             const docAlert = colab && isAtivo ? mergeDocAlertStatus(docsAlertaMap[colab.id], statusLoaded) : null
+            const openCard = () => (colab ? openDetalhe(colab.id) : openCompletarCadastroFromUser(user))
             return (
-            <button
+            <div
               key={user.id}
-              type="button"
-              onClick={() => (colab ? openDetalhe(colab.id) : openCompletarCadastroFromUser(user))}
-              className="text-left rounded-2xl border border-white/10 bg-[#0F172A] p-5 hover:border-cyan-500/30 hover:bg-[#0B1220] transition-colors group relative"
+              role="button"
+              tabIndex={0}
+              onClick={openCard}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') openCard()
+              }}
+              className="text-left rounded-2xl border border-white/10 bg-[#0F172A] p-5 hover:border-cyan-500/30 hover:bg-[#0B1220] transition-colors group relative cursor-pointer outline-none focus:ring-2 focus:ring-cyan-500/25"
             >
               {docAlert === 'vencido' ? (
                 <div className="absolute -top-2 -right-2 p-1.5 bg-orange-500 rounded-full shadow-lg shadow-orange-500/20 animate-pulse z-10" title="Documentos inválidos">
@@ -1168,7 +1206,9 @@ export default function Colaboradores() {
               </div>
 
               <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">{colab?.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-slate-500">{colab?.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
+                </div>
                 {!colab ? (
                   <span className="text-orange-400 font-medium">Cadastro incompleto</span>
                 ) : user.ativo === false ? (
@@ -1177,7 +1217,7 @@ export default function Colaboradores() {
                   <span className="text-emerald-400 font-medium">Ativo</span>
                 )}
               </div>
-            </button>
+            </div>
           )})}
         </div>
       )}
@@ -1531,42 +1571,6 @@ export default function Colaboradores() {
             >
               Editar Dados
             </button>
-            <button
-              type="button"
-              onClick={openResetSenha}
-              disabled={!activeColaborador}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              Resetar Senha
-            </button>
-            {activeColaborador?.usuario.ativo === false ? (
-              <button
-                type="button"
-                onClick={handleReativar}
-                disabled={!activeColaborador || changingStatus}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {changingStatus ? 'Reativando...' : 'Reativar Usuário'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={openDesativar}
-                disabled={!activeColaborador || changingStatus}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Desativar Usuário
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={openDocumento}
-              disabled={!activeColaborador}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <FilePlus size={16} />
-              Adicionar Documento
-            </button>
           </>
         }
       >
@@ -1582,181 +1586,309 @@ export default function Colaboradores() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="col-span-full">
-                <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">Dados Pessoais</h4>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome Completo</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.nomeCompleto}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CPF</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.cpf}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Nascimento</div>
-                <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataNascimento)}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Pessoal</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.emailPessoal}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.telefone}</div>
-              </div>
-              <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.enderecoCompleto} - CEP: {activeColaborador.cep}</div>
-              </div>
-
-              <div className="col-span-full mt-2">
-                <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">Contato Corporativo</h4>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Empresa</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.empresaNome}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matrícula</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.matricula}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Admissão</div>
-                <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
-                <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Usuario Sistema</div>
-                <div className="text-sm text-slate-200 mt-1 flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                  {activeColaborador.usuario.email_login}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Situação</div>
-                <div className="text-sm text-slate-200 mt-1 flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                  {activeColaborador.usuario.ativo === false ? 'Desativado' : 'Ativo'}
-                </div>
-              </div>
-              {activeColaborador.usuario.ativo === false && (
-                <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Demissão</div>
-                  <div className="text-sm text-slate-200 mt-1">
-                    {[activeColaborador.dataDemissao ? `Data: ${formatDateBR(activeColaborador.dataDemissao)}` : null, activeColaborador.obsDemissao ? `Obs: ${activeColaborador.obsDemissao}` : null]
-                      .filter(Boolean)
-                      .join(' • ') || '—'}
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center gap-1 border-b border-white/10">
+              <button
+                type="button"
+                onClick={() => setDetalheTab('pessoal')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  detalheTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Dados Pessoais
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetalheTab('corporativo')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  detalheTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Contato Corporativo
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetalheTab('documentacao')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  detalheTab === 'documentacao' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Documentação
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetalheTab('acesso')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  detalheTab === 'acesso' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Credenciais de Acesso
+              </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-5 mt-6">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-bold text-slate-200">Documentos</div>
-                <div className="text-xs text-slate-500">{activeColaborador.docsLoaded ? activeColaborador.documentos.length : '...'}</div>
-              </div>
-              {!activeColaborador.docsLoaded ? (
-                <div className="mt-3 text-sm text-slate-500">Carregando documentos...</div>
-              ) : activeColaborador.documentos.length === 0 ? (
-                <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
-              ) : (
-                <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
-                  <table className="min-w-full text-left">
-                    <thead className="bg-white/5">
-                      <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                        <th className="px-4 py-3">Nome</th>
-                        <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
-                        <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
-                        <th className="px-4 py-3 whitespace-nowrap">Status</th>
-                        <th className="px-4 py-3 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/10 bg-white/0">
-                      {activeColaborador.documentos.map((d) => {
-                        const isAtivo = activeColaborador.usuario.ativo !== false
-                        const vencido = isAtivo && isVencido(d.dataVencimento)
-                        const vencendo = isAtivo && isVencendo(d.dataVencimento)
-                        const statusDoc = vencido ? 'Inválido' : 'Válido'
-                        return (
-                          <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2 min-w-0">
-                                {vencido ? (
-                                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-                                ) : vencendo ? (
-                                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-                                ) : null}
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-slate-200 truncate">{d.nome}</div>
-                                  {d.arquivoNome && <div className="text-xs text-slate-500 truncate">{d.arquivoNome}</div>}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
-                              {d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
-                              <div className="flex items-center gap-2">
-                                <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
-                                {vencido ? (
-                                  <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
-                                    Vencido
-                                  </span>
-                                ) : vencendo ? (
-                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">
-                                    Vence em breve
-                                  </span>
-                                ) : null}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {statusDoc === 'Inválido' ? (
-                                <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
-                                  Inválido
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
-                                  Válido
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-2">
-                                {d.arquivoUrl && (
-                                  <a
-                                    href={d.arquivoUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
-                                    title="Baixar Documento"
-                                  >
-                                    <Download size={16} />
-                                  </a>
-                                )}
-                                <button
-                                  onClick={() => askDeleteDocumento(d.id)}
-                                  className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
-                                  title="Excluir Documento"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
+            <div className="min-h-[300px]">
+              {detalheTab === 'pessoal' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2 mt-4">
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome Completo</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.nomeCompleto}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CPF</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.cpf}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Nascimento</div>
+                    <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataNascimento)}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Pessoal</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.emailPessoal}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.telefone}</div>
+                  </div>
+                  <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.enderecoCompleto} - CEP: {activeColaborador.cep}</div>
+                  </div>
+                </div>
+              ) : detalheTab === 'corporativo' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2 mt-4">
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Empresa</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.empresaNome}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matrícula</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.matricula}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Admissão</div>
+                    <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.ramal || '—'}</div>
+                  </div>
+                </div>
+              ) : detalheTab === 'documentacao' ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-5 mt-4 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-slate-200">Documentos</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-xs text-slate-500">{activeColaborador.docsLoaded ? activeColaborador.documentos.length : '...'}</div>
+                      <button
+                        type="button"
+                        onClick={openDocumento}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors"
+                      >
+                        <FilePlus size={16} />
+                        Adicionar Documento
+                      </button>
+                    </div>
+                  </div>
+                  {!activeColaborador.docsLoaded ? (
+                    <div className="mt-3 text-sm text-slate-500">Carregando documentos...</div>
+                  ) : activeColaborador.documentos.length === 0 ? (
+                    <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
+                  ) : (
+                    <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+                      <table className="min-w-full text-left">
+                        <thead className="bg-white/5">
+                          <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                            <th className="px-4 py-3">Nome</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                            <th className="px-4 py-3 text-right">Ações</th>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody className="divide-y divide-white/10 bg-white/0">
+                          {activeColaborador.documentos.map((d) => {
+                            const isAtivo = activeColaborador.usuario.ativo !== false
+                            const vencido = isAtivo && isVencido(d.dataVencimento)
+                            const vencendo = isAtivo && isVencendo(d.dataVencimento)
+                            const statusDoc = vencido ? 'Inválido' : 'Válido'
+                            return (
+                              <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    {vencido ? (
+                                      <AlertTriangle size={14} className="text-orange-500 shrink-0" />
+                                    ) : vencendo ? (
+                                      <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                    ) : null}
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-semibold text-slate-200 truncate">{d.nome}</div>
+                                      {d.arquivoNome && <div className="text-xs text-slate-500 truncate">{d.arquivoNome}</div>}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
+                                  <div className="flex items-center gap-2">
+                                    <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
+                                    {vencido ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
+                                        Vencido
+                                      </span>
+                                    ) : vencendo ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                        Vence em breve
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  {statusDoc === 'Inválido' ? (
+                                    <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
+                                      Inválido
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                      Válido
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {d.arquivoUrl && (
+                                      <a
+                                        href={d.arquivoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                                        title="Baixar Documento"
+                                      >
+                                        <Download size={16} />
+                                      </a>
+                                    )}
+                                    <button
+                                      onClick={() => askDeleteDocumento(d.id)}
+                                      className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                                      title="Excluir Documento"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Usuário Sistema</div>
+                      <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_login || '—'}</div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cargo</div>
+                      <div className="mt-2 space-y-2">
+                        <select
+                          value={acessoCargo}
+                          onChange={(e) => setAcessoCargo(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        >
+                          <option value="">Selecione...</option>
+                          <option value="Administrativo">Administrativo</option>
+                          <option value="Comercial">Comercial</option>
+                          <option value="Financeiro">Financeiro</option>
+                          <option value="Produção">Produção</option>
+                          <option value="Logística">Logística</option>
+                          <option value="TI">TI</option>
+                          <option value="RH">RH</option>
+                          <option value="Diretoria">Diretoria</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
+                        <button
+                          type="button"
+                          disabled={savingAcessoCargo}
+                          onClick={async () => {
+                            if (!activeColaborador) return
+                            if (!acessoCargo) return
+                            setSavingAcessoCargo(true)
+                            try {
+                              await api.users.update(activeColaborador.usuario.id, { cargo: acessoCargo })
+                              setAllUsers((prev) =>
+                                prev.map((u) => (u.id === activeColaborador.usuario.id ? { ...u, cargo: acessoCargo } : u))
+                              )
+                              setColaboradores((prev) =>
+                                prev.map((c) =>
+                                  c.id === activeColaborador.id ? { ...c, usuario: { ...c.usuario, cargo: acessoCargo } } : c
+                                )
+                              )
+                            } finally {
+                              setSavingAcessoCargo(false)
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {savingAcessoCargo ? 'Salvando...' : 'Salvar Cargo'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Situação</div>
+                      <div className="text-sm text-slate-200 mt-1 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                        {activeColaborador.usuario.ativo === false ? 'Desativado' : 'Ativo'}
+                      </div>
+                    </div>
+                    {activeColaborador.usuario.ativo === false && (
+                      <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Demissão</div>
+                        <div className="text-sm text-slate-200 mt-1">
+                          {[activeColaborador.dataDemissao ? `Data: ${formatDateBR(activeColaborador.dataDemissao)}` : null, activeColaborador.obsDemissao ? `Obs: ${activeColaborador.obsDemissao}` : null]
+                            .filter(Boolean)
+                            .join(' • ') || '—'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={openResetSenha}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
+                    >
+                      Resetar Senha
+                    </button>
+                    {activeColaborador.usuario.ativo === false ? (
+                      <button
+                        type="button"
+                        onClick={handleReativar}
+                        disabled={changingStatus}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {changingStatus ? 'Reativando...' : 'Reativar Usuário'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openDesativar}
+                        disabled={changingStatus}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Desativar Usuário
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -2155,12 +2287,13 @@ export default function Colaboradores() {
                 try {
                   setSavingDoc(true)
                   savingDocRef.current = true
-                  const fileExt = docFile.name.split('.').pop()
-                  const fileName = `${activeId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+                  const fileExt = docFile.name.includes('.') ? docFile.name.split('.').pop() : null
+                  const finalExt = fileExt || (docFile.type === 'application/pdf' ? 'pdf' : 'bin')
+                  const fileName = `${activeId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${finalExt}`
                   
                   const { error: uploadError } = await supabase.storage
                     .from('colaboradores-docs')
-                    .upload(fileName, docFile)
+                    .upload(fileName, docFile, { contentType: docFile.type || undefined })
 
                   if (uploadError) {
                     const msg = String(uploadError?.message || '')
@@ -2174,24 +2307,61 @@ export default function Colaboradores() {
                     .from('colaboradores-docs')
                     .getPublicUrl(fileName)
 
-                  const { data: newDoc, error } = await supabase
-                    .from('colaboradores_documentos')
-                    .insert({
-                      colaborador_id: activeId,
-                      nome: docNome,
-                      arquivo_nome: docFile.name,
-                      arquivo_url: publicUrl,
-                      data_emissao: docEmissao || null,
-                      data_vencimento: docVencimento || null
-                    })
-                    .select()
-                    .single()
+                  let newDoc: any = null
+                  let error: any = null
+                  try {
+                    ;({ data: newDoc, error } = await supabase
+                      .from('colaboradores_documentos')
+                      .insert({
+                        colaborador_id: activeId,
+                        nome: docNome,
+                        arquivo_nome: docFile.name,
+                        arquivo_url: publicUrl,
+                        data_emissao: docEmissao || null,
+                        data_vencimento: docVencimento || null
+                      })
+                      .select()
+                      .single())
+
+                    if (error) {
+                      const msg = String(error?.message || '').toLowerCase()
+                      const missingDateCols =
+                        (msg.includes('data_emissao') && msg.includes('does not exist')) ||
+                        (msg.includes('data_vencimento') && msg.includes('does not exist'))
+
+                      if (missingDateCols) {
+                        ;({ data: newDoc, error } = await supabase
+                          .from('colaboradores_documentos')
+                          .insert({
+                            colaborador_id: activeId,
+                            nome: docNome,
+                            arquivo_nome: docFile.name,
+                            arquivo_url: publicUrl
+                          })
+                          .select()
+                          .single())
+                      }
+                    }
+                  } catch (e) {
+                    try {
+                      await supabase.storage.from('colaboradores-docs').remove([fileName])
+                    } catch {
+                    }
+                    throw e
+                  }
 
                   if (error) {
                     if (isMissingTable(error)) {
                       throw new Error(
                         "Tabela 'colaboradores_documentos' ainda não foi criada no banco. Aplique a migration 20260218_create_colaboradores.sql e recarregue o schema cache do Supabase."
                       )
+                    }
+                    const msg = String(error?.message || '')
+                    if (msg.toLowerCase().includes('data_emissao') && msg.toLowerCase().includes('does not exist')) {
+                      throw new Error("Campos de data do documento ainda não existem no banco. Aplique a migration 20260219_add_colab_docs_fields.sql e recarregue o schema cache do Supabase.")
+                    }
+                    if (msg.toLowerCase().includes('data_vencimento') && msg.toLowerCase().includes('does not exist')) {
+                      throw new Error("Campos de data do documento ainda não existem no banco. Aplique a migration 20260219_add_colab_docs_fields.sql e recarregue o schema cache do Supabase.")
                     }
                     throw error
                   }

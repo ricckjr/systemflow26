@@ -567,15 +567,19 @@ router.patch('/users/:id/perfil', async (req, res) => {
 // === 8. RESET PASSWORD ===
 router.post('/users/:id/reset-password', async (req, res) => {
   const { id } = req.params;
-  const { novaSenha } = req.body; // Using Portuguese param as per context, or match requirement
+  const { novaSenha } = req.body || {}; // Using Portuguese param as per context, or match requirement
 
   // Requirement says: POST /admin/users/:id/reset-password
   // Does not specify body field name, assuming "senha" or "password" or "novaSenha".
   // Let's support "senha" based on CREATE payload.
-  const passwordToSet = novaSenha || req.body.senha || req.body.password;
+  const passwordToSetRaw = novaSenha || req.body?.senha || req.body?.password || req.body?.newPassword;
+  const passwordToSet = typeof passwordToSetRaw === 'string' ? passwordToSetRaw.trim() : '';
 
   if (!passwordToSet) {
     return res.status(400).json({ error: 'Nova senha é obrigatória' });
+  }
+  if (passwordToSet.length < 6) {
+    return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
   }
 
   try {

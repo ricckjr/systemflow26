@@ -1,8 +1,8 @@
 import subprocess
 import sys
-import os
 
 PROJECT_DIR = "/opt/systemflow26"
+COMPOSE_ENV_FILE = "./backend/.env"
 
 def run(cmd):
     print(f"\n▶ {cmd}")
@@ -16,10 +16,11 @@ print("\n🚀 SystemFlow Deploy Starting...\n")
 run("git fetch origin")
 run("git reset --hard origin/main")
 
-run("docker compose down")
-run("docker compose pull")
-run("docker compose build")
-run("docker compose up -d")
+compose = f"docker compose --env-file {COMPOSE_ENV_FILE}"
+run(f"{compose} down")
+run(f"{compose} pull")
+run(f"{compose} build")
+run(f"{compose} up -d")
 
 run("docker ps")
 

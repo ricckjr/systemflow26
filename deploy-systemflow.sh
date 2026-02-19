@@ -6,16 +6,13 @@
 
 echo "🚀 Starting SystemFlow Deployment..."
 
-if [ ! -f .env ]; then
-  echo "❌ .env file not found! Please create one with SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY."
+if [ ! -f backend/.env ]; then
+  echo "❌ backend/.env file not found! Please create one with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (and VITE_* if using docker compose build args)."
   exit 1
 fi
 
-# Export env vars to be sure
-export $(grep -v '^#' .env | xargs)
-
 echo "📦 Building and Starting Containers..."
-docker-compose up -d --build
+docker compose --env-file backend/.env up -d --build
 
 echo "✅ SystemFlow Deployed!"
 echo "   - Backend: http://localhost:7005 (Mapped to api.systemflow.apliflow.com via NGINX)"

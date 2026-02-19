@@ -5,8 +5,7 @@ const path = require('path');
 
 const envCandidates = [
   path.resolve(process.cwd(), '.env'),
-  path.resolve(process.cwd(), '..', '.env'),
-  path.resolve(__dirname, '..', '..', '.env'),
+  path.resolve(__dirname, '..', '.env'),
 ];
 
 const envPath = envCandidates.find((p) => fs.existsSync(p));

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
-    const envDir = path.resolve(__dirname, '..');
+    const envDir = path.resolve(__dirname);
     const env = loadEnv(mode, envDir, '');
     const supabaseTarget = (env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
     const enableSupabaseDevProxy =

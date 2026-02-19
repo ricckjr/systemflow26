@@ -1,85 +1,101 @@
-# Relatório de Arquitetura e Deploy SystemFlow
+# Relatório de Arquitetura e Deploy — SystemFlow
 
-## 1. Arquitetura
+## 1. Visão Geral
 
-O SystemFlow foi reestruturado para separar claramente o Frontend do Backend, garantindo segurança e escalabilidade, rodando paralelo ao Supabase Self-Hosted.
+O SystemFlow é dividido em:
+- **Frontend** (React + Vite): UI no browser.
+- **Backend** (Node.js + Express): API para operações administrativas e rotas que não devem rodar no cliente.
+- **Supabase**: autenticação e banco (acessado via URL configurada em env).
 
-### Estrutura de Pastas
-- **/frontend**: Aplicação React (Vite). Responsável pela UI.
-- **/backend**: API Node.js (Express). Responsável por operações administrativas seguras.
-- **docker-compose.yml**: Orquestração dos containers (Backend e Frontend).
+## 2. Estrutura do Repositório
 
-### Serviços e Portas
-| Serviço | Porta Interna (Docker) | Porta Host (VPS) | URL API (Frontend) |
-|---|---|---|---|
-| Backend API | 7005 | 7005 | `http://localhost:7005` |
-| Frontend Web | 80 | 7001 | - |
+- **/frontend**: aplicação Vite/React (build gera site estático servido via Nginx no container).
+- **/backend**: API Express.
+- **docker-compose.yml**: orquestração dos containers do frontend e backend.
+- **deploy.py** e **deploy-systemflow.sh**: automação de deploy na VPS.
 
-**Nota:** As portas 7005 e 7001 não devem ser expostas diretamente à internet, mas sim mapeadas pelo NGINX Proxy Manager. O Frontend foi configurado para acessar a API via `http://localhost:7005` (ideal para ambientes locais ou onde o NGINX ainda não está propagado).
+## 3. Docker Compose (Containers, Rede e Portas)
 
-## 2. Fluxo de Autenticação e Segurança
+O [docker-compose.yml](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/docker-compose.yml) usa uma rede Docker **externa** chamada `proxy`. A ideia é que o NGINX Proxy Manager (ou outro reverse-proxy) também esteja conectado nessa rede, e faça o roteamento para os containers pelo **nome do container**.
 
-### Autenticação
-1. O Frontend autentica o usuário diretamente com o Supabase usando a `VITE_SUPABASE_ANON_KEY`.
-2. O Frontend recebe um JWT (Access Token).
-3. Para chamadas à API (Backend), o Frontend envia este JWT no header `Authorization: Bearer <TOKEN>`.
+### Containers
 
-### Validação no Backend
-1. O Middleware de autenticação (`middleware/auth.js`) intercepta a requisição.
-2. Verifica a validade do JWT usando `supabase.auth.getUser(token)`.
-3. Consulta a tabela `profiles` para verificar:
-   - Se o usuário existe.
-   - Se `ativo` é `true`.
-   - Qual o `cargo` do usuário.
-4. Se `ativo = false`, a requisição é negada (403) e o usuário deve ser deslogado.
-5. Rotas administrativas (`/admin/*`) exigem `cargo = 'ADMIN'`.
+| Serviço | Container | Porta interna | Publicação no Host |
+|---|---|---:|---|
+| Backend API | `systemflow-backend` | 7005 | não publica porta (apenas `expose`) |
+| Frontend Web | `systemflow-frontend` | 80 | não publica porta (apenas `expose`) |
 
-### Operações Administrativas
-O Backend utiliza a `SUPABASE_SERVICE_ROLE_KEY` para realizar operações privilegiadas que o Frontend não pode fazer diretamente:
-- Criar usuários (`auth.admin.createUser`)
-- Desativar/Reativar usuários (Update `profiles.ativo` + Banimento no Auth)
-- Excluir usuários (`auth.admin.deleteUser`)
-- Resetar senhas (`auth.admin.updateUserById`)
+**Observação:** como não há `ports:` no compose, essas portas não ficam expostas diretamente no host. O acesso externo deve acontecer via reverse-proxy conectado à rede `proxy`.
 
-## 3. Fluxo de Usuários
+## 4. Variáveis de Ambiente (Padrão Atual)
 
-- **Criação**: Admin envia dados para `POST /admin/users`. Backend cria no Supabase Auth e garante entrada em `profiles`.
-- **Desativação**: Admin chama `PUT /admin/users/:id/disable`. Backend marca `profiles.ativo = false` e invalida sessões.
-- **Acesso**: Todo acesso à API valida o status `ativo`.
+Este projeto foi padronizado para **não usar `.env` na raiz**.
 
-## 4. Como Testar e Subir
+### Frontend
+
+- Arquivo: [frontend/.env](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/frontend/.env)
+- Template: [frontend/.env.example](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/frontend/.env.example)
+- Variáveis usadas no browser precisam ser `VITE_*`:
+  - `VITE_SUPABASE_URL` (obrigatória)
+  - `VITE_SUPABASE_ANON_KEY` (obrigatória)
+  - `VITE_API_URL` (opcional; default no código é `http://localhost:7005`)
+  - `VITE_SUPABASE_DEV_PROXY` (opcional; melhora o dev via proxy)
+  - `VITE_N8N_API_KEY` (opcional; enviado apenas se existir)
+
+### Backend
+
+- Arquivo: [backend/.env](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/backend/.env)
+- Template: [backend/.env.example](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/backend/.env.example)
+- Variáveis principais:
+  - `SUPABASE_URL` (obrigatória)
+  - `SUPABASE_SERVICE_ROLE_KEY` (obrigatória; nunca colocar no frontend)
+  - `PORT` (opcional; default 7005)
+  - `TZ` (opcional; default `America/Sao_Paulo`)
+
+### Compose (Build do Frontend)
+
+O compose passa `VITE_*` como **build args** do frontend. Como não existe mais `.env` na raiz, o deploy deve rodar com:
+
+```bash
+docker compose --env-file backend/.env up -d --build
+```
+
+Por isso, no cenário de deploy, o `backend/.env` também contém as variáveis `VITE_*` necessárias ao build do frontend.
+
+## 5. Autenticação e Autorização (Fluxo Real)
+
+### Autenticação (Frontend)
+
+1. O frontend autentica o usuário no Supabase usando `VITE_SUPABASE_ANON_KEY`.
+2. O Supabase retorna uma sessão com JWT.
+3. Para chamar o backend, o frontend envia `Authorization: Bearer <TOKEN>`.
+
+### Validação (Backend)
+
+O middleware [auth.js](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/backend/src/middleware/auth.js) faz:
+1. Lê `Authorization`.
+2. Valida o token chamando `supabaseAdmin.auth.getUser(token)`.
+3. Busca o `profile` em `public.profiles` e verifica `ativo`.
+4. Admin é determinado por `profiles.cargo` (ex.: `ADMIN`).
+
+Além disso, existe um middleware de permissão que usa RPC `has_permission` para RBAC.
+
+## 6. Deploy (VPS)
 
 ### Pré-requisitos
-- Docker e Docker Compose instalados.
-- Supabase rodando.
-- Arquivo `.env` configurado na raiz com as chaves corretas (ver `.env.example`).
 
-### Passo a Passo
-1. **Configurar Variáveis**:
-   Crie o arquivo `.env` na raiz:
-   ```env
-   SUPABASE_URL=...
-   SUPABASE_SERVICE_ROLE_KEY=...
-   VITE_SUPABASE_URL=...
-   VITE_SUPABASE_ANON_KEY=...
-   ```
+- Docker + Docker Compose instalados.
+- Um reverse-proxy (ex.: NGINX Proxy Manager) conectado à rede Docker externa `proxy`.
+- Arquivo [backend/.env](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/backend/.env) preenchido com os valores corretos (incluindo `VITE_*`).
 
-2. **Deploy**:
-   Execute o script de deploy:
-   ```bash
-   ./deploy-systemflow.sh
-   ```
-   *No Windows (PowerShell), você pode rodar `docker-compose up -d --build` diretamente.*
+### Deploy automatizado
 
-3. **Configurar NGINX Proxy Manager**:
-   - Crie um Proxy Host para `api.systemflow.apliflow.com` apontando para `IP_DA_VPS:7005`.
-   - Crie um Proxy Host para `systemflow.apliflow.com` apontando para `IP_DA_VPS:7001`.
+O script [deploy.py](file:///c:/Users/Ricck%20Nascimento/Documents/systemflow26/deploy.py) faz:
+- Atualiza o código via `git fetch` + `git reset --hard origin/main`.
+- Sobe os containers via `docker compose --env-file ./backend/.env ...`.
 
-4. **Verificação**:
-   - Acesse `https://systemflow.apliflow.com`.
-   - Tente logar.
-   - Teste funcionalidades administrativas (se for Admin).
+## 7. Proxy (NGINX Proxy Manager)
 
-## 5. Manutenção
-- Para atualizar o código, basta fazer `git pull` e rodar `./deploy-systemflow.sh` novamente.
-- O script fará o rebuild dos containers sem afetar o Supabase.
+Como os serviços estão na rede `proxy`, o upstream deve apontar para os containers:
+- API: `systemflow-backend:7005`
+- Web: `systemflow-frontend:80`

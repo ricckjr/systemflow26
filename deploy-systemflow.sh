@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Deploy SystemFlow
-# Backend: 7005
-# Frontend: 7001
+# Backend (container): systemflow-backend:7005
+# Frontend (container): systemflow-frontend:80
 
 echo "🚀 Starting SystemFlow Deployment..."
 
@@ -15,6 +15,6 @@ echo "📦 Building and Starting Containers..."
 docker compose --env-file backend/.env up -d --build
 
 echo "✅ SystemFlow Deployed!"
-echo "   - Backend: http://localhost:7005 (Mapped to api.systemflow.apliflow.com via NGINX)"
-echo "   - Frontend: http://localhost:7001 (Mapped to systemflow.apliflow.com via NGINX)"
-echo "⚠️  Ensure NGINX Proxy Manager is configured to point to these ports."
+echo "   - Backend upstream: systemflow-backend:7005"
+echo "   - Frontend upstream: systemflow-frontend:80"
+echo "⚠️  Ensure your reverse-proxy (ex.: NGINX Proxy Manager) is connected to the Docker network 'proxy'."

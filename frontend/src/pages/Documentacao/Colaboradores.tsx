@@ -25,6 +25,7 @@ type Colaborador = {
   id: string
   empresaId: string
   empresaNome: string
+  usuarioId: string
   usuario: UsuarioSistema
   dataAdmissao: string
   
@@ -45,6 +46,7 @@ type Colaborador = {
   docsLoaded?: boolean
   dataDemissao?: string | null
   obsDemissao?: string | null
+  obsGerais?: string | null
   createdAt: string
 }
 
@@ -212,13 +214,21 @@ export default function Colaboradores() {
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null)
   
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [detalheTab, setDetalheTab] = useState<'pessoal' | 'corporativo' | 'acesso' | 'documentacao'>('pessoal')
+  const [detalheTab, setDetalheTab] = useState<'sistema' | 'pessoal' | 'documentacao'>('sistema')
   const activeColaborador = useMemo(() => colaboradores.find((c) => c.id === activeId) ?? null, [activeId, colaboradores])
-  const [acessoCargo, setAcessoCargo] = useState('')
-  const [savingAcessoCargo, setSavingAcessoCargo] = useState(false)
+  const [detSistemaNome, setDetSistemaNome] = useState('')
+  const [detSistemaTelefone, setDetSistemaTelefone] = useState('')
+  const [detSistemaEmailCorp, setDetSistemaEmailCorp] = useState('')
+  const [detSistemaCargo, setDetSistemaCargo] = useState('')
+  const [detSistemaRamal, setDetSistemaRamal] = useState('')
+  const [detSistemaAvatarFile, setDetSistemaAvatarFile] = useState<File | null>(null)
+  const [detSistemaAvatarPreview, setDetSistemaAvatarPreview] = useState('')
+  const [detSistemaSaving, setDetSistemaSaving] = useState(false)
+  const [detSistemaError, setDetSistemaError] = useState<string | null>(null)
 
   // --- Form Novo Colaborador ---
-  const [currentTab, setCurrentTab] = useState<'pessoal' | 'corporativo' | 'acesso'>('pessoal')
+  const [currentTab, setCurrentTab] = useState<'sistema' | 'pessoal'>('sistema')
+  const [editTab, setEditTab] = useState<'pessoal' | 'corporativo'>('pessoal')
   
   // Dados Pessoais
   const [novoNomeCompleto, setNovoNomeCompleto] = useState('')
@@ -228,6 +238,8 @@ export default function Colaboradores() {
   const [novoTelefone, setNovoTelefone] = useState('')
   const [novoEndereco, setNovoEndereco] = useState('')
   const [novoCep, setNovoCep] = useState('')
+  const [novoDataDemissao, setNovoDataDemissao] = useState('')
+  const [novoObsGerais, setNovoObsGerais] = useState('')
 
   // Dados Corporativos
   const [novoEmpresaId, setNovoEmpresaId] = useState('')
@@ -236,6 +248,7 @@ export default function Colaboradores() {
   const [novoDataAdmissao, setNovoDataAdmissao] = useState('')
   const [novoEmailCorporativo, setNovoEmailCorporativo] = useState('')
   const [novoRamal, setNovoRamal] = useState('')
+  const [novoCargo, setNovoCargo] = useState('')
 
   const [completarUsuario, setCompletarUsuario] = useState<UsuarioSistema | null>(null)
   const [novoAvatarFile, setNovoAvatarFile] = useState<File | null>(null)
@@ -287,6 +300,21 @@ export default function Colaboradores() {
   const [editAvatarPreview, setEditAvatarPreview] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
+  const editInitialRef = useRef<null | {
+    nomeCompleto: string
+    cpf: string
+    dataNascimento: string
+    emailPessoal: string
+    telefone: string
+    endereco: string
+    cep: string
+    empresaId: string
+    matricula: string
+    departamento: string
+    dataAdmissao: string
+    emailCorporativo: string
+    ramal: string
+  }>(null)
 
   // --- Loads ---
 
@@ -300,8 +328,7 @@ export default function Colaboradores() {
           .from('colaboradores')
           .select(`
             *,
-            empresa:fin_empresas_correspondentes(nome_fantasia, razao_social),
-            usuario:profiles(id, nome, email_login, email_corporativo, telefone, ramal, cargo, avatar_url, ativo)
+            empresa:fin_empresas_correspondentes(nome_fantasia, razao_social)
           `)
           .order('created_at', { ascending: false })
 
@@ -320,16 +347,17 @@ export default function Colaboradores() {
             id: c.id,
             empresaId: c.empresa_id,
             empresaNome: c.empresa?.nome_fantasia || c.empresa?.razao_social || 'Empresa',
+            usuarioId: c.user_id,
             usuario: {
-              id: c.usuario?.id,
-              nome: c.usuario?.nome || c.nome_completo,
-              email_login: c.usuario?.email_login || '',
-              email_corporativo: c.usuario?.email_corporativo || c.email_corporativo,
-              telefone: c.usuario?.telefone || c.telefone,
-              ramal: c.usuario?.ramal || c.ramal,
-              cargo: c.usuario?.cargo || c.departamento,
-              avatar_url: c.usuario?.avatar_url,
-              ativo: c.usuario?.ativo
+              id: c.user_id,
+              nome: c.nome_completo,
+              email_login: '',
+              email_corporativo: c.email_corporativo,
+              telefone: c.telefone,
+              ramal: c.ramal,
+              cargo: c.departamento,
+              avatar_url: null,
+              ativo: true
             },
             dataAdmissao: c.data_admissao,
             nomeCompleto: c.nome_completo,
@@ -345,6 +373,7 @@ export default function Colaboradores() {
             docsLoaded: false,
             dataDemissao: c.data_demissao,
             obsDemissao: c.obs_demissao,
+            obsGerais: c.obs_gerais,
             createdAt: c.created_at
           }))
           setColaboradores(mappedColabs)
@@ -451,10 +480,36 @@ export default function Colaboradores() {
 
   useEffect(() => {
     if (!isDetalheOpen || !activeColaborador) return
-    setAcessoCargo(activeColaborador.usuario.cargo || '')
+    setDetSistemaNome(activeColaborador.usuario.nome || '')
+    setDetSistemaTelefone(activeColaborador.usuario.telefone || '')
+    setDetSistemaEmailCorp(activeColaborador.usuario.email_corporativo || '')
+    setDetSistemaCargo(activeColaborador.usuario.cargo || '')
+    setDetSistemaRamal(activeColaborador.usuario.ramal || '')
+    setDetSistemaAvatarFile(null)
+    setDetSistemaAvatarPreview('')
+    setDetSistemaError(null)
   }, [isDetalheOpen, activeColaborador])
 
+  useEffect(() => {
+    if (!detSistemaAvatarFile) {
+      setDetSistemaAvatarPreview('')
+      return
+    }
+    const url = URL.createObjectURL(detSistemaAvatarFile)
+    setDetSistemaAvatarPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [detSistemaAvatarFile])
+
   // --- Filtros ---
+
+  const allUsersById = useMemo(() => {
+    const map: Record<string, UsuarioSistema> = {}
+    allUsers.forEach((u) => {
+      if (!u?.id) return
+      map[u.id] = u
+    })
+    return map
+  }, [allUsers])
 
   const colaboradoresByUserId = useMemo(() => {
     const map: Record<string, Colaborador> = {}
@@ -465,6 +520,74 @@ export default function Colaboradores() {
     })
     return map
   }, [colaboradores])
+
+  const detSistemaDirty = useMemo(() => {
+    if (!activeColaborador) return false
+    if (detSistemaAvatarFile) return true
+    if (detSistemaNome !== (activeColaborador.usuario.nome || '')) return true
+    if (detSistemaTelefone !== (activeColaborador.usuario.telefone || '')) return true
+    if (detSistemaEmailCorp !== (activeColaborador.usuario.email_corporativo || '')) return true
+    if (detSistemaCargo !== (activeColaborador.usuario.cargo || '')) return true
+    if (detSistemaRamal !== (activeColaborador.usuario.ramal || '')) return true
+    return false
+  }, [
+    activeColaborador,
+    detSistemaAvatarFile,
+    detSistemaCargo,
+    detSistemaEmailCorp,
+    detSistemaNome,
+    detSistemaRamal,
+    detSistemaTelefone,
+  ])
+
+  const editDirty = useMemo(() => {
+    if (!isEditarOpen) return false
+    const init = editInitialRef.current
+    if (!init) return false
+    if (editAvatarFile) return true
+    if (editNomeCompleto !== init.nomeCompleto) return true
+    if (editCpf !== init.cpf) return true
+    if (editDataNascimento !== init.dataNascimento) return true
+    if (editEmailPessoal !== init.emailPessoal) return true
+    if (editTelefone !== init.telefone) return true
+    if (editEndereco !== init.endereco) return true
+    if (editCep !== init.cep) return true
+    if (editEmpresaId !== init.empresaId) return true
+    if (editMatricula !== init.matricula) return true
+    if (editDepartamento !== init.departamento) return true
+    if (editDataAdmissao !== init.dataAdmissao) return true
+    if (editEmailCorporativo !== init.emailCorporativo) return true
+    if (editRamal !== init.ramal) return true
+    return false
+  }, [
+    editAvatarFile,
+    editCep,
+    editCpf,
+    editDataAdmissao,
+    editDataNascimento,
+    editDepartamento,
+    editEmailCorporativo,
+    editEmailPessoal,
+    editEmpresaId,
+    editEndereco,
+    editMatricula,
+    editNomeCompleto,
+    editRamal,
+    editTelefone,
+    isEditarOpen,
+  ])
+
+  useEffect(() => {
+    if (allUsers.length === 0) return
+    setColaboradores((prev) =>
+      prev.map((c) => {
+        const uid = String(c.usuarioId || c.usuario?.id || '')
+        const u = uid ? allUsersById[uid] : null
+        if (!u) return c
+        return { ...c, usuario: { ...c.usuario, ...u, id: uid } }
+      })
+    )
+  }, [allUsersById, allUsers.length])
 
   const filteredCards = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -585,7 +708,7 @@ export default function Colaboradores() {
     }
   }
 
-  const openDetalhe = (colaboradorId: string, tab: 'pessoal' | 'corporativo' | 'acesso' | 'documentacao' = 'pessoal') => {
+  const openDetalhe = (colaboradorId: string, tab: 'sistema' | 'pessoal' | 'documentacao' = 'sistema') => {
     setActiveId(colaboradorId)
     setDetalheTab(tab)
     setIsDetalheOpen(true)
@@ -594,7 +717,7 @@ export default function Colaboradores() {
 
   const openNovo = () => {
     // Reset Form
-    setCurrentTab('pessoal')
+    setCurrentTab('sistema')
     
     setNovoNomeCompleto('')
     setNovoCpf('')
@@ -603,6 +726,8 @@ export default function Colaboradores() {
     setNovoTelefone('')
     setNovoEndereco('')
     setNovoCep('')
+    setNovoDataDemissao('')
+    setNovoObsGerais('')
     
     setNovoEmpresaId('')
     setNovoMatricula('')
@@ -610,6 +735,7 @@ export default function Colaboradores() {
     setNovoDataAdmissao('')
     setNovoEmailCorporativo('')
     setNovoRamal('')
+    setNovoCargo('')
 
     setCompletarUsuario(null)
     setNovoAvatarFile(null)
@@ -624,7 +750,7 @@ export default function Colaboradores() {
   }
 
   const openCompletarCadastroFromUser = (u: UsuarioSistema) => {
-    setCurrentTab('pessoal')
+    setCurrentTab('sistema')
     setCompletarUsuario(u)
     setNovoAvatarFile(null)
 
@@ -635,13 +761,16 @@ export default function Colaboradores() {
     setNovoTelefone(u.telefone || '')
     setNovoEndereco('')
     setNovoCep('')
+    setNovoDataDemissao('')
+    setNovoObsGerais('')
 
     setNovoEmpresaId('')
     setNovoMatricula('')
-    setNovoDepartamento(u.cargo || '')
+    setNovoDepartamento('')
     setNovoDataAdmissao('')
     setNovoEmailCorporativo(u.email_corporativo || '')
     setNovoRamal(u.ramal || '')
+    setNovoCargo(u.cargo || '')
     setNovoAcessoEmail('')
     setNovoAcessoSenha('')
     setNovoAcessoPerfilId('')
@@ -682,6 +811,7 @@ export default function Colaboradores() {
 
   const openEditar = () => {
     if (!activeColaborador) return
+    setEditTab('pessoal')
     setEditAvatarFile(null)
     setEditNomeCompleto(activeColaborador.nomeCompleto)
     setEditCpf(activeColaborador.cpf)
@@ -696,6 +826,21 @@ export default function Colaboradores() {
     setEditDataAdmissao(activeColaborador.dataAdmissao)
     setEditEmailCorporativo(activeColaborador.usuario.email_corporativo || '')
     setEditRamal(activeColaborador.usuario.ramal || '')
+    editInitialRef.current = {
+      nomeCompleto: activeColaborador.nomeCompleto,
+      cpf: activeColaborador.cpf,
+      dataNascimento: activeColaborador.dataNascimento,
+      emailPessoal: activeColaborador.emailPessoal,
+      telefone: activeColaborador.telefone,
+      endereco: activeColaborador.enderecoCompleto,
+      cep: activeColaborador.cep,
+      empresaId: activeColaborador.empresaId,
+      matricula: activeColaborador.matricula,
+      departamento: activeColaborador.departamento,
+      dataAdmissao: activeColaborador.dataAdmissao,
+      emailCorporativo: activeColaborador.usuario.email_corporativo || '',
+      ramal: activeColaborador.usuario.ramal || '',
+    }
     setEditError(null)
     setIsEditarOpen(true)
   }
@@ -709,12 +854,101 @@ export default function Colaboradores() {
     })
   }, [])
 
+  const handleContinuarSistema = async () => {
+    setNovoError(null)
+    setSaving(true)
+
+    try {
+      if (!novoNomeCompleto) throw new Error('Nome e Sobrenome é obrigatório.')
+      if (!novoTelefone) throw new Error('Telefone é obrigatório.')
+      if (!novoCargo) throw new Error('Cargo é obrigatório.')
+      if (!novoAcessoEmail) throw new Error('Email Login é obrigatório.')
+
+      let usuarioFinal: UsuarioSistema | null = null
+
+      if (completarUsuario) {
+        await api.users.update(completarUsuario.id, {
+          nome: novoNomeCompleto,
+          telefone: novoTelefone,
+          email_login: novoAcessoEmail,
+          email_corporativo: novoEmailCorporativo || null,
+          ramal: novoRamal || null,
+          cargo: novoCargo
+        })
+
+        usuarioFinal = {
+          ...completarUsuario,
+          nome: novoNomeCompleto,
+          telefone: novoTelefone,
+          email_login: novoAcessoEmail,
+          email_corporativo: novoEmailCorporativo || null,
+          ramal: novoRamal || null,
+          cargo: novoCargo
+        }
+
+        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, ...usuarioFinal! } : u)))
+      } else {
+        if (!novoAcessoSenha || novoAcessoSenha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
+        if (!novoAcessoPerfilId) throw new Error('Perfil de Acesso é obrigatório.')
+
+        const resp = await api.users.create({
+          nome: novoNomeCompleto,
+          email_login: novoAcessoEmail,
+          email_corporativo: novoEmailCorporativo || null,
+          telefone: novoTelefone,
+          ramal: novoRamal || null,
+          senha: novoAcessoSenha,
+          ativo: true,
+          cargo: novoCargo
+        })
+
+        const userId = resp?.user?.id
+        if (!userId) throw new Error('Falha ao criar usuário no sistema.')
+
+        await api.rbac.assignUserPerfil(userId, novoAcessoPerfilId)
+
+        usuarioFinal = {
+          id: userId,
+          nome: novoNomeCompleto,
+          email_login: novoAcessoEmail,
+          email_corporativo: novoEmailCorporativo || null,
+          telefone: novoTelefone,
+          ramal: novoRamal || null,
+          cargo: novoCargo,
+          avatar_url: null,
+          ativo: true
+        }
+
+        setAllUsers((prev) => [usuarioFinal!, ...prev])
+      }
+
+      if (novoAvatarFile) {
+        const dataUrl = await fileToDataUrl(novoAvatarFile)
+        const r = await api.users.setAvatar(usuarioFinal!.id, dataUrl)
+        const avatarUrl = r?.avatar_url ?? null
+        usuarioFinal = { ...usuarioFinal!, avatar_url: avatarUrl }
+        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, avatar_url: avatarUrl } : u)))
+      }
+
+      setCompletarUsuario(usuarioFinal)
+      setCurrentTab('pessoal')
+    } catch (err: any) {
+      setNovoError(err.message || 'Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleSave = async () => {
     setNovoError(null)
     setSaving(true)
 
     try {
-      // 1. Validações Básicas
+      if (!completarUsuario) {
+        setCurrentTab('sistema')
+        throw new Error('Finalize primeiro os Dados do Sistema.')
+      }
+
       if (!novoNomeCompleto) throw new Error('Nome Completo é obrigatório.')
       if (!novoCpf) throw new Error('CPF é obrigatório.')
       if (!novoDataNascimento) throw new Error('Data de Nascimento é obrigatória.')
@@ -728,63 +962,11 @@ export default function Colaboradores() {
       if (!novoDepartamento) throw new Error('Departamento é obrigatório.')
       if (!novoDataAdmissao) throw new Error('Data de Admissão é obrigatória.')
 
-      let usuarioFinal: UsuarioSistema | null = null
-
-      // 2. Lógica de Usuário
-      if (completarUsuario) {
-        usuarioFinal = completarUsuario
-      } else {
-        if (!novoAcessoEmail) throw new Error('Email de Login é obrigatório para criar usuário.')
-        if (!novoAcessoSenha || novoAcessoSenha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
-        if (!novoAcessoPerfilId) throw new Error('Perfil de Acesso é obrigatório.')
-
-        const cargo = novoDepartamento
-        const userPayload = {
-          nome: novoNomeCompleto,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo,
-          telefone: novoTelefone,
-          ramal: novoRamal,
-          senha: novoAcessoSenha,
-          ativo: true,
-          cargo: cargo.toUpperCase()
-        }
-
-        const resp = await api.users.create(userPayload)
-        const userId = resp?.user?.id
-        if (!userId) throw new Error('Falha ao criar usuário no sistema.')
-
-        await api.rbac.assignUserPerfil(userId, novoAcessoPerfilId)
-
-        usuarioFinal = {
-          id: userId,
-          nome: novoNomeCompleto,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo,
-          telefone: novoTelefone,
-          ramal: novoRamal,
-          cargo: cargo.toUpperCase(),
-          avatar_url: null,
-          ativo: true
-        }
-
-        setAllUsers(prev => [usuarioFinal!, ...prev])
-      }
-
-      if (novoAvatarFile) {
-        const dataUrl = await fileToDataUrl(novoAvatarFile)
-        const r = await api.users.setAvatar(usuarioFinal!.id, dataUrl)
-        const avatarUrl = r?.avatar_url ?? null
-        usuarioFinal = { ...usuarioFinal!, avatar_url: avatarUrl }
-        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, avatar_url: avatarUrl } : u)))
-        setCompletarUsuario((prev) => (prev?.id === usuarioFinal!.id ? { ...prev, avatar_url: avatarUrl } : prev))
-      }
-
-      // 3. Criar Colaborador no Banco
+      const usuarioFinal = completarUsuario
       const empresa = empresas.find(e => e.empresa_id === novoEmpresaId)
       
-      const payloadColaborador = {
-        user_id: usuarioFinal!.id,
+      const payloadColaboradorBase: any = {
+        user_id: usuarioFinal.id,
         empresa_id: novoEmpresaId,
         nome_completo: novoNomeCompleto,
         cpf: novoCpf,
@@ -797,19 +979,48 @@ export default function Colaboradores() {
         departamento: novoDepartamento,
         data_admissao: novoDataAdmissao,
         email_corporativo: novoEmailCorporativo || null,
-        ramal: novoRamal || null
+        ramal: novoRamal || null,
+        data_demissao: novoDataDemissao || null,
+        obs_gerais: novoObsGerais || null
       }
 
-      const { data: createdColab, error: createError } = await supabase
-        .from('colaboradores')
-        .insert(payloadColaborador)
-        .select()
-        .single()
+      const tryInsertColaborador = async (payload: any) => {
+        return await supabase.from('colaboradores').insert(payload).select().single()
+      }
+
+      let createdColab: any = null
+      let createError: any = null
+
+      ;({ data: createdColab, error: createError } = await tryInsertColaborador(payloadColaboradorBase))
+
+      if (createError) {
+        const msg = String(createError?.message || '').toLowerCase()
+        if (msg.includes('data_demissao') && msg.includes('does not exist')) {
+          const { data, error } = await tryInsertColaborador((({ data_demissao, ...rest }) => rest)(payloadColaboradorBase))
+          createdColab = data
+          createError = error
+        } else if (msg.includes('obs_gerais') && msg.includes('does not exist')) {
+          const { data, error } = await tryInsertColaborador((({ obs_gerais, ...rest }) => rest)(payloadColaboradorBase))
+          createdColab = data
+          createError = error
+        }
+      }
 
       if (createError) {
         if (isMissingTable(createError)) {
           throw new Error(
             "Tabela 'colaboradores' ainda não foi criada no banco. Aplique a migration 20260218_create_colaboradores.sql e recarregue o schema cache do Supabase."
+          )
+        }
+        const msg = String((createError as any)?.message || '').toLowerCase()
+        if (msg.includes('data_demissao') && msg.includes('does not exist')) {
+          throw new Error(
+            "Campo 'data_demissao' ainda não existe no banco. Aplique a migration 20260219_add_colaboradores_demissao_fields.sql e recarregue o schema cache do Supabase."
+          )
+        }
+        if (msg.includes('obs_gerais') && msg.includes('does not exist')) {
+          throw new Error(
+            "Campo 'obs_gerais' ainda não existe no banco. Aplique a migration 20260219_add_colaboradores_obs_gerais.sql e recarregue o schema cache do Supabase."
           )
         }
         throw new Error(createError.message || 'Erro ao salvar colaborador no banco.')
@@ -819,6 +1030,7 @@ export default function Colaboradores() {
         id: createdColab.id,
         empresaId: novoEmpresaId,
         empresaNome: empresa?.nome_fantasia || 'Empresa',
+        usuarioId: usuarioFinal.id,
         usuario: usuarioFinal!,
         dataAdmissao: novoDataAdmissao,
         
@@ -834,12 +1046,15 @@ export default function Colaboradores() {
         departamento: novoDepartamento,
         
         documentos: [],
+        dataDemissao: novoDataDemissao || null,
+        obsGerais: novoObsGerais || null,
         createdAt: createdColab.created_at,
       }
 
       setColaboradores(prev => [novoColaborador, ...prev])
       setIsNovoOpen(false)
       setCompletarUsuario(null)
+      setCurrentTab('sistema')
 
     } catch (err: any) {
       setNovoError(err.message || 'Erro ao salvar.')
@@ -995,8 +1210,7 @@ export default function Colaboradores() {
         nome: editNomeCompleto,
         telefone: editTelefone,
         email_corporativo: editEmailCorporativo || null,
-        ramal: editRamal || null,
-        cargo: editDepartamento
+        ramal: editRamal || null
       })
 
       let avatarUrl: string | null | undefined = undefined
@@ -1033,7 +1247,6 @@ export default function Colaboradores() {
                   telefone: editTelefone,
                   email_corporativo: editEmailCorporativo || null,
                   ramal: editRamal || null,
-                  cargo: editDepartamento,
                   avatar_url: avatarUrl === undefined ? c.usuario.avatar_url : avatarUrl
                 }
               }
@@ -1240,14 +1453,25 @@ export default function Colaboradores() {
             >
               Cancelar
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
-            >
-              {saving ? 'Salvando...' : 'Salvar Cadastro'}
-            </button>
+            {currentTab === 'sistema' ? (
+              <button
+                type="button"
+                onClick={handleContinuarSistema}
+                disabled={saving}
+                className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Salvando...' : 'Continuar'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
+              >
+                {saving ? 'Salvando...' : 'Salvar Cadastro'}
+              </button>
+            )}
           </>
         }
       >
@@ -1262,246 +1486,157 @@ export default function Colaboradores() {
           {/* Abas */}
           <div className="flex items-center gap-1 border-b border-white/10">
             <button
+              type="button"
+              onClick={() => setCurrentTab('sistema')}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                currentTab === 'sistema' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Dados do Sistema
+            </button>
+            <button
+              type="button"
               onClick={() => setCurrentTab('pessoal')}
+              disabled={!completarUsuario}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
                 currentTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
               Dados Pessoais
             </button>
-            <button
-              onClick={() => setCurrentTab('corporativo')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              Contato Corporativo
-            </button>
-            <button
-              onClick={() => setCurrentTab('acesso')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'acesso' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              Credenciais de Acesso
-            </button>
           </div>
 
           <div className="min-h-[300px]">
-            {/* Tab: Pessoal */}
-            {currentTab === 'pessoal' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto de Perfil</label>
-                  <div className="flex items-center gap-3">
-                    <Avatar
-                      nome={novoNomeCompleto || completarUsuario?.nome || 'Usuário'}
-                      avatarUrl={novoAvatarPreview || completarUsuario?.avatar_url || ''}
-                      size={48}
-                    />
-                    <input
-                      type="file"
-                      id="colab-avatar-novo"
-                      accept="image/png,image/jpeg"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] || null
-                        if (!f) { setNovoAvatarFile(null); return }
-                        if (f.size > 3 * 1024 * 1024) { setNovoError('Imagem muito grande (máx 3MB).'); setNovoAvatarFile(null); return }
-                        if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setNovoError('Formato inválido. Use PNG ou JPEG.'); setNovoAvatarFile(null); return }
-                        setNovoAvatarFile(f)
-                      }}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="colab-avatar-novo"
-                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
-                    >
-                      Selecionar foto
-                    </label>
-                    {novoAvatarFile && (
-                      <button
-                        type="button"
-                        onClick={() => setNovoAvatarFile(null)}
-                        className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
-                      >
-                        Remover
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
-                  <input
-                    value={novoNomeCompleto}
-                    onChange={(e) => setNovoNomeCompleto(e.target.value)}
-                    placeholder="Nome completo do colaborador"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF *</label>
-                  <input
-                    value={novoCpf}
-                    onChange={(e) => setNovoCpf(formatCPF(e.target.value))}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Nascimento *</label>
-                  <input
-                    type="date"
-                    value={novoDataNascimento}
-                    onChange={(e) => setNovoDataNascimento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Pessoal *</label>
-                  <input
-                    type="email"
-                    value={novoEmailPessoal}
-                    onChange={(e) => setNovoEmailPessoal(e.target.value)}
-                    placeholder="exemplo@gmail.com"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
-                  <input
-                    value={novoTelefone}
-                    onChange={(e) => setNovoTelefone(formatPhone(e.target.value))}
-                    placeholder="(00) 00000-0000"
-                    maxLength={15}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endereço Completo *</label>
-                  <input
-                    value={novoEndereco}
-                    onChange={(e) => setNovoEndereco(e.target.value)}
-                    placeholder="Rua, Número, Bairro, Cidade - UF"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CEP *</label>
-                  <input
-                    value={novoCep}
-                    onChange={(e) => setNovoCep(formatCEP(e.target.value))}
-                    placeholder="00000-000"
-                    maxLength={9}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Corporativo */}
-            {currentTab === 'corporativo' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente *</label>
-                  <select
-                    value={novoEmpresaId}
-                    onChange={(e) => setNovoEmpresaId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  >
-                    <option value="">Selecione...</option>
-                    {empresas.map((e) => (
-                      <option key={e.empresa_id} value={e.empresa_id}>
-                        {e.nome_fantasia || e.razao_social}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Admissão *</label>
-                  <input
-                    type="date"
-                    value={novoDataAdmissao}
-                    onChange={(e) => setNovoDataAdmissao(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Matrícula *</label>
-                  <input
-                    value={novoMatricula}
-                    onChange={(e) => setNovoMatricula(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Departamento *</label>
-                  <select
-                    value={novoDepartamento}
-                    onChange={(e) => setNovoDepartamento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Administrativo">Administrativo</option>
-                    <option value="Comercial">Comercial</option>
-                    <option value="Financeiro">Financeiro</option>
-                    <option value="Produção">Produção</option>
-                    <option value="Logística">Logística</option>
-                    <option value="TI">TI</option>
-                    <option value="RH">RH</option>
-                    <option value="Diretoria">Diretoria</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Corporativo</label>
-                  <input
-                    type="email"
-                    value={novoEmailCorporativo}
-                    onChange={(e) => setNovoEmailCorporativo(e.target.value)}
-                    placeholder="email@empresa.com.br"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Ramal</label>
-                  <input
-                    value={novoRamal}
-                    onChange={(e) => setNovoRamal(e.target.value)}
-                    placeholder="Ex: 1234"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Acesso */}
-            {currentTab === 'acesso' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                {!completarUsuario ? (
-                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
-                        <UserPlus size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white">Criar Acesso ao Sistema</h4>
-                        <p className="text-xs text-slate-400">Um novo usuário será criado com as credenciais abaixo.</p>
-                      </div>
+            {currentTab === 'sistema' ? (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                {completarUsuario ? (
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{completarUsuario.nome}</div>
+                      <div className="text-xs text-slate-400 truncate">{completarUsuario.email_login}</div>
                     </div>
+                    <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Usuário do sistema</div>
+                  </div>
+                ) : null}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Avatar</label>
+                    <div className="flex items-center gap-3">
+                      <Avatar
+                        nome={novoNomeCompleto || completarUsuario?.nome || 'Usuário'}
+                        avatarUrl={novoAvatarPreview || completarUsuario?.avatar_url || ''}
+                        size={48}
+                      />
+                      <input
+                        type="file"
+                        id="colab-avatar-novo"
+                        accept="image/png,image/jpeg"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null
+                          if (!f) { setNovoAvatarFile(null); return }
+                          if (f.size > 3 * 1024 * 1024) { setNovoError('Imagem muito grande (máx 3MB).'); setNovoAvatarFile(null); return }
+                          if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setNovoError('Formato inválido. Use PNG ou JPEG.'); setNovoAvatarFile(null); return }
+                          setNovoAvatarFile(f)
+                        }}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="colab-avatar-novo"
+                        className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+                      >
+                        Selecionar foto
+                      </label>
+                      {novoAvatarFile ? (
+                        <button
+                          type="button"
+                          onClick={() => setNovoAvatarFile(null)}
+                          className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
+                        >
+                          Remover
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome e Sobrenome *</label>
+                    <input
+                      value={novoNomeCompleto}
+                      onChange={(e) => setNovoNomeCompleto(e.target.value)}
+                      placeholder="Nome do usuário do sistema"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
+                    <input
+                      value={novoTelefone}
+                      onChange={(e) => setNovoTelefone(formatPhone(e.target.value))}
+                      placeholder="(00) 00000-0000"
+                      maxLength={15}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Corporativo</label>
+                    <input
+                      type="email"
+                      value={novoEmailCorporativo}
+                      onChange={(e) => setNovoEmailCorporativo(e.target.value)}
+                      placeholder="email@empresa.com.br"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cargo *</label>
+                    <select
+                      value={novoCargo}
+                      onChange={(e) => setNovoCargo(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="ADMINISTRATIVO">Administrativo</option>
+                      <option value="FINANCEIRO">Financeiro</option>
+                      <option value="MARKETING">Marketing</option>
+                      <option value="RECURSOS_HUMANOS">Recursos Humanos</option>
+                      <option value="DEPARTAMENTO_PESSOAL">Departamento Pessoal</option>
+                      <option value="LOGISTICA">Logística</option>
+                      <option value="OFICINA">Oficina</option>
+                      <option value="TECNICO">Técnico</option>
+                      <option value="VENDEDOR">Comercial (Vendedor)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Ramal</label>
+                    <input
+                      value={novoRamal}
+                      onChange={(e) => setNovoRamal(e.target.value)}
+                      placeholder="Ex: 1234"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Login *</label>
+                    <input
+                      type="email"
+                      value={novoAcessoEmail}
+                      onChange={(e) => setNovoAcessoEmail(e.target.value)}
+                      placeholder="login@email.com"
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    />
+                  </div>
+
+                  {!completarUsuario ? (
+                    <>
                       <div className="space-y-2">
-                        <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email de Login *</label>
-                        <input
-                          type="email"
-                          value={novoAcessoEmail}
-                          onChange={(e) => setNovoAcessoEmail(e.target.value)}
-                          placeholder="login@email.com"
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Senha Inicial *</label>
+                        <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Senha *</label>
                         <input
                           type="text"
                           value={novoAcessoSenha}
@@ -1518,33 +1653,154 @@ export default function Colaboradores() {
                           className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
                         >
                           <option value="">Selecione...</option>
-                          {perfis.map(p => (
+                          {perfis.map((p) => (
                             <option key={p.perfil_id} value={p.perfil_id}>{p.perfil_nome}</option>
                           ))}
                         </select>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                        <CheckCircle2 size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white">Usuário já criado</h4>
-                        <p className="text-xs text-slate-400">Complete os dados do colaborador e salve.</p>
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#0B1220] border border-white/10 flex items-center gap-3">
-                      <Avatar nome={completarUsuario.nome} avatarUrl={completarUsuario.avatar_url} size={40} />
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-200 truncate">{completarUsuario.nome}</div>
-                        <div className="text-xs text-slate-500 truncate">{completarUsuario.email_login}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
+                  <input
+                    value={novoNomeCompleto}
+                    onChange={(e) => setNovoNomeCompleto(e.target.value)}
+                    placeholder="Nome completo do colaborador"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF *</label>
+                  <input
+                    value={novoCpf}
+                    onChange={(e) => setNovoCpf(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Nascimento *</label>
+                  <input
+                    type="date"
+                    value={novoDataNascimento}
+                    onChange={(e) => setNovoDataNascimento(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Pessoal *</label>
+                  <input
+                    type="email"
+                    value={novoEmailPessoal}
+                    onChange={(e) => setNovoEmailPessoal(e.target.value)}
+                    placeholder="exemplo@gmail.com"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
+                  <input
+                    value={novoTelefone}
+                    onChange={(e) => setNovoTelefone(formatPhone(e.target.value))}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endereço Completo *</label>
+                  <input
+                    value={novoEndereco}
+                    onChange={(e) => setNovoEndereco(e.target.value)}
+                    placeholder="Rua, Número, Bairro, Cidade - UF"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CEP *</label>
+                  <input
+                    value={novoCep}
+                    onChange={(e) => setNovoCep(formatCEP(e.target.value))}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente *</label>
+                  <select
+                    value={novoEmpresaId}
+                    onChange={(e) => setNovoEmpresaId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  >
+                    <option value="">Selecione...</option>
+                    {empresas.map((e) => (
+                      <option key={e.empresa_id} value={e.empresa_id}>
+                        {e.nome_fantasia || e.razao_social}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Matrícula *</label>
+                  <input
+                    value={novoMatricula}
+                    onChange={(e) => setNovoMatricula(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Admissão *</label>
+                  <input
+                    type="date"
+                    value={novoDataAdmissao}
+                    onChange={(e) => setNovoDataAdmissao(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Departamento *</label>
+                  <input
+                    value={novoDepartamento}
+                    onChange={(e) => setNovoDepartamento(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Demissão</label>
+                  <input
+                    type="date"
+                    value={novoDataDemissao}
+                    onChange={(e) => setNovoDataDemissao(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Observações Gerais</label>
+                  <textarea
+                    value={novoObsGerais}
+                    onChange={(e) => setNovoObsGerais(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1566,14 +1822,6 @@ export default function Colaboradores() {
             >
               Fechar
             </button>
-            <button
-              type="button"
-              onClick={openEditar}
-              disabled={!activeColaborador}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              Editar Dados
-            </button>
           </>
         }
       >
@@ -1592,21 +1840,21 @@ export default function Colaboradores() {
             <div className="flex items-center gap-1 border-b border-white/10">
               <button
                 type="button"
+                onClick={() => setDetalheTab('sistema')}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+                  detalheTab === 'sistema' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                Dados Sistema/Acesso
+              </button>
+              <button
+                type="button"
                 onClick={() => setDetalheTab('pessoal')}
                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
                   detalheTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
                 }`}
               >
                 Dados Pessoais
-              </button>
-              <button
-                type="button"
-                onClick={() => setDetalheTab('corporativo')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  detalheTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                Contato Corporativo
               </button>
               <button
                 type="button"
@@ -1617,20 +1865,239 @@ export default function Colaboradores() {
               >
                 Documentação
               </button>
-              <button
-                type="button"
-                onClick={() => setDetalheTab('acesso')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  detalheTab === 'acesso' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                Credenciais de Acesso
-              </button>
             </div>
 
             <div className="min-h-[300px]">
-              {detalheTab === 'pessoal' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2 mt-4">
+              {detalheTab === 'sistema' ? (
+                <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
+                  {detSistemaError ? <div className="text-xs text-rose-400">{detSistemaError}</div> : null}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2 lg:col-span-3">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Avatar</div>
+                      <div className="flex items-center gap-3">
+                        <Avatar nome={detSistemaNome || activeColaborador.usuario.nome} avatarUrl={detSistemaAvatarPreview || activeColaborador.usuario.avatar_url} size={48} />
+                        <input
+                          type="file"
+                          id="det-sistema-avatar"
+                          accept="image/png,image/jpeg"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null
+                            if (!f) { setDetSistemaAvatarFile(null); return }
+                            if (f.size > 3 * 1024 * 1024) { setDetSistemaError('Imagem muito grande (máx 3MB).'); setDetSistemaAvatarFile(null); return }
+                            if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setDetSistemaError('Formato inválido. Use PNG ou JPEG.'); setDetSistemaAvatarFile(null); return }
+                            setDetSistemaAvatarFile(f)
+                          }}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="det-sistema-avatar"
+                          className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
+                        >
+                          Selecionar foto
+                        </label>
+                        {detSistemaAvatarFile ? (
+                          <button
+                            type="button"
+                            onClick={() => setDetSistemaAvatarFile(null)}
+                            className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
+                          >
+                            Remover
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome e Sobrenome</div>
+                      <input
+                        value={detSistemaNome}
+                        onChange={(e) => setDetSistemaNome(e.target.value)}
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Situação</div>
+                      <div className="text-sm text-slate-200 mt-2 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                        {activeColaborador.usuario.ativo === false ? 'Desativado' : 'Ativo'}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
+                      <input
+                        value={detSistemaTelefone}
+                        onChange={(e) => setDetSistemaTelefone(formatPhone(e.target.value))}
+                        maxLength={15}
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
+                      <input
+                        type="email"
+                        value={detSistemaEmailCorp}
+                        onChange={(e) => setDetSistemaEmailCorp(e.target.value)}
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cargo</div>
+                      <select
+                        value={detSistemaCargo}
+                        onChange={(e) => setDetSistemaCargo(e.target.value)}
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="ADMINISTRATIVO">Administrativo</option>
+                        <option value="FINANCEIRO">Financeiro</option>
+                        <option value="MARKETING">Marketing</option>
+                        <option value="RECURSOS_HUMANOS">Recursos Humanos</option>
+                        <option value="DEPARTAMENTO_PESSOAL">Departamento Pessoal</option>
+                        <option value="LOGISTICA">Logística</option>
+                        <option value="OFICINA">Oficina</option>
+                        <option value="TECNICO">Técnico</option>
+                        <option value="VENDEDOR">Comercial (Vendedor)</option>
+                      </select>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
+                      <input
+                        value={detSistemaRamal}
+                        onChange={(e) => setDetSistemaRamal(e.target.value)}
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                      />
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Login</div>
+                      <input
+                        value={activeColaborador.usuario.email_login || '—'}
+                        disabled
+                        className="w-full mt-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!activeColaborador) return
+                        setDetSistemaError(null)
+                        setDetSistemaSaving(true)
+                        try {
+                          await api.users.update(activeColaborador.usuario.id, {
+                            nome: detSistemaNome,
+                            telefone: detSistemaTelefone,
+                            email_corporativo: detSistemaEmailCorp || null,
+                            cargo: detSistemaCargo,
+                            ramal: detSistemaRamal || null
+                          })
+
+                          let avatarUrl: string | null | undefined = undefined
+                          if (detSistemaAvatarFile) {
+                            const dataUrl = await fileToDataUrl(detSistemaAvatarFile)
+                            const r = await api.users.setAvatar(activeColaborador.usuario.id, dataUrl)
+                            avatarUrl = r?.avatar_url ?? null
+                          }
+
+                          setAllUsers((prev) =>
+                            prev.map((u) =>
+                              u.id === activeColaborador.usuario.id
+                                ? {
+                                    ...u,
+                                    nome: detSistemaNome,
+                                    telefone: detSistemaTelefone,
+                                    email_corporativo: detSistemaEmailCorp || null,
+                                    cargo: detSistemaCargo,
+                                    ramal: detSistemaRamal || null,
+                                    avatar_url: avatarUrl === undefined ? u.avatar_url : avatarUrl
+                                  }
+                                : u
+                            )
+                          )
+
+                          setColaboradores((prev) =>
+                            prev.map((c) =>
+                              c.id === activeColaborador.id
+                                ? {
+                                    ...c,
+                                    usuario: {
+                                      ...c.usuario,
+                                      nome: detSistemaNome,
+                                      telefone: detSistemaTelefone,
+                                      email_corporativo: detSistemaEmailCorp || null,
+                                      cargo: detSistemaCargo,
+                                      ramal: detSistemaRamal || null,
+                                      avatar_url: avatarUrl === undefined ? c.usuario.avatar_url : avatarUrl
+                                    }
+                                  }
+                                : c
+                            )
+                          )
+
+                          setDetSistemaAvatarFile(null)
+                        } catch (e: any) {
+                          setDetSistemaError(e?.message || 'Erro ao salvar dados do sistema.')
+                        } finally {
+                          setDetSistemaSaving(false)
+                        }
+                      }}
+                    disabled={detSistemaSaving || !detSistemaDirty}
+                      className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {detSistemaSaving ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={openResetSenha}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
+                    >
+                      Resetar Senha
+                    </button>
+
+                    {activeColaborador.usuario.ativo === false ? (
+                      <button
+                        type="button"
+                        onClick={handleReativar}
+                        disabled={changingStatus}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {changingStatus ? 'Reativando...' : 'Ativar Usuário'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openDesativar}
+                        disabled={changingStatus}
+                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Desativar Usuário
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : detalheTab === 'pessoal' ? (
+                <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={openEditar}
+                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+                    >
+                      Editar Dados
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome Completo</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.nomeCompleto}</div>
@@ -1655,32 +2122,36 @@ export default function Colaboradores() {
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.enderecoCompleto} - CEP: {activeColaborador.cep}</div>
                   </div>
-                </div>
-              ) : detalheTab === 'corporativo' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-2 mt-4">
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Empresa</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Empresa Correspondente</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.empresaNome}</div>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matrícula</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.matricula}</div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Admissão</div>
                     <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Demissão</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.dataDemissao ? formatDateBR(activeColaborador.dataDemissao) : '—'}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.ramal || '—'}</div>
+                  <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observações Gerais</div>
+                    <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsGerais || '—'}</div>
+                  </div>
+                  {activeColaborador.usuario.ativo === false && (
+                    <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observação Demissão</div>
+                      <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsDemissao || '—'}</div>
+                    </div>
+                  )}
                   </div>
                 </div>
               ) : detalheTab === 'documentacao' ? (
@@ -1792,108 +2263,7 @@ export default function Colaboradores() {
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Usuário Sistema</div>
-                      <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_login || '—'}</div>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cargo</div>
-                      <div className="mt-2 space-y-2">
-                        <select
-                          value={acessoCargo}
-                          onChange={(e) => setAcessoCargo(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        >
-                          <option value="">Selecione...</option>
-                          <option value="Administrativo">Administrativo</option>
-                          <option value="Comercial">Comercial</option>
-                          <option value="Financeiro">Financeiro</option>
-                          <option value="Produção">Produção</option>
-                          <option value="Logística">Logística</option>
-                          <option value="TI">TI</option>
-                          <option value="RH">RH</option>
-                          <option value="Diretoria">Diretoria</option>
-                          <option value="ADMIN">ADMIN</option>
-                        </select>
-                        <button
-                          type="button"
-                          disabled={savingAcessoCargo}
-                          onClick={async () => {
-                            if (!activeColaborador) return
-                            if (!acessoCargo) return
-                            setSavingAcessoCargo(true)
-                            try {
-                              await api.users.update(activeColaborador.usuario.id, { cargo: acessoCargo })
-                              setAllUsers((prev) =>
-                                prev.map((u) => (u.id === activeColaborador.usuario.id ? { ...u, cargo: acessoCargo } : u))
-                              )
-                              setColaboradores((prev) =>
-                                prev.map((c) =>
-                                  c.id === activeColaborador.id ? { ...c, usuario: { ...c.usuario, cargo: acessoCargo } } : c
-                                )
-                              )
-                            } finally {
-                              setSavingAcessoCargo(false)
-                            }
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                          {savingAcessoCargo ? 'Salvando...' : 'Salvar Cargo'}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Situação</div>
-                      <div className="text-sm text-slate-200 mt-1 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                        {activeColaborador.usuario.ativo === false ? 'Desativado' : 'Ativo'}
-                      </div>
-                    </div>
-                    {activeColaborador.usuario.ativo === false && (
-                      <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Demissão</div>
-                        <div className="text-sm text-slate-200 mt-1">
-                          {[activeColaborador.dataDemissao ? `Data: ${formatDateBR(activeColaborador.dataDemissao)}` : null, activeColaborador.obsDemissao ? `Obs: ${activeColaborador.obsDemissao}` : null]
-                            .filter(Boolean)
-                            .join(' • ') || '—'}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={openResetSenha}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
-                    >
-                      Resetar Senha
-                    </button>
-                    {activeColaborador.usuario.ativo === false ? (
-                      <button
-                        type="button"
-                        onClick={handleReativar}
-                        disabled={changingStatus}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {changingStatus ? 'Reativando...' : 'Reativar Usuário'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={openDesativar}
-                        disabled={changingStatus}
-                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        Desativar Usuário
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}
@@ -2013,7 +2383,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={handleSalvarEdicao}
-              disabled={savingEdit}
+              disabled={savingEdit || !editDirty}
               className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
             >
               {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
@@ -2031,17 +2401,19 @@ export default function Colaboradores() {
 
           <div className="flex items-center gap-1 border-b border-white/10">
             <button
-              onClick={() => setCurrentTab('pessoal')}
+              type="button"
+              onClick={() => setEditTab('pessoal')}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                editTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
               Dados Pessoais
             </button>
             <button
-              onClick={() => setCurrentTab('corporativo')}
+              type="button"
+              onClick={() => setEditTab('corporativo')}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                editTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
               Contato Corporativo
@@ -2050,7 +2422,7 @@ export default function Colaboradores() {
 
           <div className="min-h-[300px]">
             {/* Tab: Pessoal */}
-            {currentTab === 'pessoal' && (
+            {editTab === 'pessoal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto de Perfil</label>
@@ -2148,7 +2520,7 @@ export default function Colaboradores() {
             )}
 
             {/* Tab: Corporativo */}
-            {currentTab === 'corporativo' && (
+            {editTab === 'corporativo' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente *</label>

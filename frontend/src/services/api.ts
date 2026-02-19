@@ -42,6 +42,10 @@ async function request(endpoint: string, options: RequestInit = {}) {
     if (error.name === 'AbortError') {
       throw new Error('O servidor demorou muito para responder. Tente novamente.')
     }
+    const msg = String(error?.message || '')
+    if (error instanceof TypeError || msg.includes('Failed to fetch')) {
+      throw new Error('Não foi possível conectar ao servidor de API. Verifique se o backend está rodando e se VITE_API_URL aponta para o endereço correto.')
+    }
     throw error
   }
 }

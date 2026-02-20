@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7005'
+const API_URL = String(import.meta.env.VITE_API_URL || 'http://localhost:7005').replace(/\/+$/, '')
 
 async function getHeaders() {
   const { data: { session } } = await supabase.auth.getSession()
@@ -20,7 +20,8 @@ async function request(endpoint: string, options: RequestInit = {}) {
   const id = setTimeout(() => controller.abort(), 15000)
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const response = await fetch(`${API_URL}${safeEndpoint}`, {
       ...options,
       headers: {
         ...headers,
@@ -30,13 +31,43 @@ async function request(endpoint: string, options: RequestInit = {}) {
     })
     clearTimeout(id)
 
-    const data = await response.json()
+    if (response.status === 204) return null
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Erro na requisição')
+    const contentType = String(response.headers.get('content-type') || '')
+    let data: any = null
+    let rawText: string | null = null
+
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json()
+      } catch {
+        data = null
+      }
+    } else {
+      try {
+        rawText = await response.text()
+      } catch {
+        rawText = null
+      }
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText)
+        } catch {
+          data = null
+        }
+      }
     }
 
-    return data
+    if (!response.ok) {
+      const apiError = typeof data?.error === 'string' ? data.error : null
+      const fallback = (rawText || '').replace(/\s+/g, ' ').trim()
+      const msg = apiError || (fallback ? fallback.slice(0, 200) : '') || response.statusText || 'Erro na requisição'
+      throw new Error(`[${response.status}] ${msg}`)
+    }
+
+    if (data !== null) return data
+    if (rawText !== null) return rawText
+    return null
   } catch (error: any) {
     clearTimeout(id)
     if (error.name === 'AbortError') {

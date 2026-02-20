@@ -106,6 +106,12 @@ const SupabaseHealth = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [apiOnline, setApiOnline] = useState<boolean | null>(null)
+  const [apiReady, setApiReady] = useState<boolean | null>(null)
+  const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null)
+  const [apiMeta, setApiMeta] = useState<{ version?: string; env?: string } | null>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
+  const [apiLastUpdated, setApiLastUpdated] = useState<Date | null>(null)
 
   const fetchData = async () => {
     setLoading(true);
@@ -133,10 +139,52 @@ const SupabaseHealth = () => {
     }
   };
 
+  const fetchApi = async () => {
+    setApiError(null)
+    try {
+      const base = String(import.meta.env.VITE_API_URL || 'http://localhost:7005').replace(/\/+$/, '')
+      const t0 = performance.now()
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+
+      const [statusRes, readyRes] = await Promise.all([
+        fetch(`${base}/status`, { method: 'GET', cache: 'no-store', signal: controller.signal }),
+        fetch(`${base}/ready`, { method: 'GET', cache: 'no-store', signal: controller.signal }),
+      ])
+
+      clearTimeout(timeout)
+      const t1 = performance.now()
+      setApiLatencyMs(Math.round(t1 - t0))
+      setApiOnline(statusRes.ok)
+      setApiReady(readyRes.ok)
+
+      let meta: any = null
+      try {
+        meta = await statusRes.json()
+      } catch {
+        meta = null
+      }
+      setApiMeta(meta ? { version: meta.version, env: meta.env } : null)
+      setApiLastUpdated(new Date())
+    } catch (err: any) {
+      setApiOnline(false)
+      setApiReady(false)
+      setApiLatencyMs(null)
+      setApiMeta(null)
+      setApiLastUpdated(new Date())
+      setApiError(err?.message || 'Falha ao consultar API')
+    }
+  }
+
   useEffect(() => {
     fetchData();
+    fetchApi();
     const interval = setInterval(fetchData, 60000); // Refresh every minute
-    return () => clearInterval(interval);
+    const intervalApi = setInterval(fetchApi, 60000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(intervalApi);
+    };
   }, []);
 
   // --- Logic for status ---
@@ -253,6 +301,50 @@ const SupabaseHealth = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1 border-l-4 border-l-emerald-500">
+          <div className="flex items-start justify-between">
+            <div>
+              <Label>API</Label>
+              <div className="flex items-center gap-2">
+                <Value className="text-lg">
+                  {apiOnline === null ? '—' : apiOnline ? 'Online' : 'Offline'}
+                </Value>
+                <StatusBadge status={apiOnline === null ? 'warning' : apiOnline ? (apiReady ? 'ok' : 'warning') : 'critical'} />
+              </div>
+            </div>
+            <Server className="text-emerald-500" />
+          </div>
+
+          <div className="mt-4 space-y-3 text-sm text-slate-400">
+            <div className="flex items-center justify-between">
+              <span>Pronto</span>
+              <span className={apiReady === null ? 'text-slate-400' : apiReady ? 'text-emerald-400' : 'text-rose-400'}>
+                {apiReady === null ? '—' : apiReady ? 'Sim' : 'Não'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Latência</span>
+              <span className="text-slate-200">{apiLatencyMs === null ? '—' : `${apiLatencyMs} ms`}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Ambiente</span>
+              <span className="text-slate-200">{apiMeta?.env || '—'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Versão</span>
+              <span className="text-slate-200">{apiMeta?.version || '—'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Atualização</span>
+              <span className="text-slate-200">{apiLastUpdated ? formatDateTimeBR(apiLastUpdated.toISOString()) : '—'}</span>
+            </div>
+            {apiError && (
+              <div className="mt-2 text-rose-400 text-xs">
+                {apiError}
+              </div>
+            )}
+          </div>
+        </Card>
         
         {/* Card 1: Identificação & Status Geral (Combined into Header mainly, but detailed here if needed or separate) 
             Let's make this the CPU Card as per request order, but user asked for "Card 1 - Identificação"

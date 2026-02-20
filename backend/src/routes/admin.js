@@ -13,17 +13,21 @@ router.use(async (req, res, next) => {
     if (cargo === 'ADMIN' || cargo === 'ADMINISTRADOR') return next();
 
     const acoes = ['CONTROL', 'MANAGE'];
-    for (const acao of acoes) {
-      const { data, error } = await supabaseAdmin.rpc('has_permission', {
-        user_id: req.user.id,
-        modulo: 'CONFIGURACOES',
-        acao
-      });
-      if (error) {
-        console.error('Permission check error:', error);
+    const checks = await Promise.all(
+      acoes.map((acao) =>
+        supabaseAdmin.rpc('has_permission', {
+          user_id: req.user.id,
+          modulo: 'CONFIGURACOES',
+          acao
+        })
+      )
+    );
+    for (const check of checks) {
+      if (check?.error) {
+        console.error('Permission check error:', check.error);
         return res.status(500).json({ error: 'Permission check failed' });
       }
-      if (data) return next();
+      if (check?.data) return next();
     }
 
     return res.status(403).json({ error: 'Permission denied' });
@@ -58,6 +62,18 @@ async function attachPerfisToUsers(users) {
     rbac_perfil: map.get(u.id) ?? null
   }));
 }
+
+function parsePagination(query) {
+  const pageRaw = query?.page;
+  const limitRaw = query?.limit;
+  const page = Math.max(1, Number.parseInt(String(pageRaw || '1'), 10) || 1);
+  const limit = Math.min(1000, Math.max(1, Number.parseInt(String(limitRaw || '50'), 10) || 50));
+  const offset = (page - 1) * limit;
+  const end = offset + limit - 1;
+  return { page, limit, offset, end };
+}
+
+const PROFILE_SELECT = 'id, nome, email_login, email_corporativo, telefone, ramal, cargo, avatar_url, ativo, created_at, updated_at';
 
 function normalizeCargo(input) {
   const raw = String(input ?? '').trim();
@@ -94,14 +110,14 @@ function parseAvatarDataUrl(dataUrl) {
 
 // === 1. LIST USERS ===
 router.get('/users', async (req, res) => {
-  const { page = 1, limit = 50, search } = req.query;
-  const offset = (page - 1) * limit;
+  const { page, limit, offset, end } = parsePagination(req.query);
+  const search = String(req.query?.search || '').trim();
 
   try {
     let query = supabaseAdmin
       .from('profiles')
-      .select('*', { count: 'exact' })
-      .range(offset, offset + limit - 1)
+      .select(PROFILE_SELECT, { count: 'exact' })
+      .range(offset, end)
       .order('created_at', { ascending: false });
 
     if (search) {
@@ -117,7 +133,7 @@ router.get('/users', async (req, res) => {
     res.json({
       users,
       total: count,
-      page: parseInt(page),
+      page,
       totalPages: Math.ceil(count / limit)
     });
   } catch (err) {
@@ -132,7 +148,7 @@ router.get('/users/:id', async (req, res) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select(PROFILE_SELECT)
       .eq('id', id)
       .single();
 

@@ -1,10 +1,10 @@
 const express = require('express')
 const { supabaseAdmin } = require('../supabase')
-const { authenticate } = require('../middleware/auth')
+const { authenticate, requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
 
-router.post('/realtime-test', authenticate, async (req, res) => {
+router.post('/realtime-test', authenticate, requireAdmin, async (req, res) => {
   const userId = req.user?.id
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
 
@@ -98,4 +98,3 @@ router.post('/realtime-test', authenticate, async (req, res) => {
 })
 
 module.exports = router
-

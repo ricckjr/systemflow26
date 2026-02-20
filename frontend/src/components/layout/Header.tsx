@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, Check, Inbox } from 'lucide-react';
+import { Menu, ChevronRight, ChevronLeft, Bell, MessageSquare, Check, Inbox, Server } from 'lucide-react';
 import { Profile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/useNotifications';
@@ -13,6 +13,7 @@ interface HeaderProps {
   setIsCollapsed: (collapsed: boolean) => void;
   profile: Profile;
   supabaseConnected: boolean;
+  apiConnected: boolean;
   errorMessage?: string;
 }
 
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   setIsCollapsed,
   profile,
   supabaseConnected,
+  apiConnected,
   errorMessage
 }) => {
   const location = useLocation();
@@ -53,10 +55,12 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/crm/vendedores': 'CRM — RANKING',
       '/app/crm/clientes': 'CRM — CLIENTES',
 
-      '/app/crm/configs/origem-leads': 'CONFIG GERAIS — ORIGEM DE LEADS',
+      '/app/crm/configs/origem-leads': 'CONFIG GERAIS — ORIGEM LEADS',
       '/app/crm/configs/motivos': 'CONFIG GERAIS — MOTIVOS',
       '/app/crm/configs/verticais': 'CONFIG GERAIS — VERTICAIS',
       '/app/crm/configs/produtos': 'CONFIG GERAIS — PRODUTOS',
+      '/app/crm/configs/fases': 'CONFIG GERAIS — CRM FASE',
+      '/app/crm/configs/status': 'CONFIG GERAIS — CRM STATUS',
       '/app/crm/configs/servicos': 'COMPRAS E ESTOQUE — SERVIÇOS',
       '/app/config-gerais/transportadora': 'CONFIG GERAIS — TRANSPORTADORA',
 
@@ -85,9 +89,11 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/producao/servicos': 'PRODUÇÃO — KANBAN PRODUÇÃO',
       '/app/producao/equipamentos': 'PRODUÇÃO — EQUIPAMENTOS',
       '/app/producao/certificado-garantia': 'PRODUÇÃO — CERTIFICADO GARANTIA',
+      '/app/financeiro/empresas-correspondentes': 'ADMINISTRATIVO — EMPRESA CORRESPONDENTE',
       '/app/configuracoes/perfil': 'PERFIL',
       '/app/configuracoes/usuarios': 'CONFIG GERAIS — USUÁRIOS',
       '/app/configuracoes/permissoes': 'CONFIG GERAIS — PERMISSÕES',
+      '/app/administrativo/colaboradores': 'ADMINISTRATIVO — COLABORADORES',
     };
 
     return (
@@ -169,6 +175,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Status / Notifications / Chat */}
         <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+          <button
+            onClick={() => navigate('/app/infra/supabase')}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#0F172A] border border-white/10 hover:border-blue-500/50 hover:bg-blue-500/10 transition-all cursor-pointer"
+            title={apiConnected ? 'API Operacional' : 'API Offline'}
+          >
+            <Server
+              size={16}
+              className={apiConnected ? 'text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.5)]' : 'text-red-500'}
+            />
+          </button>
+
           {/* Supabase Status */}
           <button 
             onClick={() => navigate('/app/infra/supabase')}

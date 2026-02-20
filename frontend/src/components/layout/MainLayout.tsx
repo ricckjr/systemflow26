@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { Profile, ProfilePermissao } from '@/types';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { RealtimeDebugPanel } from '@/components/infra/RealtimeDebugPanel';
+import { checkApiReachable, checkSupabaseReachable } from '@/services/net';
 
 interface LayoutProps {
   profile?: Profile | null;
@@ -17,6 +18,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [supabaseConnected, setSupabaseConnected] = useState(true);
+  const [apiConnected, setApiConnected] = useState(true);
   const location = useLocation();
   const isTvMode = useMemo(() => new URLSearchParams(location.search).get('tv') === '1', [location.search]);
   const isFullBleed = useMemo(() => {
@@ -52,15 +54,41 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
     setIsSidebarExpanded(false);
   }, [location.pathname]);
 
-  // Online / Offline indicator
   useEffect(() => {
-    const update = () => setSupabaseConnected(navigator.onLine);
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
+    let mounted = true
+
+    const useDevProxy =
+      import.meta.env.DEV &&
+      String(import.meta.env.VITE_SUPABASE_DEV_PROXY || '0') === '1' &&
+      typeof window !== 'undefined' &&
+      !!window.location?.origin
+
+    const supabaseUrl = useDevProxy
+      ? String(window.location.origin || '')
+      : String(import.meta.env.VITE_SUPABASE_URL || '')
+
+    const apiUrl = String(import.meta.env.VITE_API_URL || 'http://localhost:7005')
+
+    async function tick() {
+      const [sb, api] = await Promise.all([
+        checkSupabaseReachable(supabaseUrl),
+        checkApiReachable(apiUrl),
+      ])
+      if (!mounted) return
+      setSupabaseConnected(sb)
+      setApiConnected(api)
+    }
+
+    const onOnline = () => { tick() }
+    tick()
+    const id = window.setInterval(tick, 30_000)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOnline)
     return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
+      mounted = false
+      window.clearInterval(id)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOnline)
     };
   }, []);
 
@@ -159,6 +187,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
             setIsCollapsed={(collapsed) => setIsSidebarExpanded(!collapsed)}
             profile={profileView}
             supabaseConnected={supabaseConnected}
+            apiConnected={apiConnected}
             errorMessage={errorMessage}
           />
         )}

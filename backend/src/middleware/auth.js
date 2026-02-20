@@ -1,5 +1,37 @@
 const { supabaseAdmin } = require('../supabase');
 
+const authCacheTtlMs = Math.max(0, Number(process.env.AUTH_CACHE_TTL_MS || 30000));
+const authCache = new Map();
+
+function extractBearerToken(authHeader) {
+  const raw = String(authHeader || '').trim();
+  if (!raw) return null;
+  const m = raw.match(/^Bearer\s+(.+)$/i);
+  return m?.[1]?.trim() || null;
+}
+
+function cacheGet(token) {
+  if (!authCacheTtlMs) return null;
+  const hit = authCache.get(token);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    authCache.delete(token);
+    return null;
+  }
+  return hit;
+}
+
+function cacheSet(token, value) {
+  if (!authCacheTtlMs) return;
+  if (authCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of authCache.entries()) {
+      if (v.expiresAt <= now) authCache.delete(k);
+    }
+  }
+  authCache.set(token, { ...value, expiresAt: Date.now() + authCacheTtlMs });
+}
+
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -7,7 +39,15 @@ const authenticate = async (req, res, next) => {
     return res.status(401).json({ error: 'Missing Authorization header' });
   }
 
-  const token = authHeader.replace('Bearer ', '');
+  const token = extractBearerToken(authHeader);
+  if (!token) return res.status(401).json({ error: 'Invalid Authorization header' });
+
+  const cached = cacheGet(token);
+  if (cached) {
+    req.user = cached.user;
+    req.profile = cached.profile;
+    return next();
+  }
 
   try {
     // Verify token using Supabase Auth (getUser checks validity and signature)
@@ -38,6 +78,7 @@ const authenticate = async (req, res, next) => {
 
     req.user = user;
     req.profile = profile;
+    cacheSet(token, { user, profile });
     next();
   } catch (err) {
     console.error('Auth Middleware Error:', err);

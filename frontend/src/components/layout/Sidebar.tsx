@@ -101,6 +101,15 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: 'ADMINISTRATIVO',
+    icon: User,
+    modulo: 'administrativo',
+    subItems: [
+      { label: 'Empresa Correspondente', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Colaboradores', path: '/app/administrativo/colaboradores', submodulo: 'colaboradores', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+    ],
+  },
+  {
     label: 'FROTA',
     icon: Car,
     modulo: 'frota',
@@ -144,19 +153,18 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: 'ADMINISTRATIVO',
+    label: 'CONFIG GERAIS',
     icon: Settings,
     modulo: 'config-gerais',
-    requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' },
     subItems: [
-      { label: 'Empresa Correspondente', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Colaboradores', path: '/app/administrativo/colaboradores', submodulo: 'colaboradores', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Perfil', path: '/app/configuracoes/perfil', submodulo: 'perfil' },
       { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
       { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
       { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Origem de Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Fase CRM', path: '/app/crm/configs/fases', submodulo: 'fases', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Status CRM', path: '/app/crm/configs/status', submodulo: 'status', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Origem Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'CRM Fase', path: '/app/crm/configs/fases', submodulo: 'fases', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'CRM Status', path: '/app/crm/configs/status', submodulo: 'status', requires: { modulo: 'CRM', acao: 'CONTROL' } },
     ],
   },
 ];

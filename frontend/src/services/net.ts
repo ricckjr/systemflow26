@@ -57,3 +57,46 @@ export async function checkSupabaseReachable(
     return false
   }
 }
+
+let lastApiStatus: boolean | null = null
+let lastApiCheckAt = 0
+
+export async function checkApiReachable(apiUrl: string): Promise<boolean> {
+  const now = Date.now()
+
+  if (lastApiStatus !== null && now - lastApiCheckAt < CACHE_MS) {
+    return lastApiStatus
+  }
+
+  lastApiCheckAt = now
+
+  if (!navigator.onLine) {
+    lastApiStatus = false
+    return false
+  }
+
+  const base = String(apiUrl || '').replace(/\/+$/, '')
+  if (!base) {
+    lastApiStatus = false
+    return false
+  }
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+
+    const res = await fetch(`${base}/status`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeout)
+
+    lastApiStatus = res.ok || (res.status >= 200 && res.status < 500)
+    return lastApiStatus
+  } catch {
+    lastApiStatus = false
+    return false
+  }
+}

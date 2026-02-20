@@ -37,6 +37,7 @@ type Perfil = {
   perfil_id: string
   perfil_nome: string
   perfil_descricao?: string | null
+  ativo?: boolean | null
 }
 
 export default function Usuarios({ profile: propProfile }: UsuariosProps) {
@@ -63,7 +64,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       telefone: '',
       ramal: '',
       senha: '',
-      perfil_id: '',
+      cargo: 'VENDEDOR' as any,
+      role_ids: [] as string[],
       ativo: true
   })
   const [formLoading, setFormLoading] = useState(false)
@@ -71,19 +73,14 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
   useScrollLock(isModalOpen)
 
-  const getPerfilNomeById = (perfilId: string) => perfis.find(p => p.perfil_id === perfilId)?.perfil_nome
-
-  const perfilToCargo = (perfilNome?: string | null) => {
-    const nome = (perfilNome || '').trim().toUpperCase()
-    if (nome === 'ADMIN' || nome === 'ADMINISTRADOR') return 'ADMIN'
-    if (nome === 'FINANCEIRO') return 'FINANCEIRO'
-    if (nome === 'COMERCIAL' || nome === 'VENDEDOR') return 'VENDEDOR'
-    if (nome === 'ADMINISTRATIVO') return 'ADMINISTRATIVO'
-    if (nome === 'LOGISTICA') return 'LOGISTICA'
-    if (nome === 'ELETRONICA') return 'TECNICO'
-    if (nome === 'LABORATORIO' || nome === 'LABORATÓRIO') return 'TECNICO'
-    if (nome === 'OFICINA' || nome === 'PRODUCAO') return 'OFICINA'
-    return 'VENDEDOR'
+  const toggleRole = (roleId: string, checked: boolean) => {
+    setFormData(prev => {
+      const current = prev.role_ids || []
+      if (checked) {
+        return { ...prev, role_ids: Array.from(new Set([...current, roleId])) }
+      }
+      return { ...prev, role_ids: current.filter(id => id !== roleId) }
+    })
   }
 
   const loadPerfis = async () => {
@@ -122,9 +119,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
   // Actions
   const handleOpenCreate = () => {
-      const defaultPerfilId =
-        perfis.find(p => p.perfil_nome === 'COMERCIAL')?.perfil_id ||
-        perfis.find(p => p.perfil_nome === 'VENDEDOR')?.perfil_id ||
+      const defaultRoleId =
+        perfis.find(p => p.perfil_nome === 'USUARIO')?.perfil_id ||
         perfis[0]?.perfil_id ||
         ''
       setEditingUser(null)
@@ -135,7 +131,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
           telefone: '',
           ramal: '',
           senha: '',
-          perfil_id: defaultPerfilId,
+          cargo: 'VENDEDOR' as any,
+          role_ids: defaultRoleId ? [defaultRoleId] : [],
           ativo: true
       })
       setFormError(null)
@@ -143,12 +140,13 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
   }
 
   const handleOpenEdit = (user: Profile) => {
-      const currentPerfilId =
-        (user as any)?.rbac_perfil?.perfil_id ||
-        perfis.find(p => p.perfil_nome === 'COMERCIAL')?.perfil_id ||
-        perfis.find(p => p.perfil_nome === 'VENDEDOR')?.perfil_id ||
+      const defaultRoleId =
+        perfis.find(p => p.perfil_nome === 'USUARIO')?.perfil_id ||
         perfis[0]?.perfil_id ||
         ''
+      const currentRoleIds = Array.isArray((user as any)?.rbac_roles)
+        ? ((user as any)?.rbac_roles as any[]).map((r) => r.role_id).filter(Boolean)
+        : []
       setEditingUser(user)
       setFormData({
           nome: user.nome,
@@ -157,7 +155,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
           telefone: user.telefone || '',
           ramal: user.ramal || '',
           senha: '', // Senha vazia na edição (só preenche se quiser alterar)
-          perfil_id: currentPerfilId,
+          cargo: (user as any)?.cargo || 'VENDEDOR',
+          role_ids: currentRoleIds.length ? currentRoleIds : (defaultRoleId ? [defaultRoleId] : []),
           ativo: user.ativo
       })
       setFormError(null)
@@ -168,6 +167,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
     if (!formData.nome.trim()) return 'Nome é obrigatório'
     if (!formData.email_login.trim()) return 'Email de login é obrigatório'
     if (!formData.email_login.includes('@')) return 'Email de login inválido'
+    if (!Array.isArray(formData.role_ids) || formData.role_ids.length === 0) return 'Selecione ao menos um perfil de permissão'
     
     // Na criação, senha é obrigatória. Na edição, é opcional.
     if (!editingUser && !formData.senha) return 'Senha é obrigatória'
@@ -191,27 +191,19 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       setFormLoading(true)
 
       try {
-          const perfilNome = getPerfilNomeById(formData.perfil_id)
-          const cargo = perfilToCargo(perfilNome)
-
           if (editingUser) {
               // Edit Mode
               await api.users.update(editingUser.id, {
                   ...formData,
-                  cargo,
                   senha: formData.senha || undefined // Só envia se tiver valor
               })
 
-              if (formData.perfil_id) {
-                await api.rbac.assignUserPerfil(editingUser.id, formData.perfil_id)
-              }
+              await api.rbac.assignUserRoles(editingUser.id, formData.role_ids)
           } else {
               // Create Mode
-              const resp = await api.users.create({ ...formData, cargo })
+              const resp = await api.users.create({ ...formData })
               const userId = resp?.user?.id
-              if (userId && formData.perfil_id) {
-                await api.rbac.assignUserPerfil(userId, formData.perfil_id)
-              }
+              if (userId) await api.rbac.assignUserRoles(userId, formData.role_ids)
           }
 
           // Refresh list
@@ -327,7 +319,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                 <th className="px-6 py-4 text-left">Colaborador</th>
                 <th className="px-6 py-4">Contato</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Perfil</th>
+                <th className="px-6 py-4">Perfis</th>
                 <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
             </thead>
@@ -385,7 +377,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
                     <td className="px-6 py-4 text-center">
                         <span className="text-white font-medium bg-industrial-bg px-3 py-1 rounded-lg border border-industrial-border text-xs tracking-wide">
-                            {(user as any)?.rbac_perfil?.perfil_nome || 'N/A'}
+                            {(((user as any)?.rbac_roles || []) as any[]).map(r => r?.nome).filter(Boolean).join(', ') || 'N/A'}
                         </span>
                     </td>
 
@@ -474,21 +466,58 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Perfil de Acesso *</label>
+                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Cargo</label>
                                 <div className="relative">
                                     <select 
                                         className="w-full bg-[#0B0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all appearance-none cursor-pointer"
-                                        value={formData.perfil_id}
-                                        onChange={e => setFormData({...formData, perfil_id: e.target.value})}
+                                        value={String((formData as any).cargo || '')}
+                                        onChange={e => setFormData({ ...formData, cargo: e.target.value as any })}
                                     >
-                                        {perfis.map(p => (
-                                            <option key={p.perfil_id} value={p.perfil_id}>{p.perfil_nome}</option>
-                                        ))}
+                                        <option value="ADMIN">ADMIN</option>
+                                        <option value="COMERCIAL">COMERCIAL</option>
+                                        <option value="VENDEDOR">VENDEDOR</option>
+                                        <option value="MARKETING">MARKETING</option>
+                                        <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+                                        <option value="FINANCEIRO">FINANCEIRO</option>
+                                        <option value="RECURSOS_HUMANOS">RECURSOS HUMANOS</option>
+                                        <option value="DEPARTAMENTO_PESSOAL">DEPARTAMENTO PESSOAL</option>
+                                        <option value="LOGISTICA">LOGÍSTICA</option>
+                                        <option value="ELETRONICA">ELETRÔNICA</option>
+                                        <option value="LABORATORIO">LABORATÓRIO</option>
+                                        <option value="OFICINA">OFICINA</option>
+                                        <option value="TECNICO">TÉCNICO</option>
                                     </select>
                                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
                                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-400 mb-2 uppercase">
+                                Perfis de Permissão *
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {perfis.map((p) => {
+                                    const checked = (formData.role_ids || []).includes(p.perfil_id)
+                                    return (
+                                        <label
+                                            key={p.perfil_id}
+                                            className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0B0F14] px-4 py-3 cursor-pointer hover:border-white/20 transition-colors"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={(e) => toggleRole(p.perfil_id, e.target.checked)}
+                                                className="h-4 w-4 accent-[#38BDF8]"
+                                            />
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-bold text-white truncate">{p.perfil_nome}</div>
+                                                <div className="text-xs text-gray-500 truncate">{p.perfil_descricao || 'Sem descrição'}</div>
+                                            </div>
+                                        </label>
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>

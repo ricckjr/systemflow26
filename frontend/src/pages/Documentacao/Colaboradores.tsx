@@ -1059,6 +1059,9 @@ export default function Colaboradores() {
           console.error(e)
         }
       }
+      try {
+        window.dispatchEvent(new Event('systemflow:refreshAdminDocsAlert'))
+      } catch {}
       setIsDeleteDocOpen(false)
       setDeleteDocId(null)
     } catch (err: any) {
@@ -2022,6 +2025,9 @@ export default function Colaboradores() {
                   } catch (e) {
                     console.error(e)
                   }
+                  try {
+                    window.dispatchEvent(new Event('systemflow:refreshAdminDocsAlert'))
+                  } catch {}
                   
                   setIsDocumentoOpen(false)
                   setIsDetalheOpen(true)

@@ -90,8 +90,8 @@ export const Header: React.FC<HeaderProps> = ({
       '/app/producao/equipamentos': 'PRODUÇÃO — EQUIPAMENTOS',
       '/app/producao/certificado-garantia': 'PRODUÇÃO — CERTIFICADO GARANTIA',
       '/app/financeiro/empresas-correspondentes': 'ADMINISTRATIVO — EMPRESA CORRESPONDENTE',
-      '/app/configuracoes/perfil': 'PERFIL',
       '/app/configuracoes/usuarios': 'CONFIG GERAIS — USUÁRIOS',
+      '/app/configuracoes/perfil': 'PERFIL',
       '/app/configuracoes/permissoes': 'CONFIG GERAIS — PERMISSÕES',
       '/app/administrativo/colaboradores': 'ADMINISTRATIVO — COLABORADORES',
     };

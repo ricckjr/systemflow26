@@ -468,20 +468,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     can: (modulo: string, acao: string) => {
       const list = permissions ?? []
       if (acao === 'VIEW') {
-        return list.some(p => p.modulo === modulo && (p.acao === 'VIEW' || p.acao === 'EDIT' || p.acao === 'CONTROL'))
+        return list.some(p => p.modulo === modulo && (p.acao === 'VIEW' || p.acao === 'EDIT' || p.acao === 'CONTROL' || p.acao === 'MANAGE'))
       }
       if (acao === 'EDIT') {
-        return list.some(p => p.modulo === modulo && (p.acao === 'EDIT' || p.acao === 'CONTROL'))
+        return list.some(p => p.modulo === modulo && (p.acao === 'EDIT' || p.acao === 'CONTROL' || p.acao === 'MANAGE'))
       }
       if (acao === 'CONTROL') {
-        return list.some(p => p.modulo === modulo && p.acao === 'CONTROL')
+        return list.some(p => p.modulo === modulo && (p.acao === 'CONTROL' || p.acao === 'MANAGE'))
       }
       return list.some(p => p.modulo === modulo && p.acao === acao)
     },
-    isAdmin:
-      String(profile?.cargo || '').toUpperCase() === 'ADMIN' ||
-      String(profile?.cargo || '').toUpperCase() === 'ADMINISTRADOR' ||
-      !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && p.acao === 'CONTROL')
+    isAdmin: !!permissions?.some(p => p.modulo === 'CONFIGURACOES' && (p.acao === 'CONTROL' || p.acao === 'MANAGE'))
   }), [
     session,
     profile,

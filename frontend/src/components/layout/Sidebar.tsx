@@ -22,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/useNotifications';
 import { LogoutModal } from '../ui/LogoutModal';
 import { supabase } from '@/services/supabase';
+import { PAGE_BASE_MODULO_BY_PAGE_MODULO } from '@/constants/appPages'
 
 interface NavItem {
   label: string;
@@ -45,59 +46,59 @@ const navItems: NavItem[] = [
     label: 'DASHBOARD',
     icon: LayoutDashboard,
     modulo: 'dashboard',
-    requires: { modulo: 'DASHBOARD', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__DASHBOARD__COMERCIAL', acao: 'VIEW' },
     subItems: [
-      { label: 'Comercial', path: '/app/dashboard/comercial', submodulo: 'comercial' },
+      { label: 'Comercial', path: '/app/dashboard/comercial', submodulo: 'comercial', requires: { modulo: 'PAGINA__DASHBOARD__COMERCIAL', acao: 'VIEW' } },
     ],
   },
   {
     label: 'CRM',
     icon: Briefcase,
     modulo: 'crm',
-    requires: { modulo: 'CRM', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__CRM__PROPOSTAS_COMERCIAIS_KANBAN', acao: 'VIEW' },
     subItems: [
-      { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban' },
-      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking' },
-      { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes' },
+      { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban', requires: { modulo: 'PAGINA__CRM__PROPOSTAS_COMERCIAIS_KANBAN', acao: 'VIEW' } },
+      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking', requires: { modulo: 'PAGINA__CRM__RANKING', acao: 'VIEW' } },
+      { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes', requires: { modulo: 'PAGINA__CRM__CLIENTES', acao: 'VIEW' } },
     ],
   },
   {
     label: 'PRODUÇÃO',
     icon: Factory,
     modulo: 'producao',
-    requires: { modulo: 'PRODUCAO', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__PRODUCAO__ORDENS_SERVICO', acao: 'VIEW' },
     subItems: [
-      { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos' },
-      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos' },
-      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia' },
+      { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos', requires: { modulo: 'PAGINA__PRODUCAO__ORDENS_SERVICO', acao: 'VIEW' } },
+      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos', requires: { modulo: 'PAGINA__PRODUCAO__EQUIPAMENTOS', acao: 'VIEW' } },
+      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia', requires: { modulo: 'PAGINA__PRODUCAO__CERTIFICADO_GARANTIA', acao: 'VIEW' } },
     ],
   },
   {
     label: 'COMPRAS E ESTOQUE',
     icon: Box,
     modulo: 'compras-estoque',
-    requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__CONSULTAR_ESTOQUE', acao: 'VIEW' },
     subItems: [
-      { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque' },
-      { label: 'Locais do Estoque', path: '/app/compras-estoque/locais-estoque', submodulo: 'locais-estoque', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
-      { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras' },
-      { label: 'Transportadora', path: '/app/compras-estoque/transportadora', submodulo: 'transportadora', requires: { modulo: 'CONFIGURACOES', acao: 'VIEW' } },
-      { label: 'Cadastrar Serviço', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
-      { label: 'Cadastrar NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' } },
+      { label: 'Consultar Estoque', path: '/app/compras-estoque/consultar-estoque', submodulo: 'consultar-estoque', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__CONSULTAR_ESTOQUE', acao: 'VIEW' } },
+      { label: 'Locais do Estoque', path: '/app/compras-estoque/locais-estoque', submodulo: 'locais-estoque', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__LOCAIS_ESTOQUE', acao: 'VIEW' } },
+      { label: 'Compras', path: '/app/compras-estoque/compras', submodulo: 'compras', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__COMPRAS', acao: 'VIEW' } },
+      { label: 'Transportadora', path: '/app/compras-estoque/transportadora', submodulo: 'transportadora', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__TRANSPORTADORA', acao: 'VIEW' } },
+      { label: 'Cadastrar Serviço', path: '/app/compras-estoque/servicos', submodulo: 'servicos', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__SERVICOS', acao: 'VIEW' } },
+      { label: 'Cadastrar NCM', path: '/app/compras-estoque/ncm', submodulo: 'ncm', requires: { modulo: 'PAGINA__COMPRAS_E_ESTOQUE__NCM', acao: 'VIEW' } },
     ],
   },
   {
     label: 'FINANCEIRO',
     icon: Wallet,
     modulo: 'financeiro',
-    requires: { modulo: 'FINANCEIRO', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__FINANCEIRO__CONTAS_RECEBER', acao: 'VIEW' },
     subItems: [
-      { label: 'Conta a Receber', path: '/app/financeiro/contas-receber', submodulo: 'contas-receber', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
-      { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'FINANCEIRO', acao: 'VIEW' } },
-      { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
+      { label: 'Conta a Receber', path: '/app/financeiro/contas-receber', submodulo: 'contas-receber', requires: { modulo: 'PAGINA__FINANCEIRO__CONTAS_RECEBER', acao: 'VIEW' } },
+      { label: 'Conta a Pagar', path: '/app/financeiro/contas-pagar', submodulo: 'contas-pagar', requires: { modulo: 'PAGINA__FINANCEIRO__CONTAS_PAGAR', acao: 'VIEW' } },
+      { label: 'Cadastrar IBGE', path: '/app/financeiro/ibge', submodulo: 'ibge', requires: { modulo: 'PAGINA__FINANCEIRO__IBGE', acao: 'VIEW' } },
+      { label: 'Cadastrar CNAE', path: '/app/financeiro/cnae', submodulo: 'cnae', requires: { modulo: 'PAGINA__FINANCEIRO__CNAE', acao: 'VIEW' } },
+      { label: 'Cadastrar Forma de Pagamento', path: '/app/financeiro/formas-pagamento', submodulo: 'formas-pagamento', requires: { modulo: 'PAGINA__FINANCEIRO__FORMAS_PAGAMENTO', acao: 'VIEW' } },
+      { label: 'Cadastrar Condição de Pagamento', path: '/app/financeiro/condicoes-pagamento', submodulo: 'condicoes-pagamento', requires: { modulo: 'PAGINA__FINANCEIRO__CONDICOES_PAGAMENTO', acao: 'VIEW' } },
     ],
   },
   {
@@ -105,28 +106,28 @@ const navItems: NavItem[] = [
     icon: User,
     modulo: 'administrativo',
     subItems: [
-      { label: 'Empresa Correspondente', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'FINANCEIRO', acao: 'CONTROL' } },
-      { label: 'Colaboradores', path: '/app/administrativo/colaboradores', submodulo: 'colaboradores', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Empresa Correspondente', path: '/app/financeiro/empresas-correspondentes', submodulo: 'empresas-correspondentes', requires: { modulo: 'PAGINA__FINANCEIRO__EMPRESAS_CORRESPONDENTES', acao: 'VIEW' } },
+      { label: 'Colaboradores', path: '/app/administrativo/colaboradores', submodulo: 'colaboradores', requires: { modulo: 'PAGINA__ADMINISTRATIVO__COLABORADORES', acao: 'VIEW' } },
     ],
   },
   {
     label: 'FROTA',
     icon: Car,
     modulo: 'frota',
-    requires: { modulo: 'FROTA', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__FROTA__VEICULOS', acao: 'VIEW' },
     subItems: [
-      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos' },
-      { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo' },
+      { label: 'Veículos', path: '/app/frota/veiculos', submodulo: 'veiculos', requires: { modulo: 'PAGINA__FROTA__VEICULOS', acao: 'VIEW' } },
+      { label: 'Diário de Bordo', path: '/app/frota/diario-de-bordo', submodulo: 'diario-de-bordo', requires: { modulo: 'PAGINA__FROTA__DIARIO_BORDO', acao: 'VIEW' } },
     ],
   },
   {
     label: 'SMARTFLOW',
     icon: MessageSquare,
     modulo: 'smartflow',
-    requires: { modulo: 'SMARTFLOW', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__SMARTFLOW__ATENDIMENTOS', acao: 'VIEW' },
     subItems: [
-      { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos' },
-      { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos' },
+      { label: 'Atendimentos', path: '/app/smartflow/atendimentos', submodulo: 'atendimentos', requires: { modulo: 'PAGINA__SMARTFLOW__ATENDIMENTOS', acao: 'VIEW' } },
+      { label: 'Kanban de Fluxos', path: '/app/smartflow/kanban-fluxos', submodulo: 'kanban-fluxos', requires: { modulo: 'PAGINA__SMARTFLOW__KANBAN_FLUXOS', acao: 'VIEW' } },
     ],
   },
   {
@@ -134,22 +135,22 @@ const navItems: NavItem[] = [
     icon: Sparkles,
     modulo: 'comunidade',
     subItems: [
-      { label: 'Chat', path: '/app/comunidade/chat', submodulo: 'chat' },
-      { label: 'InstaFlow', path: '/app/comunidade', submodulo: 'instaflow' },
-      { label: 'Tarefas', path: '/app/comunidade/taskflow', submodulo: 'taskflow' },
-      { label: 'Calendário', path: '/app/comunidade/calendario', submodulo: 'calendario' },
+      { label: 'Chat', path: '/app/comunidade/chat', submodulo: 'chat', requires: { modulo: 'PAGINA__COMUNIDADE__CHAT', acao: 'VIEW' } },
+      { label: 'InstaFlow', path: '/app/comunidade', submodulo: 'instaflow', requires: { modulo: 'PAGINA__COMUNIDADE__FEED', acao: 'VIEW' } },
+      { label: 'Tarefas', path: '/app/comunidade/taskflow', submodulo: 'taskflow', requires: { modulo: 'PAGINA__COMUNIDADE__TASKFLOW', acao: 'VIEW' } },
+      { label: 'Calendário', path: '/app/comunidade/calendario', submodulo: 'calendario', requires: { modulo: 'PAGINA__COMUNIDADE__CALENDARIO', acao: 'VIEW' } },
     ],
   },
   {
     label: 'UNIVERSIDADE',
     icon: GraduationCap,
     modulo: 'universidade',
-    requires: { modulo: 'UNIVERSIDADE', acao: 'VIEW' },
+    requires: { modulo: 'PAGINA__UNIVERSIDADE__CATALOGOS', acao: 'VIEW' },
     subItems: [
-      { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos' },
-      { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais' },
-      { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos' },
-      { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho' },
+      { label: 'Catálogos', path: '/app/universidade/catalogos', submodulo: 'catalogos', requires: { modulo: 'PAGINA__UNIVERSIDADE__CATALOGOS', acao: 'VIEW' } },
+      { label: 'Manuais', path: '/app/universidade/manuais', submodulo: 'manuais', requires: { modulo: 'PAGINA__UNIVERSIDADE__MANUAIS', acao: 'VIEW' } },
+      { label: 'Treinamentos', path: '/app/universidade/treinamentos', submodulo: 'treinamentos', requires: { modulo: 'PAGINA__UNIVERSIDADE__TREINAMENTOS', acao: 'VIEW' } },
+      { label: 'Instruções de Trabalho', path: '/app/universidade/instrucoes-de-trabalho', submodulo: 'instrucoes-de-trabalho', requires: { modulo: 'PAGINA__UNIVERSIDADE__INSTRUCOES_TRABALHO', acao: 'VIEW' } },
     ],
   },
   {
@@ -157,14 +158,14 @@ const navItems: NavItem[] = [
     icon: Settings,
     modulo: 'config-gerais',
     subItems: [
-      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
+      { label: 'Usuários', path: '/app/configuracoes/usuarios', submodulo: 'usuarios', requires: { modulo: 'PAGINA__CONFIGURACOES__USUARIOS', acao: 'VIEW' } },
       { label: 'Perfil', path: '/app/configuracoes/perfil', submodulo: 'perfil' },
-      { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'CONFIGURACOES', acao: 'CONTROL' } },
-      { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'Origem Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'CRM Fase', path: '/app/crm/configs/fases', submodulo: 'fases', requires: { modulo: 'CRM', acao: 'CONTROL' } },
-      { label: 'CRM Status', path: '/app/crm/configs/status', submodulo: 'status', requires: { modulo: 'CRM', acao: 'CONTROL' } },
+      { label: 'Permissões', path: '/app/configuracoes/permissoes', submodulo: 'permissoes', requires: { modulo: 'PAGINA__CONFIGURACOES__PERMISSOES', acao: 'VIEW' } },
+      { label: 'Motivos', path: '/app/crm/configs/motivos', submodulo: 'motivos', requires: { modulo: 'PAGINA__CRM__CONFIGS__MOTIVOS', acao: 'VIEW' } },
+      { label: 'Verticais', path: '/app/crm/configs/verticais', submodulo: 'verticais', requires: { modulo: 'PAGINA__CRM__CONFIGS__VERTICAIS', acao: 'VIEW' } },
+      { label: 'Origem Leads', path: '/app/crm/configs/origem-leads', submodulo: 'origem-leads', requires: { modulo: 'PAGINA__CRM__CONFIGS__ORIGEM_LEADS', acao: 'VIEW' } },
+      { label: 'CRM Fase', path: '/app/crm/configs/fases', submodulo: 'fases', requires: { modulo: 'PAGINA__CRM__CONFIGS__FASES', acao: 'VIEW' } },
+      { label: 'CRM Status', path: '/app/crm/configs/status', submodulo: 'status', requires: { modulo: 'PAGINA__CRM__CONFIGS__STATUS', acao: 'VIEW' } },
     ],
   },
 ];
@@ -188,28 +189,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { hasAnyChatUnread } = useNotifications();
-  const [docsInvalidMenu, setDocsInvalidMenu] = useState({ colabs: false, empresas: false });
+  const [docsInvalidMenu, setDocsInvalidMenu] = useState<{
+    colabs: 'vencido' | 'vencendo' | null
+    empresas: 'vencido' | 'vencendo' | null
+  }>({ colabs: null, empresas: null });
 
   const canSee = useMemo(() => {
     if (!permissions) return (_modulo: string, _acao: string) => false
-    return (modulo: string, acao: string) => can(modulo, acao)
+    return (modulo: string, acao: string) => {
+      if (can(modulo, acao)) return true
+      if (!modulo.startsWith('PAGINA__')) return false
+      const base = PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo]
+      if (!base) return false
+      return can(base, acao)
+    }
   }, [can, permissions])
 
   const visibleNavItems = useMemo(() => {
     return navItems
-      .filter((item) => {
-        if (!item.requires) return true
-        return canSee(item.requires.modulo, item.requires.acao)
-      })
       .map((item) => {
-        if (!item.subItems?.length) return item
-        const subItems = item.subItems.filter((sub) => {
+        const subItems = item.subItems?.filter((sub) => {
           if (!sub.requires) return true
           return canSee(sub.requires.modulo, sub.requires.acao)
         })
-        return { ...item, subItems }
+        const itemAllowed = !item.requires || canSee(item.requires.modulo, item.requires.acao)
+        const hasVisibleSubs = (subItems?.length ?? 0) > 0
+        if (!itemAllowed && !hasVisibleSubs) return null
+        return { ...item, subItems: subItems ?? item.subItems }
       })
-      .filter((item) => (item.subItems?.length ?? 0) > 0)
+      .filter(Boolean)
+      .filter((item: any) => Boolean(item?.path) || (item?.subItems?.length ?? 0) > 0)
   }, [canSee])
 
   const hasActivePath = (item: NavItem, pathname: string) => {
@@ -266,72 +275,114 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const sb = supabase as any
     async function loadInvalidDocs() {
       try {
-        const hoje = new Date()
-        hoje.setHours(0, 0, 0, 0)
-        const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+        const tz = 'America/Sao_Paulo'
+        const fmtISO = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+        const hojeISO = fmtISO.format(new Date())
+        const addDaysISO = (iso: string, days: number) => {
+          const [yy, mm, dd] = iso.split('-').map(Number)
+          const base = new Date(Date.UTC(yy, mm - 1, dd))
+          base.setUTCDate(base.getUTCDate() + days)
+          const y = base.getUTCFullYear()
+          const m = String(base.getUTCMonth() + 1).padStart(2, '0')
+          const d = String(base.getUTCDate()).padStart(2, '0')
+          return `${y}-${m}-${d}`
+        }
+        const limiteISO = addDaysISO(hojeISO, 30)
 
-        let colabs = false
+        let colabs: 'vencido' | 'vencendo' | null = null
         try {
-          const r = await sb
-            .from('colaboradores_documentos')
-            .select('colaborador_id, data_vencimento')
-            .lt('data_vencimento', hojeISO)
-            .not('data_vencimento', 'is', null)
-
-          if (r?.error) throw r.error
-          const ids = Array.from(new Set((r?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
-          if (ids.length > 0) {
+          const hasAnyActiveColab = async (ids: string[]) => {
+            if (ids.length === 0) return false
             try {
-              const r2 = await sb
-                .from('colaboradores')
-                .select('id, usuario:profiles(ativo)')
-                .in('id', ids)
+              const r2 = await sb.from('colaboradores').select('id, data_demissao').in('id', ids)
               if (r2?.error) throw r2.error
-              colabs = (r2?.data ?? []).some((row: any) => row?.usuario?.ativo !== false)
-            } catch (e) {
-              colabs = true
+              return (r2?.data ?? []).some((row: any) => !row?.data_demissao)
+            } catch {
+              return true
             }
           }
+
+          const vencidos = await sb
+            .from('colaboradores_documentos')
+            .select('colaborador_id')
+            .lt('data_vencimento', hojeISO)
+            .not('data_vencimento', 'is', null)
+            .limit(500)
+          if (vencidos?.error) throw vencidos.error
+          const idsVencidos = Array.from(new Set((vencidos?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
+          if (await hasAnyActiveColab(idsVencidos)) {
+            colabs = 'vencido'
+          } else {
+            const vencendo = await sb
+              .from('colaboradores_documentos')
+              .select('colaborador_id')
+              .gte('data_vencimento', hojeISO)
+              .lte('data_vencimento', limiteISO)
+              .not('data_vencimento', 'is', null)
+              .limit(500)
+            if (vencendo?.error) throw vencendo.error
+            const idsVencendo = Array.from(new Set((vencendo?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
+            if (await hasAnyActiveColab(idsVencendo)) colabs = 'vencendo'
+          }
         } catch (e) {
-          colabs = false
+          colabs = null
         }
 
-        let empresas = false
+        let empresas: 'vencido' | 'vencendo' | null = null
         try {
-          const r = await sb
-            .from('fin_empresas_correspondentes_documentos')
-            .select('empresa_id, data_vencimento')
-            .lt('data_vencimento', hojeISO)
-            .not('data_vencimento', 'is', null)
-
-          if (r?.error) throw r.error
-          const ids = Array.from(new Set((r?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
-          if (ids.length > 0) {
+          const hasAnyActiveEmpresa = async (ids: string[]) => {
+            if (ids.length === 0) return false
             try {
-              const r2 = await sb
-                .from('fin_empresas_correspondentes')
-                .select('empresa_id, ativo')
-                .in('empresa_id', ids)
-                .eq('ativo', true)
+              const r2 = await sb.from('fin_empresas_correspondentes').select('empresa_id').in('empresa_id', ids).eq('ativo', true).limit(1)
               if (r2?.error) throw r2.error
-              empresas = (r2?.data ?? []).length > 0
-            } catch (e) {
-              empresas = true
+              return (r2?.data ?? []).length > 0
+            } catch {
+              return true
             }
           }
+
+          const vencidos = await sb
+            .from('fin_empresas_correspondentes_documentos')
+            .select('empresa_id')
+            .lt('data_vencimento', hojeISO)
+            .not('data_vencimento', 'is', null)
+            .limit(500)
+          if (vencidos?.error) throw vencidos.error
+          const idsVencidos = Array.from(new Set((vencidos?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
+          if (await hasAnyActiveEmpresa(idsVencidos)) {
+            empresas = 'vencido'
+          } else {
+            const vencendo = await sb
+              .from('fin_empresas_correspondentes_documentos')
+              .select('empresa_id')
+              .gte('data_vencimento', hojeISO)
+              .lte('data_vencimento', limiteISO)
+              .not('data_vencimento', 'is', null)
+              .limit(500)
+            if (vencendo?.error) throw vencendo.error
+            const idsVencendo = Array.from(new Set((vencendo?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
+            if (await hasAnyActiveEmpresa(idsVencendo)) empresas = 'vencendo'
+          }
         } catch (e) {
-          empresas = false
+          empresas = null
         }
 
         if (!mounted) return
         setDocsInvalidMenu({ colabs, empresas })
       } catch (e) {
         if (!mounted) return
-        setDocsInvalidMenu({ colabs: false, empresas: false })
+        setDocsInvalidMenu({ colabs: null, empresas: null })
       }
     }
     loadInvalidDocs()
-    return () => { mounted = false }
+    const onRefresh = () => loadInvalidDocs()
+    const intervalId = window.setInterval(onRefresh, 60_000)
+    window.addEventListener('systemflow:refreshAdminDocsAlert', onRefresh)
+    return () => {
+      mounted = false
+      window.clearInterval(intervalId)
+      window.removeEventListener('systemflow:refreshAdminDocsAlert', onRefresh)
+    }
   }, [])
 
   const toggleMenu = (label: string) => {
@@ -420,7 +471,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
                     )}
                     {item.label === 'ADMINISTRATIVO' && (docsInvalidMenu.colabs || docsInvalidMenu.empresas) && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full border border-[#0F172A]" />
+                      <span className="absolute -top-1 -right-1 p-0.5 rounded bg-[#0F172A]">
+                        <AlertTriangle
+                          size={14}
+                          className={
+                            docsInvalidMenu.colabs === 'vencido' || docsInvalidMenu.empresas === 'vencido' ? 'text-orange-500' : 'text-amber-500'
+                          }
+                        />
+                      </span>
                     )}
                   </div>
                   {showText && (
@@ -473,13 +531,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span className="w-2 h-2 bg-cyan-500 rounded-full" />
                               )}
                               {sub.path === '/app/administrativo/colaboradores' && docsInvalidMenu.colabs && (
-                                <span title="Documentos inválidos">
-                                  <AlertTriangle size={14} className="text-orange-500" />
+                                <span title={docsInvalidMenu.colabs === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
+                                  <AlertTriangle size={14} className={docsInvalidMenu.colabs === 'vencido' ? 'text-orange-500' : 'text-amber-500'} />
                                 </span>
                               )}
                               {sub.path === '/app/financeiro/empresas-correspondentes' && docsInvalidMenu.empresas && (
-                                <span title="Documentos inválidos">
-                                  <AlertTriangle size={14} className="text-orange-500" />
+                                <span title={docsInvalidMenu.empresas === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
+                                  <AlertTriangle size={14} className={docsInvalidMenu.empresas === 'vencido' ? 'text-orange-500' : 'text-amber-500'} />
                                 </span>
                               )}
                             </div>

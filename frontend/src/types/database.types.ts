@@ -1527,8 +1527,10 @@ export interface Database {
       get_my_permissions: {
         Args: Record<string, never>
         Returns: {
+          codigo: string
           modulo: string
           acao: string
+          descricao: string | null
         }[]
       }
     }

@@ -44,6 +44,8 @@ export interface ProfilePermissao {
 }
 
 export interface RbacPermission {
+  codigo?: string
   modulo: string
   acao: string
+  descricao?: string | null
 }

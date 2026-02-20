@@ -132,7 +132,7 @@ export const api = {
     listPerfis: () => request('/admin/rbac/perfis'),
     createPerfil: (payload: { perfil_nome: string; perfil_descricao?: string | null }) =>
       request('/admin/rbac/perfis', { method: 'POST', body: JSON.stringify(payload) }),
-    updatePerfil: (perfilId: string, payload: { perfil_nome?: string; perfil_descricao?: string | null }) =>
+    updatePerfil: (perfilId: string, payload: { perfil_nome?: string; perfil_descricao?: string | null; ativo?: boolean }) =>
       request(`/admin/rbac/perfis/${perfilId}`, { method: 'PATCH', body: JSON.stringify(payload) }),
     deletePerfil: (perfilId: string) =>
       request(`/admin/rbac/perfis/${perfilId}`, { method: 'DELETE' }),
@@ -148,7 +148,10 @@ export const api = {
       request(`/admin/rbac/perfis/${perfilId}/permissoes`, { method: 'PUT', body: JSON.stringify({ permissao_ids }) }),
 
     assignUserPerfil: (userId: string, perfil_id: string) =>
-      request(`/admin/users/${userId}/perfil`, { method: 'PATCH', body: JSON.stringify({ perfil_id }) })
+      request(`/admin/users/${userId}/perfil`, { method: 'PATCH', body: JSON.stringify({ perfil_id }) }),
+
+    assignUserRoles: (userId: string, role_ids: string[]) =>
+      request(`/admin/users/${userId}/roles`, { method: 'PUT', body: JSON.stringify({ role_ids }) })
   },
   taskflow: {
     fixBoard: () => request('/taskflow/fix-board', { method: 'POST' })

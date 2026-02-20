@@ -56,4 +56,3 @@ export default function ProtectedNoLayoutRoute({ children }: { children?: React.
 
   return <>{children || <Outlet />}</>
 }
-

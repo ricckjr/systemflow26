@@ -34,14 +34,14 @@ async function findUserIdByEmail(email) {
   }
 }
 
-async function getPerfilIdByNome(perfilNome) {
+async function getRoleIdByNome(perfilNome) {
   const { data, error } = await supabaseAdmin
-    .from('perfis')
-    .select('perfil_id, perfil_nome')
-    .eq('perfil_nome', perfilNome)
+    .from('roles')
+    .select('id, nome')
+    .eq('nome', perfilNome)
     .maybeSingle()
   if (error) throw error
-  return data?.perfil_id || null
+  return data?.id || null
 }
 
 async function ensureAuthUser(email, password, displayName) {
@@ -79,11 +79,17 @@ async function upsertProfile(userId, email, nome, cargo) {
   if (error) throw error
 }
 
-async function upsertProfilePerfil(userId, perfilId) {
-  const { error } = await supabaseAdmin
-    .from('profile_perfis')
-    .upsert({ user_id: userId, perfil_id: perfilId }, { onConflict: 'user_id' })
-  if (error) throw error
+async function setUserRole(userId, roleId) {
+  const { error: delError } = await supabaseAdmin
+    .from('user_roles')
+    .delete()
+    .eq('user_id', userId)
+  if (delError) throw delError
+
+  const { error: insError } = await supabaseAdmin
+    .from('user_roles')
+    .insert({ user_id: userId, role_id: roleId })
+  if (insError) throw insError
 }
 
 async function main() {
@@ -104,15 +110,15 @@ async function main() {
   const results = []
 
   for (const u of users) {
-    const perfilId = await getPerfilIdByNome(u.perfil)
-    if (!perfilId) {
+    const roleId = await getRoleIdByNome(u.perfil)
+    if (!roleId) {
       throw new Error(`Perfil não encontrado no banco: ${u.perfil}`)
     }
 
     const password = process.env.DEFAULT_USERS_PASSWORD ? basePassword : defaultPassword()
     const userId = await ensureAuthUser(u.email, password, u.nome)
     await upsertProfile(userId, u.email, u.nome, u.cargo)
-    await upsertProfilePerfil(userId, perfilId)
+    await setUserRole(userId, roleId)
 
     results.push({
       perfil: u.perfil,
@@ -136,4 +142,3 @@ main().catch((e) => {
   console.error(e?.message || e)
   process.exit(1)
 })
-

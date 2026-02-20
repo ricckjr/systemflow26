@@ -2,6 +2,7 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { PAGE_BASE_MODULO_BY_PAGE_MODULO } from '@/constants/appPages'
 
 export default function RequirePermission({
   children,
@@ -32,10 +33,13 @@ export default function RequirePermission({
     )
   }
 
-  if (!can(modulo, acao)) {
+  const allowed =
+    can(modulo, acao) ||
+    (modulo.startsWith('PAGINA__') && !!PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo] && can(PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo], acao))
+
+  if (!allowed) {
     return <Navigate to={fallbackTo} replace state={{ message: 'Acesso negado.' }} />
   }
 
   return <>{children}</>
 }
-

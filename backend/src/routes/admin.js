@@ -1,65 +1,96 @@
 const express = require('express');
 const { supabaseAdmin } = require('../supabase');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
-router.use(async (req, res, next) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+router.use(requirePermission('CONFIGURACOES', 'CONTROL'));
 
-    const cargo = String(req.profile?.cargo || '').toUpperCase().trim();
-    if (cargo === 'ADMIN' || cargo === 'ADMINISTRADOR') return next();
+function isMissingTable(err, tableName) {
+  const msg = String(err?.message || '');
+  const details = String(err?.details || '');
+  const hint = String(err?.hint || '');
+  const code = String(err?.code || '');
+  const raw = `${msg} ${details} ${hint} ${code}`.trim();
+  const lower = raw.toLowerCase();
 
-    const acoes = ['CONTROL', 'MANAGE'];
-    const checks = await Promise.all(
-      acoes.map((acao) =>
-        supabaseAdmin.rpc('has_permission', {
-          user_id: req.user.id,
-          modulo: 'CONFIGURACOES',
-          acao
-        })
-      )
-    );
-    for (const check of checks) {
-      if (check?.error) {
-        console.error('Permission check error:', check.error);
-        return res.status(500).json({ error: 'Permission check failed' });
-      }
-      if (check?.data) return next();
-    }
+  const t = String(tableName || '').toLowerCase();
+  const hasTableName =
+    lower.includes(`public.${t}`) ||
+    lower.includes(`'${t}'`) ||
+    lower.includes(`"${t}"`) ||
+    lower.includes(` ${t} `) ||
+    lower.endsWith(` ${t}`) ||
+    lower.includes(` ${t}.`) ||
+    lower.includes(`.${t} `);
 
-    return res.status(403).json({ error: 'Permission denied' });
-  } catch (err) {
-    console.error('Permission middleware error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+  const isSchemaCache =
+    lower.includes('schema cache') ||
+    lower.includes('could not find the table') ||
+    lower.includes('could not find the') ||
+    lower.includes('relation') ||
+    code.startsWith('PGRST');
 
-async function attachPerfisToUsers(users) {
+  return hasTableName && isSchemaCache;
+}
+
+async function attachRolesToUsers(users) {
   const userIds = (users || []).map((u) => u.id).filter(Boolean);
   if (userIds.length === 0) return users;
 
-  const { data, error } = await supabaseAdmin
-    .from('profile_perfis')
-    .select('user_id, perfil_id, perfis(perfil_nome, perfil_descricao)')
-    .in('user_id', userIds);
+  let data = null;
+  try {
+    const { data: rows, error } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id, role_id, roles(nome, descricao, ativo)')
+      .in('user_id', userIds);
 
-  if (error) throw error;
+    if (error) throw error;
+    data = rows ?? [];
+  } catch (err) {
+    if (!isMissingTable(err, 'user_roles')) throw err;
+
+    const { data: legacyRows, error: legacyError } = await supabaseAdmin
+      .from('profile_perfis')
+      .select('user_id, perfil_id, perfis(perfil_nome, perfil_descricao)')
+      .in('user_id', userIds);
+
+    if (legacyError) throw legacyError;
+
+    const map = new Map();
+    (legacyRows || []).forEach((row) => {
+      map.set(row.user_id, [
+        {
+          role_id: row.perfil_id,
+          nome: row.perfis?.perfil_nome ?? null,
+          descricao: row.perfis?.perfil_descricao ?? null,
+          ativo: null
+        }
+      ]);
+    });
+
+    return (users || []).map((u) => ({
+      ...u,
+      rbac_roles: map.get(u.id) ?? []
+    }));
+  }
 
   const map = new Map();
   (data || []).forEach((row) => {
-    map.set(row.user_id, {
-      perfil_id: row.perfil_id,
-      perfil_nome: row.perfis?.perfil_nome ?? null,
-      perfil_descricao: row.perfis?.perfil_descricao ?? null
+    const list = map.get(row.user_id) || [];
+    list.push({
+      role_id: row.role_id,
+      nome: row.roles?.nome ?? null,
+      descricao: row.roles?.descricao ?? null,
+      ativo: row.roles?.ativo ?? null
     });
+    map.set(row.user_id, list);
   });
 
   return (users || []).map((u) => ({
     ...u,
-    rbac_perfil: map.get(u.id) ?? null
+    rbac_roles: map.get(u.id) ?? []
   }));
 }
 
@@ -128,7 +159,7 @@ router.get('/users', async (req, res) => {
 
     if (error) throw error;
 
-    const users = await attachPerfisToUsers(data);
+    const users = await attachRolesToUsers(data);
 
     res.json({
       users,
@@ -153,7 +184,7 @@ router.get('/users/:id', async (req, res) => {
       .single();
 
     if (error) throw error;
-    const users = await attachPerfisToUsers([data]);
+    const users = await attachRolesToUsers([data]);
     res.json(users[0] ?? data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -171,7 +202,8 @@ router.post('/users', async (req, res) => {
     cargo, 
     ativo,
     telefone,
-    ramal
+    ramal,
+    role_ids
   } = req.body;
 
   // Validation
@@ -219,29 +251,27 @@ router.post('/users', async (req, res) => {
       throw profileError;
     }
 
-    const perfilNome =
-      normalizedCargo === 'ADMIN'
-        ? 'ADMIN'
-        : normalizedCargo === 'FINANCEIRO'
-        ? 'FINANCEIRO'
-        : normalizedCargo === 'OFICINA' || normalizedCargo === 'TECNICO'
-        ? 'PRODUCAO'
-        : 'VENDEDOR';
+    if (Array.isArray(role_ids) && role_ids.length > 0) {
+      try {
+        const { error: delError } = await supabaseAdmin
+          .from('user_roles')
+          .delete()
+          .eq('user_id', authData.user.id);
+        if (delError) throw delError;
 
-    const { data: perfilRow, error: perfilError } = await supabaseAdmin
-      .from('perfis')
-      .select('perfil_id')
-      .eq('perfil_nome', perfilNome)
-      .maybeSingle();
+        const rows = role_ids.map((role_id) => ({ user_id: authData.user.id, role_id }));
+        const { error: insError } = await supabaseAdmin
+          .from('user_roles')
+          .insert(rows);
+        if (insError) throw insError;
+      } catch (err) {
+        if (!isMissingTable(err, 'user_roles')) throw err;
 
-    if (perfilError) throw perfilError;
-
-    if (perfilRow?.perfil_id) {
-      const { error: assignError } = await supabaseAdmin
-        .from('profile_perfis')
-        .upsert({ user_id: authData.user.id, perfil_id: perfilRow.perfil_id });
-
-      if (assignError) throw assignError;
+        const { error: legacyAssignError } = await supabaseAdmin
+          .from('profile_perfis')
+          .upsert({ user_id: authData.user.id, perfil_id: role_ids[0] });
+        if (legacyAssignError) throw legacyAssignError;
+      }
     }
 
     res.status(201).json({ 
@@ -407,13 +437,39 @@ router.delete('/users/:id', async (req, res) => {
 
 router.get('/rbac/perfis', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('perfis')
-      .select('*')
-      .order('perfil_nome', { ascending: true });
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('roles')
+        .select('id, nome, descricao, ativo, created_at, updated_at')
+        .order('nome', { ascending: true });
 
-    if (error) throw error;
-    res.json({ perfis: data ?? [] });
+      if (error) throw error;
+      const perfis = (data ?? []).map((r) => ({
+        perfil_id: r.id,
+        perfil_nome: r.nome,
+        perfil_descricao: r.descricao,
+        ativo: r.ativo,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+      return res.json({ perfis });
+    } catch (err) {
+      if (!isMissingTable(err, 'roles')) throw err;
+      const { data, error } = await supabaseAdmin
+        .from('perfis')
+        .select('perfil_id, perfil_nome, perfil_descricao, created_at, updated_at')
+        .order('perfil_nome', { ascending: true });
+      if (error) throw error;
+      const perfis = (data ?? []).map((r) => ({
+        perfil_id: r.perfil_id,
+        perfil_nome: r.perfil_nome,
+        perfil_descricao: r.perfil_descricao,
+        ativo: true,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+      return res.json({ perfis });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -425,13 +481,20 @@ router.post('/rbac/perfis', async (req, res) => {
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('perfis')
-      .insert({ perfil_nome, perfil_descricao: perfil_descricao ?? null })
-      .select('*')
+      .from('roles')
+      .insert({ nome: perfil_nome, descricao: perfil_descricao ?? null, ativo: true })
+      .select('id, nome, descricao, ativo, created_at, updated_at')
       .single();
 
     if (error) throw error;
-    res.status(201).json(data);
+    res.status(201).json({
+      perfil_id: data.id,
+      perfil_nome: data.nome,
+      perfil_descricao: data.descricao,
+      ativo: data.ativo,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -439,22 +502,30 @@ router.post('/rbac/perfis', async (req, res) => {
 
 router.patch('/rbac/perfis/:perfilId', async (req, res) => {
   const { perfilId } = req.params;
-  const { perfil_nome, perfil_descricao } = req.body || {};
+  const { perfil_nome, perfil_descricao, ativo } = req.body || {};
 
   try {
     const payload = {};
-    if (perfil_nome !== undefined) payload.perfil_nome = perfil_nome;
-    if (perfil_descricao !== undefined) payload.perfil_descricao = perfil_descricao;
+    if (perfil_nome !== undefined) payload.nome = perfil_nome;
+    if (perfil_descricao !== undefined) payload.descricao = perfil_descricao;
+    if (ativo !== undefined) payload.ativo = Boolean(ativo);
 
     const { data, error } = await supabaseAdmin
-      .from('perfis')
+      .from('roles')
       .update(payload)
-      .eq('perfil_id', perfilId)
-      .select('*')
+      .eq('id', perfilId)
+      .select('id, nome, descricao, ativo, created_at, updated_at')
       .single();
 
     if (error) throw error;
-    res.json(data);
+    res.json({
+      perfil_id: data.id,
+      perfil_nome: data.nome,
+      perfil_descricao: data.descricao,
+      ativo: data.ativo,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -464,9 +535,9 @@ router.delete('/rbac/perfis/:perfilId', async (req, res) => {
   const { perfilId } = req.params;
   try {
     const { error } = await supabaseAdmin
-      .from('perfis')
+      .from('roles')
       .delete()
-      .eq('perfil_id', perfilId);
+      .eq('id', perfilId);
 
     if (error) throw error;
     res.json({ message: 'Perfil removido' });
@@ -477,32 +548,71 @@ router.delete('/rbac/perfis/:perfilId', async (req, res) => {
 
 router.get('/rbac/permissoes', async (req, res) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('permissoes')
-      .select('*')
-      .order('modulo', { ascending: true })
-      .order('acao', { ascending: true });
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('permissions')
+        .select('id, codigo, modulo, acao, descricao, created_at, updated_at')
+        .order('modulo', { ascending: true })
+        .order('acao', { ascending: true });
 
-    if (error) throw error;
-    res.json({ permissoes: data ?? [] });
+      if (error) throw error;
+      const permissoes = (data ?? []).map((p) => ({
+        permissao_id: p.id,
+        codigo: p.codigo,
+        modulo: p.modulo,
+        acao: p.acao,
+        descricao: p.descricao,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      }));
+      return res.json({ permissoes });
+    } catch (err) {
+      if (!isMissingTable(err, 'permissions')) throw err;
+
+      const { data, error } = await supabaseAdmin
+        .from('permissoes')
+        .select('permissao_id, modulo, acao, descricao, created_at, updated_at')
+        .order('modulo', { ascending: true })
+        .order('acao', { ascending: true });
+
+      if (error) throw error;
+      const permissoes = (data ?? []).map((p) => ({
+        permissao_id: p.permissao_id,
+        codigo: null,
+        modulo: p.modulo,
+        acao: p.acao,
+        descricao: p.descricao,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      }));
+      return res.json({ permissoes });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 router.post('/rbac/permissoes', async (req, res) => {
-  const { modulo, acao, descricao } = req.body || {};
-  if (!modulo || !acao) return res.status(400).json({ error: 'modulo e acao são obrigatórios' });
+  const { codigo, modulo, acao, descricao } = req.body || {};
+  if (!codigo || !modulo || !acao) return res.status(400).json({ error: 'codigo, modulo e acao são obrigatórios' });
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('permissoes')
-      .insert({ modulo, acao, descricao: descricao ?? null })
-      .select('*')
+      .from('permissions')
+      .insert({ codigo, modulo, acao, descricao: descricao ?? null })
+      .select('id, codigo, modulo, acao, descricao, created_at, updated_at')
       .single();
 
     if (error) throw error;
-    res.status(201).json(data);
+    res.status(201).json({
+      permissao_id: data.id,
+      codigo: data.codigo,
+      modulo: data.modulo,
+      acao: data.acao,
+      descricao: data.descricao,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -512,9 +622,9 @@ router.delete('/rbac/permissoes/:permissaoId', async (req, res) => {
   const { permissaoId } = req.params;
   try {
     const { error } = await supabaseAdmin
-      .from('permissoes')
+      .from('permissions')
       .delete()
-      .eq('permissao_id', permissaoId);
+      .eq('id', permissaoId);
 
     if (error) throw error;
     res.json({ message: 'Permissão removida' });
@@ -526,13 +636,33 @@ router.delete('/rbac/permissoes/:permissaoId', async (req, res) => {
 router.get('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
   const { perfilId } = req.params;
   try {
-    const { data, error } = await supabaseAdmin
-      .from('perfil_permissoes')
-      .select('permissao_id, permissoes(modulo, acao, descricao)')
-      .eq('perfil_id', perfilId);
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('role_permissions')
+        .select('permission_id, permissions(codigo, modulo, acao, descricao)')
+        .eq('role_id', perfilId);
 
-    if (error) throw error;
-    res.json({ itens: data ?? [] });
+      if (error) throw error;
+      const itens = (data ?? []).map((row) => ({
+        permissao_id: row.permission_id,
+        permissao: row.permissions ?? null
+      }));
+      return res.json({ itens });
+    } catch (err) {
+      if (!isMissingTable(err, 'role_permissions')) throw err;
+
+      const { data, error } = await supabaseAdmin
+        .from('perfil_permissoes')
+        .select('permissao_id, permissoes(modulo, acao, descricao)')
+        .eq('perfil_id', perfilId);
+
+      if (error) throw error;
+      const itens = (data ?? []).map((row) => ({
+        permissao_id: row.permissao_id,
+        permissao: row.permissoes ?? null
+      }));
+      return res.json({ itens });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -544,20 +674,83 @@ router.put('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
   if (!Array.isArray(permissao_ids)) return res.status(400).json({ error: 'permissao_ids deve ser um array' });
 
   try {
-    const { error: delError } = await supabaseAdmin
-      .from('perfil_permissoes')
-      .delete()
-      .eq('perfil_id', perfilId);
+    try {
+      const { error: delError } = await supabaseAdmin
+        .from('role_permissions')
+        .delete()
+        .eq('role_id', perfilId);
 
-    if (delError) throw delError;
+      if (delError) throw delError;
 
-    const inserts = permissao_ids.map((permissao_id) => ({ perfil_id: perfilId, permissao_id }));
-    const { error: insError } = await supabaseAdmin
-      .from('perfil_permissoes')
-      .insert(inserts);
+      const inserts = permissao_ids.map((permission_id) => ({ role_id: perfilId, permission_id }));
+      const { error: insError } = await supabaseAdmin
+        .from('role_permissions')
+        .insert(inserts);
 
-    if (insError) throw insError;
-    res.json({ message: 'Permissões atualizadas' });
+      if (insError) throw insError;
+      return res.json({ message: 'Permissões atualizadas' });
+    } catch (err) {
+      if (!isMissingTable(err, 'role_permissions')) throw err;
+
+      const { error: delError } = await supabaseAdmin
+        .from('perfil_permissoes')
+        .delete()
+        .eq('perfil_id', perfilId);
+      if (delError) throw delError;
+
+      const inserts = permissao_ids.map((permissao_id) => ({ perfil_id: perfilId, permissao_id }));
+      const { error: insError } = await supabaseAdmin
+        .from('perfil_permissoes')
+        .insert(inserts);
+      if (insError) throw insError;
+
+      return res.json({ message: 'Permissões atualizadas' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/users/:id/roles', async (req, res) => {
+  const { id } = req.params;
+  const { role_ids } = req.body || {};
+  if (!Array.isArray(role_ids)) return res.status(400).json({ error: 'role_ids deve ser um array' });
+
+  try {
+    try {
+      const { error: delError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', id);
+      if (delError) throw delError;
+
+      if (role_ids.length > 0) {
+        const rows = role_ids.map((role_id) => ({ user_id: id, role_id }));
+        const { error: insError } = await supabaseAdmin
+          .from('user_roles')
+          .insert(rows);
+        if (insError) throw insError;
+      }
+
+      return res.json({ message: 'Roles atualizadas' });
+    } catch (err) {
+      if (!isMissingTable(err, 'user_roles')) throw err;
+
+      const { error: delError } = await supabaseAdmin
+        .from('profile_perfis')
+        .delete()
+        .eq('user_id', id);
+      if (delError) throw delError;
+
+      if (role_ids.length > 0) {
+        const { error: insError } = await supabaseAdmin
+          .from('profile_perfis')
+          .insert({ user_id: id, perfil_id: role_ids[0] });
+        if (insError) throw insError;
+      }
+
+      return res.json({ message: 'Roles atualizadas' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -569,12 +762,29 @@ router.patch('/users/:id/perfil', async (req, res) => {
   if (!perfil_id) return res.status(400).json({ error: 'perfil_id é obrigatório' });
 
   try {
-    const { error } = await supabaseAdmin
-      .from('profile_perfis')
-      .upsert({ user_id: id, perfil_id });
+    try {
+      const { error: delError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', id);
+      if (delError) throw delError;
 
-    if (error) throw error;
-    res.json({ message: 'Perfil atribuído' });
+      const { error: insError } = await supabaseAdmin
+        .from('user_roles')
+        .insert([{ user_id: id, role_id: perfil_id }]);
+      if (insError) throw insError;
+
+      return res.json({ message: 'Perfil atribuído' });
+    } catch (err) {
+      if (!isMissingTable(err, 'user_roles')) throw err;
+
+      const { error: legacyAssignError } = await supabaseAdmin
+        .from('profile_perfis')
+        .upsert({ user_id: id, perfil_id });
+      if (legacyAssignError) throw legacyAssignError;
+
+      return res.json({ message: 'Perfil atribuído' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

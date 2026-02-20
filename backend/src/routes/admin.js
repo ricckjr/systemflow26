@@ -683,11 +683,13 @@ router.put('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
       if (delError) throw delError;
 
       const inserts = permissao_ids.map((permission_id) => ({ role_id: perfilId, permission_id }));
-      const { error: insError } = await supabaseAdmin
-        .from('role_permissions')
-        .insert(inserts);
+      if (inserts.length > 0) {
+        const { error: insError } = await supabaseAdmin
+          .from('role_permissions')
+          .insert(inserts);
 
-      if (insError) throw insError;
+        if (insError) throw insError;
+      }
       return res.json({ message: 'Permissões atualizadas' });
     } catch (err) {
       if (!isMissingTable(err, 'role_permissions')) throw err;
@@ -699,10 +701,12 @@ router.put('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
       if (delError) throw delError;
 
       const inserts = permissao_ids.map((permissao_id) => ({ perfil_id: perfilId, permissao_id }));
-      const { error: insError } = await supabaseAdmin
-        .from('perfil_permissoes')
-        .insert(inserts);
-      if (insError) throw insError;
+      if (inserts.length > 0) {
+        const { error: insError } = await supabaseAdmin
+          .from('perfil_permissoes')
+          .insert(inserts);
+        if (insError) throw insError;
+      }
 
       return res.json({ message: 'Permissões atualizadas' });
     }

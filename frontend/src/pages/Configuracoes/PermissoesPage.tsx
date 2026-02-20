@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import PermissoesRbac from '@/pages/Configuracoes/PermissoesRbac'
 import { api } from '@/services/api'
 import { APP_MENUS_ORDER, APP_PAGES } from '@/constants/appPages'
-import { Loader2, Save, Search } from 'lucide-react'
+import { Loader2, Save } from 'lucide-react'
 
 export default function PermissoesPage() {
   const [tab, setTab] = useState<'perfis' | 'paginas'>('paginas')
@@ -48,11 +48,13 @@ function PermissoesPaginas() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const [success, setSuccess] = useState<string | null>(null)
+  const [perfilQuery, setPerfilQuery] = useState('')
   const [perfis, setPerfis] = useState<any[]>([])
   const [permissoes, setPermissoes] = useState<any[]>([])
   const [activePerfilId, setActivePerfilId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [initialSelected, setInitialSelected] = useState<Set<string>>(new Set())
 
   const permIdByKey = useMemo(() => {
     const map = new Map<string, string>()
@@ -84,9 +86,12 @@ function PermissoesPaginas() {
 
   const loadPerfilPerms = async (perfilId: string) => {
     setError(null)
+    setSuccess(null)
     try {
       const { itens } = await api.rbac.getPerfilPermissoes(perfilId)
-      setSelected(new Set<string>((itens || []).map((i: any) => i.permissao_id)))
+      const next = new Set<string>((itens || []).map((i: any) => i.permissao_id))
+      setSelected(next)
+      setInitialSelected(new Set(next))
     } catch (e: any) {
       setError(e?.message || 'Erro ao carregar permissões do perfil.')
     }
@@ -101,23 +106,20 @@ function PermissoesPaginas() {
     loadPerfilPerms(activePerfilId)
   }, [activePerfilId])
 
-  const filteredPages = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return APP_PAGES
-    return APP_PAGES.filter((p) => {
-      const label = String(p.label || '').toLowerCase()
-      const path = String(p.path || '').toLowerCase()
-      const pageModulo = String(p.pageModulo || '').toLowerCase()
-      const baseModulo = String(p.baseModulo || '').toLowerCase()
-      const menu = String(p.menu || '').toLowerCase()
-      const item = String(p.item || '').toLowerCase()
-      return label.includes(q) || path.includes(q) || pageModulo.includes(q) || baseModulo.includes(q) || menu.includes(q) || item.includes(q)
-    })
-  }, [search])
+  const filteredPerfis = useMemo(() => {
+    const q = perfilQuery.trim().toLowerCase()
+    const sorted = [...(perfis || [])].sort((a, b) => String(a?.perfil_nome || '').localeCompare(String(b?.perfil_nome || '')))
+    if (!q) return sorted
+    const list = sorted.filter((p: any) => String(p?.perfil_nome || '').toLowerCase().includes(q))
+    if (!activePerfilId) return list
+    if (list.some((p: any) => p?.perfil_id === activePerfilId)) return list
+    const current = sorted.find((p: any) => p?.perfil_id === activePerfilId)
+    return current ? [current, ...list] : list
+  }, [perfis, perfilQuery, activePerfilId])
 
   const groupedMenus = useMemo(() => {
-    const byMenu = new Map<string, typeof filteredPages>()
-    for (const p of filteredPages) {
+    const byMenu = new Map<string, typeof APP_PAGES>()
+    for (const p of APP_PAGES) {
       const key = p.menu || 'Outros'
       const list = byMenu.get(key) || []
       list.push(p)
@@ -131,9 +133,10 @@ function PermissoesPaginas() {
 
     const order = new Map<string, number>((APP_MENUS_ORDER as unknown as string[]).map((m, i) => [m, i]))
     return Array.from(byMenu.entries()).sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999))
-  }, [filteredPages])
+  }, [])
 
   const togglePage = (modulo: string, acao: string, checked: boolean) => {
+    setSuccess(null)
     const viewId = permIdByKey.get(`${modulo}:VIEW`)
     const editId = permIdByKey.get(`${modulo}:EDIT`)
     const controlId = permIdByKey.get(`${modulo}:CONTROL`)
@@ -186,10 +189,20 @@ function PermissoesPaginas() {
     })
   }
 
+  const isDirty = useMemo(() => {
+    if (selected.size !== initialSelected.size) return true
+    for (const id of selected) {
+      if (!initialSelected.has(id)) return true
+    }
+    return false
+  }, [initialSelected, selected])
+
   const save = async () => {
     if (!activePerfilId) return
+    if (!isDirty) return
     setSaving(true)
     setError(null)
+    setSuccess(null)
     try {
       const final = new Set(selected)
 
@@ -226,6 +239,10 @@ function PermissoesPaginas() {
       }
 
       await api.rbac.setPerfilPermissoes(activePerfilId, Array.from(final))
+      setSelected(final)
+      setInitialSelected(new Set(final))
+      setSuccess('Alterações salvas com sucesso.')
+      setTimeout(() => setSuccess(null), 3000)
     } catch (e: any) {
       setError(e?.message || 'Erro ao salvar permissões.')
     } finally {
@@ -248,42 +265,52 @@ function PermissoesPaginas() {
           {error}
         </div>
       )}
+      {success && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+          {success}
+        </div>
+      )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex-1 relative max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-industrial-text-secondary" size={16} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por página, rota, módulo ou ação..."
-            className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl pl-10 pr-4 text-white placeholder:text-gray-600 focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
-          />
+      <div className="flex flex-col md:flex-row md:items-end gap-3">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+          <div>
+            <div className="text-[11px] font-bold text-industrial-text-secondary uppercase mb-1">Selecione o Perfil</div>
+            <input
+              value={perfilQuery}
+              onChange={(e) => setPerfilQuery(e.target.value)}
+              placeholder="Filtrar perfis..."
+              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white placeholder:text-gray-600 focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
+            />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-industrial-text-secondary uppercase mb-1">Perfil</div>
+            <select
+              value={activePerfilId ?? ''}
+              onChange={(e) => setActivePerfilId(e.target.value || null)}
+              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
+            >
+              {filteredPerfis.map((p: any) => (
+                <option key={p.perfil_id} value={p.perfil_id}>
+                  {p.perfil_nome}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="text-xs font-bold text-industrial-text-secondary uppercase">Selecione o Perfil</div>
-          <select
-            value={activePerfilId ?? ''}
-            onChange={(e) => setActivePerfilId(e.target.value || null)}
-            className="h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
-          >
-            {(perfis || []).map((p: any) => (
-              <option key={p.perfil_id} value={p.perfil_id}>
-                {p.perfil_nome}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || !activePerfilId}
-            className="h-10 px-4 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-extrabold disabled:opacity-60 flex items-center gap-2"
-          >
-            <Save size={16} />
-            Salvar
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || !activePerfilId || !isDirty}
+          className={`h-10 px-4 rounded-xl text-[#0B0F14] font-extrabold flex items-center justify-center gap-2 transition ${
+            saving || !activePerfilId || !isDirty
+              ? 'bg-[#38BDF8]/40 opacity-60'
+              : 'bg-[#38BDF8] hover:bg-[#0EA5E9] shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px]'
+          }`}
+        >
+          {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+          {saving ? 'Salvando...' : isDirty ? 'Salvar alterações' : 'Sem alterações'}
+        </button>
       </div>
 
       <div className="bg-industrial-surface rounded-2xl border border-industrial-border overflow-hidden">

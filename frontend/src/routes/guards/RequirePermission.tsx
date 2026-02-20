@@ -33,9 +33,13 @@ export default function RequirePermission({
     )
   }
 
+  const hasPagePerms = (permissions ?? []).some((p: any) => String(p?.modulo || '').startsWith('PAGINA__'))
   const allowed =
     can(modulo, acao) ||
-    (modulo.startsWith('PAGINA__') && !!PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo] && can(PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo], acao))
+    (!hasPagePerms &&
+      modulo.startsWith('PAGINA__') &&
+      !!PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo] &&
+      can(PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo], acao))
 
   if (!allowed) {
     return <Navigate to={fallbackTo} replace state={{ message: 'Acesso negado.' }} />

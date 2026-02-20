@@ -196,8 +196,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const canSee = useMemo(() => {
     if (!permissions) return (_modulo: string, _acao: string) => false
+    const hasPagePerms = (permissions ?? []).some((p: any) => String(p?.modulo || '').startsWith('PAGINA__'))
     return (modulo: string, acao: string) => {
       if (can(modulo, acao)) return true
+      if (hasPagePerms) return false
       if (!modulo.startsWith('PAGINA__')) return false
       const base = PAGE_BASE_MODULO_BY_PAGE_MODULO[modulo]
       if (!base) return false

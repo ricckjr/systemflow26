@@ -172,20 +172,37 @@ export function useProfileForm() {
 
       const nome = form.nome.trim() || profile?.nome || 'Novo Usuário'
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          nome,
-          email_corporativo: form.email_corporativo || null,
-          telefone: form.telefone || null,
-          ramal: form.ramal || null,
-          avatar_url: avatarUrl || null,
-          email_login: emailLogin,
-          updated_at: new Date().toISOString(),
-        } as any)
+      const patch = {
+        nome,
+        email_corporativo: form.email_corporativo || null,
+        telefone: form.telefone || null,
+        ramal: form.ramal || null,
+        avatar_url: avatarUrl || null,
+      } as any
 
-      if (error) throw error
+      const { error: updateError, count } = await supabase
+        .from('profiles')
+        .update(patch, { returning: 'minimal', count: 'exact' })
+        .eq('id', userId)
+
+      if (updateError) throw updateError
+
+      if (!count) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            nome,
+            email_login: emailLogin,
+            email_corporativo: form.email_corporativo || emailLogin || null,
+            telefone: form.telefone || null,
+            ramal: form.ramal || null,
+            avatar_url: avatarUrl || null,
+            ativo: true,
+          } as any, { returning: 'minimal' })
+
+        if (insertError) throw insertError
+      }
 
       await refreshProfile()
       setAvatarFile(null)

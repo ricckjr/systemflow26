@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, FilePlus, Calendar, Building2, User, UserPlus, Key, Info, CheckCircle2, AlertTriangle, Download, Trash2, Upload } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Search, FilePlus, Calendar, Building2, UserPlus, Info, AlertTriangle, Download, Trash2, Upload } from 'lucide-react'
 import { Modal } from '@/components/ui'
-import { useUsuarios, UsuarioSimples } from '@/hooks/useUsuarios'
 import { fetchFinEmpresasCorrespondentes, FinEmpresaCorrespondente } from '@/services/financeiro'
-import { api } from '@/services/api'
 
 import { supabase } from '@/services/supabase'
 
@@ -19,7 +17,13 @@ type ColaboradorDocumento = {
   createdAt: string
 }
 
-type UsuarioSistema = UsuarioSimples & { ativo?: boolean }
+type UsuarioSistema = {
+  id: string
+  nome: string
+  avatar_url?: string | null
+  email_corporativo?: string | null
+  ramal?: string | null
+}
 
 type Colaborador = {
   id: string
@@ -50,12 +54,6 @@ type Colaborador = {
   createdAt: string
 }
 
-interface Perfil {
-  perfil_id: string
-  perfil_nome: string
-  perfil_descricao?: string
-}
-
 // --- Helpers ---
 
 const ALERTA_VENCIMENTO_DIAS = 30
@@ -67,18 +65,59 @@ function makeId(prefix: string) {
 
 function formatDateBR(dateISO: string) {
   if (!dateISO) return '-'
-  const [y, m, d] = dateISO.split('-')
+  const s = dateISO.includes('T') ? dateISO.slice(0, 10) : dateISO
+  const [y, m, d] = s.split('-')
   if (!y || !m || !d) return dateISO
   return `${d}/${m}/${y}`
 }
 
+function isoToBR(iso: string) {
+  const s = String(iso || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return ''
+  const [y, m, d] = s.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function formatBRInput(v: string) {
+  const s = String(v || '').replace(/\D/g, '').substring(0, 8)
+  const dd = s.slice(0, 2)
+  const mm = s.slice(2, 4)
+  const yyyy = s.slice(4, 8)
+  if (s.length <= 2) return dd
+  if (s.length <= 4) return `${dd}/${mm}`
+  return `${dd}/${mm}/${yyyy}`
+}
+
+function brToISO(br: string) {
+  const raw = String(br || '').trim()
+  if (!raw) return null
+  const m = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!m) return null
+  const d = Number(m[1])
+  const mo = Number(m[2])
+  const y = Number(m[3])
+  if (!d || !mo || !y) return null
+  const dt = new Date(y, mo - 1, d)
+  if (Number.isNaN(dt.getTime())) return null
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
 function formatCPF(v: string) {
   v = v.replace(/\D/g, '')
-  if (v.length > 11) v = v.substring(0, 11)
+  if (v.length <= 11) {
+    v = v.substring(0, 11)
+    return v
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+  if (v.length > 14) v = v.substring(0, 14)
   return v
+    .replace(/(\d{2})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
 
 function formatCEP(v: string) {
@@ -110,15 +149,33 @@ function isMissingTable(error: any) {
 
 type DocAlertStatus = 'vencido' | 'vencendo'
 
-function getDiffDaysToVencimento(dataVencimento?: string | null) {
-  const raw = String(dataVencimento || '').trim()
-  if (!raw) return false
-  const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
+function getTodayPartsInTimeZone(timeZone: string) {
+  const fmt = new Intl.DateTimeFormat('pt-BR', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+  const parts = fmt.formatToParts(new Date())
+  const dd = Number(parts.find((p) => p.type === 'day')?.value)
+  const mm = Number(parts.find((p) => p.type === 'month')?.value)
+  const yyyy = Number(parts.find((p) => p.type === 'year')?.value)
+  if (!dd || !mm || !yyyy) return null
+  return { yyyy, mm, dd }
+}
+
+function addDaysISOFromParts(parts: { yyyy: number; mm: number; dd: number }, daysAhead: number) {
+  const baseUTC = Date.UTC(parts.yyyy, parts.mm - 1, parts.dd)
+  const ms = baseUTC + daysAhead * 24 * 60 * 60 * 1000
+  const dt = new Date(ms)
+  const y = dt.getUTCFullYear()
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(dt.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function parseDateToUTC(dateValue: string) {
+  const raw = String(dateValue || '').trim()
+  if (!raw) return null
+  const s = raw.includes('T') ? raw.slice(0, 10) : raw
   let y: number | null = null
   let m: number | null = null
   let d: number | null = null
-  const s = raw.includes('T') ? raw.slice(0, 10) : raw
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const parts = s.split('-').map(Number)
     y = parts[0]
@@ -129,13 +186,26 @@ function getDiffDaysToVencimento(dataVencimento?: string | null) {
     d = parts[0]
     m = parts[1]
     y = parts[2]
+  } else if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+    const parts = s.split('-').map(Number)
+    d = parts[0]
+    m = parts[1]
+    y = parts[2]
   }
-  if (!y || !m || !d) return false
-  const venc = new Date(y, m - 1, d)
-  if (Number.isNaN(venc.getTime())) return false
-  
-  const diffTime = venc.getTime() - hoje.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  if (!y || !m || !d) return null
+  const dt = new Date(y, m - 1, d)
+  if (Number.isNaN(dt.getTime())) return null
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
+  return Date.UTC(y, m - 1, d)
+}
+
+function getDiffDaysToVencimento(dataVencimento?: string | null) {
+  const vencUTC = parseDateToUTC(String(dataVencimento || ''))
+  if (vencUTC === null) return false
+  const todayParts = getTodayPartsInTimeZone('America/Sao_Paulo')
+  if (!todayParts) return false
+  const hojeUTC = Date.UTC(todayParts.yyyy, todayParts.mm - 1, todayParts.dd)
+  const diffDays = Math.ceil((vencUTC - hojeUTC) / (1000 * 60 * 60 * 24))
   return diffDays
 }
 
@@ -189,17 +259,77 @@ function Avatar({
   )
 }
 
+function DateBRPicker({
+  valueISO,
+  onChangeISO,
+}: {
+  valueISO: string
+  onChangeISO: (nextISO: string) => void
+}) {
+  const idRef = useRef(makeId('date'))
+  const hiddenRef = useRef<HTMLInputElement | null>(null)
+  const [text, setText] = useState(() => (valueISO ? isoToBR(valueISO) : ''))
+
+  useEffect(() => {
+    setText(valueISO ? isoToBR(valueISO) : '')
+  }, [valueISO])
+
+  return (
+    <div className="relative">
+      <input
+        id={idRef.current}
+        value={text}
+        onChange={(e) => {
+          const next = formatBRInput(e.target.value)
+          setText(next)
+          if (!next) {
+            onChangeISO('')
+            return
+          }
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(next)) {
+            const iso = brToISO(next)
+            if (iso) onChangeISO(iso)
+          } else {
+            onChangeISO('')
+          }
+        }}
+        placeholder="DD/MM/AAAA"
+        maxLength={10}
+        className="w-full px-3 pr-11 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const el = hiddenRef.current as any
+          if (!el) return
+          if (typeof el.showPicker === 'function') el.showPicker()
+          else el.click?.()
+        }}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-400 hover:text-slate-200"
+        aria-label="Abrir calendário"
+      >
+        <Calendar size={16} />
+      </button>
+      <input
+        ref={hiddenRef}
+        type="date"
+        lang="pt-BR"
+        value={valueISO}
+        onChange={(e) => onChangeISO(e.target.value)}
+        className="absolute -z-10 opacity-0 w-0 h-0"
+      />
+    </div>
+  )
+}
+
 // --- Página Principal ---
 
 export default function Colaboradores() {
-  const { usuarios, loading: loadingUsuarios } = useUsuarios() // Hook existente (apenas carrega)
-  const [allUsers, setAllUsers] = useState<UsuarioSistema[]>([]) // Estado local para atualizar após criar
+  const [allUsers, setAllUsers] = useState<UsuarioSistema[]>([])
   
   const [empresas, setEmpresas] = useState<FinEmpresaCorrespondente[]>([])
-  const [perfis, setPerfis] = useState<Perfil[]>([])
   const [loadingInit, setLoadingInit] = useState(true)
   const [loadingAux, setLoadingAux] = useState(true)
-  const [usersLoadError, setUsersLoadError] = useState<string | null>(null)
   const [docsAlertaMap, setDocsAlertaMap] = useState<Record<string, DocAlertStatus>>({})
 
   const [search, setSearch] = useState('')
@@ -214,20 +344,10 @@ export default function Colaboradores() {
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null)
   
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [detalheTab, setDetalheTab] = useState<'sistema' | 'pessoal' | 'documentacao'>('sistema')
+  const [detalheTab, setDetalheTab] = useState<'pessoal' | 'documentacao'>('pessoal')
   const activeColaborador = useMemo(() => colaboradores.find((c) => c.id === activeId) ?? null, [activeId, colaboradores])
-  const [detSistemaNome, setDetSistemaNome] = useState('')
-  const [detSistemaTelefone, setDetSistemaTelefone] = useState('')
-  const [detSistemaEmailCorp, setDetSistemaEmailCorp] = useState('')
-  const [detSistemaCargo, setDetSistemaCargo] = useState('')
-  const [detSistemaRamal, setDetSistemaRamal] = useState('')
-  const [detSistemaAvatarFile, setDetSistemaAvatarFile] = useState<File | null>(null)
-  const [detSistemaAvatarPreview, setDetSistemaAvatarPreview] = useState('')
-  const [detSistemaSaving, setDetSistemaSaving] = useState(false)
-  const [detSistemaError, setDetSistemaError] = useState<string | null>(null)
 
   // --- Form Novo Colaborador ---
-  const [currentTab, setCurrentTab] = useState<'sistema' | 'pessoal'>('sistema')
   const [editTab, setEditTab] = useState<'pessoal' | 'corporativo'>('pessoal')
   
   // Dados Pessoais
@@ -248,16 +368,8 @@ export default function Colaboradores() {
   const [novoDataAdmissao, setNovoDataAdmissao] = useState('')
   const [novoEmailCorporativo, setNovoEmailCorporativo] = useState('')
   const [novoRamal, setNovoRamal] = useState('')
-  const [novoCargo, setNovoCargo] = useState('')
 
   const [completarUsuario, setCompletarUsuario] = useState<UsuarioSistema | null>(null)
-  const [novoAvatarFile, setNovoAvatarFile] = useState<File | null>(null)
-  const [novoAvatarPreview, setNovoAvatarPreview] = useState('')
-
-  // Criar novo
-  const [novoAcessoEmail, setNovoAcessoEmail] = useState('') // Login
-  const [novoAcessoSenha, setNovoAcessoSenha] = useState('')
-  const [novoAcessoPerfilId, setNovoAcessoPerfilId] = useState('')
 
   const [novoError, setNovoError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -270,17 +382,6 @@ export default function Colaboradores() {
   const [docError, setDocError] = useState<string | null>(null)
   const [savingDoc, setSavingDoc] = useState(false)
   const savingDocRef = useRef(false)
-
-  const [isResetSenhaOpen, setIsResetSenhaOpen] = useState(false)
-  const [resetSenha, setResetSenha] = useState('')
-  const [resetSenhaError, setResetSenhaError] = useState<string | null>(null)
-  const [resettingSenha, setResettingSenha] = useState(false)
-
-  const [isDesativarOpen, setIsDesativarOpen] = useState(false)
-  const [demissaoData, setDemissaoData] = useState('')
-  const [demissaoObs, setDemissaoObs] = useState('')
-  const [desativarError, setDesativarError] = useState<string | null>(null)
-  const [changingStatus, setChangingStatus] = useState(false)
 
   const [isEditarOpen, setIsEditarOpen] = useState(false)
   const [editNomeCompleto, setEditNomeCompleto] = useState('')
@@ -296,8 +397,6 @@ export default function Colaboradores() {
   const [editDataAdmissao, setEditDataAdmissao] = useState('')
   const [editEmailCorporativo, setEditEmailCorporativo] = useState('')
   const [editRamal, setEditRamal] = useState('')
-  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null)
-  const [editAvatarPreview, setEditAvatarPreview] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const editInitialRef = useRef<null | {
@@ -351,13 +450,9 @@ export default function Colaboradores() {
             usuario: {
               id: c.user_id,
               nome: c.nome_completo,
-              email_login: '',
-              email_corporativo: c.email_corporativo,
-              telefone: c.telefone,
-              ramal: c.ramal,
-              cargo: c.departamento,
               avatar_url: null,
-              ativo: true
+              email_corporativo: c.email_corporativo,
+              ramal: c.ramal,
             },
             dataAdmissao: c.data_admissao,
             nomeCompleto: c.nome_completo,
@@ -376,14 +471,46 @@ export default function Colaboradores() {
             obsGerais: c.obs_gerais,
             createdAt: c.created_at
           }))
-          setColaboradores(mappedColabs)
+          const userIds = Array.from(new Set(mappedColabs.map((c) => String(c.usuarioId || '')).filter(Boolean)))
+          if (userIds.length > 0) {
+            const { data: profs, error: profErr } = await supabase
+              .from('profiles_public')
+              .select('id, nome, avatar_url')
+              .in('id', userIds)
+            if (!profErr) {
+              const map: Record<string, any> = {}
+              ;(profs ?? []).forEach((p: any) => { map[String(p.id)] = p })
+              const merged = mappedColabs.map((c) => {
+                const p = map[String(c.usuarioId)]
+                if (!p) return c
+                return {
+                  ...c,
+                  usuario: {
+                    ...c.usuario,
+                    nome: String(p.nome || c.usuario.nome || ''),
+                    avatar_url: p.avatar_url || null
+                  }
+                }
+              })
+              setColaboradores(merged)
+            } else {
+              setColaboradores(mappedColabs)
+            }
+          } else {
+            setColaboradores(mappedColabs)
+          }
         }
 
-        const hoje = new Date()
-        hoje.setHours(0, 0, 0, 0)
-        const limite = new Date(hoje)
-        limite.setDate(limite.getDate() + ALERTA_VENCIMENTO_DIAS)
-        const limiteISO = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+        const todayParts = getTodayPartsInTimeZone('America/Sao_Paulo')
+        const limiteISO = todayParts
+          ? addDaysISOFromParts(todayParts, ALERTA_VENCIMENTO_DIAS)
+          : (() => {
+            const hoje = new Date()
+            hoje.setHours(0, 0, 0, 0)
+            const limite = new Date(hoje)
+            limite.setDate(limite.getDate() + ALERTA_VENCIMENTO_DIAS)
+            return `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+          })()
 
         ;(async () => {
           try {
@@ -411,32 +538,23 @@ export default function Colaboradores() {
         setLoadingAux(true)
         ;(async () => {
           try {
-            if (mounted) setUsersLoadError(null)
-            const [empresasData, perfisData, usersData] = await Promise.all([
+            const [empresasData, usersData] = await Promise.all([
               fetchFinEmpresasCorrespondentes(),
-              api.rbac.listPerfis(),
-              api.users.list(1, 1000)
+              supabase
+                .from('profiles_public')
+                .select('id, nome, avatar_url')
+                .order('nome', { ascending: true })
+                .limit(1000)
             ])
 
             if (!mounted) return
             setEmpresas((empresasData ?? []).filter((e) => e.ativo))
-            setPerfis(perfisData?.perfis ?? [])
 
-            const mappedUsers = (usersData?.users ?? []).map((u: any) => ({
-              id: u.id,
-              nome: u.nome,
-              email_login: u.email_login,
-              email_corporativo: u.email_corporativo,
-              telefone: u.telefone,
-              ramal: u.ramal,
-              cargo: u.cargo,
-              avatar_url: u.avatar_url,
-              ativo: u.ativo
-            }))
-            setAllUsers(mappedUsers)
+            const profResp: any = usersData
+            if (profResp?.error) throw profResp.error
+            setAllUsers((profResp?.data ?? []).map((p: any) => ({ id: p.id, nome: p.nome, avatar_url: p.avatar_url })))
           } catch (e: any) {
             console.error(e)
-            if (mounted) setUsersLoadError(String(e?.message || 'Falha ao carregar usuários.'))
           } finally {
             if (mounted) setLoadingAux(false)
           }
@@ -451,65 +569,7 @@ export default function Colaboradores() {
     return () => { mounted = false }
   }, [])
 
-  // Atualiza email de login automático ao digitar email corporativo
-  useEffect(() => {
-    if (novoEmailCorporativo && !novoAcessoEmail) {
-      setNovoAcessoEmail(novoEmailCorporativo)
-    }
-  }, [novoEmailCorporativo])
-
-  useEffect(() => {
-    if (!novoAvatarFile) {
-      setNovoAvatarPreview('')
-      return
-    }
-    const url = URL.createObjectURL(novoAvatarFile)
-    setNovoAvatarPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [novoAvatarFile])
-
-  useEffect(() => {
-    if (!editAvatarFile) {
-      setEditAvatarPreview('')
-      return
-    }
-    const url = URL.createObjectURL(editAvatarFile)
-    setEditAvatarPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [editAvatarFile])
-
-  useEffect(() => {
-    if (!isDetalheOpen || !activeColaborador) return
-    setDetSistemaNome(activeColaborador.usuario.nome || '')
-    setDetSistemaTelefone(activeColaborador.usuario.telefone || '')
-    setDetSistemaEmailCorp(activeColaborador.usuario.email_corporativo || '')
-    setDetSistemaCargo(activeColaborador.usuario.cargo || '')
-    setDetSistemaRamal(activeColaborador.usuario.ramal || '')
-    setDetSistemaAvatarFile(null)
-    setDetSistemaAvatarPreview('')
-    setDetSistemaError(null)
-  }, [isDetalheOpen, activeColaborador])
-
-  useEffect(() => {
-    if (!detSistemaAvatarFile) {
-      setDetSistemaAvatarPreview('')
-      return
-    }
-    const url = URL.createObjectURL(detSistemaAvatarFile)
-    setDetSistemaAvatarPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [detSistemaAvatarFile])
-
   // --- Filtros ---
-
-  const allUsersById = useMemo(() => {
-    const map: Record<string, UsuarioSistema> = {}
-    allUsers.forEach((u) => {
-      if (!u?.id) return
-      map[u.id] = u
-    })
-    return map
-  }, [allUsers])
 
   const colaboradoresByUserId = useMemo(() => {
     const map: Record<string, Colaborador> = {}
@@ -521,30 +581,10 @@ export default function Colaboradores() {
     return map
   }, [colaboradores])
 
-  const detSistemaDirty = useMemo(() => {
-    if (!activeColaborador) return false
-    if (detSistemaAvatarFile) return true
-    if (detSistemaNome !== (activeColaborador.usuario.nome || '')) return true
-    if (detSistemaTelefone !== (activeColaborador.usuario.telefone || '')) return true
-    if (detSistemaEmailCorp !== (activeColaborador.usuario.email_corporativo || '')) return true
-    if (detSistemaCargo !== (activeColaborador.usuario.cargo || '')) return true
-    if (detSistemaRamal !== (activeColaborador.usuario.ramal || '')) return true
-    return false
-  }, [
-    activeColaborador,
-    detSistemaAvatarFile,
-    detSistemaCargo,
-    detSistemaEmailCorp,
-    detSistemaNome,
-    detSistemaRamal,
-    detSistemaTelefone,
-  ])
-
   const editDirty = useMemo(() => {
     if (!isEditarOpen) return false
     const init = editInitialRef.current
     if (!init) return false
-    if (editAvatarFile) return true
     if (editNomeCompleto !== init.nomeCompleto) return true
     if (editCpf !== init.cpf) return true
     if (editDataNascimento !== init.dataNascimento) return true
@@ -560,7 +600,6 @@ export default function Colaboradores() {
     if (editRamal !== init.ramal) return true
     return false
   }, [
-    editAvatarFile,
     editCep,
     editCpf,
     editDataAdmissao,
@@ -577,41 +616,32 @@ export default function Colaboradores() {
     isEditarOpen,
   ])
 
-  useEffect(() => {
-    if (allUsers.length === 0) return
-    setColaboradores((prev) =>
-      prev.map((c) => {
-        const uid = String(c.usuarioId || c.usuario?.id || '')
-        const u = uid ? allUsersById[uid] : null
-        if (!u) return c
-        return { ...c, usuario: { ...c.usuario, ...u, id: uid } }
-      })
-    )
-  }, [allUsersById, allUsers.length])
-
-  const filteredCards = useMemo(() => {
+  const filteredColaboradores = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const base = allUsers.filter((u) => {
-      const ativo = u.ativo !== false
-      return statusFilter === 'ativos' ? ativo : !ativo
-    }).map((u) => ({ user: u, colab: colaboradoresByUserId[u.id] ?? null }))
-    if (!q) return base
-    return base.filter(({ user, colab }) => {
-      const nome = String(user.nome || '').toLowerCase()
-      const cargo = String(user.cargo || colab?.departamento || '').toLowerCase()
-      const empresaNome = String(colab?.empresaNome || '').toLowerCase()
-      return nome.includes(q) || cargo.includes(q) || empresaNome.includes(q)
-    })
-  }, [allUsers, colaboradoresByUserId, search, statusFilter])
+    return colaboradores
+      .filter((c) => (statusFilter === 'ativos' ? !c.dataDemissao : !!c.dataDemissao))
+      .filter((c) => {
+        if (!q) return true
+        const nome = String(c.nomeCompleto || '').toLowerCase()
+        const dep = String(c.departamento || '').toLowerCase()
+        const empresaNome = String(c.empresaNome || '').toLowerCase()
+        return nome.includes(q) || dep.includes(q) || empresaNome.includes(q)
+      })
+  }, [colaboradores, search, statusFilter])
 
   // --- Actions ---
 
   const refreshDocsVencendo = async (colaboradorId?: string) => {
-    const hoje = new Date()
-    hoje.setHours(0, 0, 0, 0)
-    const limite = new Date(hoje)
-    limite.setDate(limite.getDate() + ALERTA_VENCIMENTO_DIAS)
-    const limiteISO = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+    const todayParts = getTodayPartsInTimeZone('America/Sao_Paulo')
+    const limiteISO = todayParts
+      ? addDaysISOFromParts(todayParts, ALERTA_VENCIMENTO_DIAS)
+      : (() => {
+        const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
+        const limite = new Date(hoje)
+        limite.setDate(limite.getDate() + ALERTA_VENCIMENTO_DIAS)
+        return `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+      })()
 
     let query = supabase
       .from('colaboradores_documentos')
@@ -708,7 +738,7 @@ export default function Colaboradores() {
     }
   }
 
-  const openDetalhe = (colaboradorId: string, tab: 'sistema' | 'pessoal' | 'documentacao' = 'sistema') => {
+  const openDetalhe = (colaboradorId: string, tab: 'pessoal' | 'documentacao' = 'pessoal') => {
     setActiveId(colaboradorId)
     setDetalheTab(tab)
     setIsDetalheOpen(true)
@@ -717,8 +747,7 @@ export default function Colaboradores() {
 
   const openNovo = () => {
     // Reset Form
-    setCurrentTab('sistema')
-    
+    setCompletarUsuario(null)
     setNovoNomeCompleto('')
     setNovoCpf('')
     setNovoDataNascimento('')
@@ -735,45 +764,6 @@ export default function Colaboradores() {
     setNovoDataAdmissao('')
     setNovoEmailCorporativo('')
     setNovoRamal('')
-    setNovoCargo('')
-
-    setCompletarUsuario(null)
-    setNovoAvatarFile(null)
-    setNovoAcessoEmail('')
-    setNovoAcessoSenha('')
-    // Tenta selecionar perfil padrão
-    const defPerfil = perfis.find(p => p.perfil_nome === 'VENDEDOR' || p.perfil_nome === 'COMERCIAL')
-    setNovoAcessoPerfilId(defPerfil?.perfil_id || '')
-
-    setNovoError(null)
-    setIsNovoOpen(true)
-  }
-
-  const openCompletarCadastroFromUser = (u: UsuarioSistema) => {
-    setCurrentTab('sistema')
-    setCompletarUsuario(u)
-    setNovoAvatarFile(null)
-
-    setNovoNomeCompleto(u.nome || '')
-    setNovoCpf('')
-    setNovoDataNascimento('')
-    setNovoEmailPessoal(u.email_login || '')
-    setNovoTelefone(u.telefone || '')
-    setNovoEndereco('')
-    setNovoCep('')
-    setNovoDataDemissao('')
-    setNovoObsGerais('')
-
-    setNovoEmpresaId('')
-    setNovoMatricula('')
-    setNovoDepartamento('')
-    setNovoDataAdmissao('')
-    setNovoEmailCorporativo(u.email_corporativo || '')
-    setNovoRamal(u.ramal || '')
-    setNovoCargo(u.cargo || '')
-    setNovoAcessoEmail('')
-    setNovoAcessoSenha('')
-    setNovoAcessoPerfilId('')
 
     setNovoError(null)
     setIsNovoOpen(true)
@@ -794,25 +784,9 @@ export default function Colaboradores() {
     setIsDetalheOpen(false)
   }
 
-  const openResetSenha = () => {
-    if (!activeColaborador) return
-    setResetSenha('')
-    setResetSenhaError(null)
-    setIsResetSenhaOpen(true)
-  }
-
-  const openDesativar = () => {
-    if (!activeColaborador) return
-    setDemissaoData('')
-    setDemissaoObs('')
-    setDesativarError(null)
-    setIsDesativarOpen(true)
-  }
-
   const openEditar = () => {
     if (!activeColaborador) return
     setEditTab('pessoal')
-    setEditAvatarFile(null)
     setEditNomeCompleto(activeColaborador.nomeCompleto)
     setEditCpf(activeColaborador.cpf)
     setEditDataNascimento(activeColaborador.dataNascimento)
@@ -845,108 +819,16 @@ export default function Colaboradores() {
     setIsEditarOpen(true)
   }
 
-  const fileToDataUrl = useCallback((file: File) => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result || ''))
-      reader.onerror = () => reject(new Error('Falha ao ler arquivo.'))
-      reader.readAsDataURL(file)
-    })
-  }, [])
-
-  const handleContinuarSistema = async () => {
-    setNovoError(null)
-    setSaving(true)
-
-    try {
-      if (!novoNomeCompleto) throw new Error('Nome e Sobrenome é obrigatório.')
-      if (!novoTelefone) throw new Error('Telefone é obrigatório.')
-      if (!novoCargo) throw new Error('Cargo é obrigatório.')
-      if (!novoAcessoEmail) throw new Error('Email Login é obrigatório.')
-
-      let usuarioFinal: UsuarioSistema | null = null
-
-      if (completarUsuario) {
-        await api.users.update(completarUsuario.id, {
-          nome: novoNomeCompleto,
-          telefone: novoTelefone,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo || null,
-          ramal: novoRamal || null,
-          cargo: novoCargo
-        })
-
-        usuarioFinal = {
-          ...completarUsuario,
-          nome: novoNomeCompleto,
-          telefone: novoTelefone,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo || null,
-          ramal: novoRamal || null,
-          cargo: novoCargo
-        }
-
-        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, ...usuarioFinal! } : u)))
-      } else {
-        if (!novoAcessoSenha || novoAcessoSenha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
-        if (!novoAcessoPerfilId) throw new Error('Perfil de Acesso é obrigatório.')
-
-        const resp = await api.users.create({
-          nome: novoNomeCompleto,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo || null,
-          telefone: novoTelefone,
-          ramal: novoRamal || null,
-          senha: novoAcessoSenha,
-          ativo: true,
-          cargo: novoCargo
-        })
-
-        const userId = resp?.user?.id
-        if (!userId) throw new Error('Falha ao criar usuário no sistema.')
-
-        await api.rbac.assignUserPerfil(userId, novoAcessoPerfilId)
-
-        usuarioFinal = {
-          id: userId,
-          nome: novoNomeCompleto,
-          email_login: novoAcessoEmail,
-          email_corporativo: novoEmailCorporativo || null,
-          telefone: novoTelefone,
-          ramal: novoRamal || null,
-          cargo: novoCargo,
-          avatar_url: null,
-          ativo: true
-        }
-
-        setAllUsers((prev) => [usuarioFinal!, ...prev])
-      }
-
-      if (novoAvatarFile) {
-        const dataUrl = await fileToDataUrl(novoAvatarFile)
-        const r = await api.users.setAvatar(usuarioFinal!.id, dataUrl)
-        const avatarUrl = r?.avatar_url ?? null
-        usuarioFinal = { ...usuarioFinal!, avatar_url: avatarUrl }
-        setAllUsers((prev) => prev.map((u) => (u.id === usuarioFinal!.id ? { ...u, avatar_url: avatarUrl } : u)))
-      }
-
-      setCompletarUsuario(usuarioFinal)
-      setCurrentTab('pessoal')
-    } catch (err: any) {
-      setNovoError(err.message || 'Erro ao salvar.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const handleSave = async () => {
     setNovoError(null)
     setSaving(true)
 
     try {
       if (!completarUsuario) {
-        setCurrentTab('sistema')
-        throw new Error('Finalize primeiro os Dados do Sistema.')
+        throw new Error('Selecione o usuário do sistema.')
+      }
+      if (colaboradoresByUserId[completarUsuario.id]) {
+        throw new Error('Este usuário já possui cadastro de colaborador.')
       }
 
       if (!novoNomeCompleto) throw new Error('Nome Completo é obrigatório.')
@@ -1031,7 +913,11 @@ export default function Colaboradores() {
         empresaId: novoEmpresaId,
         empresaNome: empresa?.nome_fantasia || 'Empresa',
         usuarioId: usuarioFinal.id,
-        usuario: usuarioFinal!,
+        usuario: {
+          ...usuarioFinal!,
+          email_corporativo: novoEmailCorporativo || null,
+          ramal: novoRamal || null
+        },
         dataAdmissao: novoDataAdmissao,
         
         nomeCompleto: novoNomeCompleto,
@@ -1054,107 +940,11 @@ export default function Colaboradores() {
       setColaboradores(prev => [novoColaborador, ...prev])
       setIsNovoOpen(false)
       setCompletarUsuario(null)
-      setCurrentTab('sistema')
 
     } catch (err: any) {
       setNovoError(err.message || 'Erro ao salvar.')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleConfirmResetSenha = async () => {
-    if (!activeColaborador) return
-    setResetSenhaError(null)
-    setResettingSenha(true)
-    try {
-      if (!resetSenha || resetSenha.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres.')
-      await api.users.resetPassword(activeColaborador.usuario.id, resetSenha)
-      setIsResetSenhaOpen(false)
-      setResetSenha('')
-    } catch (err: any) {
-      setResetSenhaError(err.message || 'Erro ao resetar senha.')
-    } finally {
-      setResettingSenha(false)
-    }
-  }
-
-  const handleConfirmDesativar = async () => {
-    if (!activeColaborador) return
-    setDesativarError(null)
-    setChangingStatus(true)
-    const colabId = activeColaborador.id
-    const userId = activeColaborador.usuario.id
-    try {
-      if (!demissaoData) throw new Error('Data da Demissão é obrigatória.')
-      if (!demissaoObs) throw new Error('Observação é obrigatória.')
-
-      const { error: upErr } = await supabase
-        .from('colaboradores')
-        .update({ data_demissao: demissaoData, obs_demissao: demissaoObs })
-        .eq('id', colabId)
-
-      if (upErr) {
-        if (isMissingTable(upErr)) {
-          throw new Error(
-            "Tabela 'colaboradores' ainda não foi criada no banco. Aplique a migration 20260218_create_colaboradores.sql e recarregue o schema cache do Supabase."
-          )
-        }
-        throw upErr
-      }
-
-      try {
-        await api.users.disable(userId)
-      } catch (e: any) {
-        await supabase.from('colaboradores').update({ data_demissao: null, obs_demissao: null }).eq('id', colabId)
-        throw e
-      }
-
-      setColaboradores((prev) =>
-        prev.map((c) =>
-          c.id === colabId
-            ? { ...c, dataDemissao: demissaoData, obsDemissao: demissaoObs, usuario: { ...c.usuario, ativo: false } }
-            : c
-        )
-      )
-      setIsDesativarOpen(false)
-    } catch (err: any) {
-      setDesativarError(err.message || 'Erro ao desativar usuário.')
-    } finally {
-      setChangingStatus(false)
-    }
-  }
-
-  const handleReativar = async () => {
-    if (!activeColaborador) return
-    setDesativarError(null)
-    setChangingStatus(true)
-    const colabId = activeColaborador.id
-    const userId = activeColaborador.usuario.id
-    try {
-      await api.users.enable(userId)
-
-      const { error: upErr } = await supabase
-        .from('colaboradores')
-        .update({ data_demissao: null, obs_demissao: null })
-        .eq('id', colabId)
-
-      if (upErr) {
-        if (isMissingTable(upErr)) {
-          throw new Error(
-            "Tabela 'colaboradores' ainda não foi criada no banco. Aplique a migration 20260218_create_colaboradores.sql e recarregue o schema cache do Supabase."
-          )
-        }
-        throw upErr
-      }
-
-      setColaboradores((prev) =>
-        prev.map((c) => (c.id === colabId ? { ...c, dataDemissao: null, obsDemissao: null, usuario: { ...c.usuario, ativo: true } } : c))
-      )
-    } catch (err: any) {
-      setDesativarError(err.message || 'Erro ao reativar usuário.')
-    } finally {
-      setChangingStatus(false)
     }
   }
 
@@ -1206,21 +996,6 @@ export default function Colaboradores() {
         throw upErr
       }
 
-      await api.users.update(activeColaborador.usuario.id, {
-        nome: editNomeCompleto,
-        telefone: editTelefone,
-        email_corporativo: editEmailCorporativo || null,
-        ramal: editRamal || null
-      })
-
-      let avatarUrl: string | null | undefined = undefined
-      if (editAvatarFile) {
-        const dataUrl = await fileToDataUrl(editAvatarFile)
-        const r = await api.users.setAvatar(activeColaborador.usuario.id, dataUrl)
-        avatarUrl = r?.avatar_url ?? null
-        setAllUsers((prev) => prev.map((u) => (u.id === activeColaborador.usuario.id ? { ...u, avatar_url: avatarUrl } : u)))
-      }
-
       const empresa = empresas.find((e) => e.empresa_id === editEmpresaId)
       const empresaNome = empresa?.nome_fantasia || empresa?.razao_social || activeColaborador.empresaNome
 
@@ -1247,7 +1022,6 @@ export default function Colaboradores() {
                   telefone: editTelefone,
                   email_corporativo: editEmailCorporativo || null,
                   ramal: editRamal || null,
-                  avatar_url: avatarUrl === undefined ? c.usuario.avatar_url : avatarUrl
                 }
               }
             : c
@@ -1299,7 +1073,7 @@ export default function Colaboradores() {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-extrabold text-white">Colaboradores</h1>
-          <p className="text-sm text-industrial-text-secondary">Gestão de colaboradores e acessos</p>
+          <p className="text-sm text-industrial-text-secondary">Cadastro de colaboradores</p>
         </div>
         <button
           type="button"
@@ -1318,7 +1092,7 @@ export default function Colaboradores() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome, cargo ou empresa..."
+            placeholder="Buscar por nome, departamento ou empresa..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
           />
         </div>
@@ -1364,26 +1138,26 @@ export default function Colaboradores() {
             </div>
           ))}
         </div>
-      ) : filteredCards.length === 0 ? (
+      ) : filteredColaboradores.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-12 text-center flex flex-col items-center">
           <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
             <UserPlus size={32} className="text-slate-500" />
           </div>
-          <p className="text-base font-semibold text-slate-200">{usersLoadError ? 'Não foi possível carregar os usuários' : 'Nenhum usuário encontrado'}</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-xs">{usersLoadError ? usersLoadError : 'Crie usuários ou complete o cadastro para exibir nos cards.'}</p>
+          <p className="text-base font-semibold text-slate-200">Nenhum colaborador encontrado</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs">Clique em “Novo Colaborador” para cadastrar.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredCards.map(({ user, colab }) => {
-            const isAtivo = user.ativo !== false
-            const statusLoaded = colab?.docsLoaded
+          {filteredColaboradores.map((colab) => {
+            const isAtivo = !colab.dataDemissao
+            const statusLoaded = colab.docsLoaded
               ? colab.documentos.reduce<DocAlertStatus | null>((acc, d) => mergeDocAlertStatus(acc, getDocAlertStatus(d.dataVencimento)), null)
               : null
-            const docAlert = colab && isAtivo ? mergeDocAlertStatus(docsAlertaMap[colab.id], statusLoaded) : null
-            const openCard = () => (colab ? openDetalhe(colab.id) : openCompletarCadastroFromUser(user))
+            const docAlert = isAtivo ? mergeDocAlertStatus(docsAlertaMap[colab.id], statusLoaded) : null
+            const openCard = () => openDetalhe(colab.id)
             return (
             <div
-              key={user.id}
+              key={colab.id}
               role="button"
               tabIndex={0}
               onClick={openCard}
@@ -1403,35 +1177,29 @@ export default function Colaboradores() {
               ) : null}
 
               <div className="flex items-center gap-3">
-                <Avatar nome={user.nome} avatarUrl={user.avatar_url} size={48} />
+                <Avatar nome={colab.nomeCompleto} avatarUrl={colab.usuario.avatar_url} size={48} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">{user.nome}</div>
-                  <div className="text-xs text-slate-400 truncate">{user.cargo || colab?.departamento || '—'}</div>
+                  <div className="text-sm font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">{colab.nomeCompleto}</div>
+                  <div className="text-xs text-slate-400 truncate">{colab.departamento || '—'}</div>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Building2 size={14} className="text-slate-500" />
-                  <span className="truncate">{colab?.empresaNome || '—'}</span>
+                  <span className="truncate">{colab.empresaNome || '—'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <Calendar size={14} className="text-slate-500" />
-                  <span>Admissão: {colab?.dataAdmissao ? formatDateBR(colab.dataAdmissao) : '—'}</span>
+                  <span>Admissão: {colab.dataAdmissao ? formatDateBR(colab.dataAdmissao) : '—'}</span>
                 </div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-500">{colab?.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
+                  <span className="text-slate-500">{colab.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
                 </div>
-                {!colab ? (
-                  <span className="text-orange-400 font-medium">Cadastro incompleto</span>
-                ) : user.ativo === false ? (
-                  <span className="text-rose-400 font-medium">Desativado</span>
-                ) : (
-                  <span className="text-emerald-400 font-medium">Ativo</span>
-                )}
+                {colab.dataDemissao ? <span className="text-rose-400 font-medium">Desativado</span> : <span className="text-emerald-400 font-medium">Ativo</span>}
               </div>
             </div>
           )})}
@@ -1453,25 +1221,14 @@ export default function Colaboradores() {
             >
               Cancelar
             </button>
-            {currentTab === 'sistema' ? (
-              <button
-                type="button"
-                onClick={handleContinuarSistema}
-                disabled={saving}
-                className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
-              >
-                {saving ? 'Salvando...' : 'Continuar'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
-              >
-                {saving ? 'Salvando...' : 'Salvar Cadastro'}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
+            >
+              {saving ? 'Salvando...' : 'Salvar Cadastro'}
+            </button>
           </>
         }
       >
@@ -1483,187 +1240,41 @@ export default function Colaboradores() {
             </div>
           )}
 
-          {/* Abas */}
-          <div className="flex items-center gap-1 border-b border-white/10">
-            <button
-              type="button"
-              onClick={() => setCurrentTab('sistema')}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'sistema' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              Dados do Sistema
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentTab('pessoal')}
-              disabled={!completarUsuario}
-              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                currentTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              Dados Pessoais
-            </button>
-          </div>
-
           <div className="min-h-[300px]">
-            {currentTab === 'sistema' ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Usuário do Sistema *</label>
+                  <select
+                    value={completarUsuario?.id || ''}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      const u = allUsers.find((x) => x.id === id) || null
+                      setCompletarUsuario(u)
+                      if (!u) return
+                      if (!novoNomeCompleto) setNovoNomeCompleto(u.nome || '')
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                  >
+                    <option value="">Selecione...</option>
+                    {allUsers.map((u) => {
+                      const jaCadastrado = !!colaboradoresByUserId[u.id]
+                      return (
+                        <option key={u.id} value={u.id} disabled={jaCadastrado}>
+                          {u.nome}{jaCadastrado ? ' (já cadastrado)' : ''}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
                 {completarUsuario ? (
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-3">
+                  <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-3">
+                    <Avatar nome={completarUsuario.nome} avatarUrl={completarUsuario.avatar_url} size={44} />
                     <div className="min-w-0">
-                      <div className="text-sm font-bold text-white truncate">{completarUsuario.nome}</div>
-                      <div className="text-xs text-slate-400 truncate">{completarUsuario.email_login}</div>
+                      <div className="text-sm font-bold text-slate-100 truncate">{completarUsuario.nome}</div>
+                      <div className="text-xs text-slate-500 truncate">{completarUsuario.id}</div>
                     </div>
-                    <div className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Usuário do sistema</div>
                   </div>
                 ) : null}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Avatar</label>
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        nome={novoNomeCompleto || completarUsuario?.nome || 'Usuário'}
-                        avatarUrl={novoAvatarPreview || completarUsuario?.avatar_url || ''}
-                        size={48}
-                      />
-                      <input
-                        type="file"
-                        id="colab-avatar-novo"
-                        accept="image/png,image/jpeg"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0] || null
-                          if (!f) { setNovoAvatarFile(null); return }
-                          if (f.size > 3 * 1024 * 1024) { setNovoError('Imagem muito grande (máx 3MB).'); setNovoAvatarFile(null); return }
-                          if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setNovoError('Formato inválido. Use PNG ou JPEG.'); setNovoAvatarFile(null); return }
-                          setNovoAvatarFile(f)
-                        }}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="colab-avatar-novo"
-                        className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
-                      >
-                        Selecionar foto
-                      </label>
-                      {novoAvatarFile ? (
-                        <button
-                          type="button"
-                          onClick={() => setNovoAvatarFile(null)}
-                          className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
-                        >
-                          Remover
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome e Sobrenome *</label>
-                    <input
-                      value={novoNomeCompleto}
-                      onChange={(e) => setNovoNomeCompleto(e.target.value)}
-                      placeholder="Nome do usuário do sistema"
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
-                    <input
-                      value={novoTelefone}
-                      onChange={(e) => setNovoTelefone(formatPhone(e.target.value))}
-                      placeholder="(00) 00000-0000"
-                      maxLength={15}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Corporativo</label>
-                    <input
-                      type="email"
-                      value={novoEmailCorporativo}
-                      onChange={(e) => setNovoEmailCorporativo(e.target.value)}
-                      placeholder="email@empresa.com.br"
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cargo *</label>
-                    <select
-                      value={novoCargo}
-                      onChange={(e) => setNovoCargo(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    >
-                      <option value="">Selecione...</option>
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="ADMINISTRATIVO">Administrativo</option>
-                      <option value="FINANCEIRO">Financeiro</option>
-                      <option value="MARKETING">Marketing</option>
-                      <option value="RECURSOS_HUMANOS">Recursos Humanos</option>
-                      <option value="DEPARTAMENTO_PESSOAL">Departamento Pessoal</option>
-                      <option value="LOGISTICA">Logística</option>
-                      <option value="OFICINA">Oficina</option>
-                      <option value="TECNICO">Técnico</option>
-                      <option value="VENDEDOR">Comercial (Vendedor)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Ramal</label>
-                    <input
-                      value={novoRamal}
-                      onChange={(e) => setNovoRamal(e.target.value)}
-                      placeholder="Ex: 1234"
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Login *</label>
-                    <input
-                      type="email"
-                      value={novoAcessoEmail}
-                      onChange={(e) => setNovoAcessoEmail(e.target.value)}
-                      placeholder="login@email.com"
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                    />
-                  </div>
-
-                  {!completarUsuario ? (
-                    <>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Senha *</label>
-                        <input
-                          type="text"
-                          value={novoAcessoSenha}
-                          onChange={(e) => setNovoAcessoSenha(e.target.value)}
-                          placeholder="Mínimo 6 caracteres"
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Perfil de Acesso *</label>
-                        <select
-                          value={novoAcessoPerfilId}
-                          onChange={(e) => setNovoAcessoPerfilId(e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        >
-                          <option value="">Selecione...</option>
-                          {perfis.map((p) => (
-                            <option key={p.perfil_id} value={p.perfil_id}>{p.perfil_nome}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
                   <input
@@ -1675,12 +1286,12 @@ export default function Colaboradores() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF *</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF ou CNPJ *</label>
                   <input
                     value={novoCpf}
                     onChange={(e) => setNovoCpf(formatCPF(e.target.value))}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    maxLength={18}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
                   />
                 </div>
@@ -1720,7 +1331,6 @@ export default function Colaboradores() {
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endereço Completo *</label>
                   <input
-                    value={novoEndereco}
                     onChange={(e) => setNovoEndereco(e.target.value)}
                     placeholder="Rua, Número, Bairro, Cidade - UF"
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
@@ -1782,16 +1392,6 @@ export default function Colaboradores() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Demissão</label>
-                  <input
-                    type="date"
-                    value={novoDataDemissao}
-                    onChange={(e) => setNovoDataDemissao(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                  />
-                </div>
-
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Observações Gerais</label>
                   <textarea
@@ -1802,7 +1402,6 @@ export default function Colaboradores() {
                   />
                 </div>
               </div>
-            )}
           </div>
         </div>
       </Modal>
@@ -1812,7 +1411,7 @@ export default function Colaboradores() {
         isOpen={isDetalheOpen}
         onClose={() => setIsDetalheOpen(false)}
         title="Detalhes do Colaborador"
-        size="3xl"
+        size="full"
         footer={
           <>
             <button
@@ -1829,24 +1428,15 @@ export default function Colaboradores() {
           <div className="text-sm text-slate-400">Selecione um colaborador.</div>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar nome={activeColaborador.usuario.nome} avatarUrl={activeColaborador.usuario.avatar_url} size={64} />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <Avatar nome={activeColaborador.nomeCompleto} avatarUrl={activeColaborador.usuario.avatar_url} size={64} />
               <div className="min-w-0">
-                <div className="text-lg font-extrabold text-white truncate">{activeColaborador.usuario.nome}</div>
-                <div className="text-sm text-slate-400 truncate">{activeColaborador.usuario.cargo || activeColaborador.departamento || '—'}</div>
+                <div className="text-lg font-extrabold text-white truncate">{activeColaborador.nomeCompleto}</div>
+                <div className="text-sm text-slate-400 truncate">{activeColaborador.departamento || '—'}</div>
               </div>
             </div>
 
             <div className="flex items-center gap-1 border-b border-white/10">
-              <button
-                type="button"
-                onClick={() => setDetalheTab('sistema')}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  detalheTab === 'sistema' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                Dados Sistema/Acesso
-              </button>
               <button
                 type="button"
                 onClick={() => setDetalheTab('pessoal')}
@@ -1868,224 +1458,7 @@ export default function Colaboradores() {
             </div>
 
             <div className="min-h-[300px]">
-              {detalheTab === 'sistema' ? (
-                <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
-                  {detSistemaError ? <div className="text-xs text-rose-400">{detSistemaError}</div> : null}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2 lg:col-span-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Avatar</div>
-                      <div className="flex items-center gap-3">
-                        <Avatar nome={detSistemaNome || activeColaborador.usuario.nome} avatarUrl={detSistemaAvatarPreview || activeColaborador.usuario.avatar_url} size={48} />
-                        <input
-                          type="file"
-                          id="det-sistema-avatar"
-                          accept="image/png,image/jpeg"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] || null
-                            if (!f) { setDetSistemaAvatarFile(null); return }
-                            if (f.size > 3 * 1024 * 1024) { setDetSistemaError('Imagem muito grande (máx 3MB).'); setDetSistemaAvatarFile(null); return }
-                            if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setDetSistemaError('Formato inválido. Use PNG ou JPEG.'); setDetSistemaAvatarFile(null); return }
-                            setDetSistemaAvatarFile(f)
-                          }}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="det-sistema-avatar"
-                          className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
-                        >
-                          Selecionar foto
-                        </label>
-                        {detSistemaAvatarFile ? (
-                          <button
-                            type="button"
-                            onClick={() => setDetSistemaAvatarFile(null)}
-                            className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
-                          >
-                            Remover
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome e Sobrenome</div>
-                      <input
-                        value={detSistemaNome}
-                        onChange={(e) => setDetSistemaNome(e.target.value)}
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      />
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Situação</div>
-                      <div className="text-sm text-slate-200 mt-2 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${activeColaborador.usuario.ativo === false ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                        {activeColaborador.usuario.ativo === false ? 'Desativado' : 'Ativo'}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
-                      <input
-                        value={detSistemaTelefone}
-                        onChange={(e) => setDetSistemaTelefone(formatPhone(e.target.value))}
-                        maxLength={15}
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      />
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
-                      <input
-                        type="email"
-                        value={detSistemaEmailCorp}
-                        onChange={(e) => setDetSistemaEmailCorp(e.target.value)}
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      />
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cargo</div>
-                      <select
-                        value={detSistemaCargo}
-                        onChange={(e) => setDetSistemaCargo(e.target.value)}
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      >
-                        <option value="">Selecione...</option>
-                        <option value="ADMIN">ADMIN</option>
-                        <option value="ADMINISTRATIVO">Administrativo</option>
-                        <option value="FINANCEIRO">Financeiro</option>
-                        <option value="MARKETING">Marketing</option>
-                        <option value="RECURSOS_HUMANOS">Recursos Humanos</option>
-                        <option value="DEPARTAMENTO_PESSOAL">Departamento Pessoal</option>
-                        <option value="LOGISTICA">Logística</option>
-                        <option value="OFICINA">Oficina</option>
-                        <option value="TECNICO">Técnico</option>
-                        <option value="VENDEDOR">Comercial (Vendedor)</option>
-                      </select>
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
-                      <input
-                        value={detSistemaRamal}
-                        onChange={(e) => setDetSistemaRamal(e.target.value)}
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                      />
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Login</div>
-                      <input
-                        value={activeColaborador.usuario.email_login || '—'}
-                        disabled
-                        className="w-full mt-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!activeColaborador) return
-                        setDetSistemaError(null)
-                        setDetSistemaSaving(true)
-                        try {
-                          await api.users.update(activeColaborador.usuario.id, {
-                            nome: detSistemaNome,
-                            telefone: detSistemaTelefone,
-                            email_corporativo: detSistemaEmailCorp || null,
-                            cargo: detSistemaCargo,
-                            ramal: detSistemaRamal || null
-                          })
-
-                          let avatarUrl: string | null | undefined = undefined
-                          if (detSistemaAvatarFile) {
-                            const dataUrl = await fileToDataUrl(detSistemaAvatarFile)
-                            const r = await api.users.setAvatar(activeColaborador.usuario.id, dataUrl)
-                            avatarUrl = r?.avatar_url ?? null
-                          }
-
-                          setAllUsers((prev) =>
-                            prev.map((u) =>
-                              u.id === activeColaborador.usuario.id
-                                ? {
-                                    ...u,
-                                    nome: detSistemaNome,
-                                    telefone: detSistemaTelefone,
-                                    email_corporativo: detSistemaEmailCorp || null,
-                                    cargo: detSistemaCargo,
-                                    ramal: detSistemaRamal || null,
-                                    avatar_url: avatarUrl === undefined ? u.avatar_url : avatarUrl
-                                  }
-                                : u
-                            )
-                          )
-
-                          setColaboradores((prev) =>
-                            prev.map((c) =>
-                              c.id === activeColaborador.id
-                                ? {
-                                    ...c,
-                                    usuario: {
-                                      ...c.usuario,
-                                      nome: detSistemaNome,
-                                      telefone: detSistemaTelefone,
-                                      email_corporativo: detSistemaEmailCorp || null,
-                                      cargo: detSistemaCargo,
-                                      ramal: detSistemaRamal || null,
-                                      avatar_url: avatarUrl === undefined ? c.usuario.avatar_url : avatarUrl
-                                    }
-                                  }
-                                : c
-                            )
-                          )
-
-                          setDetSistemaAvatarFile(null)
-                        } catch (e: any) {
-                          setDetSistemaError(e?.message || 'Erro ao salvar dados do sistema.')
-                        } finally {
-                          setDetSistemaSaving(false)
-                        }
-                      }}
-                    disabled={detSistemaSaving || !detSistemaDirty}
-                      className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {detSistemaSaving ? 'Salvando...' : 'Salvar Alterações'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={openResetSenha}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors"
-                    >
-                      Resetar Senha
-                    </button>
-
-                    {activeColaborador.usuario.ativo === false ? (
-                      <button
-                        type="button"
-                        onClick={handleReativar}
-                        disabled={changingStatus}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {changingStatus ? 'Reativando...' : 'Ativar Usuário'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={openDesativar}
-                        disabled={changingStatus}
-                        className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        Desativar Usuário
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : detalheTab === 'pessoal' ? (
+              {detalheTab === 'pessoal' ? (
                 <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-bottom-2">
                   <div className="flex items-center justify-end">
                     <button
@@ -2093,7 +1466,7 @@ export default function Colaboradores() {
                       onClick={openEditar}
                       className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
                     >
-                      Editar Dados
+                      Editar Informações
                     </button>
                   </div>
 
@@ -2103,7 +1476,7 @@ export default function Colaboradores() {
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.nomeCompleto}</div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CPF</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CPF/CNPJ</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.cpf}</div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
@@ -2134,6 +1507,14 @@ export default function Colaboradores() {
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
                     <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
                   </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
+                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.ramal || '—'}</div>
+                  </div>
                   <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Admissão</div>
                     <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
@@ -2146,7 +1527,7 @@ export default function Colaboradores() {
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observações Gerais</div>
                     <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsGerais || '—'}</div>
                   </div>
-                  {activeColaborador.usuario.ativo === false && (
+                  {activeColaborador.dataDemissao && (
                     <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observação Demissão</div>
                       <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsDemissao || '—'}</div>
@@ -2175,23 +1556,23 @@ export default function Colaboradores() {
                   ) : activeColaborador.documentos.length === 0 ? (
                     <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
                   ) : (
-                    <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
-                      <table className="min-w-full text-left">
-                        <thead className="bg-white/5">
+                    <div className="mt-3 rounded-xl border border-white/10 overflow-auto max-h-[60vh]">
+                      <table className="min-w-[860px] w-full text-left">
+                        <thead className="sticky top-0 z-10 bg-[#0B1220]/95 backdrop-blur border-b border-white/10">
                           <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                            <th className="px-4 py-3">Nome</th>
+                            <th className="px-4 py-3">Documento</th>
                             <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
                             <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
-                            <th className="px-4 py-3 whitespace-nowrap">Status</th>
-                            <th className="px-4 py-3 text-right">Ações</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Situação</th>
+                            <th className="px-4 py-3 text-right whitespace-nowrap">Ações</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/10 bg-white/0">
+                        <tbody className="divide-y divide-white/10">
                           {activeColaborador.documentos.map((d) => {
-                            const isAtivo = activeColaborador.usuario.ativo !== false
+                            const isAtivo = !activeColaborador.dataDemissao
                             const vencido = isAtivo && isVencido(d.dataVencimento)
                             const vencendo = isAtivo && isVencendo(d.dataVencimento)
-                            const statusDoc = vencido ? 'Inválido' : 'Válido'
+                            const statusDoc = vencido ? 'Inválido' : vencendo ? 'Vencendo' : 'Válido'
                             return (
                               <tr key={d.id} className={vencido ? 'bg-rose-500/5' : vencendo ? 'bg-amber-500/5' : ''}>
                                 <td className="px-4 py-3">
@@ -2210,7 +1591,7 @@ export default function Colaboradores() {
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
                                   <div className="flex items-center gap-2">
-                                    <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
+                                  <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
                                     {vencido ? (
                                       <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
                                         Vencido
@@ -2224,8 +1605,12 @@ export default function Colaboradores() {
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   {statusDoc === 'Inválido' ? (
-                                    <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
+                                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[11px] font-bold uppercase tracking-wider border border-rose-500/20">
                                       Inválido
+                                    </span>
+                                  ) : statusDoc === 'Vencendo' ? (
+                                    <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[11px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                      Vencendo
                                     </span>
                                   ) : (
                                     <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
@@ -2269,102 +1654,6 @@ export default function Colaboradores() {
         )}
       </Modal>
 
-      {/* Modal Reset Senha */}
-      <Modal
-        isOpen={isResetSenhaOpen}
-        onClose={() => setIsResetSenhaOpen(false)}
-        title="Resetar Senha"
-        size="sm"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsResetSenhaOpen(false)}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmResetSenha}
-              disabled={resettingSenha}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors disabled:opacity-60"
-            >
-              {resettingSenha ? 'Resetando...' : 'Confirmar Reset'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {resetSenhaError && <div className="text-rose-400 text-xs">{resetSenhaError}</div>}
-          <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nova Senha</label>
-            <input
-              type="password"
-              value={resetSenha}
-              onChange={(e) => setResetSenha(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 transition-all"
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Desativar */}
-      <Modal
-        isOpen={isDesativarOpen}
-        onClose={() => setIsDesativarOpen(false)}
-        title="Desativar Colaborador"
-        size="md"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsDesativarOpen(false)}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmDesativar}
-              disabled={changingStatus}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors disabled:opacity-60"
-            >
-              {changingStatus ? 'Desativando...' : 'Confirmar Desativação'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-xs text-rose-200">
-            Atenção: O usuário perderá o acesso ao sistema imediatamente.
-          </div>
-          {desativarError && <div className="text-rose-400 text-xs">{desativarError}</div>}
-          
-          <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data da Demissão *</label>
-            <input
-              type="date"
-              value={demissaoData}
-              onChange={(e) => setDemissaoData(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/25 transition-all"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Observação / Motivo *</label>
-            <textarea
-              value={demissaoObs}
-              onChange={(e) => setDemissaoObs(e.target.value)}
-              rows={3}
-              placeholder="Descreva o motivo da demissão..."
-              className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/25 transition-all resize-none"
-            />
-          </div>
-        </div>
-      </Modal>
-
       {/* Modal Editar */}
       <Modal
         isOpen={isEditarOpen}
@@ -2384,7 +1673,9 @@ export default function Colaboradores() {
               type="button"
               onClick={handleSalvarEdicao}
               disabled={savingEdit || !editDirty}
-              className="px-6 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 flex items-center gap-2"
+              className={`px-6 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 ${
+                editDirty ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-white/10 text-slate-500'
+              } disabled:opacity-60`}
             >
               {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
             </button>
@@ -2425,40 +1716,6 @@ export default function Colaboradores() {
             {editTab === 'pessoal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto de Perfil</label>
-                  <div className="flex items-center gap-3">
-                    <Avatar nome={editNomeCompleto || 'Usuário'} avatarUrl={editAvatarPreview || activeColaborador?.usuario.avatar_url || ''} size={48} />
-                    <input
-                      type="file"
-                      id="colab-avatar-edit"
-                      accept="image/png,image/jpeg"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] || null
-                        if (!f) { setEditAvatarFile(null); return }
-                        if (f.size > 3 * 1024 * 1024) { setEditError('Imagem muito grande (máx 3MB).'); setEditAvatarFile(null); return }
-                        if (f.type !== 'image/png' && f.type !== 'image/jpeg') { setEditError('Formato inválido. Use PNG ou JPEG.'); setEditAvatarFile(null); return }
-                        setEditAvatarFile(f)
-                      }}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="colab-avatar-edit"
-                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer"
-                    >
-                      Selecionar foto
-                    </label>
-                    {editAvatarFile && (
-                      <button
-                        type="button"
-                        onClick={() => setEditAvatarFile(null)}
-                        className="px-3 py-2 rounded-xl border border-white/10 bg-white/0 text-slate-400 text-xs font-bold hover:bg-white/5 transition-colors"
-                      >
-                        Remover
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2 md:col-span-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
                   <input
                     value={editNomeCompleto}
@@ -2467,10 +1724,12 @@ export default function Colaboradores() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF *</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF ou CNPJ *</label>
                   <input
                     value={editCpf}
                     onChange={(e) => setEditCpf(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    maxLength={18}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
                   />
                 </div>
@@ -2660,6 +1919,10 @@ export default function Colaboradores() {
                 if (!activeId) return
                 
                 try {
+                  const isoRe = /^\d{4}-\d{2}-\d{2}$/
+                  if (docEmissao && !isoRe.test(docEmissao)) throw new Error('Data de Emissão inválida (DD/MM/AAAA).')
+                  if (docVencimento && !isoRe.test(docVencimento)) throw new Error('Data de Vencimento inválida (DD/MM/AAAA).')
+
                   setSavingDoc(true)
                   savingDocRef.current = true
                   const fileExt = docFile.name.includes('.') ? docFile.name.split('.').pop() : null
@@ -2792,11 +2055,11 @@ export default function Colaboradores() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Emissão</label>
-               <input type="date" value={docEmissao} onChange={e => setDocEmissao(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all" />
+               <DateBRPicker valueISO={docEmissao} onChangeISO={setDocEmissao} />
             </div>
             <div className="space-y-2">
                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Vencimento</label>
-               <input type="date" value={docVencimento} onChange={e => setDocVencimento(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all" />
+               <DateBRPicker valueISO={docVencimento} onChangeISO={setDocVencimento} />
             </div>
           </div>
 

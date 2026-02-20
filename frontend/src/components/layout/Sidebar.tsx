@@ -311,7 +311,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             .not('data_vencimento', 'is', null)
             .limit(500)
           if (vencidos?.error) throw vencidos.error
-          const idsVencidos = Array.from(new Set((vencidos?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
+          const idsVencidos = Array.from(
+            new Set<string>((vencidos?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean))
+          )
           if (await hasAnyActiveColab(idsVencidos)) {
             colabs = 'vencido'
           } else {
@@ -323,7 +325,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               .not('data_vencimento', 'is', null)
               .limit(500)
             if (vencendo?.error) throw vencendo.error
-            const idsVencendo = Array.from(new Set((vencendo?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean)))
+            const idsVencendo = Array.from(
+              new Set<string>((vencendo?.data ?? []).map((x: any) => String(x?.colaborador_id || '')).filter(Boolean))
+            )
             if (await hasAnyActiveColab(idsVencendo)) colabs = 'vencendo'
           }
         } catch (e) {
@@ -350,7 +354,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             .not('data_vencimento', 'is', null)
             .limit(500)
           if (vencidos?.error) throw vencidos.error
-          const idsVencidos = Array.from(new Set((vencidos?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
+          const idsVencidos = Array.from(
+            new Set<string>((vencidos?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean))
+          )
           if (await hasAnyActiveEmpresa(idsVencidos)) {
             empresas = 'vencido'
           } else {
@@ -362,7 +368,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               .not('data_vencimento', 'is', null)
               .limit(500)
             if (vencendo?.error) throw vencendo.error
-            const idsVencendo = Array.from(new Set((vencendo?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean)))
+            const idsVencendo = Array.from(
+              new Set<string>((vencendo?.data ?? []).map((x: any) => String(x?.empresa_id || '')).filter(Boolean))
+            )
             if (await hasAnyActiveEmpresa(idsVencendo)) empresas = 'vencendo'
           }
         } catch (e) {

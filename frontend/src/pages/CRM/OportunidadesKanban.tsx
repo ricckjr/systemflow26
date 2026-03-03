@@ -139,6 +139,16 @@ const formatCurrency = (value: string | number | null | undefined) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
 
+const parseNumberPtBr = (raw: string | number | null | undefined) => {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
+  const cleaned = String(raw).replace(/[^0-9,.\-]/g, '')
+  if (!cleaned) return null
+  const normalized = cleaned.includes(',') ? cleaned.replaceAll('.', '').replace(',', '.') : cleaned
+  const n = Number.parseFloat(normalized)
+  return Number.isFinite(n) ? n : null
+}
+
 const formatSolucaoLabel = (solucao: string | null | undefined) => {
   const s = String(solucao || '').trim().toUpperCase()
   if (s === 'PRODUTO') return 'Venda de Produto'
@@ -463,6 +473,7 @@ export default function OportunidadesKanban() {
   const [itemSelectedId, setItemSelectedId] = useState<string>('')
   const [itemQuantidade, setItemQuantidade] = useState('1')
   const [itemDesconto, setItemDesconto] = useState('0')
+  const [itemValorUnitario, setItemValorUnitario] = useState('')
 
   const [statusObsOpen, setStatusObsOpen] = useState(false)
   const [statusObsText, setStatusObsText] = useState('')
@@ -1405,6 +1416,15 @@ export default function OportunidadesKanban() {
     if (!s) return null
     return { tipo: 'SERVICO' as const, id: s.serv_id, descricao: s.descricao_serv, valorUnitario: Number((s as any).valor_serv ?? 0) }
   }, [itemSelectedId, itemModalTipo, produtos, servicos])
+
+  useEffect(() => {
+    if (!itemModalOpen) return
+    if (!itemSelected) {
+      setItemValorUnitario('')
+      return
+    }
+    setItemValorUnitario(String(itemSelected.valorUnitario ?? 0))
+  }, [itemModalOpen, itemSelected])
 
   const contatoFiltered = useMemo(() => {
     const term = contatoQuery.trim().toLowerCase()
@@ -4297,7 +4317,21 @@ export default function OportunidadesKanban() {
                                       className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 text-slate-100 font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 outline-none"
                                     />
                                   </td>
-                                  <td className="py-3 pr-3 text-slate-300 font-mono">{formatCurrency(it.valorUnitario)}</td>
+                                  <td className="py-3 pr-3">
+                                    <input
+                                      value={String(it.valorUnitario ?? 0)}
+                                      onChange={(e) => {
+                                        const v = parseNumberPtBr(e.target.value)
+                                        if (v === null) return
+                                        markDraftItensTouched()
+                                        setDraftItens((prev) =>
+                                          prev.map((x) => (x.localId === it.localId ? { ...x, valorUnitario: Math.max(0, v) } : x))
+                                        )
+                                      }}
+                                      inputMode="decimal"
+                                      className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 text-slate-100 font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 outline-none"
+                                    />
+                                  </td>
                                   <td className="py-3 pr-3 text-emerald-300 font-black font-mono">{formatCurrency(calcItemTotal(it))}</td>
                                   <td className="py-3">
                                     <button
@@ -5208,7 +5242,8 @@ export default function OportunidadesKanban() {
           isOpen={itemModalOpen}
           onClose={() => setItemModalOpen(false)}
           title={itemModalTipo === 'PRODUTO' ? 'Adicionar Produto' : 'Adicionar Serviço'}
-          size="lg"
+          size="full"
+          className="md:max-w-2xl"
           zIndex={200}
           footer={
             <>
@@ -5223,10 +5258,12 @@ export default function OportunidadesKanban() {
                 type="button"
                 onClick={() => {
                   if (!itemSelected) return
-                  const qtd = Number.parseFloat(String(itemQuantidade || '1').replace(',', '.'))
-                  const desc = Number.parseFloat(String(itemDesconto || '0').replace(',', '.'))
+                  const qtd = parseNumberPtBr(itemQuantidade) ?? 1
+                  const desc = parseNumberPtBr(itemDesconto) ?? 0
                   const quantidade = Number.isFinite(qtd) ? Math.max(0.01, qtd) : 1
                   const descontoPercent = Number.isFinite(desc) ? Math.min(100, Math.max(0, desc)) : 0
+                  const unit = parseNumberPtBr(itemValorUnitario)
+                  const valorUnitario = unit === null ? Number(itemSelected.valorUnitario || 0) : Math.max(0, unit)
 
                   const next: DraftItem = {
                     localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -5236,14 +5273,16 @@ export default function OportunidadesKanban() {
                     descricao: itemSelected.descricao,
                     quantidade,
                     descontoPercent,
-                    valorUnitario: itemSelected.valorUnitario
+                    valorUnitario: valorUnitario
                   }
 
                   markDraftItensTouched()
                   setDraftItens((prev) => [...prev, next])
-                  setItemSelectedId('')
-                  setItemQuantidade('1')
-                  setItemDesconto('0')
+                  pushToast({
+                    kind: 'system',
+                    title: 'ITEM ADICIONADO',
+                    message: `${itemSelected.descricao} · Qtd ${quantidade} · ${formatCurrency(valorUnitario)}`
+                  })
                 }}
                 disabled={!itemSelected}
                 className={`px-7 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 ${
@@ -5269,7 +5308,7 @@ export default function OportunidadesKanban() {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-              <div className="max-h-72 overflow-y-auto custom-scrollbar">
+              <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
                 {itemOptions.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-slate-400">Nenhum resultado.</div>
                 ) : (
@@ -5287,14 +5326,23 @@ export default function OportunidadesKanban() {
                       }`}
                     >
                       <div className="text-sm font-semibold text-slate-100 truncate">{opt.label}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{formatCurrency(opt.valor)}</div>
+                      <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-slate-400 font-mono">
+                        <span className="truncate">{String(opt.id)}</span>
+                        <span className="shrink-0">{formatCurrency(opt.valor)}</span>
+                      </div>
                     </button>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {itemSelected ? (
+              <div className="text-[11px] text-slate-400">
+                Valor base: <span className="font-mono text-slate-200">{formatCurrency(itemSelected.valorUnitario)}</span>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Quantidade</label>
                 <input
@@ -5303,6 +5351,18 @@ export default function OportunidadesKanban() {
                   inputMode="decimal"
                   className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
                   placeholder="1"
+                  disabled={!itemSelected}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor Unitário</label>
+                <input
+                  value={itemValorUnitario}
+                  onChange={(e) => setItemValorUnitario(e.target.value)}
+                  inputMode="decimal"
+                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                  placeholder={itemSelected ? String(itemSelected.valorUnitario ?? 0) : '0'}
+                  disabled={!itemSelected}
                 />
               </div>
               <div className="space-y-2">
@@ -5313,6 +5373,7 @@ export default function OportunidadesKanban() {
                   inputMode="decimal"
                   className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
                   placeholder="0"
+                  disabled={!itemSelected}
                 />
               </div>
               <div className="space-y-2">
@@ -5320,10 +5381,12 @@ export default function OportunidadesKanban() {
                 <input
                   value={(() => {
                     if (!itemSelected) return formatCurrency(0)
-                    const qtd = Number.parseFloat(String(itemQuantidade || '1').replace(',', '.'))
-                    const desc = Number.parseFloat(String(itemDesconto || '0').replace(',', '.'))
+                    const qtd = parseNumberPtBr(itemQuantidade) ?? 1
+                    const desc = parseNumberPtBr(itemDesconto) ?? 0
+                    const unit = parseNumberPtBr(itemValorUnitario)
                     const quantidade = Number.isFinite(qtd) ? Math.max(0.01, qtd) : 1
                     const descontoPercent = Number.isFinite(desc) ? Math.min(100, Math.max(0, desc)) : 0
+                    const valorUnitario = unit === null ? Number(itemSelected.valorUnitario || 0) : Math.max(0, unit)
                     return formatCurrency(
                       calcItemTotal({
                         localId: 'preview',
@@ -5333,7 +5396,7 @@ export default function OportunidadesKanban() {
                         descricao: itemSelected.descricao,
                         quantidade,
                         descontoPercent,
-                        valorUnitario: itemSelected.valorUnitario
+                        valorUnitario
                       })
                     )
                   })()}

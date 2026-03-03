@@ -2054,6 +2054,20 @@ export default function OportunidadesKanban() {
     let faseLabel = stages.find((s) => s.id === finalFaseId)?.label || null
 
     if (normKey(statusDesc) === 'APROVADO') {
+      const missingPayments =
+        paymentsSchemaOk === false ||
+        !draftFormaPagamentoId.trim() ||
+        !draftCondicaoPagamentoId.trim()
+      const missingItens = draftItens.length === 0
+      if (missingPayments || missingItens) {
+        const msg =
+          'Para aprovar a proposta, é necessário informar os dados de pagamento e incluir ao menos 1 Produto/Serviço.'
+        setFormError(msg)
+        try {
+          alert(msg)
+        } catch {}
+        return null
+      }
       const conquistado =
         stages.find((s) => normKey(s.label) === 'CONQUISTADO') ||
         stages.find((s) => normKey(s.label).includes('CONQUIST')) ||
@@ -5029,6 +5043,33 @@ export default function OportunidadesKanban() {
                   if (!next) {
                     setStatusChangeError('Selecione um status.')
                     return
+                  }
+                  {
+                    const normKey = (v: string) =>
+                      String(v || '')
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .trim()
+                        .toUpperCase()
+                    const statusDesc = String(
+                      statuses.find((s) => String(s.status_id || '').trim() === next)?.status_desc || ''
+                    ).trim()
+                    if (normKey(statusDesc) === 'APROVADO') {
+                      const missingPayments =
+                        paymentsSchemaOk === false ||
+                        !draftFormaPagamentoId.trim() ||
+                        !draftCondicaoPagamentoId.trim()
+                      const missingItens = draftItens.length === 0
+                      if (missingPayments || missingItens) {
+                        const msg =
+                          'Para aprovar a proposta, é necessário informar os dados de pagamento e incluir ao menos 1 Produto/Serviço.'
+                        setStatusChangeError(msg)
+                        try {
+                          alert(msg)
+                        } catch {}
+                        return
+                      }
+                    }
                   }
                   const obs = statusChangeObs.trim()
                   if (!obs) {

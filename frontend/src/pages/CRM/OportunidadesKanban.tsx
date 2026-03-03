@@ -424,6 +424,7 @@ export default function OportunidadesKanban() {
   const [draftFaseId, setDraftFaseId] = useState('')
   const [draftStatusId, setDraftStatusId] = useState('')
   const [baselineStatusId, setBaselineStatusId] = useState<string | null>(null)
+  const [baselineFaseId, setBaselineFaseId] = useState<string | null>(null)
   const [draftMotivoId, setDraftMotivoId] = useState('')
   const [draftOrigemId, setDraftOrigemId] = useState('')
   const [draftSolucao, setDraftSolucao] = useState<'PRODUTO' | 'SERVICO'>('PRODUTO')
@@ -474,6 +475,7 @@ export default function OportunidadesKanban() {
 
   const [statusChangeOpen, setStatusChangeOpen] = useState(false)
   const [statusChangeId, setStatusChangeId] = useState('')
+  const [statusChangeFaseId, setStatusChangeFaseId] = useState('')
   const [statusChangeObs, setStatusChangeObs] = useState('')
   const [statusChangeError, setStatusChangeError] = useState<string | null>(null)
   const [statusHistoryOpen, setStatusHistoryOpen] = useState(false)
@@ -824,6 +826,7 @@ export default function OportunidadesKanban() {
           defaultEmpresaCorrespondenteId
       )
       setDraftFaseId(active.id_fase || '')
+      setBaselineFaseId(active.id_fase || null)
       setDraftStatusId(active.id_status || '')
       setBaselineStatusId(active.id_status || null)
       setDraftMotivoId(active.id_motivo || '')
@@ -891,6 +894,7 @@ export default function OportunidadesKanban() {
       setSnapshotContatoFromId(null)
       setDraftEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
       setDraftFaseId(leadStageId || '')
+      setBaselineFaseId(leadStageId || null)
       setDraftStatusId(andamentoStatusId || '')
       setBaselineStatusId(andamentoStatusId || null)
       setDraftMotivoId('')
@@ -959,6 +963,11 @@ export default function OportunidadesKanban() {
     if (!formOpen) return
     if (!baselineStatusId && draftStatusId) setBaselineStatusId(draftStatusId)
   }, [formOpen, baselineStatusId, draftStatusId])
+
+  useEffect(() => {
+    if (!formOpen) return
+    if (!baselineFaseId && draftFaseId) setBaselineFaseId(draftFaseId)
+  }, [formOpen, baselineFaseId, draftFaseId])
 
   useEffect(() => {
     if (!formOpen) return
@@ -1696,6 +1705,7 @@ export default function OportunidadesKanban() {
       draftFaseId,
       draftStatusId,
       baselineStatusId,
+      baselineFaseId,
       draftMotivoId,
       draftOrigemId,
       draftSolucao,
@@ -1742,6 +1752,7 @@ export default function OportunidadesKanban() {
     draftFaseId,
     draftStatusId,
     baselineStatusId,
+    baselineFaseId,
     draftMotivoId,
     draftOrigemId,
     draftSolucao,
@@ -2002,7 +2013,12 @@ export default function OportunidadesKanban() {
     }
   }
 
-  const handleSave = async (opts?: { skipStatusObsCheck?: boolean; statusObs?: string | null; statusIdOverride?: string | null }) => {
+  const handleSave = async (opts?: {
+    skipStatusObsCheck?: boolean
+    statusObs?: string | null
+    statusIdOverride?: string | null
+    faseIdOverride?: string | null
+  }) => {
     const clienteId = draftClienteId.trim()
     const vendedorId = (canCrmControl ? draftVendedorId : (myUserId || draftVendedorId)).trim()
     const lockedClienteId = activeId ? ((active?.id_cliente || clienteId).trim()) : clienteId
@@ -2033,6 +2049,8 @@ export default function OportunidadesKanban() {
 
     const statusDesc = String(statuses.find((s) => String(s.status_id || '').trim() === finalStatusId)?.status_desc || '').trim()
     let finalFaseId = activeId ? draftFaseId : (leadStageId || draftFaseId)
+    const faseOverride = String(opts?.faseIdOverride || '').trim()
+    if (faseOverride) finalFaseId = faseOverride
     let faseLabel = stages.find((s) => s.id === finalFaseId)?.label || null
 
     if (normKey(statusDesc) === 'APROVADO') {
@@ -2113,6 +2131,9 @@ export default function OportunidadesKanban() {
     const baseline = (baselineStatusId || '').trim()
     const next = (finalStatusId || '').trim()
     const statusChanged = !!baseline && !!next && baseline !== next
+    const faseBaseline = (baselineFaseId || '').trim()
+    const faseNext = String(finalFaseId || '').trim()
+    const faseChanged = !!faseBaseline && !!faseNext && faseBaseline !== faseNext
     const statusObs = (opts?.statusObs || '').trim()
     if (statusChanged && !opts?.skipStatusObsCheck) {
       setStatusObsError(null)
@@ -2157,6 +2178,14 @@ export default function OportunidadesKanban() {
             : `Status alterado: ${fromDesc} → ${toDesc}`
           await createOportunidadeComentario(activeId, msg)
         }
+        if (faseChanged) {
+          const fromLabel = stageLabelById.get(faseBaseline) || '—'
+          const toLabel = stageLabelById.get(faseNext) || '—'
+          const msg = statusObs
+            ? `Fase alterada: ${fromLabel} → ${toLabel}\nComentário: ${statusObs}`
+            : `Fase alterada: ${fromLabel} → ${toLabel}`
+          await createOportunidadeComentario(activeId, msg)
+        }
       } else {
         const created = await createOportunidade(payload)
         const newId = (created as any)?.id_oport || (created as any)?.id_oportunidade
@@ -2199,6 +2228,15 @@ export default function OportunidadesKanban() {
         try {
           const obj = JSON.parse(savedSnapshot)
           obj.baselineStatusId = next
+          savedSnapshot = JSON.stringify(obj)
+        } catch {}
+      }
+      if (faseChanged) {
+        setBaselineFaseId(faseNext)
+        setDraftFaseId(faseNext)
+        try {
+          const obj = JSON.parse(savedSnapshot)
+          obj.baselineFaseId = faseNext
           savedSnapshot = JSON.stringify(obj)
         } catch {}
       }
@@ -2270,6 +2308,8 @@ export default function OportunidadesKanban() {
 
     const newStageId = destination.droppableId
     const faseLabel = stages.find(s => s.id === newStageId)?.label || null
+    const oldStageId = source.droppableId
+    const faseLabelOld = stages.find(s => s.id === oldStageId)?.label || null
     
     // 1. Optimistic Update
     const originalOpportunities = [...opportunities]
@@ -2284,6 +2324,11 @@ export default function OportunidadesKanban() {
     // 2. API Call
     try {
        await updateOportunidade(draggableId, { id_fase: newStageId, fase: faseLabel } as any)
+       if (faseLabelOld && faseLabel && draggableId) {
+         try {
+           await createOportunidadeComentario(String(draggableId), `Fase alterada: ${faseLabelOld} → ${faseLabel}`)
+         } catch {}
+       }
     } catch (error) {
        console.error('Failed to update stage', error)
        // Rollback
@@ -2576,31 +2621,55 @@ export default function OportunidadesKanban() {
     return rows
   }, [filteredOpportunities, listSort, statuses, stages, resolveStageId])
 
-  const statusHistoryRows = useMemo(() => {
+  const movementHistoryRows = useMemo(() => {
     const rows = (comentarios || [])
-      .filter((c) => String((c as any)?.comentario || '').trim().toLowerCase().startsWith('status alterado:'))
       .map((c) => {
         const raw = String((c as any)?.comentario || '').trim()
+        const firstLine = String(raw.split('\n')[0] || '').trim()
+        const isStatus = firstLine.toLowerCase().startsWith('status alterado:')
+        const isFase = firstLine.toLowerCase().startsWith('fase alterada:')
+        if (!isStatus && !isFase) return null
+
         const lines = raw.split('\n')
         const first = String(lines[0] || '').trim()
-        const statusText = first.replace(/^status alterado:\s*/i, '').trim() || '-'
+        const detail = isStatus
+          ? first.replace(/^status alterado:\s*/i, '').trim() || '-'
+          : first.replace(/^fase alterada:\s*/i, '').trim() || '-'
         const rest = lines.slice(1).join('\n').trim()
         const comentarioText = rest.replace(/^(coment[aá]rio|obs)\s*:\s*/i, '').trim()
+
         return {
           id: String((c as any)?.comentario_id || '').trim() || `${(c as any)?.created_at || ''}-${Math.random()}`,
           when: String((c as any)?.created_at || '').trim(),
           createdBy: String((c as any)?.created_by || '').trim() || null,
-          statusText,
+          kind: isStatus ? ('STATUS' as const) : ('FASE' as const),
+          detail,
           comentario: comentarioText || '-'
         }
       })
-      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+      .filter(Boolean) as Array<{
+      id: string
+      when: string
+      createdBy: string | null
+      kind: 'STATUS' | 'FASE'
+      detail: string
+      comentario: string
+    }>
+
+    rows.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
     return rows
   }, [comentarios])
 
   useEffect(() => {
-    if (!statusHistoryOpen) return
-    const ids = Array.from(new Set(statusHistoryRows.map((r) => r.createdBy).filter(Boolean))) as string[]
+    if (!statusHistoryOpen && !(tab === 'historicos' && !!activeId)) return
+    const ids = Array.from(
+      new Set(
+        [
+          ...movementHistoryRows.map((r) => r.createdBy).filter(Boolean),
+          ...atividades.map((a) => String((a as any)?.created_by || '').trim()).filter(Boolean),
+        ].filter(Boolean)
+      )
+    ) as string[]
     if (ids.length === 0) return
     let cancelled = false
     ;(async () => {
@@ -2624,7 +2693,7 @@ export default function OportunidadesKanban() {
     return () => {
       cancelled = true
     }
-  }, [statusHistoryOpen, statusHistoryRows])
+  }, [statusHistoryOpen, tab, activeId, movementHistoryRows, atividades])
 
   const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
     if (e.defaultPrevented) return
@@ -3390,7 +3459,7 @@ export default function OportunidadesKanban() {
                   setStatusHistoryOpen(true)
                 }}
                 className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 inline-flex items-center justify-center transition-colors active:scale-[0.99]"
-                title="Histórico de Status"
+                title="Histórico de Movimentos"
               >
                 <Clock size={16} className="text-slate-200" />
               </button>
@@ -4424,77 +4493,118 @@ export default function OportunidadesKanban() {
                         Salve a proposta para começar o histórico de atividades.
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <div className="text-xs font-black uppercase tracking-widest text-slate-300">Histórico de Atividades</div>
-                        <div className="mt-3 space-y-3">
-                          {atividades.length === 0 ? (
-                            <div className="text-sm text-slate-400">Nenhuma atividade registrada.</div>
-                          ) : (
-                            atividades.map((a) => {
-                              const p = (a.payload || {}) as any
-                              const when = new Date(a.created_at).toLocaleString('pt-BR')
-                              const stageDe = p?.de ? (stageLabelById.get(String(p.de)) || String(p.de)) : null
-                              const stagePara = p?.para ? (stageLabelById.get(String(p.para)) || String(p.para)) : null
-
-                              let title = a.tipo
-                              let detail: string | null = null
-
-                              if (a.tipo === 'CRIADA') title = 'Proposta criada'
-                              else if (a.tipo === 'MOVEU_KANBAN') {
-                                title = 'Movida no Kanban'
-                                detail = stageDe && stagePara ? `${stageDe} → ${stagePara}` : null
-                              } else if (a.tipo === 'ALTEROU_STATUS') {
-                                title = 'Status alterado'
-                                const fromDesc = statuses.find((s) => String(s.status_id) === String(p?.de || ''))?.status_desc || String(p?.de || '-')
-                                const toDesc = statuses.find((s) => String(s.status_id) === String(p?.para || ''))?.status_desc || String(p?.para || '-')
-                                detail = `${fromDesc} → ${toDesc}`
-                              } else if (a.tipo === 'ALTEROU_VALOR') {
-                                title = 'Valor alterado'
-                                detail = `${formatCurrency(p?.de ?? 0)} → ${formatCurrency(p?.para ?? 0)}`
-                              } else if (a.tipo === 'ALTEROU_PREVISAO') {
-                                title = 'Previsão alterada'
-                                detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
-                              } else if (a.tipo === 'ALTEROU_TEMPERATURA') {
-                                title = 'Temperatura alterada'
-                                detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
-                              } else if (a.tipo === 'ALTEROU_SOLUCAO') {
-                                title = 'Solução alterada'
-                                detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
-                              } else if (a.tipo === 'ALTEROU_SOLICITACAO_CLIENTE') {
-                                title = 'Solicitação do cliente alterada'
-                                detail = null
-                              } else if (a.tipo === 'ALTEROU_OBSERVACOES') {
-                                title = 'Observações alteradas'
-                                detail = null
-                              } else if (a.tipo === 'ITEM_ADICIONADO') {
-                                title = 'Item adicionado'
-                                detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · Qtd ${p?.quantidade ?? 1} · Desc ${p?.desconto_percent ?? 0}% · ${formatCurrency(p?.valor_total ?? 0)}`
-                              } else if (a.tipo === 'ITEM_REMOVIDO') {
-                                title = 'Item removido'
-                                detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · Qtd ${p?.quantidade ?? 1} · Desc ${p?.desconto_percent ?? 0}% · ${formatCurrency(p?.valor_total ?? 0)}`
-                              } else if (a.tipo === 'ITEM_ATUALIZADO') {
-                                title = 'Item atualizado'
-                                detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · ${formatCurrency(p?.de?.valor_total ?? 0)} → ${formatCurrency(p?.para?.valor_total ?? 0)}`
-                              } else if (a.tipo === 'COMENTARIO') {
-                                title = 'Comentário'
-                                detail = String(p?.comentario || '').trim() || null
-                              }
-
-                              return (
-                                <div key={a.atividade_id} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                      <div className="space-y-4">
+                        {movementHistoryRows.length > 0 ? (
+                          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs font-black uppercase tracking-widest text-slate-300">Movimentos (Status/Fase)</div>
+                            <div className="mt-3 space-y-2">
+                              {movementHistoryRows.slice(0, 25).map((r) => (
+                                <div key={r.id} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
                                   <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0">
-                                      <div className="text-sm font-black text-slate-100">{title}</div>
-                                      {detail ? (
-                                        <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{detail}</div>
+                                      <div className="text-sm font-black text-slate-100">
+                                        {r.kind === 'STATUS' ? 'Status' : 'Fase'}
+                                      </div>
+                                      <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{r.detail}</div>
+                                      {r.comentario && r.comentario !== '-' ? (
+                                        <div className="mt-2 text-[11px] text-slate-400 whitespace-pre-wrap">{r.comentario}</div>
                                       ) : null}
                                     </div>
-                                    <div className="text-[11px] font-bold text-slate-400 whitespace-nowrap">{when}</div>
+                                    <div className="text-right whitespace-nowrap">
+                                      <div className="text-[11px] font-bold text-slate-400">
+                                        {r.when ? new Date(r.when).toLocaleString('pt-BR') : '-'}
+                                      </div>
+                                      <div className="text-[11px] text-slate-300">
+                                        {r.createdBy ? statusHistoryUserById[r.createdBy] || r.createdBy : '-'}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                              )
-                            })
-                          )}
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Histórico de Atividades</div>
+                          <div className="mt-3 space-y-3">
+                            {atividades.length === 0 ? (
+                              <div className="text-sm text-slate-400">Nenhuma atividade registrada.</div>
+                            ) : (
+                              atividades.map((a) => {
+                                const p = (a.payload || {}) as any
+                                const when = new Date(a.created_at).toLocaleString('pt-BR')
+                                const stageDe = p?.de ? (stageLabelById.get(String(p.de)) || String(p.de)) : null
+                                const stagePara = p?.para ? (stageLabelById.get(String(p.para)) || String(p.para)) : null
+
+                                const createdBy = String((a as any)?.created_by || '').trim() || null
+                                const createdByLabel = createdBy ? statusHistoryUserById[createdBy] || createdBy : null
+
+                                let title = a.tipo
+                                let detail: string | null = null
+
+                                if (a.tipo === 'CRIADA') title = 'Proposta criada'
+                                else if (a.tipo === 'MOVEU_KANBAN') {
+                                  title = 'Movida no Kanban'
+                                  detail = stageDe && stagePara ? `${stageDe} → ${stagePara}` : null
+                                } else if (a.tipo === 'ALTEROU_STATUS') {
+                                  title = 'Status alterado'
+                                  const fromDesc = statuses.find((s) => String(s.status_id) === String(p?.de || ''))?.status_desc || String(p?.de || '-')
+                                  const toDesc = statuses.find((s) => String(s.status_id) === String(p?.para || ''))?.status_desc || String(p?.para || '-')
+                                  detail = `${fromDesc} → ${toDesc}`
+                                } else if (a.tipo === 'ALTEROU_VALOR') {
+                                  title = 'Valor alterado'
+                                  detail = `${formatCurrency(p?.de ?? 0)} → ${formatCurrency(p?.para ?? 0)}`
+                                } else if (a.tipo === 'ALTEROU_PREVISAO') {
+                                  title = 'Previsão alterada'
+                                  detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
+                                } else if (a.tipo === 'ALTEROU_TEMPERATURA') {
+                                  title = 'Temperatura alterada'
+                                  detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
+                                } else if (a.tipo === 'ALTEROU_SOLUCAO') {
+                                  title = 'Solução alterada'
+                                  detail = `${p?.de ?? '-'} → ${p?.para ?? '-'}`
+                                } else if (a.tipo === 'ALTEROU_SOLICITACAO_CLIENTE') {
+                                  title = 'Solicitação do cliente alterada'
+                                  detail = null
+                                } else if (a.tipo === 'ALTEROU_OBSERVACOES') {
+                                  title = 'Observações alteradas'
+                                  detail = null
+                                } else if (a.tipo === 'ITEM_ADICIONADO') {
+                                  title = 'Item adicionado'
+                                  detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · Qtd ${p?.quantidade ?? 1} · Desc ${p?.desconto_percent ?? 0}% · ${formatCurrency(p?.valor_total ?? 0)}`
+                                } else if (a.tipo === 'ITEM_REMOVIDO') {
+                                  title = 'Item removido'
+                                  detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · Qtd ${p?.quantidade ?? 1} · Desc ${p?.desconto_percent ?? 0}% · ${formatCurrency(p?.valor_total ?? 0)}`
+                                } else if (a.tipo === 'ITEM_ATUALIZADO') {
+                                  title = 'Item atualizado'
+                                  detail = `${p?.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'} · ${p?.descricao || '-'} · ${formatCurrency(p?.de?.valor_total ?? 0)} → ${formatCurrency(p?.para?.valor_total ?? 0)}`
+                                } else if (a.tipo === 'COMENTARIO') {
+                                  title = 'Comentário'
+                                  detail = String(p?.comentario || '').trim() || null
+                                }
+
+                                return (
+                                  <div key={a.atividade_id} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-black text-slate-100">{title}</div>
+                                        {detail ? (
+                                          <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{detail}</div>
+                                        ) : null}
+                                      </div>
+                                      <div className="text-right whitespace-nowrap">
+                                        <div className="text-[11px] font-bold text-slate-400">{when}</div>
+                                        <div className="text-[11px] text-slate-300" title={createdBy || undefined}>
+                                          {createdByLabel || '-'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -4555,7 +4665,8 @@ export default function OportunidadesKanban() {
                       onClick={() => {
                         setStatusChangeError(null)
                         setStatusChangeObs('')
-                        setStatusChangeId(draftStatusId)
+                        setStatusChangeId(draftStatusId || andamentoStatusId || '')
+                        setStatusChangeFaseId('')
                         setStatusChangeOpen(true)
                       }}
                       className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
@@ -4840,7 +4951,7 @@ export default function OportunidadesKanban() {
           title={
             <div className="inline-flex items-center gap-2">
               <Clock size={16} className="text-cyan-300" />
-              Histórico de Status
+              Histórico de Movimentos
             </div>
           }
           size="lg"
@@ -4853,11 +4964,11 @@ export default function OportunidadesKanban() {
 
             {!activeId ? (
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
-                Salve a proposta para ver o histórico de status.
+                Salve a proposta para ver o histórico de movimentos.
               </div>
-            ) : statusHistoryRows.length === 0 ? (
+            ) : movementHistoryRows.length === 0 ? (
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
-                Nenhuma alteração de status registrada.
+                Nenhum movimento registrado.
               </div>
             ) : (
               <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
@@ -4865,16 +4976,20 @@ export default function OportunidadesKanban() {
                   <table className="w-full text-left">
                     <thead className="sticky top-0 bg-[#0B1220] border-b border-white/10">
                       <tr className="text-[10px] uppercase tracking-wider text-slate-400">
-                        <th className="px-4 py-3 font-black">Status</th>
+                        <th className="px-4 py-3 font-black">Movimento</th>
+                        <th className="px-4 py-3 font-black">Detalhe</th>
                         <th className="px-4 py-3 font-black whitespace-nowrap">Data/Hora</th>
                         <th className="px-4 py-3 font-black">Usuário</th>
                         <th className="px-4 py-3 font-black">Comentário</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {statusHistoryRows.map((r) => (
+                      {movementHistoryRows.map((r) => (
                         <tr key={r.id} className="border-b border-white/5">
-                          <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">{r.statusText}</td>
+                          <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">
+                            {r.kind === 'STATUS' ? 'Status' : 'Fase'}
+                          </td>
+                          <td className="px-4 py-3 text-[11px] text-slate-200 whitespace-nowrap">{r.detail}</td>
                           <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">
                             {r.when ? new Date(r.when).toLocaleString('pt-BR') : '-'}
                           </td>
@@ -4920,10 +5035,17 @@ export default function OportunidadesKanban() {
                     setStatusChangeError('Informe um comentário.')
                     return
                   }
+                  const faseOverride = statusChangeFaseId.trim()
                   setStatusChangeError(null)
                   setDraftStatusId(next)
+                  if (faseOverride) setDraftFaseId(faseOverride)
                   setStatusChangeOpen(false)
-                  await handleSave({ statusIdOverride: next, skipStatusObsCheck: true, statusObs: obs })
+                  await handleSave({
+                    statusIdOverride: next,
+                    faseIdOverride: faseOverride || null,
+                    skipStatusObsCheck: true,
+                    statusObs: obs
+                  })
                 }}
                 className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
               >
@@ -4937,7 +5059,7 @@ export default function OportunidadesKanban() {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{statusChangeError}</div>
             ) : null}
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Status</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Novo Status</label>
               <select
                 value={statusChangeId}
                 onChange={(e) => setStatusChangeId(e.target.value)}
@@ -4947,6 +5069,23 @@ export default function OportunidadesKanban() {
                 {statuses.map((s) => (
                   <option key={s.status_id} value={s.status_id}>
                     {s.status_desc}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Fase</label>
+              <select
+                value={statusChangeFaseId}
+                onChange={(e) => setStatusChangeFaseId(e.target.value)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              >
+                <option value="">
+                  {`Manter fase atual${draftFaseId ? ` (${stageLabelById.get(draftFaseId) || '—'})` : ''}`}
+                </option>
+                {stages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
                   </option>
                 ))}
               </select>

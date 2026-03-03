@@ -199,7 +199,9 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const total = subtotal * (1 - descontoPropostaPercent / 100)
 
   const emissaoLabel = formatDateTimeBr((opp as any)?.data_inclusao || (opp as any)?.criado_em || null)
-  const previsaoFaturamentoLabel = formatDateBr(String((opp as any)?.prev_entrega || '').slice(0, 10))
+  const previsaoFaturamentoLabel = formatDateBr(
+    String(((opp as any)?.prev_faturamento ?? (opp as any)?.prev_entrega) || '').slice(0, 10)
+  )
   const vendedorLabel = String((opp as any)?.vendedor_nome || (opp as any)?.vendedor || '-').trim() || '-'
   const vendedorId = String((opp as any)?.id_vendedor || '').trim()
   let vendedorEmail = ''

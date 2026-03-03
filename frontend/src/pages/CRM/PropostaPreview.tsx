@@ -196,7 +196,10 @@ export default function PropostaPreview() {
   }, [opp, tipoFreteParam])
 
   const validadeLabel = useMemo(() => formatDateBr(validadeParam), [validadeParam])
-  const previsaoEntregaLabel = useMemo(() => formatDateBr(String(opp?.prev_entrega || '').slice(0, 10)), [opp])
+  const previsaoEntregaLabel = useMemo(
+    () => formatDateBr(String(((opp as any)?.prev_faturamento ?? (opp as any)?.prev_entrega) || '').slice(0, 10)),
+    [opp]
+  )
 
   const subtotal = useMemo(() => items.reduce((acc, it) => acc + calcItemTotal(it), 0), [items])
   const total = useMemo(() => subtotal * (1 - descontoPropostaPercent / 100), [subtotal, descontoPropostaPercent])

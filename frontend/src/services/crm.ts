@@ -14,11 +14,13 @@ export interface CRM_Oportunidade {
   id_status: string | null
   id_motivo: string | null
   id_origem: string | null
-  solucao: 'PRODUTO' | 'SERVICO' | 'PRODUTO_SERVICO' | null
+  solucao: 'PRODUTO' | 'SERVICO' | null
   obs_oport: string | null
   descricao_oport: string | null
   qts_item: number | null
+  prev_faturamento: string | null
   prev_entrega: string | null
+  validade_proposta: string | null
   forma_pagamento_id?: string | null
   condicao_pagamento_id?: string | null
   tipo_frete?: 'FOB' | 'CIF' | null
@@ -27,17 +29,13 @@ export interface CRM_Oportunidade {
   cod_servico: string | null
   desconto_percent_proposta?: number | null
   ticket_valor: number | null
-  data_lead: string | null
-  data_prospeccao: string | null
-  data_apresentacao: string | null
-  data_qualificacao: string | null
-  data_negociacao: string | null
   data_conquistado: string | null
   data_perdidos: string | null
   data_posvenda: string | null
   data_inclusao: string | null
   data_alteracao: string | null
   data_parado?: string | null
+  created_by?: string | null
 
   cliente_nome?: string | null
   cliente_documento?: string | null
@@ -294,15 +292,12 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     obs_oport: row.observacoes_vendedor ?? null,
     descricao_oport: row.descricao_oportunidade ?? null,
     qts_item: null,
+    prev_faturamento: null,
     prev_entrega: null,
+    validade_proposta: null,
     cod_produto: null,
     cod_servico: null,
     ticket_valor: row.valor_proposta ? Number.parseFloat(String(row.valor_proposta).replace(',', '.')) : null,
-    data_lead: null,
-    data_prospeccao: null,
-    data_apresentacao: null,
-    data_qualificacao: null,
-    data_negociacao: null,
     data_conquistado: null,
     data_perdidos: null,
     data_posvenda: null,

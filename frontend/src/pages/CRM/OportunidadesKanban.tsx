@@ -1240,24 +1240,15 @@ export default function OportunidadesKanban() {
       return
     }
     if (snapshotContatoFromId === id) return
-    const shouldHydrateContatoFields =
-      !activeId ||
-      (!draftContatoNome.trim() &&
-        !draftContatoCargo.trim() &&
-        !draftContatoTelefone01.trim() &&
-        !draftContatoTelefone02.trim() &&
-        !draftContatoEmail.trim())
     const c = contatoOptions.find((x) => x.contato_id === id) || null
     if (c) {
       setDraftContatoDetails(c)
-      if (shouldHydrateContatoFields) {
-        setDraftContatoNome(String(c.contato_nome || ''))
-        setDraftContatoCargo(String(c.contato_cargo || ''))
-        setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
-        setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
-        setDraftContatoEmail(String(c.contato_email || ''))
-      }
-      if (!contatoQuery.trim() && c.contato_nome) setContatoQuery(c.contato_nome)
+      setDraftContatoNome(String(c.contato_nome || ''))
+      setDraftContatoCargo(String(c.contato_cargo || ''))
+      setDraftContatoTelefone01(String(c.contato_telefone01 || ''))
+      setDraftContatoTelefone02(String(c.contato_telefone02 || ''))
+      setDraftContatoEmail(String(c.contato_email || ''))
+      if (c.contato_nome) setContatoQuery(c.contato_nome)
       setSnapshotContatoFromId(id)
       return
     }
@@ -1270,14 +1261,12 @@ export default function OportunidadesKanban() {
         return
       }
       setDraftContatoDetails(fetched)
-      if (shouldHydrateContatoFields) {
-        setDraftContatoNome(String(fetched.contato_nome || ''))
-        setDraftContatoCargo(String(fetched.contato_cargo || ''))
-        setDraftContatoTelefone01(String(fetched.contato_telefone01 || ''))
-        setDraftContatoTelefone02(String(fetched.contato_telefone02 || ''))
-        setDraftContatoEmail(String(fetched.contato_email || ''))
-      }
-      if (!contatoQuery.trim() && fetched.contato_nome) setContatoQuery(fetched.contato_nome)
+      setDraftContatoNome(String(fetched.contato_nome || ''))
+      setDraftContatoCargo(String(fetched.contato_cargo || ''))
+      setDraftContatoTelefone01(String(fetched.contato_telefone01 || ''))
+      setDraftContatoTelefone02(String(fetched.contato_telefone02 || ''))
+      setDraftContatoEmail(String(fetched.contato_email || ''))
+      if (fetched.contato_nome) setContatoQuery(fetched.contato_nome)
       setSnapshotContatoFromId(id)
     })().catch(() => {
       if (cancelled) return
@@ -1292,11 +1281,6 @@ export default function OportunidadesKanban() {
     draftContatoId,
     contatoOptions,
     snapshotContatoFromId,
-    draftContatoNome,
-    draftContatoCargo,
-    draftContatoTelefone01,
-    draftContatoTelefone02,
-    draftContatoEmail,
     contatoQuery
   ])
 
@@ -1370,7 +1354,7 @@ export default function OportunidadesKanban() {
   const vendedorEmail = String((vendedorDetails as any)?.email_corporativo || (vendedorDetails as any)?.email_login || '').trim()
   const vendedorRamal = String((vendedorDetails as any)?.ramal || '').trim()
   const solucaoLabel = formatSolucaoLabel(draftSolucao)
-  const dataInclusaoLabel = formatDateTime(dataInclusao)
+  const dataInclusaoLabel = formatDate(dataInclusao)
   const ultimaMovimentacaoLabel = formatDateTime(ultimaMovimentacao)
 
   const descontoPropostaPercent = useMemo(() => {
@@ -1916,14 +1900,8 @@ export default function OportunidadesKanban() {
       const shouldSetPrincipal = !contatoPrincipal && oportunidadeContatos.length === 0
       if (shouldSetPrincipal) {
         await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId })
-        const contato = contatoAddCandidate || (await fetchContatoById(contatoId))
         await updateOportunidade(oportId, {
-          id_contato: contatoId,
-          contato_nome: contato?.contato_nome || null,
-          contato_cargo: contato?.contato_cargo || null,
-          contato_telefone01: contato?.contato_telefone01 || null,
-          contato_telefone02: contato?.contato_telefone02 || null,
-          contato_email: contato?.contato_email || null
+          id_contato: contatoId
         } as any)
         setDraftContatoId(contatoId)
       }
@@ -1955,17 +1933,8 @@ export default function OportunidadesKanban() {
     setOportunidadeContatosError(null)
     try {
       await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId })
-      const contato =
-        oportunidadeContatos.find((x) => x.contatoId === contatoId)?.contato ||
-        contatoOptions.find((c) => c.contato_id === contatoId) ||
-        (await fetchContatoById(contatoId))
       await updateOportunidade(oportId, {
-        id_contato: contatoId,
-        contato_nome: contato?.contato_nome || null,
-        contato_cargo: contato?.contato_cargo || null,
-        contato_telefone01: contato?.contato_telefone01 || null,
-        contato_telefone02: contato?.contato_telefone02 || null,
-        contato_email: contato?.contato_email || null
+        id_contato: contatoId
       } as any)
       setDraftContatoId(contatoId)
       setOportunidadeContatosSelectedId(contatoId)
@@ -1994,12 +1963,7 @@ export default function OportunidadesKanban() {
         const remaining = await fetchOportunidadeContatos(oportId)
         if (remaining.length === 0) {
           await updateOportunidade(oportId, {
-            id_contato: null,
-            contato_nome: null,
-            contato_cargo: null,
-            contato_telefone01: null,
-            contato_telefone02: null,
-            contato_email: null
+            id_contato: null
           } as any)
           setDraftContatoId('')
           setOportunidadeContatosSelectedId('')
@@ -2007,16 +1971,8 @@ export default function OportunidadesKanban() {
           const nextId = String(remaining[0]?.contato_id || '').trim()
           if (nextId) {
             await setOportunidadeContatoPrincipal({ oportunidadeId: oportId, contatoId: nextId })
-            const contato =
-              contatoOptions.find((c) => c.contato_id === nextId) ||
-              (await fetchContatoById(nextId))
             await updateOportunidade(oportId, {
-              id_contato: nextId,
-              contato_nome: contato?.contato_nome || null,
-              contato_cargo: contato?.contato_cargo || null,
-              contato_telefone01: contato?.contato_telefone01 || null,
-              contato_telefone02: contato?.contato_telefone02 || null,
-              contato_email: contato?.contato_email || null
+              id_contato: nextId
             } as any)
             setDraftContatoId(nextId)
             setOportunidadeContatosSelectedId(nextId)
@@ -3311,19 +3267,9 @@ export default function OportunidadesKanban() {
                   if (oportunidadeId) {
                     try {
                       await linkOportunidadeContato({ oportunidadeId, contatoId: created.contato_id })
-                      const shouldBecomePrincipal = !oportunidadeContatos.some((x) => x.isPrincipal) && oportunidadeContatos.length === 0
-                      if (shouldBecomePrincipal) {
-                        await setOportunidadeContatoPrincipal({ oportunidadeId, contatoId: created.contato_id })
-                        await updateOportunidade(oportunidadeId, {
-                          id_contato: created.contato_id,
-                          contato_nome: created.contato_nome || null,
-                          contato_cargo: created.contato_cargo || null,
-                          contato_telefone01: created.contato_telefone01 || null,
-                          contato_telefone02: created.contato_telefone02 || null,
-                          contato_email: created.contato_email || null
-                        } as any)
-                        setDraftContatoId(created.contato_id)
-                      }
+                      await setOportunidadeContatoPrincipal({ oportunidadeId, contatoId: created.contato_id })
+                      await updateOportunidade(oportunidadeId, { id_contato: created.contato_id } as any)
+                      setDraftContatoId(created.contato_id)
                       setOportunidadeContatosReloadKey((prev) => prev + 1)
                       await loadData()
                     } catch {}
@@ -3633,6 +3579,16 @@ export default function OportunidadesKanban() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="xl:col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Solicitação do Cliente</div>
+                      <textarea
+                        value={draftDescricao}
+                        onChange={(e) => setDraftDescricao(e.target.value)}
+                        placeholder="Descreva a solicitação do cliente..."
+                        className="mt-4 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -3929,18 +3885,6 @@ export default function OportunidadesKanban() {
                             ))
                           )}
                         </select>
-                      </div>
-                      <div className="lg:col-span-12 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solicitação do Cliente</label>
-                          <Pencil size={12} className="text-slate-500" />
-                        </div>
-                        <textarea
-                          value={draftDescricao}
-                          onChange={(e) => setDraftDescricao(e.target.value)}
-                          placeholder="Descreva a solicitação do cliente..."
-                          className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
-                        />
                       </div>
                     </div>
                   </div>

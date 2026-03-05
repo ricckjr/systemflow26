@@ -217,6 +217,16 @@ const formatTempoParado = (dateString: string | null) => {
   return `${mins}m`
 }
 
+const calcDaysBetween = (from: string | null | undefined, to: string | null | undefined) => {
+  if (!from || !to) return null
+  const a = new Date(from)
+  const b = new Date(to)
+  if (!Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime())) return null
+  const diffMs = Math.max(0, b.getTime() - a.getTime())
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Number.isFinite(days) ? days : null
+}
+
 const getInitials = (name: string) => {
   const parts = (name || '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -270,6 +280,21 @@ const OpportunityCard = ({
     typeof (opportunity as any).dias_parado === 'number'
       ? (opportunity as any).dias_parado
       : calcDaysSince((opportunity as any).data_parado ?? (opportunity as any).data_alteracao ?? (opportunity as any).atualizado_em ?? null)
+  const tempoAbertoDias = (() => {
+    const start = (opportunity as any).data_inclusao ?? null
+    if (!start) return null
+    const end = (opportunity as any).data_conquistado ?? (opportunity as any).data_perdidos ?? null
+    if (end) return calcDaysBetween(start, end)
+    return calcDaysSince(start)
+  })()
+  const tempoAbertoBadge =
+    tempoAbertoDias === null
+      ? 'text-slate-300 bg-white/5 border-white/10'
+      : tempoAbertoDias <= 15
+        ? 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
+        : tempoAbertoDias <= 25
+          ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
+          : 'text-rose-200 bg-rose-500/10 border-rose-500/20'
 
   return (
     <Draggable draggableId={id} index={index}>
@@ -310,6 +335,13 @@ const OpportunityCard = ({
               <Clock size={12} className="text-slate-500" />
               <span>{`Parado: ${formatDias(diasParado)}`}</span>
             </div>
+            {tempoAbertoDias !== null ? (
+              <div className="pt-1">
+                <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-wider ${tempoAbertoBadge}`}>
+                  {`Tempo aberto: ${tempoAbertoDias}d`}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
@@ -489,6 +521,9 @@ export default function OportunidadesKanban() {
   const [statusChangeFaseId, setStatusChangeFaseId] = useState('')
   const [statusChangeObs, setStatusChangeObs] = useState('')
   const [statusChangeError, setStatusChangeError] = useState<string | null>(null)
+  const [lostOpen, setLostOpen] = useState(false)
+  const [lostMotivoId, setLostMotivoId] = useState('')
+  const [lostError, setLostError] = useState<string | null>(null)
   const [statusHistoryOpen, setStatusHistoryOpen] = useState(false)
   const [statusHistoryError, setStatusHistoryError] = useState<string | null>(null)
   const [statusHistoryUserById, setStatusHistoryUserById] = useState<Record<string, string>>({})
@@ -819,18 +854,6 @@ export default function OportunidadesKanban() {
       setDraftContatoEmail('')
       const snapClienteDoc = String((active as any).cliente_documento || '').trim()
       if (snapClienteDoc) setDraftClienteDocumento(snapClienteDoc)
-      const snapContatoNome =
-        String((active as any).contato_nome || active.nome_contato || '').trim() ||
-        (contatoId ? String(contatoNameById[contatoId] || '').trim() : '')
-      const snapContatoCargo = String((active as any).contato_cargo || '').trim()
-      const snapContatoTel1 = String((active as any).contato_telefone01 || active.telefone01_contato || '').trim()
-      const snapContatoTel2 = String((active as any).contato_telefone02 || active.telefone02_contato || '').trim()
-      const snapContatoEmail = String((active as any).contato_email || active.email || '').trim()
-      if (snapContatoNome) setDraftContatoNome(snapContatoNome)
-      if (snapContatoCargo) setDraftContatoCargo(snapContatoCargo)
-      if (snapContatoTel1) setDraftContatoTelefone01(snapContatoTel1)
-      if (snapContatoTel2) setDraftContatoTelefone02(snapContatoTel2)
-      if (snapContatoEmail) setDraftContatoEmail(snapContatoEmail)
       setSnapshotContatoFromId(null)
       setDraftEmpresaCorrespondenteId(
         String((active as any).empresa_correspondente_id || '').trim() ||
@@ -883,7 +906,7 @@ export default function OportunidadesKanban() {
         String((active as any).cliente_nome || active.cliente || '').trim() ||
         (clienteId ? String(clienteNameById[clienteId] || '').trim() : '')
       setClienteQuery(snapClienteNome || '')
-      setContatoQuery(snapContatoNome || '')
+      setContatoQuery('')
       setVendedorQuery(String((active as any).vendedor_nome || active.vendedor || '').trim())
       setOrigemQuery('')
       setComentarios([])
@@ -952,16 +975,6 @@ export default function OportunidadesKanban() {
     setOrigemOpen(false)
     setTab('pagamento')
   }, [formOpen, activeId, active, canCrmControl, myUserId, myUserName])
-
-  useEffect(() => {
-    if (!formOpen) return
-    if (!draftItensLoaded) return
-    if (draftSolucao === 'PRODUTO') {
-      setDraftItens((prev) => prev.filter((i) => i.tipo === 'PRODUTO'))
-    } else if (draftSolucao === 'SERVICO') {
-      setDraftItens((prev) => prev.filter((i) => i.tipo === 'SERVICO'))
-    }
-  }, [formOpen, draftSolucao, draftItensLoaded])
 
   useEffect(() => {
     if (!formOpen) return
@@ -1335,8 +1348,9 @@ export default function OportunidadesKanban() {
   }, [formOpen, draftContatoId, contatoOptions, contatoQuery])
 
   const dataInclusao = active?.data_inclusao ?? (active as any)?.criado_em ?? null
+  const dataFechamento = (active as any)?.data_conquistado ?? (active as any)?.data_perdidos ?? null
   const dataAlteracao = (active as any)?.data_parado ?? active?.data_alteracao ?? (active as any)?.atualizado_em ?? null
-  const diasAbertos = calcDaysSince(dataInclusao)
+  const tempoAbertoDias = dataFechamento ? calcDaysBetween(dataInclusao, dataFechamento) : calcDaysSince(dataInclusao)
   const ultimaMovimentacao = useMemo(() => {
     const act = (atividades || [])[0]
     const ts = String((act as any)?.created_at || '').trim()
@@ -1380,11 +1394,16 @@ export default function OportunidadesKanban() {
     const mapped = list.map((x: any) => ({
       id: itemModalTipo === 'PRODUTO' ? x.prod_id : x.serv_id,
       label: itemModalTipo === 'PRODUTO' ? x.descricao_prod : x.descricao_serv,
-      valor: Number(itemModalTipo === 'PRODUTO' ? x.produto_valor : x.valor_serv) || 0
+      valor: Number(itemModalTipo === 'PRODUTO' ? x.produto_valor : x.valor_serv) || 0,
+      codigo: String(itemModalTipo === 'PRODUTO' ? x.codigo_prod : x.codigo_serv || '').trim(),
+      integ: String(x.integ_id || '').trim()
     }))
     if (!term) return mapped.slice(0, 12)
     return mapped
-      .filter((x) => String(x.label || '').toLowerCase().includes(term))
+      .filter((x) => {
+        const searchText = `${x.label || ''} ${x.id || ''} ${x.codigo || ''} ${x.integ || ''}`.toLowerCase()
+        return searchText.includes(term)
+      })
       .slice(0, 12)
   }, [itemSearch, itemModalTipo, produtos, servicos])
 
@@ -1699,17 +1718,9 @@ export default function OportunidadesKanban() {
       draftVendedorId,
       draftEmpresaCorrespondenteId,
       draftClienteId,
-      draftClienteDocumento,
       draftContatoId,
-      draftContatoNome,
-      draftContatoCargo,
-      draftContatoTelefone01,
-      draftContatoTelefone02,
-      draftContatoEmail,
       draftFaseId,
       draftStatusId,
-      baselineStatusId,
-      baselineFaseId,
       draftMotivoId,
       draftOrigemId,
       draftSolucao,
@@ -1746,17 +1757,9 @@ export default function OportunidadesKanban() {
     draftVendedorId,
     draftEmpresaCorrespondenteId,
     draftClienteId,
-    draftClienteDocumento,
     draftContatoId,
-    draftContatoNome,
-    draftContatoCargo,
-    draftContatoTelefone01,
-    draftContatoTelefone02,
-    draftContatoEmail,
     draftFaseId,
     draftStatusId,
-    baselineStatusId,
-    baselineFaseId,
     draftMotivoId,
     draftOrigemId,
     draftSolucao,
@@ -1810,6 +1813,15 @@ export default function OportunidadesKanban() {
     draftItens.length,
     saving
   ])
+
+  const canConquistar = useMemo(() => {
+    if (paymentsSchemaOk === false) return false
+    if (!draftFormaPagamentoId.trim()) return false
+    if (!draftCondicaoPagamentoId.trim()) return false
+    if (draftItens.length === 0) return false
+    if (saving) return false
+    return true
+  }, [paymentsSchemaOk, draftFormaPagamentoId, draftCondicaoPagamentoId, draftItens.length, saving])
 
   useEffect(() => {
     if (!formOpen) {
@@ -1994,6 +2006,7 @@ export default function OportunidadesKanban() {
     statusObs?: string | null
     statusIdOverride?: string | null
     faseIdOverride?: string | null
+    motivoIdOverride?: string | null
   }) => {
     const clienteId = draftClienteId.trim()
     const vendedorId = (canCrmControl ? draftVendedorId : (myUserId || draftVendedorId)).trim()
@@ -2016,6 +2029,7 @@ export default function OportunidadesKanban() {
     const prev_faturamento = draftPrevEntrega.trim() || null
     const prev_entrega = draftPrevFechamento.trim() || null
     const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
+    const finalMotivoId = String(opts?.motivoIdOverride ?? draftMotivoId ?? '').trim()
     const normKey = (v: string) =>
       String(v || '')
         .normalize('NFD')
@@ -2092,7 +2106,7 @@ export default function OportunidadesKanban() {
       contato_email: draftContatoEmail.trim() || null,
       id_fase: finalFaseId || null,
       id_status: finalStatusId || null,
-      id_motivo: draftMotivoId || null,
+      id_motivo: finalMotivoId || null,
       id_origem: draftOrigemId || null,
       empresa_correspondente_id: empresaId,
       empresa_correspondente: empresaNome,
@@ -2215,20 +2229,10 @@ export default function OportunidadesKanban() {
       }
       if (statusChanged) {
         setBaselineStatusId(next)
-        try {
-          const obj = JSON.parse(savedSnapshot)
-          obj.baselineStatusId = next
-          savedSnapshot = JSON.stringify(obj)
-        } catch {}
       }
       if (faseChanged) {
         setBaselineFaseId(faseNext)
         setDraftFaseId(faseNext)
-        try {
-          const obj = JSON.parse(savedSnapshot)
-          obj.baselineFaseId = faseNext
-          savedSnapshot = JSON.stringify(obj)
-        } catch {}
       }
       await loadData()
       if (savedId) {
@@ -3554,9 +3558,9 @@ export default function OportunidadesKanban() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Dias Abertos</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tempo aberto</label>
                           <input
-                            value={formatDias(diasAbertos)}
+                            value={formatDias(tempoAbertoDias)}
                             readOnly
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
                           />
@@ -4668,6 +4672,51 @@ export default function OportunidadesKanban() {
 
                     <button
                       type="button"
+                      disabled={!canConquistar}
+                      onClick={async () => {
+                        const normKey = (v: string) =>
+                          String(v || '')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .trim()
+                            .toUpperCase()
+                        const target = statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'APROVADO')
+                        if (!target?.status_id) {
+                          setFormError('Nenhum status "APROVADO" encontrado em CRM > Configs > Status.')
+                          return
+                        }
+                        setDraftStatusId(String(target.status_id))
+                        await handleSave({
+                          statusIdOverride: String(target.status_id),
+                          skipStatusObsCheck: true,
+                          statusObs: 'Conquistado'
+                        })
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
+                        canConquistar
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/15'
+                          : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      CONQUISTADO
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLostError(null)
+                        setLostMotivoId('')
+                        setLostOpen(true)
+                      }}
+                      className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-[0.99]"
+                    >
+                      PERDIDO
+                    </button>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    <button
+                      type="button"
                       disabled={!canGenerateProposta}
                       onClick={() => {
                         void handleGerarProposta()
@@ -4678,7 +4727,7 @@ export default function OportunidadesKanban() {
                           : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      Gerar Proposta
+                      GERAR PROPOSTA
                     </button>
 
                     <button
@@ -4692,7 +4741,7 @@ export default function OportunidadesKanban() {
                       }}
                       className="w-full px-4 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-sm shadow-lg shadow-violet-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
                     >
-                      Transferir Proposta
+                      TRANSFERIR PROPOSTA
                     </button>
 
                     <button
@@ -4710,7 +4759,7 @@ export default function OportunidadesKanban() {
                       }}
                       className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-lg shadow-blue-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
                     >
-                      Separar para Faturar
+                      SEPARAR PARA FATURAR
                     </button>
 
                     {isAdmin ? (
@@ -4724,7 +4773,7 @@ export default function OportunidadesKanban() {
                         }}
                         className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
                       >
-                        Excluir Proposta
+                        EXCLUIR PROPOSTA
                       </button>
                     ) : null}
                   </div>
@@ -5000,6 +5049,93 @@ export default function OportunidadesKanban() {
         </Modal>
 
         <Modal
+          isOpen={lostOpen}
+          onClose={() => setLostOpen(false)}
+          title="Marcar como Perdido"
+          size="sm"
+          zIndex={210}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setLostOpen(false)}
+                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const motivoId = lostMotivoId.trim()
+                  if (!motivoId) {
+                    setLostError('Selecione o motivo da perda.')
+                    return
+                  }
+                  const normKey = (v: string) =>
+                    String(v || '')
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .trim()
+                      .toUpperCase()
+                  const statusPerdido = statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDO')
+                  if (!statusPerdido?.status_id) {
+                    setLostError('Nenhum status "PERDIDO" encontrado em CRM > Configs > Status.')
+                    return
+                  }
+                  const faseNaoConquistado =
+                    stages.find((s) => normKey(String(s.label || '')) === 'NAO CONQUISTADO') ||
+                    stages.find((s) => normKey(String(s.label || '')).includes('NAO CONQUIST')) ||
+                    stages.find((s) => normKey(String(s.label || '')) === 'PERDIDOS') ||
+                    stages.find((s) => normKey(String(s.label || '')).includes('PERDID')) ||
+                    null
+                  if (!faseNaoConquistado?.id) {
+                    setLostError('Nenhuma Fase "NÃO CONQUISTADO" (ou "Perdidos") encontrada em CRM > Configs > Fases.')
+                    return
+                  }
+                  const motivoDesc = String(motivos.find((m) => String((m as any).motiv_id || '').trim() === motivoId)?.descricao_motiv || '').trim()
+                  setLostError(null)
+                  setLostOpen(false)
+                  setDraftStatusId(String(statusPerdido.status_id))
+                  setDraftFaseId(String(faseNaoConquistado.id))
+                  setDraftMotivoId(motivoId)
+                  await handleSave({
+                    statusIdOverride: String(statusPerdido.status_id),
+                    faseIdOverride: String(faseNaoConquistado.id),
+                    motivoIdOverride: motivoId,
+                    skipStatusObsCheck: true,
+                    statusObs: motivoDesc ? `Motivo: ${motivoDesc}` : 'Motivo informado no cadastro.'
+                  })
+                }}
+                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+              >
+                Confirmar
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {lostError ? (
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{lostError}</div>
+            ) : null}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Motivo da Perda</label>
+              <select
+                value={lostMotivoId}
+                onChange={(e) => setLostMotivoId(e.target.value)}
+                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-rose-500/25 focus:border-rose-500/40 transition-all outline-none"
+              >
+                <option value="">-</option>
+                {motivos.map((m) => (
+                  <option key={String((m as any).motiv_id)} value={String((m as any).motiv_id)}>
+                    {String((m as any).descricao_motiv || '').trim() || String((m as any).motiv_id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
           isOpen={statusChangeOpen}
           onClose={() => setStatusChangeOpen(false)}
           title="Andamento"
@@ -5246,7 +5382,7 @@ export default function OportunidadesKanban() {
               <input
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
-                placeholder={itemModalTipo === 'PRODUTO' ? 'Pesquisar produto...' : 'Pesquisar serviço...'}
+                placeholder={itemModalTipo === 'PRODUTO' ? 'Pesquisar por descrição, código ou integ_id...' : 'Pesquisar por descrição, código ou integ_id...'}
                 className="w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
               />
             </div>

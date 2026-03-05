@@ -636,6 +636,55 @@ export async function fetchPrevEntregaByCodigosProposta(codigos: string[]) {
   return out
 }
 
+export async function fetchCrmResumoByCodigosProposta(codigos: string[]) {
+  const list = Array.from(new Set((codigos || []).map((c) => String(c || '').trim()).filter(Boolean)))
+  if (list.length === 0) return {} as Record<string, { id_status?: string; vendedor_nome?: string; empresa_correspondente?: string }>
+
+  const sb = supabase as any
+  const out: Record<string, { id_status?: string; vendedor_nome?: string; empresa_correspondente?: string }> = {}
+  const chunkSize = 200
+
+  const trySelect = async (cols: string, chunk: string[]) => {
+    return await sb.from('crm_oportunidades').select(cols).in('cod_oport', chunk)
+  }
+
+  for (let i = 0; i < list.length; i += chunkSize) {
+    const chunk = list.slice(i, i + chunkSize)
+    let cols = ['cod_oport', 'id_status', 'vendedor_nome', 'empresa_correspondente']
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const { data, error } = await trySelect(cols.join(', '), chunk)
+      if (!error) {
+        for (const row of (data || []) as any[]) {
+          const cod = String(row?.cod_oport || row?.cod_oportunidade || '').trim()
+          if (!cod) continue
+          out[cod] = {
+            id_status: row?.id_status ? String(row.id_status).trim() : undefined,
+            vendedor_nome: String(row?.vendedor_nome || row?.vendedor || '').trim() || undefined,
+            empresa_correspondente: String(row?.empresa_correspondente || '').trim() || undefined
+          }
+        }
+        break
+      }
+
+      if (isMissingTable(error) || error.code === '42P01') return {} as Record<string, { id_status?: string; vendedor_nome?: string; empresa_correspondente?: string }>
+
+      if (isMissingColumn(error)) {
+        const missing = extractMissingColumnName(error)
+        if (missing && cols.includes(missing)) {
+          cols = cols.filter((c) => c !== missing)
+          continue
+        }
+        return {} as Record<string, { id_status?: string; vendedor_nome?: string; empresa_correspondente?: string }>
+      }
+
+      console.error('Erro ao buscar resumo do CRM por código da proposta:', error)
+      return {} as Record<string, { id_status?: string; vendedor_nome?: string; empresa_correspondente?: string }>
+    }
+  }
+
+  return out
+}
+
 export async function deleteOportunidade(id: string) {
   const oportunidadeId = String(id || '').trim()
   if (!oportunidadeId) return

@@ -131,22 +131,6 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       }
 
       await addService(cleanPayload as any)
-      try {
-        const cod = String(cleanPayload.cod_proposta || '').trim()
-        if (cod) {
-          const sts = await fetchCrmStatus()
-          const target = sts.find((s) => normalizeText(String((s as any).status_desc || '')) === normalizeText(AUTO_STATUS_DESC))
-          if (target) {
-            const opp = await fetchOportunidadeByCodigoProposta(cod)
-            const nextId = String((target as any).status_id || '').trim()
-            if (opp && nextId && String((opp as any).id_status || '').trim() !== nextId) {
-              await updateOportunidade(String((opp as any).id_oport || '').trim(), { id_status: nextId } as any)
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Falha ao atualizar status da proposta após entrada de equipamento:', e)
-      }
       onSuccess()
       onClose()
     } catch (error: any) {

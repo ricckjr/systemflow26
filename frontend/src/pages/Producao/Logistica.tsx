@@ -136,13 +136,17 @@ const Logistica: React.FC = () => {
 
   const equipmentInitialData = useMemo(() => {
     if (!selected) return {} as any
+    const email = String((vendedorProfile as any)?.email_login || (vendedorProfile as any)?.email_corporativo || '').trim()
     return {
       cod_proposta: getCodProposta(selected),
       cliente: getCliente(selected),
       cnpj: String((selected as any).cliente_documento || selected.cliente_documento || '').trim(),
-      solucao: selected.solucao
+      solucao: selected.solucao,
+      vendedor: String((selected as any).vendedor_nome || selected.vendedor_nome || selected.vendedor || (vendedorProfile as any)?.nome || '').trim() || null,
+      email_vendedor: email || null,
+      empresa_correspondente: String((selected as any).empresa_correspondente || '').trim() || null
     } as any
-  }, [selected])
+  }, [selected, vendedorProfile])
 
   const canOpenEquipmentEntry = useMemo(() => {
     if (!selected) return false
@@ -325,20 +329,6 @@ const Logistica: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const normDefaults = DEFAULT_STATUS_LABELS.map((s) => normalizeText(s))
-                const found = statusOptions
-                  .filter((s) => s.id !== '__none__')
-                  .filter((s) => normDefaults.includes(normalizeText(s.label)))
-                  .map((s) => s.id)
-                setSelectedStatusIds(found)
-              }}
-              className="h-9 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors text-sm font-bold"
-            >
-              Padrão
-            </button>
             <button
               type="button"
               onClick={() => setSelectedStatusIds(statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id))}

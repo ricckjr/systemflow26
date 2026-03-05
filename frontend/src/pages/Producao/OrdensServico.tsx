@@ -11,7 +11,7 @@ import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 import { formatDateBR, formatDateTimeBR, toDateInputValue } from '@/utils/datetime'
 import { useTvMode } from '@/hooks/useTvMode'
-import { fetchPrevEntregaByCodigosProposta } from '@/services/crm'
+import { fetchCrmResumoByCodigosProposta, fetchCrmStatus, fetchPrevEntregaByCodigosProposta } from '@/services/crm'
 
 type ServicAnexo = {
   name: string
@@ -27,14 +27,17 @@ const OrdensServico: React.FC = () => {
   const { usuarios } = useUsuarios()
   const [selectedService, setSelectedService] = useState<ServicEquipamento | null>(null)
   const [prevEntregaByCodProposta, setPrevEntregaByCodProposta] = useState<Record<string, string>>({})
+  const [crmResumoByCodProposta, setCrmResumoByCodProposta] = useState<Record<string, { id_status?: string; vendedor_nome?: string }>>({})
+  const [crmStatusById, setCrmStatusById] = useState<Record<string, string>>({})
   const [analiseVisual, setAnaliseVisual] = useState('')
   const [testesRealizados, setTestesRealizados] = useState('')
   const [servicosAFazer, setServicosAFazer] = useState('')
+  const [solicitacaoCliente, setSolicitacaoCliente] = useState('')
   const [numeroCertificado, setNumeroCertificado] = useState('')
   const [dataCalibracao, setDataCalibracao] = useState('')
   const [savingCampos, setSavingCampos] = useState(false)
   const [uploadingImagens, setUploadingImagens] = useState(false)
-  const [expandedField, setExpandedField] = useState<'analise' | 'testes' | 'servicos' | null>(null)
+  const [expandedField, setExpandedField] = useState<'analise' | 'testes' | 'servicos' | 'solicitacao' | null>(null)
   const [historico, setHistorico] = useState<any[]>([])
   const [showHistorico, setShowHistorico] = useState(false)
   const [loadingHistorico, setLoadingHistorico] = useState(false)
@@ -76,6 +79,50 @@ const OrdensServico: React.FC = () => {
   const textareaBase =
     'w-full min-h-[96px] p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-colors resize-none'
 
+  const parseDateInputLocal = (dateInput?: string | null) => {
+    const v = String(dateInput || '').trim().slice(0, 10)
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!m) return null
+    const y = Number(m[1])
+    const mo = Number(m[2])
+    const d = Number(m[3])
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null
+    return new Date(y, mo - 1, d, 12, 0, 0, 0)
+  }
+
+  const daysUntilDateInput = (dateInput?: string | null) => {
+    const target = parseDateInputLocal(dateInput)
+    if (!target) return null
+    const today = new Date()
+    const base = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0)
+    const diff = target.getTime() - base.getTime()
+    const days = Math.ceil(diff / (24 * 60 * 60 * 1000))
+    return Number.isFinite(days) ? days : null
+  }
+
+  const addOneYear = (dateInput?: string | null) => {
+    const dt = parseDateInputLocal(dateInput)
+    if (!dt) return null
+    const next = new Date(dt.getTime())
+    next.setFullYear(next.getFullYear() + 1)
+    return next
+  }
+
+  const normalizeText = (v: string) =>
+    String(v || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase()
+
+  const solucaoTheme = (solucao?: string | null) => {
+    const k = normalizeText(String(solucao || ''))
+    if (!k) return { badge: 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)]', label: '—' }
+    if (k.includes('venda')) return { badge: 'text-sky-200 bg-sky-500/10 border-sky-500/20', label: solucao! }
+    if (k.includes('produto')) return { badge: 'text-amber-200 bg-amber-500/10 border-amber-500/20', label: solucao! }
+    return { badge: 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)]', label: solucao! }
+  }
+
   const vendedorUser = useMemo(() => {
     if (!selectedService?.vendedor) return null
     return usuarios.find(u => u.nome === selectedService.vendedor)
@@ -98,6 +145,7 @@ const OrdensServico: React.FC = () => {
     setAnaliseVisual(selectedService.observacoes_equipamento || '')
     setTestesRealizados(selectedService.testes_realizados || '')
     setServicosAFazer(selectedService.servicos_a_fazer || '')
+    setSolicitacaoCliente((selectedService as any)?.solicitacao_cliente || '')
     setNumeroCertificado(selectedService.numero_certificado || '')
     setDataCalibracao(toDateInputValue(selectedService.data_calibracao))
     setGalleryEditMode(false)
@@ -129,18 +177,48 @@ const OrdensServico: React.FC = () => {
     const codigos = Array.from(new Set((services || []).map((s) => String(s.cod_proposta || '').trim()).filter(Boolean)))
     if (codigos.length === 0) {
       setPrevEntregaByCodProposta({})
+      setCrmResumoByCodProposta({})
+      setCrmStatusById({})
       return
     }
     let cancelled = false
     ;(async () => {
-      const map = await fetchPrevEntregaByCodigosProposta(codigos)
+      const [map, resumo, sts] = await Promise.all([
+        fetchPrevEntregaByCodigosProposta(codigos),
+        fetchCrmResumoByCodigosProposta(codigos),
+        fetchCrmStatus()
+      ])
       if (cancelled) return
       setPrevEntregaByCodProposta(map)
+      setCrmResumoByCodProposta(resumo)
+      const byId: Record<string, string> = {}
+      for (const s of (sts || []) as any[]) {
+        const id = String(s?.status_id || '').trim()
+        const desc = String(s?.status_desc || '').trim()
+        if (id && desc) byId[id] = desc
+      }
+      setCrmStatusById(byId)
     })()
     return () => {
       cancelled = true
     }
   }, [services])
+
+  const servicesWithCrm = useMemo(() => {
+    return (services || []).map((s) => {
+      const cod = String(s.cod_proposta || '').trim()
+      if (!cod) return s
+      const resumo = crmResumoByCodProposta[cod]
+      const statusId = String(resumo?.id_status || '').trim()
+      const statusDesc = statusId ? crmStatusById[statusId] : ''
+      const vendedorNome = String(resumo?.vendedor_nome || '').trim()
+      return {
+        ...s,
+        etapa_omie: statusDesc || s.etapa_omie || null,
+        vendedor: vendedorNome || s.vendedor || null
+      } as ServicEquipamento
+    })
+  }, [services, crmResumoByCodProposta, crmStatusById])
 
   const formatBytes = (bytes?: number) => {
     if (!bytes || bytes <= 0) return ''
@@ -425,7 +503,7 @@ const OrdensServico: React.FC = () => {
           return
       }
 
-      // Regra 2: De AGUARDANDO CLIENTE só pode sair se Etapa Omie estiver APROVADO
+      // Regra 2: De AGUARDANDO CLIENTE só pode sair se Fase Proposta estiver APROVADO
       if (selectedService.fase === 'AGUARDANDO CLIENTE' && selectedService.fase !== nextFase) {
           const aguardandoLabel = getOsPhaseConfig('AGUARDANDO CLIENTE').label
           const etapaOmie = (selectedService.etapa_omie || '').toUpperCase()
@@ -511,10 +589,11 @@ const OrdensServico: React.FC = () => {
       (analiseVisual || '') !== (selectedService.observacoes_equipamento || '') ||
       (testesRealizados || '') !== (selectedService.testes_realizados || '') ||
       (servicosAFazer || '') !== (selectedService.servicos_a_fazer || '') ||
+      (solicitacaoCliente || '') !== ((selectedService as any)?.solicitacao_cliente || '') ||
       (numeroCertificado || '') !== (selectedService.numero_certificado || '') ||
       (dataCalibracao || '') !== toDateInputValue(selectedService.data_calibracao)
     )
-  }, [analiseVisual, servicosAFazer, selectedService, testesRealizados, numeroCertificado, dataCalibracao])
+  }, [analiseVisual, servicosAFazer, selectedService, testesRealizados, solicitacaoCliente, numeroCertificado, dataCalibracao])
 
   const handleSalvarCampos = async () => {
     if (!selectedService) return
@@ -523,6 +602,7 @@ const OrdensServico: React.FC = () => {
       const analise = analiseVisual.trim()
       const testes = testesRealizados.trim()
       const servicos = servicosAFazer.trim()
+      const solicitacao = solicitacaoCliente.trim()
       const cert = numeroCertificado.trim()
       const dataCalib = dataCalibracao
 
@@ -535,6 +615,9 @@ const OrdensServico: React.FC = () => {
       if ((servicos || '') !== (selectedService.servicos_a_fazer || '')) {
         await updateServicosAFazer(selectedService.id, servicos.length ? servicos : null)
       }
+      if ((solicitacao || '') !== ((selectedService as any)?.solicitacao_cliente || '')) {
+        await updateServicEquipamentoDetalhes(selectedService.id, { solicitacao_cliente: solicitacao.length ? solicitacao : null } as any)
+      }
       if ((cert || '') !== (selectedService.numero_certificado || '') || (dataCalib || '') !== toDateInputValue(selectedService.data_calibracao)) {
           await updateCertificadoCalibracao(selectedService.id, cert.length ? cert : null, dataCalib.length ? dataCalib : null)
       }
@@ -544,6 +627,7 @@ const OrdensServico: React.FC = () => {
         observacoes_equipamento: analise.length ? analise : null,
         testes_realizados: testes.length ? testes : null,
         servicos_a_fazer: servicos.length ? servicos : null,
+        solicitacao_cliente: solicitacao.length ? solicitacao : null,
         numero_certificado: cert.length ? cert : null,
         data_calibracao: dataCalib.length ? dataCalib : null,
         updated_at: new Date().toISOString()
@@ -606,6 +690,14 @@ const OrdensServico: React.FC = () => {
           icon: <Layers size={24} className="text-emerald-500" />,
           placeholder: 'Defina o escopo do serviço a ser realizado...'
         }
+      case 'solicitacao':
+        return {
+          title: 'Solicitação do Cliente',
+          value: solicitacaoCliente,
+          setValue: setSolicitacaoCliente,
+          icon: <FileText size={24} className="text-cyan-400" />,
+          placeholder: 'Descreva a solicitação do cliente...'
+        }
       default:
         return null
     }
@@ -656,7 +748,7 @@ const OrdensServico: React.FC = () => {
 
       <div className="flex-1 min-h-0 overflow-hidden">
         <ServiceKanbanBoard 
-            services={services} 
+            services={servicesWithCrm} 
             loading={loading} 
             onDragEnd={onDragEnd}
             onCardClick={setSelectedService}
@@ -880,7 +972,36 @@ const OrdensServico: React.FC = () => {
           ) : null
         }
       >
-        {selectedService && (
+        {selectedService &&
+          (() => {
+            const codProposta = String(selectedService.cod_proposta || '').trim()
+            const prevEntrega = codProposta ? prevEntregaByCodProposta[codProposta] : undefined
+            const diasEntrega = daysUntilDateInput(prevEntrega)
+            const entregaBadge =
+              diasEntrega === null
+                ? null
+                : diasEntrega <= 3
+                  ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
+                  : diasEntrega <= 7
+                    ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
+                    : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
+            const entregaLabel =
+              diasEntrega === null
+                ? null
+                : diasEntrega < 0
+                  ? `Atrasado ${Math.abs(diasEntrega)}d`
+                  : diasEntrega === 0
+                    ? 'Entrega hoje'
+                    : `Entrega em ${diasEntrega}d`
+            const solucao = solucaoTheme(selectedService.solucao)
+            const vencimento = addOneYear(dataCalibracao)
+            const vencimentoLabel = vencimento ? formatDateBR(vencimento.toISOString()) : '-'
+            const certificadoDocs = anexos.filter((a) => {
+              const k = normalizeText(String(a?.name || ''))
+              return k.includes('certificado') || k.includes('calibr')
+            })
+
+            return (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
                 {/* Sidebar Esquerda - Informações (4 cols) */}
                 <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar content-start">
@@ -892,50 +1013,83 @@ const OrdensServico: React.FC = () => {
                             <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados do Cliente</h3>
                         </div>
                         
-                        <div className="space-y-4">
-                            <div>
-                                <div className="text-xl font-bold text-[var(--text-main)] leading-tight">{selectedService.cliente}</div>
-                                {selectedService.cnpj && <div className="text-xs text-[var(--text-soft)] mt-1 font-mono">{selectedService.cnpj}</div>}
-                            </div>
-                            
-                            {selectedService.endereco && (
-                                <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg-main)]/50 border border-[var(--border)]">
-                                    <MapPin size={16} className="text-[var(--text-muted)] shrink-0 mt-0.5" />
-                                    <div className="text-sm text-[var(--text-main)] leading-relaxed">{selectedService.endereco}</div>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Proposta</label>
-                                    <div className="text-lg font-bold text-cyan-400">{selectedService.cod_proposta}</div>
-                                </div>
-                                {selectedService.etapa_omie && (
-                                    <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Etapa Omie</label>
-                                        <div className="text-sm font-medium text-[var(--text-soft)]">{selectedService.etapa_omie}</div>
-                                    </div>
-                                )}
-                                <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] col-span-2 flex items-center justify-between">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5">
-                                            <Timer size={12} />
-                                            Tempo Total
-                                        </label>
-                                        <div className="text-lg font-bold text-[var(--text-main)]">{formatDuration(selectedService.data_entrada)}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5 justify-end">
-                                            <Hourglass size={12} />
-                                            Nesta Fase
-                                        </label>
-                                        <div className={`text-lg font-bold ${getStatusDurationColor(selectedService.data_fase_atual)}`}>
-                                            {formatDuration(selectedService.data_fase_atual || selectedService.updated_at)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nome</label>
+                            <div className="text-base font-bold text-[var(--text-main)] leading-tight">{selectedService.cliente || '-'}</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Documento</label>
+                            <div className="text-sm font-semibold text-[var(--text-soft)] font-mono">{selectedService.cnpj || '-'}</div>
+                          </div>
                         </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Tag size={16} className="text-[var(--primary)]" />
+                        <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados da Proposta</h3>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {solucao.label !== '—' ? (
+                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-black ${solucao.badge}`}>
+                              <span className="uppercase tracking-widest text-[10px]">Solução</span>
+                              <span className="font-bold normal-case tracking-normal">{solucao.label}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-black text-[var(--text-muted)]">
+                              <span className="uppercase tracking-widest text-[10px]">Solução</span>
+                              <span>-</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Cod Proposta</label>
+                            <div className="text-lg font-bold text-cyan-400">{selectedService.cod_proposta || '-'}</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Fase Proposta</label>
+                            <div className="text-sm font-semibold text-[var(--text-soft)]">{selectedService.etapa_omie || '-'}</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Entrada</label>
+                            <div className="text-sm font-semibold text-[var(--text-main)]">{formatDateTimeBR(selectedService.data_entrada)}</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Tempo para Entrega</label>
+                            {entregaBadge && entregaLabel ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-lg border text-[11px] font-black ${entregaBadge}`}>{entregaLabel}</span>
+                                <span className="text-[11px] text-[var(--text-muted)] font-mono">{String(prevEntrega || '-')}</span>
+                              </div>
+                            ) : (
+                              <div className="text-sm font-semibold text-[var(--text-muted)]">-</div>
+                            )}
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-between col-span-2">
+                            <div>
+                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5">
+                                <Timer size={12} />
+                                Tempo Total
+                              </label>
+                              <div className="text-lg font-bold text-[var(--text-main)]">{formatDuration(selectedService.data_entrada)}</div>
+                            </div>
+                            <div className="text-right">
+                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5 justify-end">
+                                <Hourglass size={12} />
+                                Tempo nessa Etapa
+                              </label>
+                              <div className={`text-lg font-bold ${getStatusDurationColor(selectedService.data_fase_atual)}`}>
+                                {formatDuration(selectedService.data_fase_atual || selectedService.updated_at)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Card Vendedor */}
@@ -958,8 +1112,27 @@ const OrdensServico: React.FC = () => {
                              <div className="flex flex-col min-w-0">
                                 <span className="text-sm font-bold text-[var(--text-main)] truncate">{selectedService.vendedor || 'Não informado'}</span>
                                 <span className="text-xs text-[var(--text-soft)] truncate">{selectedService.email_vendedor || vendedorUser?.email_corporativo || vendedorUser?.email_login || '-'}</span>
+                                <span className="text-xs text-[var(--text-muted)] truncate">{`Ramal: ${vendedorUser?.ramal || '-'}`}</span>
                              </div>
                         </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileText size={16} className="text-[var(--primary)]" />
+                        <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados da NF</h3>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-between">
+                          <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Nº NF Entrada</span>
+                          <span className="text-sm font-black text-[var(--text-main)]">{selectedService.numero_nf || '-'}</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-between">
+                          <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Nº do Pedido</span>
+                          <span className="text-sm font-black text-[var(--text-main)]">{selectedService.numero_pedido || '-'}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Card Equipamento */}
@@ -967,7 +1140,7 @@ const OrdensServico: React.FC = () => {
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2">
                                 <Layers size={16} className="text-[var(--primary)]" />
-                                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Equipamento</h3>
+                                <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados do Equipamento</h3>
                             </div>
                             <div className="flex items-center gap-2">
                                 {editingEquipFields ? (
@@ -1082,52 +1255,99 @@ const OrdensServico: React.FC = () => {
                             </div>
                         </div>
                         
-                        {/* Certificado e Calibração */}
-                        <div className="grid grid-cols-2 gap-3 mb-4 p-3 rounded-xl bg-[var(--bg-main)]/50 border border-[var(--border)]">
-                           <div>
-                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Certificado</label>
-                              <input
-                                type="text"
-                                value={numeroCertificado}
-                                onChange={(e) => setNumeroCertificado(e.target.value)}
-                                placeholder="---"
-                                className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
-                              />
-                           </div>
-                           <div>
-                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Calibração</label>
-                              <input
-                                type="date"
-                                value={dataCalibracao}
-                                onChange={(e) => setDataCalibracao(e.target.value)}
-                                className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors [&::-webkit-calendar-picker-indicator]:invert"
-                              />
-                           </div>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CheckCircle2 size={16} className="text-[var(--primary)]" />
+                        <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados do Certificado</h3>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Certificado</label>
+                            <input
+                              type="text"
+                              value={numeroCertificado}
+                              onChange={(e) => setNumeroCertificado(e.target.value)}
+                              placeholder="---"
+                              className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors"
+                              disabled={savingCampos || uploadingImagens}
+                            />
+                          </div>
+                          <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Calibração</label>
+                            <input
+                              type="date"
+                              value={dataCalibracao}
+                              onChange={(e) => setDataCalibracao(e.target.value)}
+                              className="w-full bg-transparent text-sm font-medium text-[var(--text-main)] focus:outline-none focus:border-b border-[var(--primary)] transition-colors [&::-webkit-calendar-picker-indicator]:invert"
+                              disabled={savingCampos || uploadingImagens}
+                            />
+                          </div>
                         </div>
 
-                        <div className="space-y-3">
-                             <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] border-dashed">
-                                <span className="text-xs font-medium text-[var(--text-muted)]">NF de Entrada</span>
-                                <span className="text-sm font-bold text-[var(--text-main)]">{selectedService.numero_nf || '-'}</span>
-                             </div>
-                             <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] border-dashed">
-                                <span className="text-xs font-medium text-[var(--text-muted)]">Pedido</span>
-                                <span className="text-sm font-bold text-[var(--text-main)]">{selectedService.numero_pedido || '-'}</span>
-                             </div>
+                        <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-between">
+                          <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Vencimento</span>
+                          <span className="text-sm font-black text-[var(--text-main)]">{vencimentoLabel}</span>
                         </div>
 
-                        {selectedService.solucao && (
-                            <div className="mt-6 pt-4 border-t border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-2 block">Solução Solicitada</label>
-                                <p className="text-sm text-[var(--text-soft)] italic leading-relaxed">"{selectedService.solucao}"</p>
+                        <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Anexo do certificado</div>
+                          {certificadoDocs.length ? (
+                            <div className="space-y-2">
+                              {certificadoDocs.slice(0, 3).map((a, idx) => (
+                                <a
+                                  key={`${a.url}-${idx}`}
+                                  href={a.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="h-9 px-3 rounded-xl bg-white/5 border border-[var(--border)] text-xs font-bold text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
+                                  title={a.name}
+                                >
+                                  <ExternalLink size={14} />
+                                  <span className="truncate">{a.name}</span>
+                                </a>
+                              ))}
                             </div>
-                        )}
+                          ) : (
+                            <div className="text-sm text-[var(--text-muted)]">Nenhum anexo identificado.</div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                 </div>
 
                 {/* Coluna Direita - Área Técnica (8 cols) */}
                 <div className="lg:col-span-8 flex flex-col gap-6 h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 pb-4">
+
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                          <div className="flex items-center justify-between mb-4">
+                            <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
+                              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                                <FileText size={18} />
+                              </div>
+                              Solicitação do Cliente
+                            </label>
+                            <button
+                              onClick={() => setExpandedField('solicitacao')}
+                              className="p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
+                              title="Expandir"
+                            >
+                              <Maximize2 size={16} />
+                            </button>
+                          </div>
+                          <textarea
+                            value={solicitacaoCliente}
+                            onChange={(e) => setSolicitacaoCliente(e.target.value)}
+                            rows={5}
+                            placeholder="Descreva a solicitação do cliente..."
+                            className="w-full p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] transition-all resize-none leading-relaxed"
+                            disabled={savingCampos || uploadingImagens}
+                          />
+                        </div>
                         
                         {/* Seção 1: Análise Visual */}
                         <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
@@ -1216,7 +1436,7 @@ const OrdensServico: React.FC = () => {
                                     <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
                                         <Tag size={18} />
                                     </div>
-                                    Galeria de Imagens
+                                    Galeria de Imagens do Equipamento
                                 </label>
                                 
                                 <div className="flex items-center gap-2">
@@ -1308,7 +1528,7 @@ const OrdensServico: React.FC = () => {
                               <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
                                 <FileText size={18} />
                               </div>
-                              Documentos
+                              Documentos Complementares
                             </label>
 
                             <label className={`h-10 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingAnexos ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -1419,7 +1639,8 @@ const OrdensServico: React.FC = () => {
                     </div>
                 </div>
             </div>
-        )}
+            )
+          })()}
       </Modal>
 
       <Modal

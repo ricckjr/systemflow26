@@ -1830,6 +1830,30 @@ export default function OportunidadesKanban() {
     return true
   }, [paymentsSchemaOk, draftFormaPagamentoId, draftCondicaoPagamentoId, draftItens.length, saving])
 
+  const statusKeyAtual = useMemo(() => {
+    const normKey = (v: string) =>
+      String(v || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase()
+    const statusId = String(draftStatusId || andamentoStatusId || (active as any)?.id_status || '').trim()
+    const desc = String(statuses.find((s) => String(s.status_id || '').trim() === statusId)?.status_desc || '').trim()
+    return normKey(desc)
+  }, [active, andamentoStatusId, draftStatusId, statuses])
+
+  const isPropostaConquistada = useMemo(() => {
+    return statusKeyAtual === 'APROVADO' || statusKeyAtual.includes('CONQUIST')
+  }, [statusKeyAtual])
+
+  const isPropostaPerdida = useMemo(() => {
+    return statusKeyAtual === 'PERDIDO' || statusKeyAtual.includes('PERDID')
+  }, [statusKeyAtual])
+
+  const disableOutcomeActions = useMemo(() => {
+    return isPropostaConquistada || isPropostaPerdida
+  }, [isPropostaConquistada, isPropostaPerdida])
+
   const equipmentInitialData = useMemo(() => {
     const cod = (draftCod || '').trim() || String((active as any)?.cod_oport || (active as any)?.cod_oportunidade || '').trim()
     const cliente = (clienteQuery || '').trim() || String((active as any)?.cliente_nome || (active as any)?.cliente || '').trim()
@@ -4746,8 +4770,9 @@ export default function OportunidadesKanban() {
 
                     <button
                       type="button"
-                      disabled={!canConquistar}
+                      disabled={!canConquistar || disableOutcomeActions}
                       onClick={async () => {
+                        if (disableOutcomeActions) return
                         const normKey = (v: string) =>
                           String(v || '')
                             .normalize('NFD')
@@ -4767,7 +4792,7 @@ export default function OportunidadesKanban() {
                         })
                       }}
                       className={`w-full px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
-                        canConquistar
+                        canConquistar && !disableOutcomeActions
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/15'
                           : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
                       }`}
@@ -4777,12 +4802,18 @@ export default function OportunidadesKanban() {
 
                     <button
                       type="button"
+                      disabled={disableOutcomeActions}
                       onClick={() => {
+                        if (disableOutcomeActions) return
                         setLostError(null)
                         setLostMotivoId('')
                         setLostOpen(true)
                       }}
-                      className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-[0.99]"
+                      className={`w-full px-4 py-3 rounded-xl font-black text-sm shadow-lg transition-all active:scale-[0.99] ${
+                        disableOutcomeActions
+                          ? 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed shadow-none'
+                          : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/15'
+                      }`}
                     >
                       PERDIDO
                     </button>
@@ -4806,8 +4837,9 @@ export default function OportunidadesKanban() {
 
                     <button
                       type="button"
-                      disabled={!activeId || !canCrmControl}
+                      disabled={!activeId || !canCrmControl || disableOutcomeActions}
                       onClick={() => {
+                        if (disableOutcomeActions) return
                         if (!activeId) return
                         setTransferError(null)
                         setTransferVendedorId(draftVendedorId)

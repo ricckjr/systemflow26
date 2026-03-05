@@ -277,6 +277,7 @@ export async function updateServicEquipamentoDetalhes(
       | 'garantia'
       | 'numero_nf'
       | 'numero_pedido'
+      | 'solicitacao_cliente'
       | 'observacoes_equipamento'
       | 'numero_certificado'
       | 'data_calibracao'

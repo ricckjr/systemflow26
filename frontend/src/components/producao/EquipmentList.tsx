@@ -134,7 +134,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                         <th className="px-4 py-2">ID RST</th>
                         <th className="px-4 py-2">Modelo</th>
                         <th className="px-4 py-2">Entrada</th>
-                        <th className="px-4 py-2">Fase</th>
+                        <th className="px-4 py-2">Etapa</th>
                         <th className="px-2 py-2 w-[44px]"></th>
                     </tr>
                 </thead>
@@ -260,11 +260,11 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         <span className="text-[var(--text-main)] font-medium">{selected.cod_proposta || 'NÃO INFORMADO'}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-[var(--text-muted)]">Etapa Omie</span>
+                                        <span className="text-[var(--text-muted)]">Fase Proposta</span>
                                         <span className="text-[var(--text-main)] font-medium">{selected.etapa_omie || 'NÃO INFORMADO'}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-[var(--text-muted)]">Fase</span>
+                                        <span className="text-[var(--text-muted)]">Etapa</span>
                                         <span className="text-[var(--text-main)] font-medium">{selected.fase ? getOsPhaseConfig(selected.fase).label : 'NÃO INFORMADO'}</span>
                                     </div>
                                 </div>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { ServicEquipamento } from '@/types/domain'
 import { Draggable } from '@hello-pangea/dnd'
-import { User, Wrench, Clock, Hourglass, Hash, Calendar } from 'lucide-react'
+import { User, Wrench, Clock, Hourglass, Hash, Calendar, Tag } from 'lucide-react'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 
 interface ServiceCardProps {
@@ -85,6 +85,22 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                 </h4>
              </div>
 
+             {(service.etapa_omie || service.vendedor) && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {service.etapa_omie ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--bg-main)] text-[9px] font-black text-[var(--text-main)]">
+                      <Tag size={10} className="text-[var(--text-muted)]" />
+                      {`Fase Proposta: ${service.etapa_omie}`}
+                    </span>
+                  ) : null}
+                  {service.vendedor ? (
+                    <span className="text-[9px] text-[var(--text-muted)] font-semibold truncate" title={`Vendedor: ${service.vendedor}`}>
+                      {`Vendedor: ${service.vendedor}`}
+                    </span>
+                  ) : null}
+                </div>
+             )}
+
              {service.solucao && (
                 <div className="p-1.5 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]/50">
                     <p className="text-[9px] text-[var(--text-soft)] line-clamp-2 leading-relaxed italic">
@@ -109,7 +125,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                 </div>
                 {service.data_fase_atual && (
                     <div className="flex items-center justify-between text-[9px]">
-                        <span className="text-[var(--text-muted)]">Fase:</span>
+                        <span className="text-[var(--text-muted)]">Etapa:</span>
                         <span className={`font-bold ${getStatusDurationColor(service.data_fase_atual)}`}>
                             {formatDuration(service.data_fase_atual)}
                         </span>
@@ -158,6 +174,21 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                         SN: {service.numero_serie || '-'}
                      </span>
                 </div>
+                {(service.etapa_omie || service.vendedor) && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {service.etapa_omie ? (
+                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[10px] font-black text-[var(--text-main)]">
+                        <Tag size={12} className="text-[var(--text-muted)]" />
+                        {`Fase Proposta: ${service.etapa_omie}`}
+                      </span>
+                    ) : null}
+                    {service.vendedor ? (
+                      <span className="text-[10px] text-[var(--text-muted)] font-semibold truncate" title={`Vendedor: ${service.vendedor}`}>
+                        {`Vendedor: ${service.vendedor}`}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
             </div>
 
             {/* Solução (Se houver) */}
@@ -193,7 +224,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                     {service.data_fase_atual && (
                         <div className={`flex items-center gap-1.5 text-[10px] font-bold ${getStatusDurationColor(service.data_fase_atual)}`} title="Tempo nesta etapa">
                             <Hourglass size={12} />
-                            <span>Fase: {formatDuration(service.data_fase_atual)}</span>
+                            <span>Etapa: {formatDuration(service.data_fase_atual)}</span>
                         </div>
                     )}
                 </div>

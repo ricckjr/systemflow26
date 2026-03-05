@@ -6,6 +6,7 @@ import { supabase } from '@/services/supabase'
 import { api } from '@/services/api'
 import { Modal } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
+import { normalizeSearchText } from '@/utils/search'
 
 const formatCurrency = (value: number | null) => {
   const num = Number(value ?? 0)
@@ -861,14 +862,28 @@ const Estoque: React.FC = () => {
   }, [isDeleteOpen, savedProduto])
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase()
+    const term = normalizeSearchText(search)
     return items
       .filter((p) => {
         if (!term) return true
-        const desc = String(p.descricao_prod || '').toLowerCase()
-        const cod = String(p.codigo_prod || '').toLowerCase()
-        const finalidade = String(p.finalidade_item || '').toLowerCase()
-        return desc.includes(term) || cod.includes(term) || finalidade.includes(term)
+        const desc = normalizeSearchText(p.descricao_prod)
+        const cod = normalizeSearchText(p.codigo_prod)
+        const finalidade = normalizeSearchText(p.finalidade_item)
+        const marca = normalizeSearchText((p as any)?.marca_prod)
+        const modelo = normalizeSearchText((p as any)?.modelo_prod)
+        const detalhada = normalizeSearchText((p as any)?.descricao_detalhada)
+        const ncmFmt = normalizeSearchText(formatNcmCodigo((p as any)?.ncm_id || ''))
+        const ncmDigits = normalizeSearchText(String((p as any)?.ncm_id || '').replace(/\D/g, ''))
+        return (
+          desc.includes(term) ||
+          cod.includes(term) ||
+          finalidade.includes(term) ||
+          marca.includes(term) ||
+          modelo.includes(term) ||
+          detalhada.includes(term) ||
+          ncmFmt.includes(term) ||
+          ncmDigits.includes(term)
+        )
       })
       .filter((p) => {
         if (finalidadeFilter === 'TODAS') return true

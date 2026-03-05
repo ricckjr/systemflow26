@@ -11,6 +11,7 @@ import { useUsuarios } from '../../hooks/useUsuarios'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 import { formatDateBR, formatDateTimeBR, toDateInputValue } from '@/utils/datetime'
 import { useTvMode } from '@/hooks/useTvMode'
+import { fetchPrevEntregaByCodigosProposta } from '@/services/crm'
 
 type ServicAnexo = {
   name: string
@@ -25,6 +26,7 @@ const OrdensServico: React.FC = () => {
   const { services, loading, refresh, moveService, addService, error, uploadImage, updateAnaliseVisual, updateTestesRealizados, updateServicosAFazer, updateImagens, updateCertificadoCalibracao } = useServicsEquipamento()
   const { usuarios } = useUsuarios()
   const [selectedService, setSelectedService] = useState<ServicEquipamento | null>(null)
+  const [prevEntregaByCodProposta, setPrevEntregaByCodProposta] = useState<Record<string, string>>({})
   const [analiseVisual, setAnaliseVisual] = useState('')
   const [testesRealizados, setTestesRealizados] = useState('')
   const [servicosAFazer, setServicosAFazer] = useState('')
@@ -122,6 +124,23 @@ const OrdensServico: React.FC = () => {
       .catch(console.error)
       .finally(() => setLoadingHistorico(false))
   }, [selectedService?.id])
+
+  useEffect(() => {
+    const codigos = Array.from(new Set((services || []).map((s) => String(s.cod_proposta || '').trim()).filter(Boolean)))
+    if (codigos.length === 0) {
+      setPrevEntregaByCodProposta({})
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const map = await fetchPrevEntregaByCodigosProposta(codigos)
+      if (cancelled) return
+      setPrevEntregaByCodProposta(map)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [services])
 
   const formatBytes = (bytes?: number) => {
     if (!bytes || bytes <= 0) return ''
@@ -641,6 +660,7 @@ const OrdensServico: React.FC = () => {
             loading={loading} 
             onDragEnd={onDragEnd}
             onCardClick={setSelectedService}
+            prevEntregaByCodProposta={prevEntregaByCodProposta}
             isTvMode={isTvMode}
         />
       </div>

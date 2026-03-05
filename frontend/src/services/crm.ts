@@ -20,6 +20,7 @@ export interface CRM_Oportunidade {
   qts_item: number | null
   prev_faturamento: string | null
   prev_entrega: string | null
+  prev_fechamento?: string | null
   validade_proposta: string | null
   forma_pagamento_id?: string | null
   condicao_pagamento_id?: string | null
@@ -294,6 +295,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     qts_item: null,
     prev_faturamento: null,
     prev_entrega: null,
+    prev_fechamento: null,
     validade_proposta: null,
     cod_produto: null,
     cod_servico: null,
@@ -529,6 +531,64 @@ export async function fetchOportunidadeById(id: string) {
     throw toUserFacingError(error, 'Falha ao carregar a proposta comercial.')
   }
   return data as CRM_Oportunidade
+}
+
+export async function fetchOportunidadeByCodigoProposta(cod: string) {
+  const codigo = String(cod || '').trim()
+  if (!codigo) return null
+
+  const sb = supabase as any
+  {
+    const { data, error } = await sb.from('crm_oportunidades').select().eq('cod_oport', codigo).limit(1).single()
+    if (!error) return data as CRM_Oportunidade
+    if (error.code === 'PGRST116') {
+    } else if (isMissingTable(error)) {
+      return null
+    } else if (isMissingColumn(error)) {
+    } else {
+      throw toUserFacingError(error, 'Falha ao localizar a proposta comercial.')
+    }
+  }
+
+  {
+    const { data, error } = await sb.from('crm_oportunidades').select().eq('cod_oportunidade', codigo).limit(1).single()
+    if (!error) return data as CRM_Oportunidade
+    if (error.code === 'PGRST116') return null
+    if (isMissingTable(error) || isMissingColumn(error)) return null
+    throw toUserFacingError(error, 'Falha ao localizar a proposta comercial.')
+  }
+}
+
+export async function fetchPrevEntregaByCodigosProposta(codigos: string[]) {
+  const list = Array.from(new Set((codigos || []).map((c) => String(c || '').trim()).filter(Boolean)))
+  if (list.length === 0) return {} as Record<string, string>
+
+  const sb = supabase as any
+  const out: Record<string, string> = {}
+  const chunkSize = 200
+
+  for (let i = 0; i < list.length; i += chunkSize) {
+    const chunk = list.slice(i, i + chunkSize)
+    const { data, error } = await sb
+      .from('crm_oportunidades')
+      .select('cod_oport, prev_entrega')
+      .in('cod_oport', chunk)
+
+    if (error) {
+      if (isMissingTable(error) || error.code === '42P01') return {} as Record<string, string>
+      if (isMissingColumn(error)) return {} as Record<string, string>
+      console.error('Erro ao buscar prev_entrega por código da proposta:', error)
+      return {} as Record<string, string>
+    }
+
+    for (const row of (data || []) as any[]) {
+      const cod = String(row?.cod_oport || '').trim()
+      const prev = String(row?.prev_entrega || '').trim()
+      if (cod && prev) out[cod] = prev.slice(0, 10)
+    }
+  }
+
+  return out
 }
 
 export async function deleteOportunidade(id: string) {

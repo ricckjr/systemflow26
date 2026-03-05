@@ -1,17 +1,57 @@
 import React from 'react'
 import { ServicEquipamento } from '@/types/domain'
 import { Draggable } from '@hello-pangea/dnd'
-import { User, Wrench, Clock, Hourglass, Hash } from 'lucide-react'
+import { User, Wrench, Clock, Hourglass, Hash, Calendar } from 'lucide-react'
 import { formatDuration, getStatusDurationColor } from '@/utils/time'
 
 interface ServiceCardProps {
   service: ServicEquipamento
   index: number
   onClick: (service: ServicEquipamento) => void
+  prevEntrega?: string
   isTvMode?: boolean
 }
 
-export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, isTvMode = false }) => {
+const parseDateInputLocal = (dateInput?: string | null) => {
+  const v = String(dateInput || '').trim().slice(0, 10)
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null
+  return new Date(y, mo - 1, d, 12, 0, 0, 0)
+}
+
+const daysUntilDateInput = (dateInput?: string | null) => {
+  const target = parseDateInputLocal(dateInput)
+  if (!target) return null
+  const today = new Date()
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0)
+  const diff = target.getTime() - base.getTime()
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000))
+  return Number.isFinite(days) ? days : null
+}
+
+export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClick, prevEntrega, isTvMode = false }) => {
+  const diasEntrega = daysUntilDateInput(prevEntrega)
+  const entregaBadge =
+    diasEntrega === null
+      ? null
+      : diasEntrega <= 3
+        ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
+        : diasEntrega <= 7
+          ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
+          : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
+  const entregaLabel =
+    diasEntrega === null
+      ? null
+      : diasEntrega < 0
+        ? `Atrasado ${Math.abs(diasEntrega)}d`
+        : diasEntrega === 0
+          ? 'Entrega hoje'
+          : `Entrega em ${diasEntrega}d`
+
   if (isTvMode) {
     return (
       <Draggable draggableId={service.id} index={index}>
@@ -54,6 +94,15 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
              )}
 
              <div className="flex flex-col gap-1 pt-2 border-t border-[var(--border)] mt-auto">
+                {entregaBadge && entregaLabel ? (
+                  <div className="flex items-center justify-between text-[9px]">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border font-black ${entregaBadge}`}>
+                      <Calendar size={10} />
+                      {entregaLabel}
+                    </span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-mono">{String(prevEntrega || '').slice(0, 10)}</span>
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between text-[9px]">
                     <span className="text-[var(--text-muted)]">Total:</span>
                     <span className="font-medium text-[var(--text-main)]">{formatDuration(service.data_entrada)}</span>
@@ -128,6 +177,15 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
             <div className="flex items-end justify-between pt-2 border-t border-[var(--border)] mt-auto">
                 {/* Times (Left) */}
                 <div className="flex flex-col gap-1.5">
+                    {entregaBadge && entregaLabel ? (
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[10px] font-black ${entregaBadge}`}>
+                          <Calendar size={12} />
+                          {entregaLabel}
+                        </span>
+                        <span className="text-[10px] text-[var(--text-muted)] font-mono">{String(prevEntrega || '').slice(0, 10)}</span>
+                      </div>
+                    ) : null}
                     <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]" title="Tempo total na oficina">
                         <Clock size={12} className="text-[var(--text-soft)]" />
                         <span className="font-medium">Total: {formatDuration(service.data_entrada)}</span>

@@ -12,10 +12,11 @@ interface ServiceKanbanBoardProps {
   loading: boolean
   onDragEnd: (result: DropResult) => void
   onCardClick: (service: ServicEquipamento) => void
+  prevEntregaByCodProposta?: Record<string, string>
   isTvMode?: boolean
 }
 
-export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, onDragEnd, onCardClick, isTvMode = false }) => {
+export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services, loading, onDragEnd, onCardClick, prevEntregaByCodProposta, isTvMode = false }) => {
   const getServicesByStatus = (status: string) => {
     const target = normalizeOsPhase(status)
     return services.filter(s => normalizeOsPhase(s.fase) === target)
@@ -64,12 +65,14 @@ export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services
                     className={`h-full min-h-[150px] overflow-y-auto overflow-x-hidden overscroll-contain custom-scrollbar pr-1 rounded-xl transition-colors ${snapshot.isDraggingOver ? config.bg : ''}`}
                     >
                     {items.map((service, index) => {
+                        const prevEntrega = prevEntregaByCodProposta ? prevEntregaByCodProposta[String(service.cod_proposta || '').trim()] : undefined
                         return (
                             <ServiceCard 
                                 key={service.id} 
                                 service={service} 
                                 index={index} 
                                 onClick={onCardClick}
+                                prevEntrega={prevEntrega}
                                 isTvMode={isTvMode}
                             />
                         )

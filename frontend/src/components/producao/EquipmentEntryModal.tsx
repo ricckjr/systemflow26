@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { ServicEquipamento } from '@/types/domain'
 import { useServicsEquipamento } from '@/hooks/useServicsEquipamento'
+import { fetchCrmStatus, fetchOportunidadeByCodigoProposta, updateOportunidade } from '@/services/crm'
 import { AlertTriangle, Loader2, Upload, Wrench, X } from 'lucide-react'
 
 interface EquipmentEntryModalProps {
@@ -10,6 +11,15 @@ interface EquipmentEntryModalProps {
   initialData: Partial<ServicEquipamento>
   onSuccess: () => void
 }
+
+const normalizeText = (v: string) =>
+  String(v || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim()
+
+const AUTO_STATUS_DESC = 'ANÁLISE TÉCNICA'
 
 export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
   isOpen,
@@ -120,6 +130,22 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       }
 
       await addService(cleanPayload as any)
+      try {
+        const cod = String(cleanPayload.cod_proposta || '').trim()
+        if (cod) {
+          const sts = await fetchCrmStatus()
+          const target = sts.find((s) => normalizeText(String((s as any).status_desc || '')) === normalizeText(AUTO_STATUS_DESC))
+          if (target) {
+            const opp = await fetchOportunidadeByCodigoProposta(cod)
+            const nextId = String((target as any).status_id || '').trim()
+            if (opp && nextId && String((opp as any).id_status || '').trim() !== nextId) {
+              await updateOportunidade(String((opp as any).id_oport || '').trim(), { id_status: nextId } as any)
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Falha ao atualizar status da proposta após entrada de equipamento:', e)
+      }
       onSuccess()
       onClose()
     } catch (error: any) {

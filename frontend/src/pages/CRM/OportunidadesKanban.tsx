@@ -306,7 +306,7 @@ const OpportunityCard = ({
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onDoubleClick={() => onOpen(id)}
+          onClick={() => onOpen(id)}
           className={`
             group relative flex flex-col gap-3 p-4 mb-3 rounded-xl border transition-all duration-200
             ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-cyan-500 rotate-2 scale-105 z-50 bg-[#1E293B]' : 'bg-[#0F172A] border-white/5 shadow-sm hover:shadow-md hover:border-white/10'}
@@ -476,6 +476,7 @@ export default function OportunidadesKanban() {
   const [draftTicket, setDraftTicket] = useState('')
   const [draftTemperatura, setDraftTemperatura] = useState('50')
   const [draftQtd, setDraftQtd] = useState('1')
+  const [draftPrevFaturamento, setDraftPrevFaturamento] = useState('')
   const [draftPrevEntrega, setDraftPrevEntrega] = useState('')
   const [draftPrevFechamento, setDraftPrevFechamento] = useState('')
   const [draftFormaPagamentoId, setDraftFormaPagamentoId] = useState('')
@@ -881,11 +882,9 @@ export default function OportunidadesKanban() {
       setDraftTicket(active.ticket_valor === null || active.ticket_valor === undefined ? '' : String(active.ticket_valor))
       setDraftTemperatura(active.temperatura === null || active.temperatura === undefined ? '50' : String(active.temperatura))
       setDraftQtd(active.qts_item === null || active.qts_item === undefined ? '1' : String(active.qts_item))
-      {
-        const rawPrevFat = (active as any)?.prev_faturamento ?? (active as any)?.prev_entrega ?? null
-        setDraftPrevEntrega(rawPrevFat ? String(rawPrevFat).slice(0, 10) : '')
-      }
-      setDraftPrevFechamento((active as any).prev_entrega ? String((active as any).prev_entrega).slice(0, 10) : '')
+      setDraftPrevFaturamento((active as any).prev_faturamento ? String((active as any).prev_faturamento).slice(0, 10) : '')
+      setDraftPrevEntrega((active as any).prev_entrega ? String((active as any).prev_entrega).slice(0, 10) : '')
+      setDraftPrevFechamento((active as any).prev_fechamento ? String((active as any).prev_fechamento).slice(0, 10) : '')
       setDraftFormaPagamentoId(String((active as any).forma_pagamento_id || ''))
       setDraftCondicaoPagamentoId(String((active as any).condicao_pagamento_id || ''))
       {
@@ -944,10 +943,11 @@ export default function OportunidadesKanban() {
       setDraftQtd('1')
       {
         const now = new Date()
-        setDraftPrevEntrega(
+        setDraftPrevFaturamento(
           `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
         )
       }
+      setDraftPrevEntrega('')
       setDraftPrevFechamento('')
       setDraftFormaPagamentoId('')
       setDraftCondicaoPagamentoId('')
@@ -1732,6 +1732,7 @@ export default function OportunidadesKanban() {
       draftTicket,
       draftTemperatura,
       draftQtd,
+      draftPrevFaturamento,
       draftPrevEntrega,
       draftPrevFechamento,
       draftFormaPagamentoId,
@@ -1771,6 +1772,7 @@ export default function OportunidadesKanban() {
     draftTicket,
     draftTemperatura,
     draftQtd,
+    draftPrevFaturamento,
     draftPrevEntrega,
     draftPrevFechamento,
     draftFormaPagamentoId,
@@ -1802,7 +1804,7 @@ export default function OportunidadesKanban() {
     if (paymentsSchemaOk === false) return false
     if (!draftFormaPagamentoId.trim()) return false
     if (!draftCondicaoPagamentoId.trim()) return false
-    if (!draftPrevEntrega.trim()) return false
+    if (!draftPrevFaturamento.trim()) return false
     if (!draftValidadeProposta.trim()) return false
     if (!draftTipoFrete.trim()) return false
     if (draftItens.length === 0) return false
@@ -1812,7 +1814,7 @@ export default function OportunidadesKanban() {
     paymentsSchemaOk,
     draftFormaPagamentoId,
     draftCondicaoPagamentoId,
-    draftPrevEntrega,
+    draftPrevFaturamento,
     draftValidadeProposta,
     draftTipoFrete,
     draftItens.length,
@@ -2050,8 +2052,9 @@ export default function OportunidadesKanban() {
     const qts_item = draftItens.length
       ? draftItens.reduce((acc, it) => acc + (Number(it.quantidade || 0) || 0), 0)
       : null
-    const prev_faturamento = draftPrevEntrega.trim() || null
-    const prev_entrega = draftPrevFechamento.trim() || null
+    const prev_faturamento = draftPrevFaturamento.trim() || null
+    const prev_entrega = draftPrevEntrega.trim() || null
+    const prev_fechamento = draftPrevFechamento.trim() || null
     const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
     const finalMotivoId = String(opts?.motivoIdOverride ?? draftMotivoId ?? '').trim()
     const normKey = (v: string) =>
@@ -2138,6 +2141,7 @@ export default function OportunidadesKanban() {
       qts_item,
       prev_faturamento,
       prev_entrega,
+      prev_fechamento,
       validade_proposta: draftValidadeProposta.trim() || null,
       pedido_compra_numero: draftPedidoCompraNumero.trim() || null,
       pedido_compra_path: draftPedidoCompraPath.trim() || null,
@@ -4118,6 +4122,16 @@ export default function OportunidadesKanban() {
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão de Faturamento</div>
                         <input
                           type="date"
+                          value={draftPrevFaturamento}
+                          onChange={(e) => setDraftPrevFaturamento(e.target.value)}
+                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão de Entrega (Cliente)</div>
+                        <input
+                          type="date"
                           value={draftPrevEntrega}
                           onChange={(e) => setDraftPrevEntrega(e.target.value)}
                           className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
@@ -4172,7 +4186,7 @@ export default function OportunidadesKanban() {
                               setDraftCondicaoPagamentoId(next)
                               const days = getCondicaoPrazoDias(next)
                               if (days === null) return
-                              setDraftPrevEntrega(addDaysToDateInput(new Date(), days))
+                              setDraftPrevFaturamento(addDaysToDateInput(new Date(), days))
                             }}
                             disabled={paymentsSchemaOk === false}
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"

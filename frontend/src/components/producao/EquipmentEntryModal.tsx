@@ -46,6 +46,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     tag: '',
     garantia: false,
     faixa: '',
+    solicitacao_cliente: '',
     observacoes_equipamento: '',
     imagens: [],
     data_entrada: new Date().toISOString(),
@@ -233,6 +234,21 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
                 className={inputBase}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
+          <div className="text-xs font-bold text-[var(--text-main)] mb-3">Solicitação do Cliente</div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Descrição</label>
+            <textarea
+              name="solicitacao_cliente"
+              value={formData.solicitacao_cliente || ''}
+              onChange={handleChange}
+              rows={3}
+              placeholder="Descreva a solicitação do cliente..."
+              className={textareaBase}
+            />
           </div>
         </div>
 

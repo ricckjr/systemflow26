@@ -87,6 +87,7 @@ export interface ServicEquipamento {
   tag?: string | null;
   garantia: boolean;
   faixa?: string | null;
+  solicitacao_cliente?: string | null;
   relatorio_tecnico?: string | null;
   anexos?: unknown | null;
   vendedor?: string | null;

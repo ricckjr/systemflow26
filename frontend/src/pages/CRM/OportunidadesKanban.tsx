@@ -2126,11 +2126,6 @@ export default function OportunidadesKanban() {
       id_contato: draftContatoId.trim() || null,
       cliente_nome: (clienteQuery || '').trim() || null,
       cliente_documento: draftClienteDocumento.trim() || null,
-      contato_nome: draftContatoNome.trim() || null,
-      contato_cargo: draftContatoCargo.trim() || null,
-      contato_telefone01: draftContatoTelefone01.trim() || null,
-      contato_telefone02: draftContatoTelefone02.trim() || null,
-      contato_email: draftContatoEmail.trim() || null,
       id_fase: finalFaseId || null,
       id_status: finalStatusId || null,
       id_motivo: finalMotivoId || null,
@@ -2500,6 +2495,7 @@ export default function OportunidadesKanban() {
 
   const filteredOpportunities = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
+    const termClean = term.replace(/^#/, '').trim()
     const wantStatus = filterStatusId.trim()
     const wantFase = filterFaseId.trim()
     const wantsProduto = !!term && (/[0-9]/.test(term) || term.startsWith('#') || term.startsWith('p:') || term.startsWith('s:'))
@@ -2518,15 +2514,18 @@ export default function OportunidadesKanban() {
       }
 
       if (term) {
+        const codProposta = String((op as any)?.cod_oport ?? (op as any)?.cod_oportunidade ?? '').trim()
         const clienteLabel =
           String((op as any)?.cliente_nome || op.cliente || '').trim() ||
           (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
           ''
         const vendedorLabel = String((op as any)?.vendedor_nome || op.vendedor || '').trim()
         const solucaoLabel = formatSolucaoLabel(op.solucao).toLowerCase()
-        const hay = `${clienteLabel} ${vendedorLabel} ${solucaoLabel}`.toLowerCase()
+        const hay = `${codProposta} ${clienteLabel} ${vendedorLabel} ${solucaoLabel}`.toLowerCase()
         const matchText = hay.includes(term)
         if (matchText) return true
+
+        if (termClean && codProposta && codProposta.toLowerCase().includes(termClean)) return true
 
         if (wantsProduto) {
           const legacy = `${String((op as any)?.cod_produto || '')} ${String((op as any)?.cod_servico || '')}`.toLowerCase()
@@ -2838,7 +2837,7 @@ export default function OportunidadesKanban() {
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por cliente ou código do produto..."
+                placeholder="Buscar por cliente, código da proposta ou item..."
                 className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-48 transition-all"
               />
             </div>

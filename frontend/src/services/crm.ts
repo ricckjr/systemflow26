@@ -337,17 +337,24 @@ export async function updateOportunidade(id: string, updates: Partial<CRM_Oportu
   if (sanitized.contato_id && !sanitized.id_contato) sanitized.id_contato = sanitized.contato_id
   if (sanitized.id_origem && !sanitized.orig_id) sanitized.orig_id = sanitized.id_origem
   if (sanitized.orig_id && !sanitized.id_origem) sanitized.id_origem = sanitized.orig_id
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 30; i++) {
     const q = (supabase as any)
       .from('crm_oportunidades')
       .update(sanitized)
       .eq('id_oport', id)
       .select()
-      .single()
+      .maybeSingle()
 
     const { data, error } = await q
-    if (!error) return data as CRM_Oportunidade
+    if (!error) {
+      if (data) return data as CRM_Oportunidade
+      throw new Error('Proposta não encontrada ou sem permissão para editar.')
+    }
     if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
+    if (error.code === 'PGRST116') {
+      const fetched = await fetchOportunidadeById(id)
+      return (fetched || ({ id_oport: id, ...(updates as any) } as any)) as CRM_Oportunidade
+    }
 
     if (isMissingColumn(error)) {
       const missing = extractMissingColumnName(error)
@@ -370,33 +377,67 @@ export async function updateOportunidade(id: string, updates: Partial<CRM_Oportu
 
   const { id_fase, id_status, id_motivo, id_origem, fase, ...rest } = updates as any
   const stageLabel = fase
-  const fallbackBase: any = { ...rest }
+  let fallbackBase: any = { ...rest }
   if (stageLabel !== undefined) fallbackBase.fase = stageLabel
 
-  const q2 = (supabase as any)
-    .from('crm_oportunidades')
-    .update(fallbackBase)
-    .eq('id_oportunidade', id)
-    .select()
-    .single()
-  const r2 = await q2
-  if (!r2.error) {
-    return { ...(r2.data as any), fase: (r2.data as any)?.fase ?? (r2.data as any)?.etapa ?? null } as CRM_Oportunidade
-  }
-
-  if (isMissingColumn(r2.error) && stageLabel !== undefined) {
-    const q3 = (supabase as any)
+  for (let i = 0; i < 30; i++) {
+    const q2 = (supabase as any)
       .from('crm_oportunidades')
-      .update({ ...rest, etapa: stageLabel })
+      .update(fallbackBase)
       .eq('id_oportunidade', id)
       .select()
-      .single()
-    const r3 = await q3
-    if (r3.error) throw toUserFacingError(r3.error, 'Falha ao salvar a proposta comercial.')
-    return { ...(r3.data as any), fase: (r3.data as any)?.etapa ?? null } as CRM_Oportunidade
+      .maybeSingle()
+    const r2 = await q2
+    if (!r2.error) {
+      if (!r2.data) throw new Error('Proposta não encontrada ou sem permissão para editar.')
+      return { ...(r2.data as any), fase: (r2.data as any)?.fase ?? (r2.data as any)?.etapa ?? null } as CRM_Oportunidade
+    }
+
+    if (r2.error?.code === 'PGRST116') {
+      const fetched = await fetchOportunidadeById(id)
+      return (fetched || ({ id_oport: id, ...(updates as any) } as any)) as CRM_Oportunidade
+    }
+
+    if (isMissingColumn(r2.error)) {
+      const missing = extractMissingColumnName(r2.error)
+      if (missing && Object.prototype.hasOwnProperty.call(fallbackBase, missing)) {
+        delete fallbackBase[missing]
+        continue
+      }
+
+      if (stageLabel !== undefined && missing === 'fase') {
+        const baseAlt: any = { ...rest, etapa: stageLabel }
+        for (let j = 0; j < 30; j++) {
+          const q3 = (supabase as any)
+            .from('crm_oportunidades')
+            .update(baseAlt)
+            .eq('id_oportunidade', id)
+            .select()
+            .maybeSingle()
+          const r3 = await q3
+          if (!r3.error) {
+            return { ...(r3.data as any), fase: (r3.data as any)?.etapa ?? null } as CRM_Oportunidade
+          }
+          if (r3.error?.code === 'PGRST116') {
+            const fetched = await fetchOportunidadeById(id)
+            return (fetched || ({ id_oport: id, ...(updates as any) } as any)) as CRM_Oportunidade
+          }
+          if (isMissingColumn(r3.error)) {
+            const missingAlt = extractMissingColumnName(r3.error)
+            if (missingAlt && Object.prototype.hasOwnProperty.call(baseAlt, missingAlt)) {
+              delete baseAlt[missingAlt]
+              continue
+            }
+          }
+          throw toUserFacingError(r3.error, 'Falha ao salvar a proposta comercial.')
+        }
+      }
+    }
+
+    throw toUserFacingError(r2.error, 'Falha ao salvar a proposta comercial.')
   }
 
-  throw toUserFacingError(r2.error, 'Falha ao salvar a proposta comercial.')
+  throw new Error('Falha ao salvar a proposta comercial.')
 }
 
 export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
@@ -405,16 +446,19 @@ export async function createOportunidade(payload: Partial<CRM_Oportunidade>) {
   if (sanitized.contato_id && !sanitized.id_contato) sanitized.id_contato = sanitized.contato_id
   if (sanitized.id_origem && !sanitized.orig_id) sanitized.orig_id = sanitized.id_origem
   if (sanitized.orig_id && !sanitized.id_origem) sanitized.id_origem = sanitized.orig_id
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 30; i++) {
     const q = (supabase as any)
       .from('crm_oportunidades')
       .insert(sanitized)
       .select()
-      .single()
+      .maybeSingle()
 
     const { data, error } = await q
     if (!error) return data as CRM_Oportunidade
     if (error.code === '42P01') throw new Error('Tabela crm_oportunidades ainda não foi criada.')
+    if (error.code === 'PGRST116') {
+      throw new Error('A proposta foi criada, mas o sistema não conseguiu ler o retorno. Verifique permissões de CRM:VIEW.')
+    }
 
     if (isMissingColumn(error)) {
       const missing = extractMissingColumnName(error)
@@ -525,9 +569,10 @@ export async function setOportunidadeContatoPrincipal(opts: { oportunidadeId: st
 export async function fetchOportunidadeById(id: string) {
   const oportunidadeId = String(id || '').trim()
   if (!oportunidadeId) return null
-  const { data, error } = await (supabase as any).from('crm_oportunidades').select().eq('id_oport', oportunidadeId).single()
+  const { data, error } = await (supabase as any).from('crm_oportunidades').select().eq('id_oport', oportunidadeId).maybeSingle()
   if (error) {
     if (error.code === '42P01') return null
+    if (error.code === 'PGRST116') return null
     throw toUserFacingError(error, 'Falha ao carregar a proposta comercial.')
   }
   return data as CRM_Oportunidade

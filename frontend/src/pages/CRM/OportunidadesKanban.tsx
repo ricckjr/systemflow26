@@ -15,7 +15,8 @@ import {
   UserPlus,
   Star,
   LogIn,
-  Check
+  Check,
+  Wrench
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import {
@@ -60,6 +61,8 @@ import {
 import { fetchClienteById, fetchClientes, Cliente } from '@/services/clientes'
 import { fetchClienteContatos, fetchContatoById, ClienteContato, createClienteContato } from '@/services/clienteContatos'
 import { HorizontalScrollArea, Modal } from '@/components/ui'
+import { EquipmentEntryModal } from '@/components/producao/EquipmentEntryModal'
+import { EquipmentList } from '@/components/producao/EquipmentList'
 import { useUsuarios, UsuarioSimples } from '@/hooks/useUsuarios'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
@@ -493,7 +496,7 @@ export default function OportunidadesKanban() {
   const [draftItensTouched, setDraftItensTouched] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState('')
   const [tab, setTab] = useState<
-    'pagamento' | 'temperatura' | 'comentarios' | 'observacoes' | 'historicos'
+    'pagamento' | 'temperatura' | 'comentarios' | 'observacoes' | 'historicos' | 'producao'
   >('pagamento')
   const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
   const draftItensTouchedRef = useRef(false)
@@ -524,6 +527,8 @@ export default function OportunidadesKanban() {
   const [lostOpen, setLostOpen] = useState(false)
   const [lostMotivoId, setLostMotivoId] = useState('')
   const [lostError, setLostError] = useState<string | null>(null)
+  const [equipmentEntryOpen, setEquipmentEntryOpen] = useState(false)
+  const [equipmentLastUpdate, setEquipmentLastUpdate] = useState(0)
   const [statusHistoryOpen, setStatusHistoryOpen] = useState(false)
   const [statusHistoryError, setStatusHistoryError] = useState<string | null>(null)
   const [statusHistoryUserById, setStatusHistoryUserById] = useState<Record<string, string>>({})
@@ -1822,6 +1827,25 @@ export default function OportunidadesKanban() {
     if (saving) return false
     return true
   }, [paymentsSchemaOk, draftFormaPagamentoId, draftCondicaoPagamentoId, draftItens.length, saving])
+
+  const equipmentInitialData = useMemo(() => {
+    const cod = (draftCod || '').trim() || String((active as any)?.cod_oport || (active as any)?.cod_oportunidade || '').trim()
+    const cliente = (clienteQuery || '').trim() || String((active as any)?.cliente_nome || (active as any)?.cliente || '').trim()
+    const cnpj = (draftClienteDocumento || '').trim()
+    return {
+      cod_proposta: cod,
+      cliente: cliente,
+      cnpj: cnpj,
+      solucao: draftSolucao
+    } as any
+  }, [active, clienteQuery, draftClienteDocumento, draftCod, draftSolucao])
+
+  const canOpenEquipmentEntry = useMemo(() => {
+    if (!activeId) return false
+    const cod = String((equipmentInitialData as any)?.cod_proposta || '').trim()
+    const cliente = String((equipmentInitialData as any)?.cliente || '').trim()
+    return !!cod && !!cliente && !saving
+  }, [activeId, equipmentInitialData, saving])
 
   useEffect(() => {
     if (!formOpen) {
@@ -3981,10 +4005,11 @@ export default function OportunidadesKanban() {
                   <div className="flex gap-2 pb-2">
                     {[
                       { id: 'pagamento', label: 'Pagamento', editable: true },
-                      { id: 'temperatura', label: 'Temperatura', editable: true },
+                      { id: 'temperatura', label: 'Temperatura e Previsão', editable: true },
                       { id: 'comentarios', label: 'Comentários', editable: true },
                       { id: 'observacoes', label: 'Observações', editable: true },
                       { id: 'historicos', label: 'Históricos', editable: false },
+                      { id: 'producao', label: 'Produção', editable: false },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -4309,14 +4334,14 @@ export default function OportunidadesKanban() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Entrega</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Previsão (dia/mês/ano)</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão de Fechamento</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Data prevista</div>
                         </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Entrega (dia/mês/ano)</label>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Fechamento</label>
                           <input
                             type="date"
                             value={draftPrevFechamento}
@@ -4602,6 +4627,42 @@ export default function OportunidadesKanban() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {tab === 'producao' && (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!canOpenEquipmentEntry}
+                          onClick={() => setEquipmentEntryOpen(true)}
+                          className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
+                            canOpenEquipmentEntry
+                              ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
+                              : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <Wrench size={16} />
+                          Entrada de Equipamento
+                        </button>
+                      </div>
+                    </div>
+                    {String((equipmentInitialData as any)?.cod_proposta || '').trim() ? (
+                      <EquipmentList
+                        codProposta={String((equipmentInitialData as any)?.cod_proposta || '').trim()}
+                        lastUpdate={equipmentLastUpdate}
+                      />
+                    ) : (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                        Salve a proposta para vincular equipamentos em produção.
                       </div>
                     )}
                   </div>
@@ -5134,6 +5195,16 @@ export default function OportunidadesKanban() {
             </div>
           </div>
         </Modal>
+
+        <EquipmentEntryModal
+          isOpen={equipmentEntryOpen}
+          onClose={() => setEquipmentEntryOpen(false)}
+          initialData={equipmentInitialData}
+          onSuccess={() => {
+            pushToast({ kind: 'system', title: 'ENTRADA REGISTRADA', message: 'Entrada de equipamento criada.', durationMs: 2600 })
+            setEquipmentLastUpdate(Date.now())
+          }}
+        />
 
         <Modal
           isOpen={statusChangeOpen}

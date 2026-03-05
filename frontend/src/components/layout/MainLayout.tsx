@@ -24,6 +24,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   const isFullBleed = useMemo(() => {
     if (isTvMode) return false
     return location.pathname.startsWith('/app/producao/propostas') || 
+           location.pathname.startsWith('/app/producao/logistica') || 
            location.pathname.startsWith('/app/producao/omie') ||
            location.pathname.startsWith('/app/producao/ordens-servico') ||
            location.pathname.startsWith('/app/producao/servicos')

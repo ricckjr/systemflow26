@@ -308,6 +308,14 @@ export const router = createBrowserRouter([
           (node) => <RequirePermission modulo="PAGINA__PRODUCAO__PROPOSTAS" acao="VIEW">{node}</RequirePermission>
         )
       },
+      {
+        path: 'producao/logistica',
+        element: lazyElement(
+          () => import('@/pages/Producao/Logistica'),
+          'Carregando Logística...',
+          (node) => <RequirePermission modulo="PAGINA__PRODUCAO__LOGISTICA" acao="VIEW">{node}</RequirePermission>
+        )
+      },
       { path: 'producao/servicos', element: <Navigate to="/app/producao/ordens-servico" replace /> },
       {
         path: 'producao/ordens-servico',

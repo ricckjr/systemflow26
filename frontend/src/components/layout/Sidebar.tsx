@@ -68,9 +68,10 @@ const navItems: NavItem[] = [
     modulo: 'producao',
     requires: { modulo: 'PAGINA__PRODUCAO__ORDENS_SERVICO', acao: 'VIEW' },
     subItems: [
+      { label: 'Logística', path: '/app/producao/logistica', submodulo: 'logistica', requires: { modulo: 'PAGINA__PRODUCAO__LOGISTICA', acao: 'VIEW' } },
       { label: 'Kanban Produção', path: '/app/producao/ordens-servico', submodulo: 'servicos', requires: { modulo: 'PAGINA__PRODUCAO__ORDENS_SERVICO', acao: 'VIEW' } },
-      { label: 'Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos', requires: { modulo: 'PAGINA__PRODUCAO__EQUIPAMENTOS', acao: 'VIEW' } },
-      { label: 'Certificado garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia', requires: { modulo: 'PAGINA__PRODUCAO__CERTIFICADO_GARANTIA', acao: 'VIEW' } },
+      { label: 'Lista Equipamentos', path: '/app/producao/equipamentos', submodulo: 'equipamentos', requires: { modulo: 'PAGINA__PRODUCAO__EQUIPAMENTOS', acao: 'VIEW' } },
+      { label: 'Certificado Garantia', path: '/app/producao/certificado-garantia', submodulo: 'certificado-garantia', requires: { modulo: 'PAGINA__PRODUCAO__CERTIFICADO_GARANTIA', acao: 'VIEW' } },
     ],
   },
   {

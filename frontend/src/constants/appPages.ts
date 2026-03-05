@@ -37,6 +37,7 @@ export const APP_PAGES: AppPage[] = [
   { path: '/app/financeiro/empresas-correspondentes', label: 'Financeiro — Empresa Correspondente', menu: 'Administrativo', item: 'Empresa Correspondente', pageModulo: 'PAGINA__FINANCEIRO__EMPRESAS_CORRESPONDENTES', baseModulo: 'FINANCEIRO' },
 
   { path: '/app/producao/propostas', label: 'Produção — Propostas', menu: 'Produção', item: 'Propostas', pageModulo: 'PAGINA__PRODUCAO__PROPOSTAS', baseModulo: 'PRODUCAO' },
+  { path: '/app/producao/logistica', label: 'Produção — Logística', menu: 'Produção', item: 'Logística', pageModulo: 'PAGINA__PRODUCAO__LOGISTICA', baseModulo: 'PRODUCAO' },
   { path: '/app/producao/ordens-servico', label: 'Produção — Ordens de Serviço', menu: 'Produção', item: 'Kanban Produção', pageModulo: 'PAGINA__PRODUCAO__ORDENS_SERVICO', baseModulo: 'PRODUCAO' },
   { path: '/app/producao/equipamentos', label: 'Produção — Equipamentos', menu: 'Produção', item: 'Equipamentos', pageModulo: 'PAGINA__PRODUCAO__EQUIPAMENTOS', baseModulo: 'PRODUCAO' },
   { path: '/app/producao/certificado-garantia', label: 'Produção — Certificado de Garantia', menu: 'Produção', item: 'Certificado garantia', pageModulo: 'PAGINA__PRODUCAO__CERTIFICADO_GARANTIA', baseModulo: 'PRODUCAO' },

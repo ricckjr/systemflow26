@@ -48,6 +48,7 @@ interface SellerStats {
   meta: number;
   pctMeta: number;
   ranking: number;
+  vendasFeitas: number;
   vendasPorDia: { dia: string; valor: number }[];
   historico: CRM_Oportunidade[];
   ligacoesFeitas: number;
@@ -107,6 +108,7 @@ const Vendedores: React.FC = () => {
       ops: CRM_Oportunidade[];
       ligacoesFeitas: number;
       ligacoesNaoAtendidas: number;
+      avatarUrl?: string | null;
     }> = {};
 
     // 1. Process Current Month Opportunities
@@ -126,6 +128,9 @@ const Vendedores: React.FC = () => {
 
       sellerMap[sellerName].totalOps += 1;
       sellerMap[sellerName].ops.push(op);
+      if (!sellerMap[sellerName].avatarUrl && (op as any)?.vendedor_avatar_url) {
+        sellerMap[sellerName].avatarUrl = String((op as any).vendedor_avatar_url || '').trim() || null;
+      }
 
       if (isVenda(op.status)) {
         const valor = parseValorProposta(op.valor_proposta ?? (op.ticket_valor == null ? null : String(op.ticket_valor)));
@@ -201,6 +206,7 @@ const Vendedores: React.FC = () => {
       const totalVendas = perf ? parseValorProposta(perf.valor_vendido) : data.totalVendas;
       const totalOportunidades = perf ? perf.total_quantidade_oportunidades : data.totalOps;
       const ligacoesFeitas = perf ? perf.ligacoes_feitas : data.ligacoesFeitas;
+      const vendasFeitas = perf ? perf.quantidade_vendido : data.countVendas;
 
       const taxaConversao = perf ? parsePercent(perf.taxa_conversao_real) : (data.totalOps > 0 ? (data.countVendas / data.totalOps) * 100 : 0);
       const ticketMedio = perf ? parseValorProposta(perf.ticket_medio) : (data.countVendas > 0 ? data.totalVendas / data.countVendas : 0);
@@ -236,12 +242,13 @@ const Vendedores: React.FC = () => {
         meta,
         pctMeta,
         ranking: 0, // Will sort next
+        vendasFeitas,
         vendasPorDia,
         historico: data.ops,
         ligacoesFeitas,
         ligacoesNaoAtendidas: data.ligacoesNaoAtendidas,
         trendVendas,
-        avatarUrl: perf?.avatar_url ?? null,
+        avatarUrl: (String(perf?.avatar_url || '').trim() || null) ?? data.avatarUrl ?? null,
         emailCorporativo: perf?.email_corporativo ?? null,
         telefone: perf?.telefone ?? null,
         ramal: perf?.ramal ?? null,
@@ -307,77 +314,193 @@ const Vendedores: React.FC = () => {
         </div>
       </div>
 
-      {/* SELLERS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {sellers.map((seller) => (
-          <div 
-            key={seller.name}
-            onClick={() => setSelectedSeller(seller)}
-            className="group relative bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 cursor-pointer hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 overflow-hidden"
-          >
-            {/* Rank Badge */}
-            <div className={`absolute top-0 right-0 p-3 rounded-bl-2xl font-black text-xs shadow-sm
-              ${seller.ranking === 1 ? 'bg-gradient-to-bl from-yellow-400 to-amber-500 text-white shadow-amber-500/20' : 
-                seller.ranking === 2 ? 'bg-gradient-to-bl from-slate-300 to-slate-400 text-white shadow-slate-500/20' :
-                seller.ranking === 3 ? 'bg-gradient-to-bl from-orange-400 to-orange-500 text-white shadow-orange-500/20' :
-                'bg-[var(--bg-body)] text-[var(--text-muted)] border-l border-b border-[var(--border)]'}
-            `}>
-              #{seller.ranking}
+      <div className="space-y-6">
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 overflow-hidden">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-black text-[var(--text-main)]">Ranking de Medalhas</div>
+              <div className="mt-1 text-xs text-[var(--text-soft)] truncate">Top 3 do mês + progresso da meta mensal</div>
             </div>
-
-            {/* Avatar & Name */}
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="relative mb-3">
-                <div
-                  className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold uppercase border-4 shadow-xl bg-center bg-cover
-                    ${seller.ranking === 1 ? 'border-amber-400 text-amber-500 bg-amber-500/10' : 'border-[var(--bg-body)] text-[var(--primary)] bg-[var(--primary)]/10'}
-                  `}
-                  style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
-                >
-                  {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
-                </div>
-                {seller.ranking === 1 && (
-                  <div className="absolute -top-2 -right-2 bg-amber-400 text-white p-1.5 rounded-full shadow-lg animate-bounce">
-                    <Trophy size={14} fill="currentColor" />
-                  </div>
-                )}
-              </div>
-              <h3 className="text-lg font-bold text-[var(--text-main)] truncate w-full">{seller.name}</h3>
-              <p className="text-xs text-[var(--text-soft)] uppercase tracking-widest font-semibold mt-1">Executivo de Vendas</p>
+            <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+              {sellers.length} vendedores
             </div>
-
-            {/* Quick Stats */}
-            <div className="space-y-4">
-              <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)]">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)]">Vendas (Mês)</span>
-                  <TrendingUp size={14} className="text-emerald-400" />
-                </div>
-                <div className="text-xl font-black text-[var(--text-main)]">
-                  {formatCurrency(seller.totalVendas)}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)] text-center">
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Meta</span>
-                  <span className={`text-sm font-bold ${seller.pctMeta >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {seller.pctMeta.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="bg-[var(--bg-body)]/50 rounded-xl p-3 border border-[var(--border)] text-center">
-                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] block mb-1">Ligações</span>
-                  <span className="text-sm font-bold text-cyan-400">
-                    {seller.ligacoesFeitas}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hover Action */}
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-        ))}
+
+          {sellers.length === 0 ? (
+            <div className="mt-6 bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-6 text-sm text-[var(--text-muted)]">
+              Nenhum dado disponível para este mês.
+            </div>
+          ) : (
+            (() => {
+              const medal = (ranking: number) => {
+                if (ranking === 1) return { label: '1º • Dourado', ring: 'border-amber-400', glow: 'shadow-amber-500/20', bg: 'from-amber-500/15 via-amber-500/5 to-transparent', text: 'text-amber-400' };
+                if (ranking === 2) return { label: '2º • Prata', ring: 'border-slate-300', glow: 'shadow-slate-500/15', bg: 'from-slate-500/15 via-slate-500/5 to-transparent', text: 'text-slate-200' };
+                return { label: '3º • Bronze', ring: 'border-orange-400', glow: 'shadow-orange-500/15', bg: 'from-orange-500/15 via-orange-500/5 to-transparent', text: 'text-orange-400' };
+              };
+
+              const top1 = sellers[0];
+              const top2 = sellers[1];
+              const top3 = sellers[2];
+
+              const MedalCard = ({ seller, size }: { seller: SellerStats; size: 'lg' | 'sm' }) => {
+                const m = medal(seller.ranking);
+                const pct = Math.max(0, Math.min(100, seller.pctMeta || 0));
+                const avatarSize = size === 'lg' ? 'w-28 h-28 text-3xl' : 'w-20 h-20 text-2xl';
+                const pad = size === 'lg' ? 'p-7' : 'p-6';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSeller(seller)}
+                    className={`relative flex-1 ${pad} rounded-2xl border border-[var(--border)] bg-gradient-to-b ${m.bg} shadow-xl ${m.glow} text-left hover:border-cyan-500/40 transition-colors overflow-hidden`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className={`text-[10px] font-black uppercase tracking-wider ${m.text}`}>{m.label}</div>
+                        <div className={`mt-1 font-black text-[var(--text-main)] truncate ${size === 'lg' ? 'text-lg sm:text-xl' : 'text-base'}`}>{seller.name}</div>
+                        <div className="mt-1 text-sm text-[var(--text-soft)]">Vendas: {formatCurrency(seller.totalVendas)}</div>
+                      </div>
+                      <div
+                        className={`${avatarSize} rounded-full flex items-center justify-center font-black uppercase border-4 ${m.ring} bg-[var(--bg-panel)] shadow-xl bg-center bg-cover`}
+                        style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
+                      >
+                        {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
+                      </div>
+                    </div>
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                        <span>Progresso da Meta</span>
+                        <span className={`${pct >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{pct.toFixed(0)}%</span>
+                      </div>
+                      <div className="mt-2.5 w-full bg-[var(--bg-panel)] h-2.5 rounded-full overflow-hidden border border-[var(--border)]">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </button>
+                );
+              };
+
+              return (
+                <div className="mt-6 relative rounded-2xl border border-[var(--border)] bg-[var(--bg-body)]/20 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-blue-500/5 to-transparent" />
+                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] h-[720px] rounded-full bg-cyan-500/10 blur-3xl" />
+                  <div className="relative p-5 sm:p-7">
+                    <div className="flex flex-col lg:flex-row items-stretch lg:items-end justify-center gap-6">
+                      <div className="hidden lg:flex flex-1 items-end">
+                        {top2 ? <MedalCard seller={top2} size="sm" /> : null}
+                      </div>
+                      <div className="flex flex-1 items-end">
+                        {top1 ? <MedalCard seller={top1} size="lg" /> : null}
+                      </div>
+                      <div className="hidden lg:flex flex-1 items-end">
+                        {top3 ? <MedalCard seller={top3} size="sm" /> : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {top2 ? <MedalCard seller={top2} size="sm" /> : null}
+                      {top3 ? <MedalCard seller={top3} size="sm" /> : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+        </div>
+
+        <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 overflow-hidden">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-black text-[var(--text-main)]">Vendedores</div>
+              <div className="mt-1 text-xs text-[var(--text-soft)] truncate">Vendas do mês, metas, ligações e vendas feitas</div>
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+              {currentMonthStr}
+            </div>
+          </div>
+
+          <div className="mt-5 max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-[var(--bg-panel)]">
+                <tr className="text-[10px] uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
+                  <th className="py-3 pr-3 text-left w-[70px]">Rank</th>
+                  <th className="py-3 pr-3 text-left min-w-[260px]">Vendedor</th>
+                  <th className="py-3 pr-3 text-right min-w-[160px]">Vendas do mês</th>
+                  <th className="py-3 pr-3 text-right min-w-[200px]">Meta</th>
+                  <th className="py-3 pr-3 text-right min-w-[120px]">Ligações</th>
+                  <th className="py-3 text-right min-w-[140px]">Vendas feitas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sellers.map((seller) => {
+                  const pct = Math.max(0, Math.min(100, seller.pctMeta || 0));
+                  const rankBg =
+                    seller.ranking === 1
+                      ? 'bg-amber-500/15 text-amber-300 border-amber-500/20'
+                      : seller.ranking === 2
+                        ? 'bg-slate-500/15 text-slate-200 border-slate-500/20'
+                        : seller.ranking === 3
+                          ? 'bg-orange-500/15 text-orange-300 border-orange-500/20'
+                          : 'bg-[var(--bg-body)]/30 text-[var(--text-muted)] border-[var(--border)]';
+
+                  return (
+                    <tr
+                      key={seller.name}
+                      onClick={() => setSelectedSeller(seller)}
+                      className="border-b border-[var(--border)] hover:bg-[var(--bg-body)]/30 transition-colors cursor-pointer"
+                    >
+                      <td className="py-4 pr-3">
+                        <span className={`inline-flex items-center justify-center px-2 py-1 rounded-lg border text-xs font-black ${rankBg}`}>
+                          #{seller.ranking}
+                        </span>
+                      </td>
+                      <td className="py-4 pr-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-full bg-[var(--bg-body)] border border-[var(--border)] bg-center bg-cover flex items-center justify-center font-black uppercase text-[11px] text-[var(--text-main)]"
+                            style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
+                          >
+                            {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-[var(--text-main)] truncate">{seller.name}</div>
+                            <div className="text-[11px] text-[var(--text-soft)] truncate">
+                              Meta: {pct.toFixed(0)}% • Oportunidades: {seller.totalOportunidades}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 pr-3 text-right font-black text-[var(--text-main)]">
+                        {formatCurrency(seller.totalVendas)}
+                      </td>
+                      <td className="py-4 pr-3 text-right">
+                        <div className="font-bold text-[var(--text-main)]">{formatCurrency(seller.meta)}</div>
+                        <div className="mt-2 w-full bg-[var(--bg-body)]/40 h-2 rounded-full overflow-hidden border border-[var(--border)]">
+                          <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500" style={{ width: `${pct}%` }} />
+                        </div>
+                      </td>
+                      <td className="py-4 pr-3 text-right font-bold text-cyan-400">
+                        {seller.ligacoesFeitas}
+                      </td>
+                      <td className="py-4 text-right font-bold text-emerald-400">
+                        {seller.vendasFeitas}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {sellers.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-sm text-[var(--text-muted)]">
+                      Nenhum vendedor encontrado para este mês.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* DETAILED MODAL */}

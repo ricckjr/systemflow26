@@ -178,7 +178,9 @@ export async function fetchOportunidadesByClienteId(clienteId: string) {
   if (!clienteId) return []
   const r1 = await (supabase as any)
     .from('crm_oportunidades')
-    .select('id_oport, cod_oport, id_cliente, id_fase, id_status, fase, status, data_inclusao')
+    .select(
+      'id_oport, cod_oport, id_cliente, id_fase, id_status, data_inclusao, crm_fase(fase_desc), crm_status(status_desc)'
+    )
     .eq('id_cliente', clienteId)
     .order('data_inclusao', { ascending: false })
 
@@ -196,7 +198,23 @@ export async function fetchOportunidadesByClienteId(clienteId: string) {
     return []
   }
 
-  return (r1.data ?? []) as CRM_Oportunidade[]
+  const normalize = (row: any) => {
+    const fase = row?.fase ?? row?.crm_fase?.fase_desc ?? row?.etapa ?? null
+    const status = row?.status ?? row?.crm_status?.status_desc ?? null
+    const ticketValor = row?.ticket_valor
+    return {
+      ...row,
+      fase,
+      status,
+      vendedor: row?.vendedor ?? row?.vendedor_nome ?? null,
+      cliente: row?.cliente ?? row?.cliente_nome ?? null,
+      id_oportunidade: row?.id_oport ?? row?.id_oportunidade,
+      cod_oportunidade: row?.cod_oport ?? row?.cod_oportunidade ?? null,
+      valor_proposta: row?.valor_proposta ?? (ticketValor == null ? null : String(ticketValor))
+    }
+  }
+
+  return ((r1.data ?? []) as any[]).map(normalize) as CRM_Oportunidade[]
 }
 
 export async function fetchCrmIbgeCodigos() {
@@ -278,6 +296,11 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
   const sb = supabase as any
 
+  const isMissingRelationship = (err: any) => {
+    const m = String(err?.message || '').toLowerCase()
+    return m.includes('relationship') || m.includes('could not find') || m.includes('not an embedded resource')
+  }
+
   const mapLegacyRow = (row: any) => ({
     ...row,
     fase: row.fase ?? row.etapa ?? null,
@@ -306,10 +329,34 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     data_alteracao: row.atualizado_em ?? null
   })
 
+  const mapNewRow = (row: any) => {
+    const fase = row?.fase ?? row?.crm_fase?.fase_desc ?? row?.etapa ?? null
+    const status = row?.status ?? row?.crm_status?.status_desc ?? null
+    const ticketValor = row?.ticket_valor
+    return {
+      ...row,
+      fase,
+      status,
+      vendedor: row?.vendedor ?? row?.vendedor_nome ?? null,
+      cliente: row?.cliente ?? row?.cliente_nome ?? null,
+      id_oportunidade: row?.id_oport ?? row?.id_oportunidade,
+      cod_oportunidade: row?.cod_oport ?? row?.cod_oportunidade ?? null,
+      valor_proposta: row?.valor_proposta ?? (ticketValor == null ? null : String(ticketValor))
+    }
+  }
+
   try {
-    let r = await sb.from('crm_oportunidades').select('*').order('data_inclusao', { ascending: !orderDesc })
+    let r = await sb
+      .from('crm_oportunidades')
+      .select('*, crm_status(status_desc), crm_fase(fase_desc)')
+      .order('data_inclusao', { ascending: !orderDesc })
     if (r.error && isMissingColumn(r.error) && extractMissingColumnName(r.error) === 'data_inclusao') {
-      r = await sb.from('crm_oportunidades').select('*')
+      r = await sb.from('crm_oportunidades').select('*, crm_status(status_desc), crm_fase(fase_desc)')
+      if (r.error && isMissingRelationship(r.error)) {
+        r = await sb.from('crm_oportunidades').select('*')
+      }
+    } else if (r.error && isMissingRelationship(r.error)) {
+      r = await sb.from('crm_oportunidades').select('*').order('data_inclusao', { ascending: !orderDesc })
     }
 
     if (r.error) {
@@ -321,7 +368,7 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     if (rows.length === 0) return []
 
     const sample = rows[0] || {}
-    if (sample?.id_oport) return rows as CRM_Oportunidade[]
+    if (sample?.id_oport) return rows.map(mapNewRow) as CRM_Oportunidade[]
     if (sample?.id_oportunidade) return rows.map(mapLegacyRow) as CRM_Oportunidade[]
     return rows as CRM_Oportunidade[]
   } catch (error: any) {

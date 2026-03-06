@@ -494,7 +494,7 @@ const Vendedores: React.FC = () => {
               };
 
               return (
-                <div className="mt-8 relative rounded-3xl border border-[var(--border)] bg-[var(--bg-body)]/30 overflow-hidden p-6 sm:p-12">
+                <div className="mt-8 relative rounded-3xl border border-[var(--border)] bg-[var(--bg-body)]/30 overflow-hidden pt-16 pb-6 px-6 sm:px-12 sm:pb-12">
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-[var(--bg-body)] to-transparent opacity-50" />
                   
                   <div className="relative flex flex-col md:flex-row items-end justify-center gap-6 md:gap-8 h-full max-w-5xl mx-auto">

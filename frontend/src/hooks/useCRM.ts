@@ -9,6 +9,28 @@ export const CRM_KEYS = {
   pabxLigacoes: () => [...CRM_KEYS.all, 'pabxLigacoes'] as const,
   vendedoresPerformance: (idData?: string) => [...CRM_KEYS.all, 'vendedoresPerformance', idData] as const,
   meta: () => [...CRM_KEYS.all, 'meta'] as const,
+  relatorioMensalVendedor: (idUser: string, idData: string) => [...CRM_KEYS.all, 'relatorioMensal', idUser, idData] as const,
+  relatoriosMensais: (idData: string) => [...CRM_KEYS.all, 'relatoriosMensais', idData] as const,
+}
+
+import { fetchRelatorioMensalVendedor, fetchRelatoriosMensais } from '../services/crm'
+
+export function useRelatorioMensalVendedor(idUser?: string, idData?: string) {
+  return useQuery({
+    queryKey: CRM_KEYS.relatorioMensalVendedor(idUser || '', idData || ''),
+    queryFn: () => fetchRelatorioMensalVendedor(idUser!, idData!),
+    enabled: !!idUser && !!idData,
+    staleTime: 1000 * 60 * 5, // 5 min
+  })
+}
+
+export function useRelatoriosMensais(idData?: string) {
+  return useQuery({
+    queryKey: CRM_KEYS.relatoriosMensais(idData || ''),
+    queryFn: () => fetchRelatoriosMensais(idData!),
+    enabled: !!idData,
+    staleTime: 1000 * 60 * 5, // 5 min
+  })
 }
 
 export function useOportunidades() {

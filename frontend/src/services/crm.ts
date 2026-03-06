@@ -148,6 +148,59 @@ export interface CRM_VendedorPerformance {
   valor_cancelado: string
 }
 
+export interface CRM_RelatorioMensalVendedor {
+  id: string
+  id_user: string
+  id_data: string
+  vendedor: string | null
+  ramal: string | null
+  meta_ligacoes: number
+  ligacoes_total_mes: number
+  ligacoes_feitas: number
+  ligacoes_falta: number
+  ligacoes_diarias: number
+  ligacoes_nao_atendidas: number
+  progresso_ligacoes: number
+  vendedor_base: string | null
+  total_pipeline_quantidade: number
+  total_pipeline_valor: string
+  quantidade_vendido: number
+  valor_vendido: string
+  quantidade_perdido: number
+  valor_perdido: string
+  taxa_conversao_real: number
+  ticket_medio: string
+  temperatura_media: number
+  meta_financeira_total_mes: string
+  meta_financeira_feita: string
+  meta_financeira_falta: string
+  meta_financeira_diaria: string
+  percentual_meta_financeira: number
+  supermeta_financeira_total_mes: string
+  supermeta_financeira_feita: string
+  supermeta_financeira_falta: string
+  supermeta_financeira_diaria: string
+  percentual_supermeta_financeira: number
+  novas_meta_total_mes: number
+  novas_meta_feita: number
+  novas_meta_falta: number
+  novas_meta_diaria: number
+  novas_progresso_meta: number
+  fase_proposta_quantidade: number
+  fase_proposta_valor: string
+  fase_pendencia_quantidade: number
+  fase_pendencia_valor: string
+  fase_negociacao_quantidade: number
+  fase_negociacao_valor: string
+  fase_conquistado_quantidade: number
+  fase_conquistado_valor: string
+  fase_nao_conquistado_quantidade: number
+  fase_nao_conquistado_valor: string
+  percentual_meta_mensal: number
+  created_at: string
+  updated_at: string
+}
+
 export interface CRM_Meta {
   id: number
   meta_valor_financeiro: number
@@ -839,6 +892,40 @@ export async function fetchVendedoresPerformance(opts?: { idData?: string }) {
   }
 
   return data as CRM_VendedorPerformance[]
+}
+
+export async function fetchRelatorioMensalVendedor(idUser: string, idData: string) {
+  if (!idUser || !idData) return null
+  const { data, error } = await (supabase as any)
+    .from('crm_relatorio_mensal_vendedor')
+    .select('*')
+    .eq('id_user', idUser)
+    .eq('id_data', idData)
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '42P01') return null
+    console.error('Erro ao buscar relatório mensal do vendedor:', error)
+    return null
+  }
+
+  return data as CRM_RelatorioMensalVendedor
+}
+
+export async function fetchRelatoriosMensais(idData: string) {
+  if (!idData) return []
+  const { data, error } = await (supabase as any)
+    .from('crm_relatorio_mensal_vendedor')
+    .select('*')
+    .eq('id_data', idData)
+
+  if (error) {
+    if (error.code === '42P01') return []
+    console.error('Erro ao buscar relatórios mensais:', error)
+    return []
+  }
+
+  return data as CRM_RelatorioMensalVendedor[]
 }
 
 /* ======================================================

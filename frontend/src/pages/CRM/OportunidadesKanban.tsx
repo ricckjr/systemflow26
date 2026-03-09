@@ -9,6 +9,7 @@ import {
   Clock,
   List,
   ArrowUpDown,
+  ArrowUpRight,
   Loader2,
   Trash2,
   Pencil,
@@ -16,7 +17,10 @@ import {
   Star,
   LogIn,
   Check,
-  Wrench
+  Wrench,
+  Upload,
+  FileText,
+  RefreshCcw
 } from 'lucide-react'
 import { supabase } from '@/services/supabase'
 import {
@@ -179,6 +183,17 @@ const formatDateTime = (dateString: string | null) => {
   const dt = new Date(dateString)
   if (Number.isNaN(dt.getTime())) return '-'
   return dt.toLocaleString('pt-BR', { hour12: false })
+}
+
+const formatFileSize = (bytes: number | null | undefined) => {
+  const n = typeof bytes === 'number' ? bytes : Number(bytes)
+  if (!Number.isFinite(n) || n <= 0) return '-'
+  const kb = n / 1024
+  if (kb < 1024) return `${kb.toFixed(kb < 10 ? 1 : 0)} KB`
+  const mb = kb / 1024
+  if (mb < 1024) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`
+  const gb = mb / 1024
+  return `${gb.toFixed(gb < 10 ? 1 : 0)} GB`
 }
 
 const formatMonthYear = (dateString: string | null) => {
@@ -497,7 +512,7 @@ export default function OportunidadesKanban() {
   const [draftItensTouched, setDraftItensTouched] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState('')
   const [tab, setTab] = useState<
-    'pagamento' | 'temperatura' | 'comentarios' | 'observacoes' | 'historicos' | 'producao'
+    'pagamento' | 'temperatura' | 'documentos_complementares' | 'atividades' | 'observacoes' | 'producao'
   >('pagamento')
   const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
   const draftItensTouchedRef = useRef(false)
@@ -584,6 +599,67 @@ export default function OportunidadesKanban() {
   const myUserId = (profile?.id || session?.user?.id || '').trim()
   const myUserName = (profile?.nome || '').trim()
   const { pushToast } = useToast()
+  const bucketDocsComplementares = 'crm-propostas-comerciais-docs'
+  const docsComplementaresInputRef = useRef<HTMLInputElement | null>(null)
+  const [docsComplementares, setDocsComplementares] = useState<
+    Array<{
+      name: string
+      path: string
+      createdAt: string | null
+      updatedAt: string | null
+      size: number | null
+      mimeType: string | null
+    }>
+  >([])
+  const [docsComplementaresLoading, setDocsComplementaresLoading] = useState(false)
+  const [docsComplementaresUploading, setDocsComplementaresUploading] = useState(false)
+  const [docsComplementaresError, setDocsComplementaresError] = useState<string | null>(null)
+
+  const loadDocsComplementares = useCallback(
+    async (oportunidadeIdOverride?: string | null) => {
+      const oportunidadeId = String(oportunidadeIdOverride ?? activeId ?? '').trim()
+      if (!oportunidadeId) {
+        setDocsComplementares([])
+        return
+      }
+      const dir = `${bucketDocsComplementares}/${oportunidadeId}`
+      setDocsComplementaresLoading(true)
+      setDocsComplementaresError(null)
+      try {
+        const r = await supabase.storage.from(bucketDocsComplementares).list(dir, {
+          limit: 100,
+          offset: 0,
+          sortBy: { column: 'created_at', order: 'desc' }
+        } as any)
+        if (r.error) throw r.error
+        const rows = (r.data || []).map((o: any) => {
+          const name = String(o?.name || '').trim()
+          const meta = (o?.metadata || {}) as any
+          return {
+            name: name || '-',
+            path: `${dir}/${name}`,
+            createdAt: o?.created_at ? String(o.created_at) : null,
+            updatedAt: o?.updated_at ? String(o.updated_at) : null,
+            size: typeof meta?.size === 'number' ? meta.size : null,
+            mimeType: typeof meta?.mimetype === 'string' ? meta.mimetype : null
+          }
+        })
+        setDocsComplementares(rows)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Falha ao carregar anexos.'
+        setDocsComplementaresError(msg)
+      } finally {
+        setDocsComplementaresLoading(false)
+      }
+    },
+    [activeId, bucketDocsComplementares]
+  )
+
+  useEffect(() => {
+    if (!formOpen) return
+    if (tab !== 'documentos_complementares') return
+    void loadDocsComplementares()
+  }, [formOpen, tab, loadDocsComplementares])
 
   const [formasPagamento, setFormasPagamento] = useState<FinFormaPagamento[]>([])
   const [condicoesPagamento, setCondicoesPagamento] = useState<FinCondicaoPagamento[]>([])
@@ -1869,8 +1945,7 @@ export default function OportunidadesKanban() {
   const canOpenEquipmentEntry = useMemo(() => {
     if (!activeId) return false
     const cod = String((equipmentInitialData as any)?.cod_proposta || '').trim()
-    const cliente = String((equipmentInitialData as any)?.cliente || '').trim()
-    return !!cod && !!cliente && !saving
+    return !!cod && !saving
   }, [activeId, equipmentInitialData, saving])
 
   useEffect(() => {
@@ -2706,7 +2781,7 @@ export default function OportunidadesKanban() {
   }, [comentarios])
 
   useEffect(() => {
-    if (!statusHistoryOpen && !(tab === 'historicos' && !!activeId)) return
+    if (!statusHistoryOpen) return
     const ids = Array.from(
       new Set(
         [
@@ -2738,7 +2813,7 @@ export default function OportunidadesKanban() {
     return () => {
       cancelled = true
     }
-  }, [statusHistoryOpen, tab, activeId, movementHistoryRows, atividades])
+  }, [statusHistoryOpen, movementHistoryRows, atividades])
 
   const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
     if (e.defaultPrevented) return
@@ -4021,6 +4096,40 @@ export default function OportunidadesKanban() {
                         >
                           Abrir
                         </button>
+                        <button
+                          type="button"
+                          disabled={!draftPedidoCompraPath.trim() || pedidoCompraUploading}
+                          onClick={async () => {
+                            const path = draftPedidoCompraPath.trim()
+                            if (!path) return
+                            if (!confirm('Excluir o arquivo do Pedido de Compra?')) return
+                            if (pedidoCompraUploading) return
+                            setPedidoCompraUploading(true)
+                            setPedidoCompraError(null)
+                            try {
+                              const r = await supabase.storage.from('crm-pedidos-compra').remove([path])
+                              if (r.error) throw r.error
+                              setDraftPedidoCompraPath('')
+                              const id = String(activeId || '').trim()
+                              if (id) {
+                                try {
+                                  await updateOportunidade(id, { pedido_compra_path: null } as any)
+                                } catch {}
+                              }
+                              pushToast({ kind: 'system', title: 'Documentos', message: 'Arquivo do Pedido de Compra excluído.' })
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : 'Falha ao excluir.'
+                              setPedidoCompraError(msg)
+                              setFormError(msg)
+                              pushToast({ kind: 'system', title: 'Documentos', message: msg })
+                            } finally {
+                              setPedidoCompraUploading(false)
+                            }
+                          }}
+                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 font-black text-sm disabled:opacity-50 transition-colors"
+                        >
+                          Excluir
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -4031,11 +4140,11 @@ export default function OportunidadesKanban() {
                 <HorizontalScrollArea className="w-full overflow-x-auto">
                   <div className="flex gap-2 pb-2">
                     {[
-                      { id: 'pagamento', label: 'Pagamento', editable: true },
+                      { id: 'pagamento', label: 'Pagamentos', editable: true },
                       { id: 'temperatura', label: 'Temperatura e Previsão', editable: true },
-                      { id: 'comentarios', label: 'Comentários', editable: true },
+                      { id: 'documentos_complementares', label: 'Documento Complementar', editable: true },
+                      { id: 'atividades', label: 'Atividades', editable: false },
                       { id: 'observacoes', label: 'Observações', editable: true },
-                      { id: 'historicos', label: 'Históricos', editable: false },
                       { id: 'producao', label: 'Produção', editable: false },
                     ].map((t) => (
                       <button
@@ -4347,6 +4456,10 @@ export default function OportunidadesKanban() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        const label = it.tipo === 'PRODUTO' ? 'Produto' : 'Serviço'
+                                        const nome = String(it.descricao || '').trim() || label
+                                        const ok = confirm(`Deseja mesmo excluir esse ${label} "${nome}"?`)
+                                        if (!ok) return
                                         markDraftItensTouched()
                                         setDraftItens((prev) => prev.filter((x) => x.localId !== it.localId))
                                       }}
@@ -4480,111 +4593,16 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
 
-                {tab === 'comentarios' && (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Comentários</div>
-                      <div className="mt-3 space-y-3">
-                        {(activeId ? comentarios : comentariosDraft).length === 0 ? (
-                          <div className="text-sm text-slate-400">Nenhum comentário.</div>
-                        ) : (
-                          (activeId ? comentarios : comentariosDraft).map((c: any) => (
-                            <div key={c.comentario_id || c.localId} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                              <div className="text-[11px] font-bold text-slate-400">
-                                {new Date(c.created_at || c.createdAt).toLocaleString('pt-BR')}
-                              </div>
-                              <div className="mt-2 text-sm text-slate-100 whitespace-pre-wrap">{c.comentario}</div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Adicionar Comentário</div>
-                      <textarea
-                        value={comentarioTexto}
-                        onChange={(e) => setComentarioTexto(e.target.value)}
-                        className="mt-3 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
-                        placeholder="Escreva um comentário..."
-                      />
-                      <div className="mt-3 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const text = comentarioTexto.trim()
-                            if (!text) return
-                            if (comentarioSaving) return
-                            setComentarioSaving(true)
-                            try {
-                              if (activeId) {
-                                await createOportunidadeComentario(activeId, text)
-                                const rows = await fetchOportunidadeComentarios(activeId)
-                                setComentarios(rows)
-                                const acts = await fetchOportunidadeAtividades(activeId)
-                                setAtividades(acts)
-                              } else {
-                                setComentariosDraft((prev) => [
-                                  ...prev,
-                                  { localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`, comentario: text, createdAt: new Date().toISOString() }
-                                ])
-                              }
-                              setComentarioTexto('')
-                            } finally {
-                              setComentarioSaving(false)
-                            }
-                          }}
-                          disabled={comentarioSaving || !comentarioTexto.trim()}
-                          className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
-                        >
-                          {comentarioSaving ? 'Adicionando...' : 'Adicionar'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tab === 'historicos' && (
+                {tab === 'atividades' && (
                   <div className="space-y-4">
                     {!activeId ? (
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                        Salve a proposta para começar o histórico de atividades.
+                        Salve a proposta para registrar e visualizar atividades.
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {movementHistoryRows.length > 0 ? (
-                          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                            <div className="text-xs font-black uppercase tracking-widest text-slate-300">Movimentos (Status/Fase)</div>
-                            <div className="mt-3 space-y-2">
-                              {movementHistoryRows.slice(0, 25).map((r) => (
-                                <div key={r.id} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                                  <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                      <div className="text-sm font-black text-slate-100">
-                                        {r.kind === 'STATUS' ? 'Status' : 'Fase'}
-                                      </div>
-                                      <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{r.detail}</div>
-                                      {r.comentario && r.comentario !== '-' ? (
-                                        <div className="mt-2 text-[11px] text-slate-400 whitespace-pre-wrap">{r.comentario}</div>
-                                      ) : null}
-                                    </div>
-                                    <div className="text-right whitespace-nowrap">
-                                      <div className="text-[11px] font-bold text-slate-400">
-                                        {r.when ? new Date(r.when).toLocaleString('pt-BR') : '-'}
-                                      </div>
-                                      <div className="text-[11px] text-slate-300">
-                                        {r.createdBy ? statusHistoryUserById[r.createdBy] || r.createdBy : '-'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-
+                      <>
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Histórico de Atividades</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Atividades</div>
                           <div className="mt-3 space-y-3">
                             {atividades.length === 0 ? (
                               <div className="text-sm text-slate-400">Nenhuma atividade registrada.</div>
@@ -4664,7 +4682,41 @@ export default function OportunidadesKanban() {
                             )}
                           </div>
                         </div>
-                      </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Adicionar Comentário</div>
+                          <textarea
+                            value={comentarioTexto}
+                            onChange={(e) => setComentarioTexto(e.target.value)}
+                            className="mt-3 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                            placeholder="Escreva um comentário..."
+                          />
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const text = comentarioTexto.trim()
+                                if (!text) return
+                                if (comentarioSaving) return
+                                if (!activeId) return
+                                setComentarioSaving(true)
+                                try {
+                                  await createOportunidadeComentario(activeId, text)
+                                  const acts = await fetchOportunidadeAtividades(activeId)
+                                  setAtividades(acts)
+                                  setComentarioTexto('')
+                                } finally {
+                                  setComentarioSaving(false)
+                                }
+                              }}
+                              disabled={comentarioSaving || !comentarioTexto.trim()}
+                              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                            >
+                              {comentarioSaving ? 'Adicionando...' : 'Adicionar'}
+                            </button>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -4716,6 +4768,167 @@ export default function OportunidadesKanban() {
                         placeholder="Observações do cliente..."
                       />
                     </div>
+                  </div>
+                )}
+
+                {tab === 'documentos_complementares' && (
+                  <div className="space-y-4">
+                    {!activeId ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                        Salve a proposta para anexar documentos complementares.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="text-xs font-black uppercase tracking-widest text-slate-300">Documento Complementar</div>
+                              <div className="mt-1 text-[11px] text-slate-400">Anexe PDFs, imagens e documentos relacionados à proposta</div>
+                            </div>
+                            <div className="shrink-0 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!activeId) return
+                                  docsComplementaresInputRef.current?.click()
+                                }}
+                                disabled={docsComplementaresUploading}
+                                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-xs disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+                              >
+                                <Upload size={14} />
+                                {docsComplementaresUploading ? 'Anexando...' : 'Anexar'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void loadDocsComplementares()}
+                                disabled={docsComplementaresLoading}
+                                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-xs disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+                              >
+                                <RefreshCcw size={14} className={docsComplementaresLoading ? 'animate-spin' : ''} />
+                                Atualizar
+                              </button>
+                            </div>
+                          </div>
+
+                          <input
+                            ref={docsComplementaresInputRef}
+                            type="file"
+                            className="hidden"
+                            multiple
+                            accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
+                            onChange={async (e) => {
+                              const files = Array.from(e.target.files || [])
+                              e.target.value = ''
+                              if (!activeId) return
+                              if (files.length === 0) return
+                              if (docsComplementaresUploading) return
+                              setDocsComplementaresUploading(true)
+                              setDocsComplementaresError(null)
+                              try {
+                                const id = String(activeId || '').trim()
+                                const dir = `${bucketDocsComplementares}/${id}`
+                                const userId = (myUserId || '').trim() || (await supabase.auth.getUser()).data.user?.id || ''
+                                if (!userId) throw new Error('Sessão não encontrada. Faça login novamente.')
+                                for (const file of files) {
+                                  const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_')
+                                  const path = `${dir}/${Date.now()}-${Math.random().toString(16).slice(2)}-${safeName}`
+                                  const r = await supabase.storage.from(bucketDocsComplementares).upload(path, file, {
+                                    upsert: false,
+                                    contentType: file.type || undefined
+                                  } as any)
+                                  if (r.error) throw r.error
+                                }
+                                pushToast({ kind: 'system', title: 'Anexos', message: 'Documento(s) anexado(s) com sucesso.' })
+                                await loadDocsComplementares(id)
+                              } catch (err) {
+                                const msg = err instanceof Error ? err.message : 'Falha ao anexar.'
+                                setDocsComplementaresError(msg)
+                                setFormError(msg)
+                              } finally {
+                                setDocsComplementaresUploading(false)
+                              }
+                            }}
+                          />
+
+                          {docsComplementaresError ? (
+                            <div className="mt-3 text-sm text-rose-200">{docsComplementaresError}</div>
+                          ) : null}
+                        </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Arquivos anexados</div>
+                          <div className="mt-3 space-y-2">
+                            {docsComplementaresLoading ? (
+                              <div className="text-sm text-slate-400 inline-flex items-center gap-2">
+                                <Loader2 className="animate-spin" size={14} />
+                                Carregando...
+                              </div>
+                            ) : docsComplementares.length === 0 ? (
+                              <div className="text-sm text-slate-400">Nenhum documento complementar anexado.</div>
+                            ) : (
+                              docsComplementares.map((d) => (
+                                <div key={d.path} className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <FileText size={14} className="text-slate-300 shrink-0" />
+                                        <div className="text-sm font-bold text-slate-100 truncate">{d.name}</div>
+                                      </div>
+                                      <div className="mt-1 text-[11px] text-slate-400">
+                                        {formatFileSize(d.size)} · {d.mimeType || 'arquivo'} · {formatDateTime(d.createdAt || d.updatedAt)}
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            const r = await supabase.storage.from(bucketDocsComplementares).createSignedUrl(d.path, 60 * 10)
+                                            if (r.error) throw r.error
+                                            const url = r.data?.signedUrl
+                                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                                          } catch (err) {
+                                            const msg = err instanceof Error ? err.message : 'Falha ao abrir.'
+                                            setDocsComplementaresError(msg)
+                                            pushToast({ kind: 'system', title: 'Anexos', message: msg })
+                                          }
+                                        }}
+                                        className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                                        title="Abrir"
+                                        aria-label="Abrir"
+                                      >
+                                        <ArrowUpRight size={16} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (!confirm('Remover este documento?')) return
+                                          try {
+                                            const r = await supabase.storage.from(bucketDocsComplementares).remove([d.path])
+                                            if (r.error) throw r.error
+                                            pushToast({ kind: 'system', title: 'Anexos', message: 'Documento removido.' })
+                                            await loadDocsComplementares()
+                                          } catch (err) {
+                                            const msg = err instanceof Error ? err.message : 'Falha ao remover.'
+                                            setDocsComplementaresError(msg)
+                                            pushToast({ kind: 'system', title: 'Anexos', message: msg })
+                                          }
+                                        }}
+                                        className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center"
+                                        title="Remover"
+                                        aria-label="Remover"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

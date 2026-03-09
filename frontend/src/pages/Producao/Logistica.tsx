@@ -66,6 +66,7 @@ const Logistica: React.FC = () => {
   const { usuarios } = useUsuarios()
   const [statuses, setStatuses] = useState<CRM_Status[]>([])
   const [oportunidades, setOportunidades] = useState<CRM_Oportunidade[]>([])
+  const [loadedOnce, setLoadedOnce] = useState(false)
   const [statusFilterInit, setStatusFilterInit] = useState(false)
   const [selectedStatusIds, setSelectedStatusIds] = useState<string[]>([])
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -98,6 +99,7 @@ const Logistica: React.FC = () => {
       setError(String(e?.message || 'Erro ao carregar dados.'))
     } finally {
       setLoading(false)
+      setLoadedOnce(true)
     }
   }
 
@@ -157,7 +159,12 @@ const Logistica: React.FC = () => {
 
   useEffect(() => {
     if (statusFilterInit) return
-    if (!statusOptions.length) return
+    if (!loadedOnce) return
+    if (statusOptions.length <= 1) {
+      setSelectedStatusIds(['__none__'])
+      setStatusFilterInit(true)
+      return
+    }
     const normDefaults = DEFAULT_STATUS_LABELS.map((s) => normalizeText(s))
     const found = statusOptions
       .filter((s) => s.id !== '__none__')
@@ -170,7 +177,7 @@ const Logistica: React.FC = () => {
       setSelectedStatusIds(statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id))
     }
     setStatusFilterInit(true)
-  }, [statusFilterInit, statusOptions])
+  }, [loadedOnce, statusFilterInit, statusOptions])
 
   const columns: ColumnDef[] = useMemo(() => {
     const selected = new Set(selectedStatusIds)
@@ -331,7 +338,10 @@ const Logistica: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedStatusIds(statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id))}
+              onClick={() => {
+                const all = statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id)
+                setSelectedStatusIds(all.length ? all : ['__none__'])
+              }}
               className="h-9 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors text-sm font-bold"
             >
               Todos
@@ -349,6 +359,23 @@ const Logistica: React.FC = () => {
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div ref={boardRef} className="flex-1 min-h-0 flex gap-4 overflow-x-auto pb-16 custom-scrollbar">
+          {!columns.length ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="max-w-xl w-full rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-amber-100 flex items-start gap-3">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-black">Kanban sem colunas</div>
+                  <div className="mt-1 text-xs text-amber-100/80">
+                    {loading
+                      ? 'Carregando status do CRM...'
+                      : statuses.length
+                        ? 'Nenhum status selecionado para exibir.'
+                        : 'Não foi possível carregar os status do CRM. Verifique o cadastro de CRM Status e as permissões do usuário.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {columns.map((col) => {
             const items = cardsByColumn[col.id] || []
             const theme = getColumnTheme(col.label)

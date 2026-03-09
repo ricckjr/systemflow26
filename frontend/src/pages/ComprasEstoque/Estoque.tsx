@@ -588,16 +588,37 @@ const Estoque: React.FC = () => {
 
   useEffect(() => {
     if (!isCreateOpen || !isNcmOpen) return
-    const term = ncmSearch.trim()
+    const termRaw = ncmSearch.trim()
+    const escaped = termRaw.replace(/,/g, ' ')
+    const digits = escaped.replace(/\D/g, '')
 
     const handle = setTimeout(async () => {
       setNcmLoading(true)
       try {
-        const query = supabase.from('ncm').select('ncm_id,codigo,descricao').order('codigo', { ascending: true }).limit(50)
-        const { data, error: qError } =
-          term.length === 0
-            ? await query
-            : await query.or(`codigo.ilike.%${term}%,descricao.ilike.%${term}%`)
+        if (digits.length === 8) {
+          const { data, error: qError } = await supabase
+            .from('ncm')
+            .select('ncm_id,codigo,descricao')
+            .eq('ncm_id', digits)
+            .limit(1)
+
+          if (qError) throw qError
+          if ((data || []).length > 0) {
+            setNcmOptions(((data || []) as any[]).map((row) => ({ ncm_id: row.ncm_id, codigo: row.codigo, descricao: row.descricao })))
+            return
+          }
+        }
+
+        const query = supabase.from('ncm').select('ncm_id,codigo,descricao').order('codigo', { ascending: true }).limit(80)
+        const orParts: string[] = []
+        if (escaped) {
+          orParts.push(`codigo.ilike.%${escaped}%`, `descricao.ilike.%${escaped}%`)
+        }
+        if (digits && digits !== escaped) {
+          orParts.push(`ncm_id.ilike.%${digits}%`, `codigo.ilike.%${digits}%`)
+        }
+
+        const { data, error: qError } = orParts.length > 0 ? await query.or(orParts.join(',')) : await query
 
         if (qError) throw qError
         setNcmOptions(((data || []) as any[]).map((row) => ({ ncm_id: row.ncm_id, codigo: row.codigo, descricao: row.descricao })))
@@ -1642,7 +1663,7 @@ const Estoque: React.FC = () => {
                               <input
                                 value={ncmSearch}
                                 onChange={(e) => setNcmSearch(e.target.value)}
-                                placeholder="Buscar por código, descrição ou finalidade..."
+                                placeholder="Buscar por código ou descrição..."
                                 className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-black/20 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
                               />
                             </div>
@@ -1659,13 +1680,13 @@ const Estoque: React.FC = () => {
                                   type="button"
                                   key={opt.ncm_id}
                                   onClick={() => {
-                                    setDraftNcmCodigo(opt.codigo)
+                                    setDraftNcmCodigo(formatNcmCodigo(opt.ncm_id) || opt.codigo)
                                     setDraftNcmId(opt.ncm_id)
                                     setIsNcmOpen(false)
                                   }}
                                   className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
                                 >
-                                  <div className="text-sm font-mono text-slate-200">{opt.codigo}</div>
+                                  <div className="text-sm font-mono text-slate-200">{formatNcmCodigo(opt.ncm_id) || opt.codigo}</div>
                                   <div className="text-xs text-slate-400">{opt.descricao}</div>
                                 </button>
                               ))

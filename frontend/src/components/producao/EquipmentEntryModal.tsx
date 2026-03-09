@@ -31,6 +31,9 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const uploadingRef = React.useRef(false)
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   
   const [formData, setFormData] = useState<Partial<ServicEquipamento>>({
     cod_proposta: '',
@@ -64,6 +67,29 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
     }
   }, [initialData])
 
+  const uploadFiles = React.useCallback(async (files: File[]) => {
+    const list = (files || []).filter((f) => f && String(f.type || '').startsWith('image/'))
+    if (!list.length) return
+    if (uploadingRef.current) return
+    uploadingRef.current = true
+    setErrorMessage(null)
+    setUploading(true)
+    try {
+      const urls = await Promise.all(list.map((file) => uploadImage(file)))
+      setFormData((prev) => ({
+        ...prev,
+        imagens: [...(prev.imagens || []), ...urls]
+      }))
+    } catch (error) {
+      console.error('Erro ao fazer upload', error)
+      setErrorMessage('Erro ao fazer upload da imagem.')
+    } finally {
+      setUploading(false)
+      uploadingRef.current = false
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [uploadImage])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     if (type === 'checkbox') {
@@ -76,21 +102,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return
-    setErrorMessage(null)
-    setUploading(true)
-    try {
-      const files = Array.from(e.target.files)
-      const urls = await Promise.all(files.map(file => uploadImage(file)))
-      setFormData(prev => ({
-        ...prev,
-        imagens: [...(prev.imagens || []), ...urls]
-      }))
-    } catch (error) {
-      console.error('Erro ao fazer upload', error)
-      setErrorMessage('Erro ao fazer upload da imagem.')
-    } finally {
-      setUploading(false)
-    }
+    void uploadFiles(Array.from(e.target.files))
   }
 
   const removeImage = (index: number) => {
@@ -99,6 +111,25 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       imagens: prev.imagens?.filter((_, i) => i !== index)
     }))
   }
+
+  React.useEffect(() => {
+    if (!isOpen) return
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items?.length) return
+      const files: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.kind !== 'file') continue
+        const f = item.getAsFile()
+        if (f && String(f.type || '').startsWith('image/')) files.push(f)
+      }
+      if (!files.length) return
+      e.preventDefault()
+      void uploadFiles(files)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [isOpen, uploadFiles])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -299,8 +330,38 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
             <label className="inline-flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:border-[var(--primary)]/30 hover:bg-[var(--bg-body)] transition-colors cursor-pointer">
               {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
               <span className="text-xs font-bold">Adicionar</span>
-              <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+              <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
             </label>
+          </div>
+
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragEnter={(e) => {
+              e.preventDefault()
+              if (!uploading) setDragActive(true)
+            }}
+            onDragOver={(e) => {
+              e.preventDefault()
+              if (!uploading) setDragActive(true)
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault()
+              setDragActive(false)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragActive(false)
+              if (uploading) return
+              const files = Array.from(e.dataTransfer?.files || [])
+              void uploadFiles(files)
+            }}
+            className={`mb-3 rounded-xl border border-dashed px-4 py-3 text-sm transition-colors cursor-pointer select-none ${
+              dragActive
+                ? 'border-[var(--primary)]/50 bg-[var(--primary)]/10 text-[var(--text-main)]'
+                : 'border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-muted)] hover:border-[var(--primary)]/30'
+            }`}
+          >
+            Arraste e solte a imagem aqui, clique para selecionar, ou cole com Ctrl+V.
           </div>
 
           {formData.imagens?.length ? (

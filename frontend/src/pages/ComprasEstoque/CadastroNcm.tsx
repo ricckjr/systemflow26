@@ -30,6 +30,7 @@ export default function CadastroNcm() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
@@ -46,7 +47,9 @@ export default function CadastroNcm() {
     setError(null)
     try {
       const offset = (page - 1) * PAGE_SIZE
-      const term = search.trim()
+      const termRaw = debouncedSearch.trim()
+      const escaped = termRaw.replace(/,/g, ' ')
+      const digits = escaped.replace(/\D/g, '')
 
       let query = supabase
         .from('ncm')
@@ -54,11 +57,13 @@ export default function CadastroNcm() {
         .order('codigo', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
 
-      if (term) {
-        const escaped = term.replace(/,/g, ' ')
-        query = query.or(
-          `codigo.ilike.%${escaped}%,descricao.ilike.%${escaped}%`
-        )
+      if (escaped) {
+        const orParts: string[] = [`codigo.ilike.%${escaped}%`, `descricao.ilike.%${escaped}%`]
+        if (digits) {
+          orParts.push(digits.length === 8 ? `ncm_id.eq.${digits}` : `ncm_id.ilike.%${digits}%`)
+          if (digits !== escaped) orParts.push(`codigo.ilike.%${digits}%`)
+        }
+        query = query.or(orParts.join(','))
       }
 
       const { data, error: qError, count } = await query
@@ -73,15 +78,20 @@ export default function CadastroNcm() {
     } finally {
       setLoading(false)
     }
-  }, [page, search])
+  }, [page, debouncedSearch])
 
   useEffect(() => {
     load()
   }, [load])
 
   useEffect(() => {
-    setPage(1)
+    const handle = setTimeout(() => setDebouncedSearch(search), 250)
+    return () => clearTimeout(handle)
   }, [search])
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
 
   const handleCreate = async () => {
     const digits = toDigits8(novoCodigo)
@@ -143,6 +153,9 @@ export default function CadastroNcm() {
               placeholder="Buscar por código ou descrição..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
             />
+            <div className="mt-1 text-[10px] text-slate-500 font-mono">
+              Sem máscara: {search.trim() ? (search.replace(/\D/g, '') || '-') : '-'}
+            </div>
           </div>
 
           <div className="shrink-0 text-xs text-[var(--text-muted)]">

@@ -298,6 +298,7 @@ export const router = createBrowserRouter([
         )
       },
 
+      { path: 'producao', element: <Navigate to="/app/producao/logistica" replace /> },
       { path: 'producao/omie', element: <Navigate to="/app/producao/propostas" replace /> },
       { path: 'producao/servicos-vendas', element: <Navigate to="/app/producao/propostas" replace /> },
       {

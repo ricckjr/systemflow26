@@ -24,6 +24,8 @@ export function FeedVendasMes() {
   const listRef = useRef<HTMLDivElement>(null)
   const sb = supabase as any
 
+  const currency = useMemo(() => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }), [])
+
   const somVendaUrl = useMemo(() => {
     return new URL('../../assets/sounds/som_venda.mp3', import.meta.url).href
   }, [])
@@ -57,6 +59,14 @@ export function FeedVendasMes() {
       data_conquistado: dataConquistado,
       is_new: false
     }
+  }
+
+  const initials = (name: string) => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+    const a = parts[0]?.[0] || ''
+    const b = parts.length > 1 ? (parts[parts.length - 1]?.[0] || '') : (parts[0]?.[1] || '')
+    const out = `${a}${b}`.trim().toUpperCase()
+    return out || '—'
   }
 
   const safeDate = (iso: string) => {
@@ -172,31 +182,39 @@ export function FeedVendasMes() {
   }
 
   return (
-    <div className="bg-[var(--bg-panel)] rounded-lg shadow-sm border border-[var(--border)] flex flex-col h-full min-h-[400px]">
-      <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-emerald-500/5 to-transparent rounded-t-lg">
-        <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-lg shadow-sm border border-emerald-500/20">
-                <Zap className="w-5 h-5 text-emerald-500" />
+    <div className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--shadow-card)] border border-[var(--border)] flex flex-col h-full">
+      <div className="px-5 py-4 border-b border-[var(--border)] flex items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent rounded-t-2xl">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+            <Zap className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-black text-[var(--text-main)] text-base sm:text-lg tracking-tight truncate">Feed de Vendas</h2>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <p className="text-[10px] sm:text-xs text-emerald-300/90 font-bold uppercase tracking-wider">Tempo real • Mês atual</p>
             </div>
-            <div>
-                <h2 className="font-bold text-[var(--text-main)] text-lg">Feed de Vendas</h2>
-                <div className="flex items-center gap-1.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <p className="text-xs text-emerald-500 font-medium uppercase tracking-wide">Tempo Real • Mês Atual</p>
-                </div>
-            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--text-soft)]">
+            Últimas 20
+          </span>
+          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+            Conquistado
+          </span>
         </div>
       </div>
 
-      <div className="h-[360px] overflow-y-auto p-4 space-y-3 custom-scrollbar" ref={listRef}>
+      <div className="h-[360px] sm:h-[420px] overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar" ref={listRef}>
         {loadError ? (
-          <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-80 min-h-[200px] text-center">
+          <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-90 min-h-[200px] text-center">
             <Trophy className="w-10 h-10 mb-3 opacity-40" />
-            <p className="text-sm font-semibold text-[var(--text-main)]">Falha ao carregar o feed</p>
-            <p className="text-xs mt-1 max-w-[320px]">{loadError}</p>
+            <p className="text-sm font-black text-[var(--text-main)] tracking-tight">Falha ao carregar o feed</p>
+            <p className="text-xs mt-1 max-w-[340px] text-[var(--text-soft)]">{loadError}</p>
             <button
               type="button"
               onClick={() => fetchVendasIniciais()}
@@ -206,81 +224,94 @@ export function FeedVendasMes() {
             </button>
           </div>
         ) : vendas.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-60 min-h-[200px]">
-                <Trophy className="w-12 h-12 mb-3 opacity-50" />
-                <p className="text-sm font-medium">Nenhuma venda registrada este mês</p>
-            </div>
+          <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-70 min-h-[200px] text-center">
+            <Trophy className="w-12 h-12 mb-3 opacity-40" />
+            <p className="text-sm font-semibold text-[var(--text-main)]">Nenhuma venda registrada este mês</p>
+            <p className="text-xs mt-1 text-[var(--text-soft)]">Quando uma venda entrar, ela aparece aqui automaticamente.</p>
+          </div>
         ) : (
             vendas.map((venda) => (
                 <div 
                     key={venda.id}
-                    className={`
-                        relative overflow-hidden rounded-xl border p-4 transition-all duration-500 ease-out group
-                        ${venda.is_new 
-                            ? 'bg-emerald-500/10 border-emerald-500/30 shadow-md translate-x-1 animate-in fade-in slide-in-from-right-4' 
-                            : 'bg-[var(--bg-body)] border-[var(--border)] hover:border-emerald-500/30 hover:shadow-md hover:-translate-y-0.5'
-                        }
-                    `}
+                    className={[
+                      'relative overflow-hidden rounded-2xl border transition-all duration-300 ease-out group',
+                      'p-4 sm:p-4.5',
+                      venda.is_new
+                        ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[var(--shadow-soft)]'
+                        : 'bg-[var(--bg-panel)] border-[var(--border)] hover:border-white/15 hover:bg-[var(--bg-panel)]/80'
+                    ].join(' ')}
                 >
-                    {/* Visual Highlight for new items */}
                     {venda.is_new && (
-                        <div className="absolute top-0 right-0 px-3 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded-bl-xl shadow-sm z-10 flex items-center gap-1">
-                            <Trophy className="w-3 h-3" />
-                            NOVA VENDA!
+                      <>
+                        <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/80" />
+                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-500 text-white text-[10px] font-black rounded-full shadow-sm z-10 flex items-center gap-1">
+                          <Trophy className="w-3 h-3" />
+                          NOVA
                         </div>
+                      </>
                     )}
 
-                    <div className="flex justify-between items-start mb-3 relative z-0">
-                        <div className="flex items-center gap-3">
-                            <div className={`relative w-10 h-10 min-w-[2.5rem] rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold text-sm shadow-sm border border-emerald-500/20 overflow-hidden`}>
-                                {venda.vendedor_avatar_url ? (
-                                    <div className="w-full h-full relative">
-                                        <img 
-                                            src={venda.vendedor_avatar_url} 
-                                            alt={venda.vendedor} 
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                target.style.display = 'none';
-                                                // Find the fallback div which is the next sibling
-                                                const fallback = target.nextElementSibling;
-                                                if (fallback) fallback.classList.remove('hidden');
-                                            }}
-                                        />
-                                        <div className="hidden absolute inset-0 flex items-center justify-center bg-emerald-500/10 text-emerald-500 w-full h-full">
-                                            {venda.vendedor.substring(0, 2).toUpperCase()}
-                                        </div>
-                                   </div>
-                                ) : (
-                                    <span>{venda.vendedor.substring(0, 2).toUpperCase()}</span>
-                                )}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative w-11 h-11 min-w-[2.75rem] rounded-full overflow-hidden border border-white/10 bg-emerald-500/10 shadow-sm">
+                          {venda.vendedor_avatar_url ? (
+                            <>
+                              <img
+                                src={venda.vendedor_avatar_url}
+                                alt={venda.vendedor}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                  const fallback = target.nextElementSibling
+                                  if (fallback) fallback.classList.remove('hidden')
+                                }}
+                              />
+                              <div className="hidden absolute inset-0 flex items-center justify-center text-emerald-200 font-black text-xs bg-emerald-500/10">
+                                {initials(venda.vendedor)}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-emerald-200 font-black text-xs bg-emerald-500/10">
+                              {initials(venda.vendedor)}
                             </div>
-                            <div>
-                                <h3 className="font-bold text-[var(--text-main)] text-base leading-tight group-hover:text-emerald-500 transition-colors">
-                                    {venda.vendedor}
-                                </h3>
-                                <div className="flex items-center gap-1.5 text-xs text-[var(--text-soft)] mt-0.5">
-                                    <User className="w-3 h-3" />
-                                    <span>{venda.cliente}</span>
-                                </div>
-                            </div>
+                          )}
                         </div>
-                        <div className="text-right pl-2">
-                             <span className="block font-bold text-emerald-500 text-base">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(venda.valor)}
-                             </span>
-                             <div className="flex items-center justify-end gap-1 text-xs text-[var(--text-muted)] mt-1">
-                                <CalendarDays className="w-3 h-3" />
-                                <span>{safeDate(venda.data_conquistado)}</span>
-                             </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h3 className="font-black text-[var(--text-main)] text-base leading-tight tracking-tight truncate">
+                              {venda.vendedor}
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-[var(--text-soft)] mt-1 min-w-0">
+                            <User className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                            <span className="truncate">{venda.cliente}</span>
+                          </div>
                         </div>
+                      </div>
+
+                      <div className="flex sm:flex-col sm:items-end justify-between sm:justify-start gap-2">
+                        <span className="font-black text-emerald-300 text-sm sm:text-base tabular-nums">
+                          {currency.format(venda.valor)}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          <span className="font-semibold">{safeDate(venda.data_conquistado)}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-dashed border-[var(--border)]">
+                    <div className="mt-3 pt-3 border-t border-dashed border-white/10 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <Briefcase className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                        <span className="text-xs text-[var(--text-soft)] font-medium truncate w-full" title={venda.produto}>
-                            {venda.produto}
+                        <span className="text-xs font-bold text-[var(--text-soft)] truncate" title={venda.produto}>
+                          {venda.produto}
                         </span>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--text-muted)]">
+                        CONQUISTA
+                      </span>
                     </div>
                 </div>
             ))

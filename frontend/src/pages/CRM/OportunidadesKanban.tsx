@@ -5646,9 +5646,11 @@ export default function OportunidadesKanban() {
                       .replace(/[\u0300-\u036f]/g, '')
                       .trim()
                       .toUpperCase()
-                  const statusPerdido = statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDO')
+                  const statusPerdido =
+                    statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDA') ||
+                    statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDO')
                   if (!statusPerdido?.status_id) {
-                    setLostError('Nenhum status "PERDIDO" encontrado em CRM > Configs > Status.')
+                    setLostError('Nenhum status "PERDIDA" (ou "PERDIDO") encontrado em CRM > Configs > Status.')
                     return
                   }
                   const faseNaoConquistado =

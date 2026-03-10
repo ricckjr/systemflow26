@@ -1,166 +1,149 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { supabase } from '@/services/supabase';
-import { startOfMonth, endOfMonth, parseISO, format, isWithinInterval } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Trophy, DollarSign, User, Briefcase, CalendarDays, Zap } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { supabase } from '@/services/supabase'
+import { endOfMonth, format, isWithinInterval, parseISO, startOfMonth } from 'date-fns'
+import { Briefcase, CalendarDays, Trophy, User, Zap } from 'lucide-react'
 
-const FASE_CONQUISTADO_ID = '88a8b9bb-30db-4eb7-a351-182daeeb0f02';
+const FASE_CONQUISTADO_ID = '88a8b9bb-30db-4eb7-a351-182daeeb0f02'
 
 type Venda = {
-  id: string;
-  cliente: string;
-  vendedor: string;
-  vendedor_avatar_url?: string | null;
-  produto: string;
-  valor: number;
-  data_conquistado: string;
-  is_new?: boolean;
-};
+  id: string
+  cliente: string
+  vendedor: string
+  vendedor_avatar_url?: string | null
+  produto: string
+  valor: number
+  data_conquistado: string
+  is_new?: boolean
+}
 
 export function FeedVendasMes() {
-  const [vendas, setVendas] = useState<Venda[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [vendas, setVendas] = useState<Venda[]>([])
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const sb = supabase as any
 
-  // Load sound
+  const somVendaUrl = useMemo(() => {
+    return new URL('../../assets/sounds/som_venda.mp3', import.meta.url).href
+  }, [])
+
+  const toVenda = (row: any): Venda | null => {
+    const id = String(row?.id_oport || row?.id_oportunidade || row?.id || '').trim()
+    const dataConquistado = String(row?.data_conquistado || '').trim()
+    if (!id || !dataConquistado) return null
+
+    const vendedor = String(row?.vendedor_nome || row?.vendedor || 'Vendedor não identificado').trim() || 'Vendedor não identificado'
+    const cliente = String(row?.cliente_nome || row?.cliente || 'Cliente não identificado').trim() || 'Cliente não identificado'
+    const solucao = String(row?.solucao || '').trim().toUpperCase()
+    const produto = solucao === 'PRODUTO' ? 'Produto' : solucao === 'SERVICO' ? 'Serviço' : 'Produto/Serviço'
+    const valor = Number(row?.ticket_valor || row?.valor_proposta || 0)
+
+    return {
+      id,
+      cliente,
+      vendedor,
+      vendedor_avatar_url: row?.vendedor_avatar_url ?? row?.avatar_url ?? null,
+      produto,
+      valor: Number.isFinite(valor) ? valor : 0,
+      data_conquistado: dataConquistado,
+      is_new: false
+    }
+  }
+
   useEffect(() => {
-    audioRef.current = new Audio('/src/assets/sounds/som_venda.mp3');
-  }, []);
+    audioRef.current = new Audio(somVendaUrl)
+  }, [somVendaUrl])
 
-  // Initial Fetch
   useEffect(() => {
-    fetchVendasIniciais();
-  }, []);
+    fetchVendasIniciais()
+  }, [])
 
-  // Realtime Subscription
   useEffect(() => {
     const channel = supabase
       .channel('feed-vendas-realtime')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to INSERT and UPDATE
+          event: '*',
           schema: 'public',
           table: 'crm_oportunidades',
         },
         async (payload) => {
-          const newRec = payload.new as any;
+          const newRec = payload.new as any
           
-          // Check if it matches criteria: Conquered AND has date AND is current month
           if (
-            newRec.id_fase === FASE_CONQUISTADO_ID &&
-            newRec.data_conquistado
+            String(newRec?.id_fase || '').trim() === FASE_CONQUISTADO_ID &&
+            String(newRec?.data_conquistado || '').trim()
           ) {
-             const dataConquistado = parseISO(newRec.data_conquistado);
-             const now = new Date();
-             const start = startOfMonth(now);
-             const end = endOfMonth(now);
+            const now = new Date()
+            const start = startOfMonth(now)
+            const end = endOfMonth(now)
+            const parsed = (() => {
+              try {
+                return parseISO(newRec.data_conquistado)
+              } catch {
+                return null
+              }
+            })()
 
-             // Must be within current month
-             if (isWithinInterval(dataConquistado, { start, end })) {
-                // Fetch full details
-                const fullData = await fetchFullVendaDetails(newRec.id_oport);
-                
-                if (fullData) {
-                    setVendas((prev) => {
-                        const exists = prev.find(v => v.id === fullData.id);
-                        if (exists) {
-                            // Update existing
-                            return prev.map(v => v.id === fullData.id ? fullData : v)
-                                       .sort((a, b) => new Date(b.data_conquistado).getTime() - new Date(a.data_conquistado).getTime());
-                        } else {
-                            // New to the list! Play sound.
-                            playSound();
-                            // Add with highlight flag
-                            const newList = [{ ...fullData, is_new: true }, ...prev]
-                                   .sort((a, b) => new Date(b.data_conquistado).getTime() - new Date(a.data_conquistado).getTime())
-                                   .slice(0, 20);
-                            return newList;
-                        }
-                    });
-                }
-             }
+            if (parsed && isWithinInterval(parsed, { start, end })) {
+              const venda = toVenda(newRec)
+              if (!venda) return
+
+              setVendas((prev) => {
+                const exists = prev.some((v) => v.id === venda.id)
+                if (!exists) playSound()
+
+                const next = [
+                  { ...venda, is_new: !exists },
+                  ...prev.filter((v) => v.id !== venda.id).map((v) => ({ ...v, is_new: false }))
+                ]
+                  .sort((a, b) => new Date(b.data_conquistado).getTime() - new Date(a.data_conquistado).getTime())
+                  .slice(0, 20)
+
+                return next
+              })
+            }
           }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const playSound = () => {
     if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.error("Error playing sound:", e));
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(() => null)
     }
-  };
-
-  const fetchFullVendaDetails = async (id: string): Promise<Venda | null> => {
-      const { data, error } = await supabase
-        .from('crm_oportunidades')
-        .select('*')
-        .eq('id_oport', id)
-        .single();
-      
-      if (error || !data) return null;
-
-      let produtoNome = data.solucao === 'PRODUTO' ? 'Produto' : (data.solucao === 'SERVICO' ? 'Serviço' : 'Produto/Serviço');
-      
-      // Removed specific product fetching as requested by user
-
-      return {
-          id: data.id_oport,
-          cliente: data.cliente_nome || 'Cliente não identificado',
-          vendedor: data.vendedor_nome || 'Vendedor não identificado',
-          vendedor_avatar_url: data.vendedor_avatar_url,
-          produto: produtoNome,
-          valor: Number(data.ticket_valor || data.valor_proposta || 0),
-          data_conquistado: data.data_conquistado,
-          is_new: false
-      };
-  };
+  }
 
   const fetchVendasIniciais = async () => {
-    const now = new Date();
-    const start = startOfMonth(now).toISOString();
-    const end = endOfMonth(now).toISOString();
+    const now = new Date()
+    const start = startOfMonth(now).toISOString()
+    const end = endOfMonth(now).toISOString()
 
-    const { data, error } = await supabase
-        .from('crm_oportunidades')
-        .select('*')
-        .eq('id_fase', FASE_CONQUISTADO_ID)
-        .gte('data_conquistado', start)
-        .lte('data_conquistado', end)
-        .order('data_conquistado', { ascending: false })
-        .limit(20);
+    const { data, error } = await sb
+      .from('crm_oportunidades')
+      .select('id_oport, id_fase, data_conquistado, ticket_valor, valor_proposta, solucao, cliente_nome, vendedor_nome, vendedor_avatar_url, cliente, vendedor')
+      .eq('id_fase', FASE_CONQUISTADO_ID)
+      .gte('data_conquistado', start)
+      .lte('data_conquistado', end)
+      .order('data_conquistado', { ascending: false })
+      .limit(20)
 
     if (error) {
-        console.error('Erro ao buscar vendas iniciais:', error);
-        return;
+      return
     }
 
-    // Enhance data with product names
-    const enrichedData = await Promise.all(data.map(async (row: any) => {
-         let produtoNome = row.solucao === 'PRODUTO' ? 'Produto' : (row.solucao === 'SERVICO' ? 'Serviço' : 'Produto/Serviço');
-         
-         // Removed specific product fetching as requested by user
+    const list = (data || [])
+      .map((row: any) => toVenda(row))
+      .filter(Boolean) as Venda[]
 
-        return {
-            id: row.id_oport,
-            cliente: row.cliente_nome || 'Cliente não identificado',
-            vendedor: row.vendedor_nome || 'Vendedor não identificado',
-            vendedor_avatar_url: row.vendedor_avatar_url,
-            produto: produtoNome,
-            valor: Number(row.ticket_valor || row.valor_proposta || 0),
-            data_conquistado: row.data_conquistado,
-            is_new: false
-        };
-    }));
-
-    setVendas(enrichedData);
-  };
+    setVendas(list)
+  }
 
   return (
     <div className="bg-[var(--bg-panel)] rounded-lg shadow-sm border border-[var(--border)] flex flex-col h-full min-h-[400px]">
@@ -234,7 +217,7 @@ export function FeedVendasMes() {
                                 )}
                             </div>
                             <div>
-                                <h3 className="font-bold text-[var(--text-main)] text-sm leading-tight group-hover:text-emerald-500 transition-colors">
+                                <h3 className="font-bold text-[var(--text-main)] text-base leading-tight group-hover:text-emerald-500 transition-colors">
                                     {venda.vendedor}
                                 </h3>
                                 <div className="flex items-center gap-1.5 text-xs text-[var(--text-soft)] mt-0.5">

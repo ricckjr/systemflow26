@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/services/supabase';
 import { startOfMonth, endOfMonth, parseISO, format, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Trophy, DollarSign, User, Briefcase, CalendarDays, Activity } from 'lucide-react';
+import { Trophy, DollarSign, User, Briefcase, CalendarDays, Zap } from 'lucide-react';
 
 const FASE_CONQUISTADO_ID = '88a8b9bb-30db-4eb7-a351-182daeeb0f02';
 
@@ -167,7 +167,7 @@ export function FeedVendasMes() {
       <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-emerald-500/5 to-transparent rounded-t-lg">
         <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 rounded-lg shadow-sm border border-emerald-500/20">
-                <Activity className="w-5 h-5 text-emerald-500" />
+                <Zap className="w-5 h-5 text-emerald-500" />
             </div>
             <div>
                 <h2 className="font-bold text-[var(--text-main)] text-lg">Feed de Vendas</h2>

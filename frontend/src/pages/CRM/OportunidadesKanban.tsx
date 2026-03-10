@@ -112,6 +112,9 @@ const normalizeWheelDelta = (delta: number, deltaMode: number, target: HTMLEleme
   return delta
 }
 
+const HIDDEN_STATUS_IDS_IN_ANDAMENTO = new Set(['c684a1c0-83ea-4b78-be4f-416cafa282c8'])
+const HIDDEN_FASE_IDS_IN_ANDAMENTO = new Set(['88a8b9bb-30db-4eb7-a351-182daeeb0f02', '8491b5a4-9c86-48f0-9d3c-6dc1fe285caa'])
+
 const FALLBACK_STAGES: Stage[] = [
   { id: 'Lead', label: 'Lead', ordem: 10, cor: '#94a3b8' },
   { id: 'Prospecção', label: 'Prospecção', ordem: 20, cor: '#60a5fa' },
@@ -596,6 +599,16 @@ export default function OportunidadesKanban() {
   const [draftDescontoPropostaPercent, setDraftDescontoPropostaPercent] = useState('0')
   const [draftTipoFrete, setDraftTipoFrete] = useState<'FOB' | 'CIF' | ''>('')
   const [draftValidadeProposta, setDraftValidadeProposta] = useState('')
+  const [draftRemetenteCompleto, setDraftRemetenteCompleto] = useState('')
+  const [draftDestinatarioCompleto, setDraftDestinatarioCompleto] = useState('')
+  const [draftNumeroNotaFiscal, setDraftNumeroNotaFiscal] = useState('')
+  const [draftValorNotaFiscal, setDraftValorNotaFiscal] = useState('')
+  const [draftMaterial, setDraftMaterial] = useState('')
+  const [draftQuantidadeVolumes, setDraftQuantidadeVolumes] = useState('')
+  const [draftEspecie, setDraftEspecie] = useState('')
+  const [draftPeso, setDraftPeso] = useState('')
+  const [draftMedidas, setDraftMedidas] = useState('')
+  const [draftTransportadora, setDraftTransportadora] = useState('')
   const [draftProdutoId, setDraftProdutoId] = useState('')
   const [draftServicoId, setDraftServicoId] = useState('')
   const [draftObs, setDraftObs] = useState('')
@@ -609,7 +622,7 @@ export default function OportunidadesKanban() {
   const [draftItensTouched, setDraftItensTouched] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState('')
   const [tab, setTab] = useState<
-    'pagamento' | 'temperatura' | 'documentos_complementares' | 'atividades' | 'observacoes' | 'producao'
+    'pagamento' | 'transportadora' | 'temperatura' | 'documentos_complementares' | 'atividades' | 'observacoes' | 'producao'
   >('pagamento')
   const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
   const draftItensTouchedRef = useRef(false)
@@ -1074,6 +1087,16 @@ export default function OportunidadesKanban() {
         const base = active.data_inclusao ?? (active as any).criado_em ?? null
         setDraftValidadeProposta(raw ? String(raw).slice(0, 10) : addDaysToDateInput(base, 15))
       }
+      setDraftRemetenteCompleto(String((active as any).remetente_completo || '').trim())
+      setDraftDestinatarioCompleto(String((active as any).destinatario_completo || '').trim())
+      setDraftNumeroNotaFiscal(String((active as any).numero_nota_fiscal || '').trim())
+      setDraftValorNotaFiscal((active as any).valor_nota_fiscal === null || (active as any).valor_nota_fiscal === undefined ? '' : String((active as any).valor_nota_fiscal))
+      setDraftMaterial(String((active as any).material || '').trim())
+      setDraftQuantidadeVolumes((active as any).quantidade_volumes === null || (active as any).quantidade_volumes === undefined ? '' : String((active as any).quantidade_volumes))
+      setDraftEspecie(String((active as any).especie || '').trim())
+      setDraftPeso((active as any).peso === null || (active as any).peso === undefined ? '' : String((active as any).peso))
+      setDraftMedidas(String((active as any).medidas || '').trim())
+      setDraftTransportadora(String((active as any).transportadora || '').trim())
       setDraftProdutoId(active.cod_produto || '')
       setDraftServicoId(active.cod_servico || '')
       setDraftObs(active.obs_oport || '')
@@ -1131,6 +1154,16 @@ export default function OportunidadesKanban() {
       setDraftDescontoPropostaPercent('0')
       setDraftTipoFrete('')
       setDraftValidadeProposta(addDaysToDateInput(new Date(), 15))
+      setDraftRemetenteCompleto('')
+      setDraftDestinatarioCompleto('')
+      setDraftNumeroNotaFiscal('')
+      setDraftValorNotaFiscal('')
+      setDraftMaterial('')
+      setDraftQuantidadeVolumes('')
+      setDraftEspecie('')
+      setDraftPeso('')
+      setDraftMedidas('')
+      setDraftTransportadora('')
       setDraftProdutoId('')
       setDraftServicoId('')
       setDraftObs('')
@@ -1917,6 +1950,16 @@ export default function OportunidadesKanban() {
       draftDescontoPropostaPercent,
       draftTipoFrete,
       draftValidadeProposta,
+      draftRemetenteCompleto,
+      draftDestinatarioCompleto,
+      draftNumeroNotaFiscal,
+      draftValorNotaFiscal,
+      draftMaterial,
+      draftQuantidadeVolumes,
+      draftEspecie,
+      draftPeso,
+      draftMedidas,
+      draftTransportadora,
       draftProdutoId,
       draftServicoId,
       draftObs,
@@ -1957,6 +2000,16 @@ export default function OportunidadesKanban() {
     draftDescontoPropostaPercent,
     draftTipoFrete,
     draftValidadeProposta,
+    draftRemetenteCompleto,
+    draftDestinatarioCompleto,
+    draftNumeroNotaFiscal,
+    draftValorNotaFiscal,
+    draftMaterial,
+    draftQuantidadeVolumes,
+    draftEspecie,
+    draftPeso,
+    draftMedidas,
+    draftTransportadora,
     draftProdutoId,
     draftServicoId,
     draftObs,
@@ -2300,6 +2353,24 @@ export default function OportunidadesKanban() {
     const empresaId = (draftEmpresaCorrespondenteId || '').trim() || defaultEmpresaCorrespondenteId
     const empresaNome = (empresaNomeById.get(empresaId) || '').trim() || 'Apliflow'
 
+    const valorNotaFiscal = parseMoney(draftValorNotaFiscal)
+    if (draftValorNotaFiscal.trim() && (!Number.isFinite(valorNotaFiscal as any) || (valorNotaFiscal as any) <= 0)) {
+      setFormError('Valor da Nota Fiscal inválido.')
+      return null
+    }
+    const quantidadeVolumesRaw = draftQuantidadeVolumes.trim()
+    const quantidadeVolumes = quantidadeVolumesRaw ? Number.parseInt(quantidadeVolumesRaw, 10) : null
+    if (quantidadeVolumesRaw && !Number.isFinite(quantidadeVolumes as any)) {
+      setFormError('Quantidade de volumes inválida.')
+      return null
+    }
+    const pesoRaw = draftPeso.trim()
+    const peso = pesoRaw ? parseNumberPtBr(pesoRaw) : null
+    if (pesoRaw && peso === null) {
+      setFormError('Peso inválido.')
+      return null
+    }
+
     if (
       paymentsSchemaOk === false &&
       (
@@ -2346,6 +2417,16 @@ export default function OportunidadesKanban() {
       temperatura,
       obs_oport: draftObs.trim() || null,
       descricao_oport: draftDescricao.trim() || null,
+      remetente_completo: draftRemetenteCompleto.trim() || null,
+      destinatario_completo: draftDestinatarioCompleto.trim() || null,
+      numero_nota_fiscal: draftNumeroNotaFiscal.trim() || null,
+      valor_nota_fiscal: valorNotaFiscal,
+      material: draftMaterial.trim() || null,
+      quantidade_volumes: quantidadeVolumes,
+      especie: draftEspecie.trim() || null,
+      peso,
+      medidas: draftMedidas.trim() || null,
+      transportadora: draftTransportadora.trim() || null,
       fase: faseLabel
     }
     if (paymentsSchemaOk !== false) {
@@ -2837,6 +2918,14 @@ export default function OportunidadesKanban() {
       const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
       const cod = String((op as any)?.cod_oport ?? (op as any)?.cod_oportunidade ?? '').trim()
       const codNum = cod ? Number.parseInt(cod.replace(/[^\d]/g, ''), 10) : NaN
+      const dataInclusaoRaw = (op as any)?.data_inclusao ?? (op as any)?.criado_em ?? (op as any)?.created_at ?? null
+      const dataInclusao = dataInclusaoRaw ? String(dataInclusaoRaw).trim() : null
+      const dataInclusaoTs = (() => {
+        if (!dataInclusao) return null
+        const dt = new Date(dataInclusao)
+        const ts = dt.getTime()
+        return Number.isNaN(ts) ? null : ts
+      })()
       const clienteLabel =
         String((op as any)?.cliente_nome || op.cliente || '').trim() ||
         (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
@@ -2846,8 +2935,38 @@ export default function OportunidadesKanban() {
       const statusDesc =
         String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || (statusId === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '')).trim() || '-'
       const statusCor = String(statusObj?.status_cor || '').trim() || null
-      const faseLabel = String(stages.find((s) => s.id === resolveStageId(op))?.label || (op as any)?.fase || '').trim() || '-'
-      const vendedor = String((op as any)?.vendedor_nome || op.vendedor || '').trim() || '-'
+      const hasTemperatura =
+        (op as any).temperatura !== null && (op as any).temperatura !== undefined && String((op as any).temperatura).trim() !== ''
+      const temperaturaRaw = hasTemperatura ? Number((op as any).temperatura) : null
+      const temperatura = Number.isFinite(temperaturaRaw as any) ? Math.min(100, Math.max(0, Number(temperaturaRaw))) : null
+      const tempBucket = !hasTemperatura
+        ? null
+        : (temperatura || 0) <= 30
+          ? 'FRIA'
+          : (temperatura || 0) <= 60
+            ? 'MORNA'
+            : (temperatura || 0) <= 85
+              ? 'QUENTE'
+              : 'MUITO QUENTE'
+      const tempBadge =
+        tempBucket === 'FRIA'
+          ? 'text-sky-200 bg-sky-500/10 border-sky-500/20'
+          : tempBucket === 'MORNA'
+            ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
+            : tempBucket === 'QUENTE'
+              ? 'text-orange-200 bg-orange-500/10 border-orange-500/20'
+              : tempBucket === 'MUITO QUENTE'
+                ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
+                : 'text-slate-200 bg-white/5 border-white/10'
+      const vendedorId = String((op as any)?.id_vendedor ?? (op as any)?.vendedor_id ?? '').trim()
+      const vendedorLabel =
+        String((op as any)?.vendedor_nome || op.vendedor || '').trim() ||
+        (vendedorId ? String(vendedorNameById[vendedorId] || '').trim() : '') ||
+        '-'
+      const vendedorAvatarUrl =
+        (vendedorId ? String(vendedorAvatarById[vendedorId] || '').trim() : '') ||
+        String((op as any)?.vendedor_avatar_url || '').trim() ||
+        null
       const valor = getValorNumber(op)
       const dataMov = String((op as any)?.data_parado ?? (op as any)?.data_alteracao ?? (op as any)?.atualizado_em ?? null)
       const diasSemMov = calcDaysSince(dataMov ? dataMov : null)
@@ -2855,13 +2974,20 @@ export default function OportunidadesKanban() {
         id,
         cod,
         codNum,
+        dataInclusao,
+        dataInclusaoLabel: formatDate(dataInclusao),
+        dataInclusaoTs,
         clienteLabel,
         solucaoLabel: formatSolucaoLabel(op.solucao),
         statusId,
         statusDesc,
         statusCor,
-        faseLabel,
-        vendedor,
+        temperatura,
+        tempBucket,
+        tempBadge,
+        vendedorId,
+        vendedorLabel,
+        vendedorAvatarUrl,
         valor,
         diasSemMov
       }
@@ -2878,6 +3004,8 @@ export default function OportunidadesKanban() {
     rows.sort((a, b) => {
       if (key === 'valor') return dir * ((a.valor || 0) - (b.valor || 0))
       if (key === 'diasSemMov') return dir * ((a.diasSemMov ?? -1) - (b.diasSemMov ?? -1))
+      if (key === 'temperatura') return dir * ((a.temperatura ?? -1) - (b.temperatura ?? -1))
+      if (key === 'dataInclusao') return dir * ((a.dataInclusaoTs ?? -1) - (b.dataInclusaoTs ?? -1))
       if (key === 'codigo') {
         const an = Number.isFinite(a.codNum) ? a.codNum : null
         const bn = Number.isFinite(b.codNum) ? b.codNum : null
@@ -2887,15 +3015,14 @@ export default function OportunidadesKanban() {
       if (key === 'cliente') return dir * norm(a.clienteLabel).localeCompare(norm(b.clienteLabel))
       if (key === 'solucao') return dir * norm(a.solucaoLabel).localeCompare(norm(b.solucaoLabel))
       if (key === 'status') return dir * norm(a.statusDesc).localeCompare(norm(b.statusDesc))
-      if (key === 'fase') return dir * norm(a.faseLabel).localeCompare(norm(b.faseLabel))
-      if (key === 'vendedor') return dir * norm(a.vendedor).localeCompare(norm(b.vendedor))
+      if (key === 'vendedor') return dir * norm(a.vendedorLabel).localeCompare(norm(b.vendedorLabel))
       const av = num((a as any)[key])
       const bv = num((b as any)[key])
       if (av !== null && bv !== null) return dir * (av - bv)
       return 0
     })
     return rows
-  }, [filteredOpportunities, listSort, statusesForUi, stages, resolveStageId, resolveStatusId])
+  }, [filteredOpportunities, listSort, statusesForUi, vendedorNameById, vendedorAvatarById, resolveStatusId])
 
   const movementHistoryRows = useMemo(() => {
     const rows = (comentarios || [])
@@ -3230,9 +3357,10 @@ export default function OportunidadesKanban() {
                       { key: 'cliente', label: 'Cliente', align: 'left' as const },
                       { key: 'solucao', label: 'Solução', align: 'left' as const },
                       { key: 'status', label: 'Status', align: 'left' as const },
-                      { key: 'fase', label: 'Fase', align: 'left' as const },
+                      { key: 'dataInclusao', label: 'Data Inclusão', align: 'left' as const },
                       { key: 'vendedor', label: 'Vendedor', align: 'left' as const },
                       { key: 'valor', label: 'Valor', align: 'right' as const },
+                      { key: 'temperatura', label: 'Temperatura', align: 'left' as const },
                       { key: 'diasSemMov', label: 'Dias sem Movimentação', align: 'right' as const }
                     ] as const
                   ).map((c) => (
@@ -3278,20 +3406,38 @@ export default function OportunidadesKanban() {
                         <span className="truncate">{r.statusDesc}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-300 max-w-[180px] truncate" title={r.faseLabel}>
-                      {r.faseLabel}
+                    <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-nowrap" title={r.dataInclusaoLabel}>
+                      {r.dataInclusaoLabel}
                     </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-300 max-w-[180px] truncate" title={r.vendedor}>
-                      {r.vendedor}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0" title={r.vendedorLabel}>
+                        <div className="w-7 h-7 rounded-full border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[10px] font-black text-cyan-100 shrink-0">
+                          {r.vendedorAvatarUrl ? (
+                            <img src={r.vendedorAvatarUrl} alt={r.vendedorLabel} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{getInitials(r.vendedorLabel || r.vendedorId)}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-200 truncate">{r.vendedorLabel}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs font-bold text-slate-200 text-right whitespace-nowrap">{formatCurrency(r.valor)}</td>
+                    <td className="px-4 py-3">
+                      {r.tempBucket ? (
+                        <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-wider ${r.tempBadge}`}>
+                          {`🌡${Math.min(100, Math.max(0, Math.round(r.temperatura ?? 0)))}º`}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-500">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs font-black text-slate-200 text-right whitespace-nowrap">{formatDias(r.diasSemMov)}</td>
                   </tr>
                 ))}
 
                 {listRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">
                       Nenhuma proposta encontrada com os filtros atuais.
                     </td>
                   </tr>
@@ -4441,6 +4587,7 @@ export default function OportunidadesKanban() {
                   <div className="flex gap-2 pb-2">
                     {[
                       { id: 'pagamento', label: 'Pagamentos', editable: true },
+                      { id: 'transportadora', label: 'Transportadora', editable: true },
                       { id: 'temperatura', label: 'Temperatura e Previsão', editable: true },
                       { id: 'documentos_complementares', label: 'Documento Complementar', editable: true },
                       { id: 'atividades', label: 'Atividades', editable: false },
@@ -4775,6 +4922,132 @@ export default function OportunidadesKanban() {
                           </table>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {tab === 'transportadora' && (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
+                        <textarea
+                          value={draftRemetenteCompleto}
+                          onChange={(e) => setDraftRemetenteCompleto(e.target.value)}
+                          rows={4}
+                          placeholder="Informe o remetente completo..."
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
+                        <textarea
+                          value={draftDestinatarioCompleto}
+                          onChange={(e) => setDraftDestinatarioCompleto(e.target.value)}
+                          rows={4}
+                          placeholder="Informe o destinatário completo..."
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Pagador do Frete (CIF ou FOB)</label>
+                        <select
+                          value={draftTipoFrete}
+                          onChange={(e) => setDraftTipoFrete(e.target.value as any)}
+                          disabled={paymentsSchemaOk === false}
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
+                        >
+                          <option value="">-</option>
+                          <option value="FOB">FOB</option>
+                          <option value="CIF">CIF</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
+                        <input
+                          value={draftNumeroNotaFiscal}
+                          onChange={(e) => setDraftNumeroNotaFiscal(e.target.value)}
+                          placeholder="Ex: 123456"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
+                        <input
+                          value={draftValorNotaFiscal}
+                          onChange={(e) => setDraftValorNotaFiscal(e.target.value)}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
+                        <input
+                          value={draftTransportadora}
+                          onChange={(e) => setDraftTransportadora(e.target.value)}
+                          placeholder="Nome da transportadora..."
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
+                        <input
+                          value={draftMaterial}
+                          onChange={(e) => setDraftMaterial(e.target.value)}
+                          placeholder="Descrição do material..."
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
+                        <input
+                          value={draftQuantidadeVolumes}
+                          onChange={(e) => setDraftQuantidadeVolumes(e.target.value.replace(/[^\d]/g, ''))}
+                          inputMode="numeric"
+                          placeholder="0"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie (Caixa, Palete etc)</label>
+                        <input
+                          value={draftEspecie}
+                          onChange={(e) => setDraftEspecie(e.target.value)}
+                          placeholder="Ex: Caixa"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
+                        <input
+                          value={draftPeso}
+                          onChange={(e) => setDraftPeso(e.target.value)}
+                          inputMode="decimal"
+                          placeholder="0"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
+                        <input
+                          value={draftMedidas}
+                          onChange={(e) => setDraftMedidas(e.target.value)}
+                          placeholder="Ex: 10x20x30"
+                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -5272,7 +5545,10 @@ export default function OportunidadesKanban() {
                       onClick={() => {
                         setStatusChangeError(null)
                         setStatusChangeObs('')
-                        setStatusChangeId(draftStatusId || andamentoStatusId || '')
+                        {
+                          const current = String(draftStatusId || andamentoStatusId || '').trim()
+                          setStatusChangeId(HIDDEN_STATUS_IDS_IN_ANDAMENTO.has(current) ? '' : current)
+                        }
                         setStatusChangeFaseId('')
                         setStatusChangeOpen(true)
                       }}
@@ -5852,7 +6128,9 @@ export default function OportunidadesKanban() {
                 className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
               >
                 <option value="">-</option>
-                {statuses.map((s) => (
+                {statuses
+                  .filter((s) => !HIDDEN_STATUS_IDS_IN_ANDAMENTO.has(String((s as any).status_id || '').trim()))
+                  .map((s) => (
                   <option key={s.status_id} value={s.status_id}>
                     {s.status_desc}
                   </option>
@@ -5869,7 +6147,9 @@ export default function OportunidadesKanban() {
                 <option value="">
                   {`Manter fase atual${draftFaseId ? ` (${stageLabelById.get(draftFaseId) || '—'})` : ''}`}
                 </option>
-                {stages.map((s) => (
+                {stages
+                  .filter((s) => !HIDDEN_FASE_IDS_IN_ANDAMENTO.has(String(s.id || '').trim()))
+                  .map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
                   </option>

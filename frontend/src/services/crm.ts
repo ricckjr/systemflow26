@@ -49,6 +49,16 @@ export interface CRM_Oportunidade {
   vendedor_avatar_url?: string | null
   pedido_compra_path?: string | null
   pedido_compra_numero?: string | null
+  remetente_completo?: string | null
+  destinatario_completo?: string | null
+  numero_nota_fiscal?: string | null
+  valor_nota_fiscal?: number | null
+  material?: string | null
+  quantidade_volumes?: number | null
+  especie?: string | null
+  peso?: number | null
+  medidas?: string | null
+  transportadora?: string | null
 
   id_oportunidade?: string
   cod_oportunidade?: string | null

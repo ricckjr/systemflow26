@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactWheelEvent } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { AlertTriangle, Calendar, Hash, Loader2, Mail, RefreshCw, Search, Truck, User, Wrench } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
@@ -7,7 +7,7 @@ import { EquipmentList } from '@/components/producao/EquipmentList'
 import { useUsuarios } from '@/hooks/useUsuarios'
 import { CRM_Oportunidade, CRM_Status, createOportunidadeComentario, fetchCrmStatus, fetchOportunidades, updateOportunidade } from '@/services/crm'
 
-type ColumnDef = { id: string; label: string }
+type ColumnDef = { id: string; label: string; cor: string | null }
 
 const normalizeText = (v: string) =>
   String(v || '')
@@ -55,7 +55,20 @@ const formatDateTimeBR = (dateString?: string | null) => {
   return dt.toLocaleString('pt-BR', { hour12: false })
 }
 
-const DEFAULT_STATUS_LABELS = ['AGUARDANDO MATERIAL', 'ANÁLISE TÉCNICA', 'AGUARDANDO APROVAÇÃO', 'APROVADO', 'EMBALAGEM']
+const normalizeWheelDelta = (delta: number, deltaMode: number, target: HTMLElement) => {
+  if (deltaMode === 1) return delta * 16
+  if (deltaMode === 2) return delta * target.clientHeight
+  return delta
+}
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const h = (hex || '').trim().replace('#', '')
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return undefined
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 const Logistica: React.FC = () => {
   const [loading, setLoading] = useState(false)
@@ -67,8 +80,9 @@ const Logistica: React.FC = () => {
   const [statuses, setStatuses] = useState<CRM_Status[]>([])
   const [oportunidades, setOportunidades] = useState<CRM_Oportunidade[]>([])
   const [loadedOnce, setLoadedOnce] = useState(false)
-  const [statusFilterInit, setStatusFilterInit] = useState(false)
   const [selectedStatusIds, setSelectedStatusIds] = useState<string[]>([])
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false)
+  const statusFilterRef = useRef<HTMLDivElement | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [selected, setSelected] = useState<CRM_Oportunidade | null>(null)
   const [andamentoOpen, setAndamentoOpen] = useState(false)
@@ -79,9 +93,6 @@ const Logistica: React.FC = () => {
   const [equipmentLastUpdate, setEquipmentLastUpdate] = useState(0)
 
   const boardRef = useRef<HTMLDivElement | null>(null)
-  const hScrollRef = useRef<HTMLDivElement | null>(null)
-  const syncRef = useRef(false)
-  const [hScrollWidth, setHScrollWidth] = useState(0)
 
   const openDetails = (o: CRM_Oportunidade) => {
     setSelected(o)
@@ -158,31 +169,42 @@ const Logistica: React.FC = () => {
   }, [equipmentInitialData, saving, selected])
 
   useEffect(() => {
-    if (statusFilterInit) return
     if (!loadedOnce) return
-    if (statusOptions.length <= 1) {
-      setSelectedStatusIds(['__none__'])
-      setStatusFilterInit(true)
-      return
-    }
-    const normDefaults = DEFAULT_STATUS_LABELS.map((s) => normalizeText(s))
-    const found = statusOptions
-      .filter((s) => s.id !== '__none__')
-      .filter((s) => normDefaults.includes(normalizeText(s.label)))
-      .map((s) => s.id)
+    if (selectedStatusIds.length > 0) return
+    const all = statusOptions.filter((s) => s.id !== '__none__').map((s) => String(s.id || '').trim()).filter(Boolean)
+    setSelectedStatusIds(all.length ? all : ['__none__'])
+  }, [loadedOnce, selectedStatusIds.length, statusOptions])
 
-    if (found.length) {
-      setSelectedStatusIds(found)
-    } else {
-      setSelectedStatusIds(statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id))
+  useEffect(() => {
+    if (!statusFilterOpen) return
+    const onPointerDown = (e: MouseEvent) => {
+      const el = statusFilterRef.current
+      if (!el) return
+      if (el.contains(e.target as Node)) return
+      setStatusFilterOpen(false)
     }
-    setStatusFilterInit(true)
-  }, [loadedOnce, statusFilterInit, statusOptions])
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setStatusFilterOpen(false)
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [statusFilterOpen])
 
   const columns: ColumnDef[] = useMemo(() => {
     const selected = new Set(selectedStatusIds)
-    return statusOptions.filter((s) => selected.has(s.id)).map((s) => ({ id: s.id, label: s.label }))
-  }, [selectedStatusIds, statusOptions])
+    return statusOptions
+      .filter((s) => selected.has(s.id))
+      .map((s) => {
+        const id = String(s.id || '').trim()
+        const st = statuses.find((x) => String((x as any)?.status_id || '').trim() === id) || null
+        const cor = String((st as any)?.status_cor || '').trim() || null
+        return { id, label: s.label, cor }
+      })
+  }, [selectedStatusIds, statusOptions, statuses])
 
   const filteredOportunidades = useMemo(() => {
     const term = normalizeText(search)
@@ -211,6 +233,36 @@ const Logistica: React.FC = () => {
     }
     return map
   }, [columns, filteredOportunidades])
+
+  const onKanbanWheelCapture = useCallback((e: ReactWheelEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented) return
+    if (e.ctrlKey) return
+
+    const rawTarget = e.target as HTMLElement | null
+    if (!rawTarget) return
+
+    const board = e.currentTarget as HTMLElement | null
+    const cardsDirect = rawTarget.closest('[data-kanban-cards="1"]') as HTMLElement | null
+    const col = rawTarget.closest('[data-kanban-col="1"]') as HTMLElement | null
+    const cards = cardsDirect || (col ? (col.querySelector('[data-kanban-cards="1"]') as HTMLElement | null) : null)
+
+    const absX = Math.abs(e.deltaX)
+    const absY = Math.abs(e.deltaY)
+    if (absX > absY) {
+      if (!board) return
+      if (board.scrollWidth <= board.clientWidth) return
+      if (e.deltaX === 0) return
+      e.preventDefault()
+      board.scrollLeft += normalizeWheelDelta(e.deltaX, e.deltaMode, board)
+      return
+    }
+
+    if (!cards) return
+    if (cards.scrollHeight <= cards.clientHeight) return
+    if (e.deltaY === 0) return
+    e.preventDefault()
+    cards.scrollTop += normalizeWheelDelta(e.deltaY, e.deltaMode, cards)
+  }, [])
 
   const moveToStatus = async (id: string, nextStatusId: string | null) => {
     if (saving) return
@@ -258,39 +310,6 @@ const Logistica: React.FC = () => {
     return palette[hash % palette.length]
   }
 
-  useEffect(() => {
-    const board = boardRef.current
-    const bar = hScrollRef.current
-    if (!board || !bar) return
-
-    const sync = (from: 'board' | 'bar') => {
-      if (syncRef.current) return
-      syncRef.current = true
-      if (from === 'board') bar.scrollLeft = board.scrollLeft
-      else board.scrollLeft = bar.scrollLeft
-      syncRef.current = false
-    }
-
-    const onBoard = () => sync('board')
-    const onBar = () => sync('bar')
-    board.addEventListener('scroll', onBoard, { passive: true })
-    bar.addEventListener('scroll', onBar, { passive: true })
-
-    const updateWidth = () => {
-      const w = Math.max(board.scrollWidth, board.clientWidth)
-      setHScrollWidth(w)
-    }
-    updateWidth()
-    const ro = new ResizeObserver(updateWidth)
-    ro.observe(board)
-
-    return () => {
-      board.removeEventListener('scroll', onBoard)
-      bar.removeEventListener('scroll', onBar)
-      ro.disconnect()
-    }
-  }, [columns.length, statusOptions.length])
-
   return (
     <div className="pt-4 pb-0 px-4 md:px-6 flex flex-col h-[calc(100vh-64px)] min-h-0">
       <div className="flex items-center justify-between gap-4 mb-4">
@@ -335,17 +354,68 @@ const Logistica: React.FC = () => {
               Colunas do Kanban
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div ref={statusFilterRef} className="relative">
             <button
               type="button"
-              onClick={() => {
-                const all = statusOptions.filter((s) => s.id !== '__none__').map((s) => s.id)
-                setSelectedStatusIds(all.length ? all : ['__none__'])
-              }}
-              className="h-9 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors text-sm font-bold"
+              onClick={() => setStatusFilterOpen((v) => !v)}
+              className="h-9 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors text-sm font-bold inline-flex items-center gap-2"
             >
-              Todos
+              <span>Status</span>
+              {selectedStatusIds.filter(Boolean).length > 0 ? (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                  {selectedStatusIds.filter(Boolean).length}
+                </span>
+              ) : null}
+              <span className="text-[var(--text-muted)]">▼</span>
             </button>
+
+            {statusFilterOpen ? (
+              <div className="absolute right-0 z-[200] mt-2 w-[320px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Status</div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStatusIds([])}
+                    className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                    disabled={selectedStatusIds.length === 0}
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
+                  {statusOptions
+                    .filter((s) => s.id !== '__none__')
+                    .map((s) => {
+                      const id = String(s.id || '').trim()
+                      const label = String(s.label || '').trim() || `Status ${id.slice(0, 6)}`
+                      const checked = !!id && selectedStatusIds.includes(id)
+                      const st = statuses.find((x) => String((x as any)?.status_id || '').trim() === id) || null
+                      const cor = String((st as any)?.status_cor || '').trim() || null
+                      return (
+                        <label key={id || label} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              if (!id) return
+                              setSelectedStatusIds((prev) => {
+                                if (prev.includes(id)) return prev.filter((x) => x !== id)
+                                return [...prev, id]
+                              })
+                            }}
+                            className="h-4 w-4 accent-cyan-500"
+                          />
+                          {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
+                          <span className="text-xs font-bold text-slate-200">{label}</span>
+                        </label>
+                      )
+                    })}
+                  {statusOptions.length <= 1 ? (
+                    <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -358,7 +428,12 @@ const Logistica: React.FC = () => {
       ) : null}
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div ref={boardRef} className="flex-1 min-h-0 flex gap-4 overflow-x-auto pb-16 custom-scrollbar">
+        <div
+          ref={boardRef}
+          className="flex-1 min-h-0 overflow-x-scroll overflow-y-hidden pb-2 kanban-x-scrollbar touch-pan-y"
+          onWheelCapture={onKanbanWheelCapture}
+        >
+          <div className="flex h-full gap-4 min-w-[1400px] px-1">
           {!columns.length ? (
             <div className="w-full h-full flex items-center justify-center">
               <div className="max-w-xl w-full rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-amber-100 flex items-start gap-3">
@@ -379,104 +454,115 @@ const Logistica: React.FC = () => {
           {columns.map((col) => {
             const items = cardsByColumn[col.id] || []
             const theme = getColumnTheme(col.label)
+            const borderBottomColor = col.cor ? hexToRgba(col.cor, 0.55) : undefined
+            const headerBg = col.cor ? hexToRgba(col.cor, 0.08) : undefined
+            const colBg = col.cor ? hexToRgba(col.cor, 0.05) : undefined
             return (
               <div
                 key={col.id}
-                className={`w-[360px] shrink-0 rounded-2xl border bg-[var(--bg-panel)] flex flex-col h-full min-h-0 ${theme.border}`}
+                className="flex flex-col w-80 shrink-0 h-full min-h-0"
+                data-kanban-col="1"
               >
-                <div className={`px-4 py-3 border-b border-[var(--border)] flex items-center justify-between ${theme.header}`}>
-                  <div className="text-[11px] font-black uppercase tracking-widest text-[var(--text-main)]">{col.label}</div>
-                  <div className={`text-[10px] font-black px-2 py-1 rounded-lg border ${theme.badge}`}>{items.length}</div>
+                <div
+                  className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
+                  style={{
+                    borderBottomColor: borderBottomColor,
+                    backgroundColor: headerBg
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider" style={{ color: col.cor || undefined }}>
+                      {col.label}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${theme.badge}`}>{items.length}</span>
                 </div>
 
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`p-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-3 ${
-                        snapshot.isDraggingOver ? 'bg-[var(--bg-main)]/40' : ''
-                      }`}
-                    >
-                      {items.map((o, index) => {
-                        const cod = getCodProposta(o) || '-'
-                        const cliente = getCliente(o) || '-'
-                        const desc = getDescricao(o)
-                        const prevEntrega = String((o as any).prev_entrega || '').trim()
-                        const diasEntrega = daysUntilDateInput(prevEntrega)
-                        const entregaBadge =
-                          diasEntrega === null
-                            ? null
-                            : diasEntrega < 0
-                              ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
-                              : diasEntrega <= 3
+                <div
+                  className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
+                  style={{ backgroundColor: colBg }}
+                >
+                  <Droppable droppableId={col.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        data-kanban-cards="1"
+                        className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${
+                          snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''
+                        }`}
+                      >
+                        {items.map((o, index) => {
+                          const cod = getCodProposta(o) || '-'
+                          const cliente = getCliente(o) || '-'
+                          const desc = getDescricao(o)
+                          const prevEntrega = String((o as any).prev_entrega || '').trim()
+                          const diasEntrega = daysUntilDateInput(prevEntrega)
+                          const entregaBadge =
+                            diasEntrega === null
+                              ? null
+                              : diasEntrega < 0
                                 ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
-                                : diasEntrega <= 7
-                                  ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
-                                  : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
-                        const entregaLabel =
-                          diasEntrega === null
-                            ? null
-                            : diasEntrega < 0
-                              ? `Atrasado ${Math.abs(diasEntrega)}d`
-                              : diasEntrega === 0
-                                ? 'Entrega hoje'
-                                : `Entrega em ${diasEntrega}d`
-                        return (
-                          <Draggable draggableId={o.id_oport} index={index} key={o.id_oport}>
-                            {(dragProvided, dragSnapshot) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                {...dragProvided.dragHandleProps}
-                                onClick={() => openDetails(o)}
-                                className={`rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-3 transition-colors ${
-                                  dragSnapshot.isDragging ? 'shadow-xl shadow-black/20' : 'hover:bg-[var(--bg-panel)]'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest truncate">
-                                      {cod}
+                                : diasEntrega <= 3
+                                  ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
+                                  : diasEntrega <= 7
+                                    ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
+                                    : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
+                          const entregaLabel =
+                            diasEntrega === null
+                              ? null
+                              : diasEntrega < 0
+                                ? `Atrasado ${Math.abs(diasEntrega)}d`
+                                : diasEntrega === 0
+                                  ? 'Entrega hoje'
+                                  : `Entrega em ${diasEntrega}d`
+
+                          return (
+                            <Draggable draggableId={o.id_oport} index={index} key={o.id_oport}>
+                              {(dragProvided, dragSnapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  {...dragProvided.dragHandleProps}
+                                  onClick={() => openDetails(o)}
+                                  className={`
+                                    group relative flex flex-col gap-2 p-4 mb-3 rounded-xl border transition-all duration-200
+                                    ${dragSnapshot.isDragging ? 'shadow-2xl ring-2 ring-cyan-500 rotate-2 scale-105 z-50 bg-[#1E293B]' : 'bg-[#0F172A] border-white/5 shadow-sm hover:shadow-md hover:border-white/10'}
+                                  `}
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest truncate">{cod}</div>
+                                      <div className="mt-1 text-sm font-bold text-slate-100 truncate">{cliente}</div>
+                                      {desc ? <div className="mt-1 text-xs text-slate-400 line-clamp-2">{desc}</div> : null}
+                                      {entregaBadge && entregaLabel ? (
+                                        <div className="mt-2 flex items-center justify-between gap-2">
+                                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-black ${entregaBadge}`}>
+                                            <Calendar size={14} />
+                                            {entregaLabel}
+                                          </span>
+                                          <span className="text-[11px] text-slate-400 font-mono">{formatDateBR(prevEntrega)}</span>
+                                        </div>
+                                      ) : null}
                                     </div>
-                                    <div className="mt-1 text-sm font-bold text-[var(--text-main)] truncate">{cliente}</div>
-                                    {desc ? (
-                                      <div className="mt-1 text-xs text-[var(--text-muted)] line-clamp-2">{desc}</div>
-                                    ) : null}
-                                    {entregaBadge && entregaLabel ? (
-                                      <div className="mt-2 flex items-center justify-between gap-2">
-                                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-black ${entregaBadge}`}>
-                                          <Calendar size={14} />
-                                          {entregaLabel}
-                                        </span>
-                                        <span className="text-[11px] text-[var(--text-muted)] font-mono">{formatDateBR(prevEntrega)}</span>
-                                      </div>
-                                    ) : null}
+                                    {saving ? <Loader2 className="animate-spin text-slate-500" size={16} /> : null}
                                   </div>
-                                  {saving ? (
-                                    <Loader2 className="animate-spin text-[var(--text-muted)]" size={16} />
-                                  ) : null}
                                 </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        )
-                      })}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                              )}
+                            </Draggable>
+                          )
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
               </div>
             )
           })}
+          </div>
         </div>
       </DragDropContext>
-
-      <div className="sticky bottom-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 border-t border-white/5 bg-[#0B1220]/85 backdrop-blur">
-        <div ref={hScrollRef} className="h-5 overflow-x-auto overflow-y-hidden custom-scrollbar rounded-lg bg-white/5 border border-white/10">
-          <div style={{ width: hScrollWidth ? `${hScrollWidth}px` : '0px', height: '1px' }} />
-        </div>
-      </div>
 
       <Modal
         isOpen={detailsOpen}

@@ -259,6 +259,7 @@ const OpportunityCard = ({
   onOpen,
   clienteNome,
   statusLabel,
+  statusCor,
   vendedorNome,
   vendedorAvatarUrl
 }: {
@@ -267,6 +268,7 @@ const OpportunityCard = ({
   onOpen: (id: string) => void
   clienteNome: string | null
   statusLabel: string | null
+  statusCor: string | null
   vendedorNome: string | null
   vendedorAvatarUrl: string | null
 }) => {
@@ -280,6 +282,10 @@ const OpportunityCard = ({
     'Novo Cliente'
   const vendedorLabel = ((opportunity as any).vendedor_nome || opportunity.vendedor || vendedorNome || '').trim() || null
   const statusText = String(statusLabel || (opportunity as any).status_desc || (opportunity as any).status || '').trim()
+  const statusColor = String(statusCor || '').trim() || null
+  const statusBorder = statusColor ? hexToRgba(statusColor, 0.45) : undefined
+  const statusBg = statusColor ? hexToRgba(statusColor, 0.12) : undefined
+  const valorNumber = getValorNumber(opportunity)
   const hasTemperatura =
     (opportunity as any).temperatura !== null &&
     (opportunity as any).temperatura !== undefined &&
@@ -353,6 +359,10 @@ const OpportunityCard = ({
               <Clock size={12} className="text-slate-500" />
               <span>{`Parado: ${formatDias(diasParado)}`}</span>
             </div>
+            <div className="text-[11px] text-slate-400" title="Valor da proposta">
+              <span className="text-slate-500">Valor: </span>
+              <span className="font-black text-emerald-200 font-mono">{formatCurrency(valorNumber)}</span>
+            </div>
             {tempoAbertoDias !== null ? (
               <div className="pt-1">
                 <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-wider ${tempoAbertoBadge}`}>
@@ -374,10 +384,15 @@ const OpportunityCard = ({
             <div className="flex-1 flex justify-center px-2">
               {statusText ? (
                 <span
-                  className="max-w-[180px] truncate text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 px-3 py-1 rounded-xl border border-white/10"
+                  className="max-w-[180px] truncate text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 px-3 py-1 rounded-xl border border-white/10 inline-flex items-center gap-2"
                   title={statusText}
+                  style={{
+                    borderColor: statusBorder,
+                    backgroundColor: statusBg
+                  }}
                 >
-                  {statusText}
+                  {statusColor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} /> : null}
+                  <span className="truncate">{statusText}</span>
                 </span>
               ) : null}
             </div>
@@ -417,8 +432,12 @@ export default function OportunidadesKanban() {
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban')
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatusId, setFilterStatusId] = useState<string>('')
-  const [filterFaseId, setFilterFaseId] = useState<string>('')
+  const [filterStatusIds, setFilterStatusIds] = useState<string[]>([])
+  const [statusFilterOpen, setStatusFilterOpen] = useState(false)
+  const statusFilterRef = useRef<HTMLDivElement | null>(null)
+  const [filterFaseIds, setFilterFaseIds] = useState<string[]>([])
+  const [faseFilterOpen, setFaseFilterOpen] = useState(false)
+  const faseFilterRef = useRef<HTMLDivElement | null>(null)
   const [itensSearchByOport, setItensSearchByOport] = useState<Record<string, string>>({})
   const [itensDisplayByOport, setItensDisplayByOport] = useState<Record<string, string>>({})
   const [itensSearchLoading, setItensSearchLoading] = useState(false)
@@ -2592,24 +2611,62 @@ export default function OportunidadesKanban() {
     [statuses]
   )
 
+  useEffect(() => {
+    if (!statusFilterOpen) return
+    const onPointerDown = (e: MouseEvent) => {
+      const el = statusFilterRef.current
+      if (!el) return
+      if (el.contains(e.target as Node)) return
+      setStatusFilterOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setStatusFilterOpen(false)
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [statusFilterOpen])
+
+  useEffect(() => {
+    if (!faseFilterOpen) return
+    const onPointerDown = (e: MouseEvent) => {
+      const el = faseFilterRef.current
+      if (!el) return
+      if (el.contains(e.target as Node)) return
+      setFaseFilterOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFaseFilterOpen(false)
+    }
+    window.addEventListener('mousedown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [faseFilterOpen])
+
   const filteredOpportunities = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     const termClean = term.replace(/^#/, '').trim()
-    const wantStatus = filterStatusId.trim()
-    const wantFase = filterFaseId.trim()
+    const wantStatusSet = new Set(filterStatusIds.map((x) => String(x || '').trim()).filter(Boolean))
+    const wantFaseSet = new Set(filterFaseIds.map((x) => String(x || '').trim()).filter(Boolean))
     const wantsProduto = !!term && (/[0-9]/.test(term) || term.startsWith('#') || term.startsWith('p:') || term.startsWith('s:'))
 
     return (opportunities || []).filter((op) => {
       const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
 
-      if (wantStatus) {
+      if (wantStatusSet.size > 0) {
         const sid = resolveStatusId(op)
-        if (!sid || sid !== wantStatus) return false
+        if (!sid || !wantStatusSet.has(sid)) return false
       }
 
-      if (wantFase) {
+      if (wantFaseSet.size > 0) {
         const fid = resolveStageId(op)
-        if (!fid || fid !== wantFase) return false
+        if (!fid || !wantFaseSet.has(fid)) return false
       }
 
       if (term) {
@@ -2637,15 +2694,15 @@ export default function OportunidadesKanban() {
 
       return true
     })
-  }, [opportunities, searchTerm, filterStatusId, filterFaseId, itensSearchByOport, resolveStageId, resolveStatusId])
+  }, [opportunities, searchTerm, filterStatusIds, filterFaseIds, itensSearchByOport, resolveStageId, resolveStatusId])
 
   // Agrupamento por etapa
   const visibleStages = useMemo(() => {
-    const want = filterFaseId.trim()
-    if (!want) return stages
-    const match = stages.find((s) => s.id === want)
-    return match ? [match] : stages
-  }, [stages, filterFaseId])
+    const wantSet = new Set(filterFaseIds.map((x) => String(x || '').trim()).filter(Boolean))
+    if (wantSet.size === 0) return stages
+    const selected = stages.filter((s) => wantSet.has(s.id))
+    return selected.length > 0 ? selected : stages
+  }, [stages, filterFaseIds])
 
   const stageIds = new Set(visibleStages.map((s) => s.id))
   const defaultStageId = visibleStages[0]?.id || stages[0]?.id || FALLBACK_STAGES[0]!.id
@@ -2685,13 +2742,11 @@ export default function OportunidadesKanban() {
         String((op as any)?.cliente_nome || op.cliente || '').trim() ||
         (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
         '-'
+      const statusId = resolveStatusId(op)
+      const statusObj = statuses.find((s) => String(s.status_id) === String(statusId)) || null
       const statusDesc =
-        String(
-          statuses.find((s) => String(s.status_id) === String((op as any)?.id_status))?.status_desc ||
-            (op as any)?.status_desc ||
-            (op as any)?.status ||
-            ''
-        ).trim() || '-'
+        String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || '').trim() || '-'
+      const statusCor = String(statusObj?.status_cor || '').trim() || null
       const faseLabel = String(stages.find((s) => s.id === resolveStageId(op))?.label || (op as any)?.fase || '').trim() || '-'
       const vendedor = String((op as any)?.vendedor_nome || op.vendedor || '').trim() || '-'
       const valor = getValorNumber(op)
@@ -2703,7 +2758,9 @@ export default function OportunidadesKanban() {
         codNum,
         clienteLabel,
         solucaoLabel: formatSolucaoLabel(op.solucao),
+        statusId,
         statusDesc,
+        statusCor,
         faseLabel,
         vendedor,
         valor,
@@ -2739,7 +2796,7 @@ export default function OportunidadesKanban() {
       return 0
     })
     return rows
-  }, [filteredOpportunities, listSort, statuses, stages, resolveStageId])
+  }, [filteredOpportunities, listSort, statuses, stages, resolveStageId, resolveStatusId])
 
   const movementHistoryRows = useMemo(() => {
     const rows = (comentarios || [])
@@ -2895,39 +2952,139 @@ export default function OportunidadesKanban() {
               </button>
             </div>
 
-            <select
-              value={filterFaseId}
-              onChange={(e) => setFilterFaseId(e.target.value)}
-              className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
-              title="Filtrar por Fase"
-            >
-              <option value="">Todas as Fases</option>
-              {stages
-                .slice()
-                .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-            </select>
+            <div ref={faseFilterRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setFaseFilterOpen((v) => !v)}
+                className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 inline-flex items-center gap-2"
+                title="Filtrar por Fase"
+              >
+                <span>Fase</span>
+                {filterFaseIds.length > 0 ? (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                    {filterFaseIds.length}
+                  </span>
+                ) : null}
+                <span className="text-slate-500">▼</span>
+              </button>
 
-            <select
-              value={filterStatusId}
-              onChange={(e) => setFilterStatusId(e.target.value)}
-              className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
-              title="Filtrar por Status"
-            >
-              <option value="">Todos os Status</option>
-              {statuses
-                .slice()
-                .sort((a, b) => Number((a as any).status_ordem || 0) - Number((b as any).status_ordem || 0))
-                .map((s) => (
-                  <option key={String(s.status_id)} value={String(s.status_id)}>
-                    {String(s.status_desc || '').trim() || `Status ${String(s.status_id).slice(0, 6)}`}
-                  </option>
-                ))}
-            </select>
+              {faseFilterOpen ? (
+                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
+                  <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Fase</div>
+                    <button
+                      type="button"
+                      onClick={() => setFilterFaseIds([])}
+                      className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                      disabled={filterFaseIds.length === 0}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                  <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
+                    {stages
+                      .slice()
+                      .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
+                      .map((s) => {
+                        const id = String(s.id || '').trim()
+                        const label = String(s.label || '').trim() || `Fase ${id.slice(0, 6)}`
+                        const checked = !!id && filterFaseIds.includes(id)
+                        const cor = String((s as any).cor || '').trim() || null
+                        return (
+                          <label
+                            key={id || label}
+                            className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                if (!id) return
+                                setFilterFaseIds((prev) => {
+                                  if (prev.includes(id)) return prev.filter((x) => x !== id)
+                                  return [...prev, id]
+                                })
+                              }}
+                              className="h-4 w-4 accent-cyan-500"
+                            />
+                            {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
+                            <span className="text-xs font-bold text-slate-200">{label}</span>
+                          </label>
+                        )
+                      })}
+                    {stages.length === 0 ? <div className="px-2 py-3 text-sm text-slate-400">Nenhuma fase.</div> : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div ref={statusFilterRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setStatusFilterOpen((v) => !v)}
+                className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 inline-flex items-center gap-2"
+                title="Filtrar por Status"
+              >
+                <span>Status</span>
+                {filterStatusIds.length > 0 ? (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                    {filterStatusIds.length}
+                  </span>
+                ) : null}
+                <span className="text-slate-500">▼</span>
+              </button>
+
+              {statusFilterOpen ? (
+                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
+                  <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Status</div>
+                    <button
+                      type="button"
+                      onClick={() => setFilterStatusIds([])}
+                      className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                      disabled={filterStatusIds.length === 0}
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                  <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
+                    {statuses
+                      .slice()
+                      .sort((a, b) => Number((a as any).status_ordem || 0) - Number((b as any).status_ordem || 0))
+                      .map((s) => {
+                        const id = String(s.status_id || '').trim()
+                        const label = String(s.status_desc || '').trim() || `Status ${id.slice(0, 6)}`
+                        const checked = !!id && filterStatusIds.includes(id)
+                        const cor = String((s as any).status_cor || '').trim() || null
+                        return (
+                          <label
+                            key={id || label}
+                            className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                if (!id) return
+                                setFilterStatusIds((prev) => {
+                                  if (prev.includes(id)) return prev.filter((x) => x !== id)
+                                  return [...prev, id]
+                                })
+                              }}
+                              className="h-4 w-4 accent-cyan-500"
+                            />
+                            {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
+                            <span className="text-xs font-bold text-slate-200">{label}</span>
+                          </label>
+                        )
+                      })}
+                    {statuses.length === 0 ? (
+                      <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -3010,8 +3167,17 @@ export default function OportunidadesKanban() {
                       {r.clienteLabel}
                     </td>
                     <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-nowrap">{r.solucaoLabel}</td>
-                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[180px] truncate" title={r.statusDesc}>
-                      {r.statusDesc}
+                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[220px]" title={r.statusDesc}>
+                      <span
+                        className="inline-flex items-center gap-2 max-w-[220px] truncate rounded-xl border px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 border-white/10"
+                        style={{
+                          borderColor: r.statusCor ? hexToRgba(r.statusCor, 0.45) : undefined,
+                          backgroundColor: r.statusCor ? hexToRgba(r.statusCor, 0.12) : undefined
+                        }}
+                      >
+                        {r.statusCor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.statusCor }} /> : null}
+                        <span className="truncate">{r.statusDesc}</span>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-[11px] text-slate-300 max-w-[180px] truncate" title={r.faseLabel}>
                       {r.faseLabel}
@@ -3101,6 +3267,11 @@ export default function OportunidadesKanban() {
                                     statuses.find((s) => String(s.status_id) === String((item as any).id_status))?.status_desc ||
                                       (item as any).status ||
                                       ''
+                                  ).trim() || null
+                                }
+                                statusCor={
+                                  String(
+                                    statuses.find((s) => String(s.status_id) === String((item as any).id_status))?.status_cor || ''
                                   ).trim() || null
                                 }
                                 vendedorNome={item.id_vendedor ? (vendedorNameById[item.id_vendedor] ?? null) : null}

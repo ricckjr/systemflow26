@@ -12,7 +12,7 @@ const AuthCallback: React.FC = () => {
     if (!authReady) return
 
     if (session) {
-      navigate('/app', { replace: true })
+      navigate('/app/comunidade', { replace: true })
     } else {
       navigate('/login?error=auth_failed', { replace: true })
     }

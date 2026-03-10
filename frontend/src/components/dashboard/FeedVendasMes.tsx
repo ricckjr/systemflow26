@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/services/supabase'
-import { endOfMonth, format, isWithinInterval, parseISO, startOfMonth } from 'date-fns'
+import { addMonths, format, parseISO, startOfMonth } from 'date-fns'
+import { APP_TIME_ZONE } from '@/constants/timezone'
 import { Briefcase, CalendarDays, Trophy, User, Zap } from 'lucide-react'
 
 const FASE_CONQUISTADO_ID = '88a8b9bb-30db-4eb7-a351-182daeeb0f02'
@@ -26,6 +27,14 @@ export function FeedVendasMes() {
   const somVendaUrl = useMemo(() => {
     return new URL('../../assets/sounds/som_venda.mp3', import.meta.url).href
   }, [])
+
+  const getMonthRange = () => {
+    const now = new Date()
+    const spNow = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
+    const start = startOfMonth(spNow)
+    const nextStart = startOfMonth(addMonths(start, 1))
+    return { start, nextStart }
+  }
 
   const toVenda = (row: any): Venda | null => {
     const id = String(row?.id_oport || row?.id_oportunidade || row?.id || '').trim()
@@ -85,9 +94,7 @@ export function FeedVendasMes() {
             String(newRec?.id_fase || '').trim() === FASE_CONQUISTADO_ID &&
             String(newRec?.data_conquistado || '').trim()
           ) {
-            const now = new Date()
-            const start = startOfMonth(now)
-            const end = endOfMonth(now)
+            const { start, nextStart } = getMonthRange()
             const parsed = (() => {
               try {
                 return parseISO(newRec.data_conquistado)
@@ -96,7 +103,7 @@ export function FeedVendasMes() {
               }
             })()
 
-            if (parsed && isWithinInterval(parsed, { start, end })) {
+            if (parsed && parsed.getTime() >= start.getTime() && parsed.getTime() < nextStart.getTime()) {
               const venda = toVenda(newRec)
               if (!venda) return
 
@@ -132,21 +139,23 @@ export function FeedVendasMes() {
   }
 
   const fetchVendasIniciais = async () => {
-    const now = new Date()
-    const start = startOfMonth(now).toISOString()
-    const end = endOfMonth(now).toISOString()
+    const { start, nextStart } = getMonthRange()
+    const startIso = start.toISOString()
+    const nextStartIso = nextStart.toISOString()
 
     const { data, error } = await sb
       .from('crm_oportunidades')
-      .select('id_oport, id_fase, data_conquistado, ticket_valor, valor_proposta, solucao, cliente_nome, vendedor_nome, vendedor_avatar_url, cliente, vendedor')
+      .select('*')
       .eq('id_fase', FASE_CONQUISTADO_ID)
-      .gte('data_conquistado', start)
-      .lte('data_conquistado', end)
+      .not('data_conquistado', 'is', null)
+      .gte('data_conquistado', startIso)
+      .lt('data_conquistado', nextStartIso)
       .order('data_conquistado', { ascending: false })
       .limit(20)
 
     if (error) {
-      setLoadError(String(error?.message || 'Falha ao carregar vendas.'))
+      const status = typeof error?.status === 'number' ? ` (${error.status})` : ''
+      setLoadError(`${String(error?.message || 'Falha ao carregar vendas.')}${status}`)
       return
     }
 
@@ -155,7 +164,11 @@ export function FeedVendasMes() {
       .filter(Boolean) as Venda[]
 
     setLoadError(null)
-    setVendas(list)
+    setVendas(
+      list
+        .sort((a, b) => new Date(b.data_conquistado).getTime() - new Date(a.data_conquistado).getTime())
+        .slice(0, 20)
+    )
   }
 
   return (
@@ -178,12 +191,19 @@ export function FeedVendasMes() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" ref={listRef}>
+      <div className="h-[360px] overflow-y-auto p-4 space-y-3 custom-scrollbar" ref={listRef}>
         {loadError ? (
           <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-80 min-h-[200px] text-center">
             <Trophy className="w-10 h-10 mb-3 opacity-40" />
             <p className="text-sm font-semibold text-[var(--text-main)]">Falha ao carregar o feed</p>
             <p className="text-xs mt-1 max-w-[320px]">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => fetchVendasIniciais()}
+              className="mt-3 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-[var(--text-main)] text-xs font-bold hover:bg-white/10 transition-colors"
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : vendas.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-60 min-h-[200px]">

@@ -72,7 +72,7 @@ export const router = createBrowserRouter([
     path: '/app',
     element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Navigate to="/app/dashboard/comercial" replace /> },
+      { index: true, element: <Navigate to="/app/comunidade" replace /> },
 
       {
         path: 'comunidade',

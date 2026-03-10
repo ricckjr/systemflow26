@@ -22,7 +22,7 @@ const Login: React.FC = () => {
   // Redireciona automaticamente se já estiver autenticado
   useEffect(() => {
     if (authReady && session) {
-      navigate('/app', { replace: true })
+      navigate('/app/comunidade', { replace: true })
     }
   }, [authReady, session, navigate])
 

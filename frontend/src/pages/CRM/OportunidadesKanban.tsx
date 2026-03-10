@@ -203,8 +203,21 @@ const formatMonthYear = (dateString: string | null) => {
   if (!dateString) return '-'
   const dt = new Date(dateString)
   if (Number.isNaN(dt.getTime())) return '-'
-  const fmt = new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(dt)
-  return fmt.replace(' ', '')
+  const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+  const mon = months[dt.getMonth()] || '-'
+  return `${mon}/${dt.getFullYear()}`
+}
+
+const toMonthKey = (dateString: string | null | undefined) => {
+  if (!dateString) return null
+  const dt = new Date(dateString)
+  if (Number.isNaN(dt.getTime())) return null
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
+}
+
+const formatMonthKey = (monthKey: string) => {
+  if (!monthKey) return '-'
+  return formatMonthYear(`${monthKey}-01`)
 }
 
 const calcDaysSince = (dateString: string | null) => {
@@ -502,6 +515,7 @@ export default function OportunidadesKanban() {
   const [filterFaseIds, setFilterFaseIds] = useState<string[]>([])
   const [faseFilterOpen, setFaseFilterOpen] = useState(false)
   const faseFilterRef = useRef<HTMLDivElement | null>(null)
+  const [monthFilterByStageId, setMonthFilterByStageId] = useState<Record<string, string>>({})
   const [itensSearchByOport, setItensSearchByOport] = useState<Record<string, string>>({})
   const [itensDisplayByOport, setItensDisplayByOport] = useState<Record<string, string>>({})
   const [itensSearchLoading, setItensSearchLoading] = useState(false)
@@ -2779,21 +2793,38 @@ export default function OportunidadesKanban() {
     .slice()
     .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
     .map(stage => {
+    const stageItemsAll = filteredOpportunities.filter(op => {
+      const rawStageId = (op.id_fase || '').trim()
+      if (rawStageId && stageIds.has(rawStageId)) return rawStageId === stage.id
+
+      const label = (op.fase || '').trim()
+      if (label) {
+        const match = visibleStages.find(s => s.label === label) || stages.find(s => s.label === label)
+        if (match) return match.id === stage.id
+      }
+
+      return stage.id === defaultStageId
+    })
+
+    const monthOptions = Array.from(
+      new Set(
+        stageItemsAll
+          .map((op) => toMonthKey((op as any)?.data_inclusao ?? (op as any)?.criado_em ?? null))
+          .filter(Boolean)
+      )
+    ) as string[]
+    monthOptions.sort((a, b) => b.localeCompare(a))
+
+    const wantMonthKey = String(monthFilterByStageId[stage.id] || '').trim()
+    const stageItems =
+      wantMonthKey && wantMonthKey !== '__ALL__'
+        ? stageItemsAll.filter((op) => toMonthKey((op as any)?.data_inclusao ?? (op as any)?.criado_em ?? null) === wantMonthKey)
+        : stageItemsAll
+
     return {
       ...stage,
-      items: filteredOpportunities.filter(op => {
-        // Normalização simples para garantir match
-        const rawStageId = (op.id_fase || '').trim()
-        if (rawStageId && stageIds.has(rawStageId)) return rawStageId === stage.id
-
-        const label = (op.fase || '').trim()
-        if (label) {
-          const match = visibleStages.find(s => s.label === label) || stages.find(s => s.label === label)
-          if (match) return match.id === stage.id
-        }
-
-        return stage.id === defaultStageId
-      })
+      items: stageItems,
+      monthOptions
     }
   })
 
@@ -3288,7 +3319,7 @@ export default function OportunidadesKanban() {
                   {columns.map(column => (
                     <div key={column.id} className="flex flex-col w-80 shrink-0 h-full min-h-0" data-kanban-col="1">
                     <div
-                      className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
+                      className="flex items-start justify-between gap-3 mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
                       style={{
                         borderBottomColor: column.cor ? hexToRgba(column.cor, 0.55) : undefined,
                         backgroundColor: column.cor ? hexToRgba(column.cor, 0.08) : undefined
@@ -3302,9 +3333,28 @@ export default function OportunidadesKanban() {
                           {column.label}
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
-                        {column.items.length}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
+                          {column.items.length}
+                        </span>
+                        <select
+                          value={String((monthFilterByStageId as any)[column.id] || '')}
+                          onChange={(e) => {
+                            const next = String(e.target.value || '')
+                            setMonthFilterByStageId((cur) => ({ ...cur, [column.id]: next }))
+                          }}
+                          disabled={!Array.isArray((column as any).monthOptions) || (column as any).monthOptions.length === 0}
+                          className="rounded-lg bg-[#0F172A] border border-white/10 px-2 py-1 text-[10px] font-bold text-slate-200 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
+                          title="Filtrar por mês (data de inclusão)"
+                        >
+                          <option value="">Todos</option>
+                          {(column as any).monthOptions.map((m: string) => (
+                            <option key={m} value={m}>
+                              {formatMonthKey(m)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div

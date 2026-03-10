@@ -123,6 +123,9 @@ const FALLBACK_STAGES: Stage[] = [
   { id: 'Pós-Venda', label: 'Pós-Venda', ordem: 80, cor: '#22d3ee' }
 ]
 
+const ATIVOS_STATUS_ID = 'd2649868-1c22-49bd-ac81-56b6a0e7aff7'
+const ATIVOS_STATUS_LABEL = 'Ativos'
+
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test((value || '').trim())
 
@@ -430,6 +433,67 @@ export default function OportunidadesKanban() {
   const [contatoNameById, setContatoNameById] = useState<Record<string, string>>({})
   const [origemDescById, setOrigemDescById] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+
+  const statusesForUi = useMemo(() => {
+    const hasAtivos = statuses.some((s) => String((s as any)?.status_id || '').trim() === ATIVOS_STATUS_ID)
+    if (hasAtivos) return statuses
+    const forced: CRM_Status = {
+      status_id: ATIVOS_STATUS_ID as any,
+      status_desc: ATIVOS_STATUS_LABEL as any,
+      status_obs: null as any,
+      status_ordem: -1 as any,
+      status_cor: null as any,
+      integ_id: null as any,
+      criado_em: null as any,
+      atualizado_em: null as any
+    } as any
+    return [forced, ...statuses]
+  }, [statuses])
+
+  const fixedMissingStatusRef = useRef(false)
+  useEffect(() => {
+    if (fixedMissingStatusRef.current) return
+    if (loading) return
+    if (!Array.isArray(opportunities) || opportunities.length === 0) {
+      fixedMissingStatusRef.current = true
+      return
+    }
+
+    const missingIds = opportunities
+      .filter((o) => !String((o as any)?.id_status || '').trim())
+      .map((o) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim())
+      .filter(Boolean)
+
+    if (missingIds.length === 0) {
+      fixedMissingStatusRef.current = true
+      return
+    }
+
+    fixedMissingStatusRef.current = true
+    setOpportunities((cur) =>
+      cur.map((o) => {
+        const id = String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
+        if (!id || !missingIds.includes(id)) return o
+        return { ...o, id_status: ATIVOS_STATUS_ID } as any
+      })
+    )
+
+    ;(async () => {
+      const queue = [...missingIds]
+      const workerCount = Math.min(3, queue.length)
+      const workers = Array.from({ length: workerCount }).map(async () => {
+        while (queue.length) {
+          const id = queue.shift()
+          if (!id) continue
+          try {
+            await updateOportunidade(id, { id_status: ATIVOS_STATUS_ID } as any)
+          } catch {}
+        }
+      })
+      await Promise.all(workers)
+    })()
+  }, [loading, opportunities])
+
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban')
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatusIds, setFilterStatusIds] = useState<string[]>([])
@@ -962,8 +1026,12 @@ export default function OportunidadesKanban() {
       )
       setDraftFaseId(active.id_fase || '')
       setBaselineFaseId(active.id_fase || null)
-      setDraftStatusId(active.id_status || '')
-      setBaselineStatusId(active.id_status || null)
+      {
+        const sid = String(active.id_status || '').trim()
+        const final = sid || ATIVOS_STATUS_ID
+        setDraftStatusId(final)
+        setBaselineStatusId(final)
+      }
       setDraftMotivoId(active.id_motivo || '')
       setDraftOrigemId((active as any).id_origem || (active as any).orig_id || '')
       const solucaoRaw = String((active as any)?.solucao || '').trim().toUpperCase()
@@ -1028,8 +1096,8 @@ export default function OportunidadesKanban() {
       setDraftEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
       setDraftFaseId(leadStageId || '')
       setBaselineFaseId(leadStageId || null)
-      setDraftStatusId(andamentoStatusId || '')
-      setBaselineStatusId(andamentoStatusId || null)
+      setDraftStatusId(ATIVOS_STATUS_ID)
+      setBaselineStatusId(ATIVOS_STATUS_ID)
       setDraftMotivoId('')
       setDraftOrigemId('')
       setDraftSolucao('PRODUTO')
@@ -1080,7 +1148,7 @@ export default function OportunidadesKanban() {
     if (!formOpen) return
     if (activeId) return
     if (!draftFaseId && leadStageId) setDraftFaseId(leadStageId)
-    if (!draftStatusId && andamentoStatusId) setDraftStatusId(andamentoStatusId)
+    if (!draftStatusId) setDraftStatusId(ATIVOS_STATUS_ID)
   }, [formOpen, activeId, draftFaseId, draftStatusId, leadStageId, andamentoStatusId])
 
   useEffect(() => {
@@ -1932,10 +2000,10 @@ export default function OportunidadesKanban() {
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .toUpperCase()
-    const statusId = String(draftStatusId || andamentoStatusId || (active as any)?.id_status || '').trim()
-    const desc = String(statuses.find((s) => String(s.status_id || '').trim() === statusId)?.status_desc || '').trim()
+    const statusId = String(draftStatusId || andamentoStatusId || (active as any)?.id_status || ATIVOS_STATUS_ID).trim()
+    const desc = String(statusesForUi.find((s) => String(s.status_id || '').trim() === statusId)?.status_desc || '').trim()
     return normKey(desc)
-  }, [active, andamentoStatusId, draftStatusId, statuses])
+  }, [active, andamentoStatusId, draftStatusId, statusesForUi])
 
   const isPropostaConquistada = useMemo(() => {
     return statusKeyAtual === 'APROVADO' || statusKeyAtual.includes('CONQUIST')
@@ -2173,7 +2241,7 @@ export default function OportunidadesKanban() {
     const prev_faturamento = draftPrevFaturamento.trim() || null
     const prev_entrega = draftPrevEntrega.trim() || null
     const prev_fechamento = draftPrevFechamento.trim() || null
-    const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
+    const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ATIVOS_STATUS_ID
     const finalMotivoId = String(opts?.motivoIdOverride ?? draftMotivoId ?? '').trim()
     const normKey = (v: string) =>
       String(v || '')
@@ -2182,7 +2250,7 @@ export default function OportunidadesKanban() {
         .trim()
         .toUpperCase()
 
-    const statusDesc = String(statuses.find((s) => String(s.status_id || '').trim() === finalStatusId)?.status_desc || '').trim()
+    const statusDesc = String(statusesForUi.find((s) => String(s.status_id || '').trim() === finalStatusId)?.status_desc || '').trim()
     let finalFaseId = activeId ? draftFaseId : (leadStageId || draftFaseId)
     const faseOverride = String(opts?.faseIdOverride || '').trim()
     if (faseOverride) finalFaseId = faseOverride
@@ -2604,9 +2672,9 @@ export default function OportunidadesKanban() {
       const raw = String((op as any)?.id_status || '').trim()
       if (raw) return raw
       const label = String((op as any)?.status || '').trim()
-      if (!label) return ''
+      if (!label) return ATIVOS_STATUS_ID
       const match = statuses.find((s) => String(s.status_desc || '').trim().toLowerCase() === label.toLowerCase())
-      return match ? String(match.status_id || '').trim() : ''
+      return match ? String(match.status_id || '').trim() : ATIVOS_STATUS_ID
     },
     [statuses]
   )
@@ -2743,9 +2811,9 @@ export default function OportunidadesKanban() {
         (op.id_cliente ? `Cliente #${String(op.id_cliente).split('-')[0]}` : '') ||
         '-'
       const statusId = resolveStatusId(op)
-      const statusObj = statuses.find((s) => String(s.status_id) === String(statusId)) || null
+      const statusObj = statusesForUi.find((s) => String(s.status_id) === String(statusId)) || null
       const statusDesc =
-        String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || '').trim() || '-'
+        String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || (statusId === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '')).trim() || '-'
       const statusCor = String(statusObj?.status_cor || '').trim() || null
       const faseLabel = String(stages.find((s) => s.id === resolveStageId(op))?.label || (op as any)?.fase || '').trim() || '-'
       const vendedor = String((op as any)?.vendedor_nome || op.vendedor || '').trim() || '-'
@@ -2796,7 +2864,7 @@ export default function OportunidadesKanban() {
       return 0
     })
     return rows
-  }, [filteredOpportunities, listSort, statuses, stages, resolveStageId, resolveStatusId])
+  }, [filteredOpportunities, listSort, statusesForUi, stages, resolveStageId, resolveStatusId])
 
   const movementHistoryRows = useMemo(() => {
     const rows = (comentarios || [])
@@ -3048,7 +3116,7 @@ export default function OportunidadesKanban() {
                     </button>
                   </div>
                   <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
-                    {statuses
+                    {statusesForUi
                       .slice()
                       .sort((a, b) => Number((a as any).status_ordem || 0) - Number((b as any).status_ordem || 0))
                       .map((s) => {
@@ -3078,7 +3146,7 @@ export default function OportunidadesKanban() {
                           </label>
                         )
                       })}
-                    {statuses.length === 0 ? (
+                    {statusesForUi.length === 0 ? (
                       <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
                     ) : null}
                   </div>
@@ -3263,16 +3331,21 @@ export default function OportunidadesKanban() {
                                     : null
                                 }
                                 statusLabel={
-                                  String(
-                                    statuses.find((s) => String(s.status_id) === String((item as any).id_status))?.status_desc ||
-                                      (item as any).status ||
-                                      ''
-                                  ).trim() || null
+                                  (() => {
+                                    const sid = resolveStatusId(item)
+                                    const s = statusesForUi.find((x) => String(x.status_id || '').trim() === String(sid).trim()) || null
+                                    const label =
+                                      String(s?.status_desc || (item as any).status_desc || (item as any).status || '').trim() ||
+                                      (sid === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '')
+                                    return label.trim() || null
+                                  })()
                                 }
                                 statusCor={
-                                  String(
-                                    statuses.find((s) => String(s.status_id) === String((item as any).id_status))?.status_cor || ''
-                                  ).trim() || null
+                                  (() => {
+                                    const sid = resolveStatusId(item)
+                                    const s = statusesForUi.find((x) => String(x.status_id || '').trim() === String(sid).trim()) || null
+                                    return String((s as any)?.status_cor || '').trim() || null
+                                  })()
                                 }
                                 vendedorNome={item.id_vendedor ? (vendedorNameById[item.id_vendedor] ?? null) : null}
                                 vendedorAvatarUrl={item.id_vendedor ? (vendedorAvatarById[item.id_vendedor] ?? null) : null}
@@ -3784,7 +3857,13 @@ export default function OportunidadesKanban() {
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Status Atual</label>
                           <input
-                            value={String(statuses.find((s) => String(s.status_id) === String(draftStatusId))?.status_desc || '').trim() || '-'}
+                            value={
+                              String(
+                                statusesForUi.find((s) => String(s.status_id) === String(draftStatusId))?.status_desc ||
+                                  (String(draftStatusId || '').trim() === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '') ||
+                                  ''
+                              ).trim() || '-'
+                            }
                             readOnly
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
                           />

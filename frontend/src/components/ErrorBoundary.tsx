@@ -1,20 +1,24 @@
 import React from 'react'
+import { logError } from '@/utils/logger'
 
 type Props = { children: React.ReactNode, fallback?: React.ReactNode }
-type State = { hasError: boolean, message?: string }
+type State = { hasError: boolean, message?: string, details?: string }
 
 export default class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props)
     this.state = { hasError: false }
   }
-  static getDerivedStateFromError() {
-    return { hasError: true }
+  static getDerivedStateFromError(error: any) {
+    const msg = String(error?.message || error || '')
+    return { hasError: true, message: msg }
   }
-  componentDidCatch(error: any) {
+  componentDidCatch(error: any, info: any) {
+    logError('ErrorBoundary', 'Erro não tratado na UI', { error, info })
     try {
       const msg = String(error?.message || error || '')
-      if (msg) this.setState({ message: msg })
+      const details = import.meta?.env?.DEV ? String(info?.componentStack || '').trim() || undefined : undefined
+      if (msg || details) this.setState({ message: msg || undefined, details })
       const isChunkError =
         msg.includes('ChunkLoadError') ||
         msg.includes('Loading chunk') ||
@@ -30,16 +34,22 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           }
         }
       }
-    } catch {
+    } catch (e: any) {
+      logError('ErrorBoundary', 'Falha ao tratar erro da UI', e)
     }
   }
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback
-      const details = import.meta?.env?.DEV ? this.state.message : null
+      const msg = String(this.state.message || '').trim()
+      const isChunkError =
+        msg.includes('ChunkLoadError') ||
+        msg.includes('Loading chunk') ||
+        msg.includes('Failed to fetch dynamically imported module')
+      const details = import.meta?.env?.DEV ? (this.state.details || msg || null) : null
       return (
         <div className="p-6 text-center space-y-2">
-          <div className="text-sm text-red-400">Falha ao carregar módulo.</div>
+          <div className="text-sm text-red-400">{isChunkError ? 'Falha ao carregar módulo.' : 'Ocorreu um erro nesta tela.'}</div>
           {details ? <div className="text-xs text-slate-500 break-words">{details}</div> : null}
           <button
             type="button"

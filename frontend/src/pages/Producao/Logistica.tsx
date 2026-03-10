@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactWheelEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FC, WheelEvent as ReactWheelEvent } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { AlertTriangle, Calendar, Hash, Loader2, Mail, RefreshCw, Search, Truck, User, Wrench } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
@@ -6,8 +7,12 @@ import { EquipmentEntryModal } from '@/components/producao/EquipmentEntryModal'
 import { EquipmentList } from '@/components/producao/EquipmentList'
 import { useUsuarios } from '@/hooks/useUsuarios'
 import { CRM_Oportunidade, CRM_Status, createOportunidadeComentario, fetchCrmStatus, fetchOportunidades, updateOportunidade } from '@/services/crm'
+import { logError } from '@/utils/logger'
 
 type ColumnDef = { id: string; label: string; cor: string | null }
+
+const ATIVOS_STATUS_ID = 'd2649868-1c22-49bd-ac81-56b6a0e7aff7'
+const ATIVOS_STATUS_LABEL = 'Ativos'
 
 const normalizeText = (v: string) =>
   String(v || '')
@@ -70,7 +75,7 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-const Logistica: React.FC = () => {
+const Logistica: FC = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +112,7 @@ const Logistica: React.FC = () => {
       setOportunidades(Array.isArray(ops) ? ops : [])
       setStatuses(Array.isArray(sts) ? sts : [])
     } catch (e: any) {
+      if (import.meta?.env?.DEV) logError('Logistica', 'Erro ao carregar dados', e)
       setError(String(e?.message || 'Erro ao carregar dados.'))
     } finally {
       setLoading(false)
@@ -119,13 +125,27 @@ const Logistica: React.FC = () => {
   }, [])
 
   const statusOptions = useMemo(() => {
-    const sorted = [...statuses].sort((a, b) => {
+    const forcedAtivos: CRM_Status = {
+      status_id: ATIVOS_STATUS_ID as any,
+      status_desc: ATIVOS_STATUS_LABEL as any,
+      status_obs: null as any,
+      status_ordem: -1 as any,
+      status_cor: null as any,
+      integ_id: null as any,
+      criado_em: null as any,
+      atualizado_em: null as any
+    } as any
+    const merged = (() => {
+      const hasAtivos = statuses.some((s) => String((s as any)?.status_id || '').trim() === ATIVOS_STATUS_ID)
+      return hasAtivos ? statuses : [forcedAtivos, ...statuses]
+    })()
+    const sorted = [...merged].sort((a, b) => {
       const ao = a.status_ordem ?? 999999
       const bo = b.status_ordem ?? 999999
       if (ao !== bo) return ao - bo
       return String(a.status_desc || '').localeCompare(String(b.status_desc || ''), 'pt-BR')
     })
-    return [{ id: '__none__', label: 'Sem status' }, ...sorted.map((s) => ({ id: s.status_id, label: s.status_desc }))]
+    return sorted.map((s) => ({ id: String(s.status_id || '').trim(), label: String(s.status_desc || '').trim() }))
   }, [statuses])
 
   const statusById = useMemo(() => {
@@ -171,9 +191,52 @@ const Logistica: React.FC = () => {
   useEffect(() => {
     if (!loadedOnce) return
     if (selectedStatusIds.length > 0) return
-    const all = statusOptions.filter((s) => s.id !== '__none__').map((s) => String(s.id || '').trim()).filter(Boolean)
-    setSelectedStatusIds(all.length ? all : ['__none__'])
+    const all = statusOptions.map((s) => String(s.id || '').trim()).filter(Boolean)
+    setSelectedStatusIds(all)
   }, [loadedOnce, selectedStatusIds.length, statusOptions])
+
+  const fixedMissingStatusRef = useRef(false)
+  useEffect(() => {
+    if (!loadedOnce) return
+    if (fixedMissingStatusRef.current) return
+    if (!Array.isArray(oportunidades) || oportunidades.length === 0) return
+
+    const missingIds = oportunidades
+      .filter((o) => !String((o as any)?.id_status || '').trim())
+      .map((o) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim())
+      .filter(Boolean)
+
+    if (missingIds.length === 0) {
+      fixedMissingStatusRef.current = true
+      return
+    }
+
+    fixedMissingStatusRef.current = true
+    setOportunidades((cur) =>
+      cur.map((o) => {
+        const id = String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
+        if (!id || !missingIds.includes(id)) return o
+        return { ...o, id_status: ATIVOS_STATUS_ID } as any
+      })
+    )
+
+    ;(async () => {
+      const queue = [...missingIds]
+      const workerCount = Math.min(3, queue.length)
+      const workers = Array.from({ length: workerCount }).map(async () => {
+        while (queue.length) {
+          const id = queue.shift()
+          if (!id) continue
+          try {
+            await updateOportunidade(id, { id_status: ATIVOS_STATUS_ID } as any)
+          } catch (e: any) {
+            if (import.meta?.env?.DEV) logError('Logistica', 'Falha ao corrigir status ausente', { id, e })
+          }
+        }
+      })
+      await Promise.all(workers)
+    })()
+  }, [loadedOnce, oportunidades])
 
   useEffect(() => {
     if (!statusFilterOpen) return
@@ -219,7 +282,7 @@ const Logistica: React.FC = () => {
     const map: Record<string, CRM_Oportunidade[]> = {}
     for (const c of columns) map[c.id] = []
     for (const o of filteredOportunidades) {
-      const col = String(o.id_status || '').trim() || '__none__'
+      const col = String((o as any).id_status || '').trim() || ATIVOS_STATUS_ID
       if (!map[col]) continue
       map[col].push(o)
     }
@@ -273,6 +336,7 @@ const Logistica: React.FC = () => {
     try {
       await updateOportunidade(id, { id_status: nextStatusId } as any)
     } catch (e: any) {
+      if (import.meta?.env?.DEV) logError('Logistica', 'Erro ao atualizar status', { id, nextStatusId, e })
       setOportunidades(prev)
       setError(String(e?.message || 'Erro ao atualizar status.'))
     } finally {
@@ -284,8 +348,7 @@ const Logistica: React.FC = () => {
     const { destination, source, draggableId } = result
     if (!destination) return
     if (destination.droppableId === source.droppableId && destination.index === source.index) return
-    const next = destination.droppableId === '__none__' ? null : destination.droppableId
-    void moveToStatus(draggableId, next)
+    void moveToStatus(draggableId, destination.droppableId)
   }
 
   const getColumnTheme = (label: string) => {
@@ -383,9 +446,7 @@ const Logistica: React.FC = () => {
                   </button>
                 </div>
                 <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
-                  {statusOptions
-                    .filter((s) => s.id !== '__none__')
-                    .map((s) => {
+                  {statusOptions.map((s) => {
                       const id = String(s.id || '').trim()
                       const label = String(s.label || '').trim() || `Status ${id.slice(0, 6)}`
                       const checked = !!id && selectedStatusIds.includes(id)
@@ -410,7 +471,7 @@ const Logistica: React.FC = () => {
                         </label>
                       )
                     })}
-                  {statusOptions.length <= 1 ? (
+                  {statusOptions.length === 0 ? (
                     <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
                   ) : null}
                 </div>
@@ -781,7 +842,8 @@ const Logistica: React.FC = () => {
                 if (obs) {
                   try {
                     await createOportunidadeComentario(selected.id_oport, obs)
-                  } catch {
+                  } catch (e: any) {
+                    if (import.meta?.env?.DEV) logError('Logistica', 'Falha ao criar comentário de andamento', e)
                   }
                 }
                 setAndamentoOpen(false)
@@ -805,13 +867,11 @@ const Logistica: React.FC = () => {
               className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
             >
               <option value="">-</option>
-              {statusOptions
-                .filter((s) => s.id !== '__none__')
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
+              {statusOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-2">

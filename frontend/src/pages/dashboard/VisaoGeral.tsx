@@ -37,6 +37,7 @@ import { Modal } from '@/components/ui'
 import { useTvMode } from '@/hooks/useTvMode'
 import FunnelVendas from '@/components/crm/FunilVendas'
 import { FeedVendasMes } from '@/components/dashboard/FeedVendasMes'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 /* ===========================
    HELPERS
@@ -382,7 +383,16 @@ export default function VisaoGeral() {
 
         {/* RANKING - Takes 5 cols */}
         <div className="xl:col-span-5 h-full">
-          <FeedVendasMes />
+          <ErrorBoundary
+            fallback={
+              <div className="bg-[var(--bg-panel)] rounded-lg shadow-sm border border-[var(--border)] flex flex-col h-full min-h-[400px] p-6 items-center justify-center text-center">
+                <div className="text-sm text-[var(--text-main)] font-semibold">Falha ao renderizar o feed</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">O restante do dashboard continua funcionando.</div>
+              </div>
+            }
+          >
+            <FeedVendasMes />
+          </ErrorBoundary>
         </div>
       </div>
       

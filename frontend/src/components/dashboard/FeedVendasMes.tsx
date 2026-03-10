@@ -18,6 +18,7 @@ type Venda = {
 
 export function FeedVendasMes() {
   const [vendas, setVendas] = useState<Venda[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const sb = supabase as any
@@ -46,6 +47,16 @@ export function FeedVendasMes() {
       valor: Number.isFinite(valor) ? valor : 0,
       data_conquistado: dataConquistado,
       is_new: false
+    }
+  }
+
+  const safeDate = (iso: string) => {
+    const raw = String(iso || '').trim()
+    if (!raw) return '—'
+    try {
+      return format(parseISO(raw), 'dd/MM/yyyy')
+    } catch {
+      return '—'
     }
   }
 
@@ -135,6 +146,7 @@ export function FeedVendasMes() {
       .limit(20)
 
     if (error) {
+      setLoadError(String(error?.message || 'Falha ao carregar vendas.'))
       return
     }
 
@@ -142,6 +154,7 @@ export function FeedVendasMes() {
       .map((row: any) => toVenda(row))
       .filter(Boolean) as Venda[]
 
+    setLoadError(null)
     setVendas(list)
   }
 
@@ -166,7 +179,13 @@ export function FeedVendasMes() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" ref={listRef}>
-        {vendas.length === 0 ? (
+        {loadError ? (
+          <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-80 min-h-[200px] text-center">
+            <Trophy className="w-10 h-10 mb-3 opacity-40" />
+            <p className="text-sm font-semibold text-[var(--text-main)]">Falha ao carregar o feed</p>
+            <p className="text-xs mt-1 max-w-[320px]">{loadError}</p>
+          </div>
+        ) : vendas.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)] opacity-60 min-h-[200px]">
                 <Trophy className="w-12 h-12 mb-3 opacity-50" />
                 <p className="text-sm font-medium">Nenhuma venda registrada este mês</p>
@@ -232,7 +251,7 @@ export function FeedVendasMes() {
                              </span>
                              <div className="flex items-center justify-end gap-1 text-xs text-[var(--text-muted)] mt-1">
                                 <CalendarDays className="w-3 h-3" />
-                                <span>{format(parseISO(venda.data_conquistado), 'dd/MM/yyyy')}</span>
+                                <span>{safeDate(venda.data_conquistado)}</span>
                              </div>
                         </div>
                     </div>

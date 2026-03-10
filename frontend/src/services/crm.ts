@@ -86,8 +86,10 @@ export interface CRM_PabxLigacao {
   id_user: string
   vendedor: string
   id_data: string
-  ligacoes_feitas: number
+  total_ligacoes_realizadas: number
+  ligacoes_atendidas: number
   ligacoes_nao_atendidas: number
+  ligacoes_falhadas: number
   updated_at: string
 }
 
@@ -348,6 +350,10 @@ export async function deleteCrmCnaeCodigo(id: string) {
 export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
   const orderDesc = opts?.orderDesc ?? true
   const sb = supabase as any
+  const BATCH_SIZE = 1000
+  let allRows: any[] = []
+  let from = 0
+  let hasMore = true
 
   const isMissingRelationship = (err: any) => {
     const m = String(err?.message || '').toLowerCase()
@@ -398,37 +404,85 @@ export async function fetchOportunidades(opts?: { orderDesc?: boolean }) {
     }
   }
 
+  // Determine which query strategy works using a probe
+  let strategy = 'standard' // standard, no-relationship, no-data-inclusao
+  
   try {
-    let r = await sb
+    // Probe query (1 row) to detect schema issues
+    let probe = await sb
       .from('crm_oportunidades')
       .select('*, crm_status(status_desc), crm_fase(fase_desc)')
-      .order('data_inclusao', { ascending: !orderDesc })
-    if (r.error && isMissingColumn(r.error) && extractMissingColumnName(r.error) === 'data_inclusao') {
-      r = await sb.from('crm_oportunidades').select('*, crm_status(status_desc), crm_fase(fase_desc)')
-      if (r.error && isMissingRelationship(r.error)) {
-        r = await sb.from('crm_oportunidades').select('*')
-      }
-    } else if (r.error && isMissingRelationship(r.error)) {
-      r = await sb.from('crm_oportunidades').select('*').order('data_inclusao', { ascending: !orderDesc })
+      .limit(1)
+    
+    if (probe.error) {
+        if (isMissingColumn(probe.error) && extractMissingColumnName(probe.error) === 'data_inclusao') {
+            strategy = 'no-data-inclusao'
+        } else if (isMissingRelationship(probe.error)) {
+            strategy = 'no-relationship'
+        } else {
+             // Try fallback to simple select * if complex failed
+             probe = await sb.from('crm_oportunidades').select('*').limit(1)
+             if (!probe.error) strategy = 'simple'
+             else throw probe.error
+        }
     }
-
-    if (r.error) {
-      if (isMissingTable(r.error) || r.error.code === '42P01') return []
-      throw r.error
-    }
-
-    const rows = (r.data || []) as any[]
-    if (rows.length === 0) return []
-
-    const sample = rows[0] || {}
-    if (sample?.id_oport) return rows.map(mapNewRow) as CRM_Oportunidade[]
-    if (sample?.id_oportunidade) return rows.map(mapLegacyRow) as CRM_Oportunidade[]
-    return rows as CRM_Oportunidade[]
-  } catch (error: any) {
-    if (isMissingTable(error) || error?.code === '42P01') return []
-    console.error('Erro ao buscar oportunidades:', error)
-    return []
+  } catch (err: any) {
+      if (isMissingTable(err) || err?.code === '42P01') return []
+      console.error('Erro ao verificar schema de oportunidades:', err)
+      return []
   }
+
+  // Fetch Loop
+  while (hasMore) {
+    try {
+        let q = sb.from('crm_oportunidades')
+        
+        if (strategy === 'standard') {
+            q = q.select('*, crm_status(status_desc), crm_fase(fase_desc)').order('data_inclusao', { ascending: !orderDesc })
+        } else if (strategy === 'no-data-inclusao') {
+            q = q.select('*, crm_status(status_desc), crm_fase(fase_desc)')
+        } else {
+            q = q.select('*')
+            if (strategy !== 'no-data-inclusao') {
+                 // Try ordering if possible, otherwise let it be
+                 // We assume data_inclusao exists if not flagged otherwise
+                 q = q.order('data_inclusao', { ascending: !orderDesc })
+            }
+        }
+
+        const { data, error } = await q.range(from, from + BATCH_SIZE - 1)
+
+        if (error) {
+            console.error('Erro ao buscar lote de oportunidades:', error)
+            break
+        }
+
+        const rows = data || []
+        allRows = [...allRows, ...rows]
+
+        if (rows.length < BATCH_SIZE) {
+            hasMore = false
+        } else {
+            from += BATCH_SIZE
+        }
+
+        // Safety break for very large datasets to prevent browser crash
+        if (allRows.length > 50000) {
+            console.warn('Limite de segurança de 50k registros atingido.')
+            break
+        }
+
+    } catch (e) {
+        console.error('Exceção no loop de fetch:', e)
+        break
+    }
+  }
+
+  const rows = allRows
+  const sample = rows[0] || {}
+  if (sample?.id_oport) return rows.map(mapNewRow) as CRM_Oportunidade[]
+  if (sample?.id_oportunidade) return rows.map(mapLegacyRow) as CRM_Oportunidade[]
+  return rows as CRM_Oportunidade[]
 }
 
 export async function updateOportunidade(id: string, updates: Partial<CRM_Oportunidade>) {
@@ -862,8 +916,10 @@ export async function fetchPabxLigacoes() {
       id_user,
       vendedor,
       id_data,
-      ligacoes_feitas,
+      total_ligacoes_realizadas,
+      ligacoes_atendidas,
       ligacoes_nao_atendidas,
+      ligacoes_falhadas,
       updated_at
     `)
     .order('id_data', { ascending: false })

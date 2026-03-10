@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Search, FilePlus, Calendar, Building2, UserPlus, Info, AlertTriangle, Download, Trash2, Upload } from 'lucide-react'
+import { Plus, Search, FilePlus, Calendar, Building2, UserPlus, Info, AlertTriangle, Download, Trash2, Upload, Key } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { fetchFinEmpresasCorrespondentes, FinEmpresaCorrespondente } from '@/services/financeiro'
 
@@ -22,6 +22,7 @@ type UsuarioSistema = {
   nome: string
   avatar_url?: string | null
   email_corporativo?: string | null
+  email_login?: string | null
   ramal?: string | null
 }
 
@@ -325,6 +326,7 @@ function DateBRPicker({
 // --- Página Principal ---
 
 export default function Colaboradores() {
+  const sb = supabase as any
   const [allUsers, setAllUsers] = useState<UsuarioSistema[]>([])
   
   const [empresas, setEmpresas] = useState<FinEmpresaCorrespondente[]>([])
@@ -423,7 +425,7 @@ export default function Colaboradores() {
       try {
         setLoadingInit(true)
 
-        const { data: colabData, error: colabError } = await supabase
+        const { data: colabData, error: colabError } = await sb
           .from('colaboradores')
           .select(`
             *,
@@ -514,7 +516,7 @@ export default function Colaboradores() {
 
         ;(async () => {
           try {
-            const { data, error } = await supabase
+            const { data, error } = await sb
               .from('colaboradores_documentos')
               .select('colaborador_id, data_vencimento')
               .lte('data_vencimento', limiteISO)
@@ -643,7 +645,7 @@ export default function Colaboradores() {
         return `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
       })()
 
-    let query = supabase
+    let query = sb
       .from('colaboradores_documentos')
       .select('colaborador_id, data_vencimento')
       .lte('data_vencimento', limiteISO)
@@ -690,7 +692,7 @@ export default function Colaboradores() {
     let data: any[] | null = null
     let error: any = null
 
-    ;({ data, error } = await supabase
+    ;({ data, error } = await sb
       .from('colaboradores_documentos')
       .select('id, nome, arquivo_nome, arquivo_url, data_emissao, data_vencimento, created_at')
       .eq('colaborador_id', colaboradorId)
@@ -699,13 +701,13 @@ export default function Colaboradores() {
     if (error) {
       const msg = String(error?.message || '').toLowerCase()
       if (msg.includes('data_emissao') && msg.includes('does not exist')) {
-        ;({ data, error } = await supabase
+        ;({ data, error } = await sb
           .from('colaboradores_documentos')
           .select('id, nome, arquivo_nome, arquivo_url, created_at')
           .eq('colaborador_id', colaboradorId)
           .order('created_at', { ascending: false }))
       } else if (msg.includes('data_vencimento') && msg.includes('does not exist')) {
-        ;({ data, error } = await supabase
+        ;({ data, error } = await sb
           .from('colaboradores_documentos')
           .select('id, nome, arquivo_nome, arquivo_url, created_at')
           .eq('colaborador_id', colaboradorId)
@@ -867,7 +869,7 @@ export default function Colaboradores() {
       }
 
       const tryInsertColaborador = async (payload: any) => {
-        return await supabase.from('colaboradores').insert(payload).select().single()
+        return await sb.from('colaboradores').insert(payload).select().single()
       }
 
       let createdColab: any = null
@@ -966,7 +968,7 @@ export default function Colaboradores() {
       if (!editDepartamento) throw new Error('Departamento é obrigatório.')
       if (!editDataAdmissao) throw new Error('Data de Admissão é obrigatória.')
 
-      const { data: updated, error: upErr } = await supabase
+      const { data: updated, error: upErr } = await sb
         .from('colaboradores')
         .update({
           empresa_id: editEmpresaId,
@@ -1045,7 +1047,7 @@ export default function Colaboradores() {
     const docId = deleteDocId
     if (!docId) return
     try {
-      const { error } = await supabase.from('colaboradores_documentos').delete().eq('id', docId)
+      const { error } = await sb.from('colaboradores_documentos').delete().eq('id', docId)
       if (error) throw error
       
       setColaboradores(prev => prev.map(c => {
@@ -1951,7 +1953,7 @@ export default function Colaboradores() {
                   let newDoc: any = null
                   let error: any = null
                   try {
-                    ;({ data: newDoc, error } = await supabase
+                    ;({ data: newDoc, error } = await sb
                       .from('colaboradores_documentos')
                       .insert({
                         colaborador_id: activeId,
@@ -1971,7 +1973,7 @@ export default function Colaboradores() {
                         (msg.includes('data_vencimento') && msg.includes('does not exist'))
 
                       if (missingDateCols) {
-                        ;({ data: newDoc, error } = await supabase
+                        ;({ data: newDoc, error } = await sb
                           .from('colaboradores_documentos')
                           .insert({
                             colaborador_id: activeId,

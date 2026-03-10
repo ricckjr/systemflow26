@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import router from '@/routes'
 
 type ToastKind = 'system' | 'chat'
 
@@ -139,9 +140,7 @@ export function useToast() {
 
 export function openToastUrl(url: string) {
   try {
-    void import('@/routes')
-      .then((m: any) => m?.default?.navigate?.(url))
-      .catch(() => {})
+    void router.navigate(url)
   } catch {
   }
 }

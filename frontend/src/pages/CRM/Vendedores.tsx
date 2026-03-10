@@ -189,7 +189,7 @@ const Vendedores: React.FC = () => {
             ligacoesNaoAtendidas: 0
           };
         }
-        sellerMap[sellerName].ligacoesFeitas += lig.ligacoes_feitas;
+        sellerMap[sellerName].ligacoesFeitas += lig.total_ligacoes_realizadas;
         sellerMap[sellerName].ligacoesNaoAtendidas += lig.ligacoes_nao_atendidas;
       }
     });

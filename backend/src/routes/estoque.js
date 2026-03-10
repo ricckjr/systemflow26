@@ -1,11 +1,10 @@
 const express = require('express');
 const { supabaseAdmin } = require('../supabase');
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
-router.use(requirePermission('COMPRAS_E_ESTOQUE', 'EDIT'));
 
 router.post('/movimentar', async (req, res) => {
   const {
@@ -41,6 +40,18 @@ router.post('/movimentar', async (req, res) => {
   }
 
   try {
+    const [editPerm, movPerm] = await Promise.all([
+      supabaseAdmin.rpc('has_permission', { user_id: req.user.id, modulo: 'COMPRAS_E_ESTOQUE', acao: 'EDIT' }),
+      supabaseAdmin.rpc('has_permission', { user_id: req.user.id, modulo: 'COMPRAS_E_ESTOQUE', acao: 'MOVIMENTAR' }),
+    ]);
+
+    if (editPerm.error || movPerm.error) {
+      return res.status(500).json({ error: 'Permission check failed' });
+    }
+    if (!editPerm.data && !movPerm.data) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
     const rpcArgs = {
       p_prod_id: prod_id,
       p_tipo_movimentacao: tipo,

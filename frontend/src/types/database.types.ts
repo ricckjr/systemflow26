@@ -289,24 +289,36 @@ export interface Database {
           id_user: string
           vendedor: string
           id_data: string
-          ligacoes_feitas: number
+          ramal: string | null
+          total_ligacoes_realizadas: number
+          ligacoes_atendidas: number
           ligacoes_nao_atendidas: number
+          ligacoes_falhadas: number
+          created_at: string
           updated_at: string
         }
         Insert: {
           id_user: string
           vendedor: string
           id_data: string
-          ligacoes_feitas: number
-          ligacoes_nao_atendidas: number
+          ramal?: string | null
+          total_ligacoes_realizadas?: number
+          ligacoes_atendidas?: number
+          ligacoes_nao_atendidas?: number
+          ligacoes_falhadas?: number
+          created_at?: string
           updated_at?: string
         }
         Update: {
           id_user?: string
           vendedor?: string
           id_data?: string
-          ligacoes_feitas?: number
+          ramal?: string | null
+          total_ligacoes_realizadas?: number
+          ligacoes_atendidas?: number
           ligacoes_nao_atendidas?: number
+          ligacoes_falhadas?: number
+          created_at?: string
           updated_at?: string
         }
         Relationships: []

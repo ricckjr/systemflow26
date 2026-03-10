@@ -35,6 +35,7 @@ import { APP_TIME_ZONE } from '@/constants/timezone'
 import { formatTimeBR } from '@/utils/datetime'
 import { Modal } from '@/components/ui'
 import { useTvMode } from '@/hooks/useTvMode'
+import FunnelVendas from '@/components/crm/FunilVendas'
 
 /* ===========================
    HELPERS
@@ -93,7 +94,6 @@ export default function VisaoGeral() {
   ============================ */
   const stats = useMemo(() => {
     // Force "America/Sao_Paulo" timezone for current month calculation
-    // We get the current date, convert to SP time to find the correct month/year
     const now = new Date()
     const spDate = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
     
@@ -102,93 +102,107 @@ export default function VisaoGeral() {
     const prevStart = startOfMonth(subMonths(spDate, 1))
     const prevEnd = endOfMonth(subMonths(spDate, 1))
 
-    // Helper to filter data by range
-    const filterData = (list: CRM_Oportunidade[], s: Date, e: Date) => {
-      return list.filter(d => {
-        const raw = d.data || d.data_inclusao
-        const dateObj = parseDate(raw)
-        return dateObj && isWithinInterval(dateObj, { start: s, end: e })
-      })
-    }
+    // CONSTANTS
+    const FASE_CONQUISTADO = '88a8b9bb-30db-4eb7-a351-182daeeb0f02'
+    const FASE_PERDIDO = '8491b5a4-9c86-48f0-9d3c-6dc1fe285caa'
+    const FASE_PIPELINE_ATIVO = [
+        '705b9fc4-ba5c-4837-91c6-d7b2f55dde2f',
+        '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e',
+        '0773b832-d4f7-4aa8-b962-23c8efd2b8a4'
+    ]
 
-    const currentData = filterData(data, start, end)
-    const lastData = filterData(data, prevStart, prevEnd)
-    
-    const calculateMetrics = (dataset: CRM_Oportunidade[]) => {
-      const vendaValue = dataset.reduce(
-        (a, o) => a + (isVenda(o.status) ? parseValorProposta(o.valor_proposta ?? (o.ticket_valor == null ? null : String(o.ticket_valor))) : 0),
+    // Helper: Sum Value
+    const sumValue = (list: CRM_Oportunidade[]) => list.reduce(
+        (a, o) => a + parseValorProposta(o.valor_proposta ?? (o.ticket_valor == null ? null : String(o.ticket_valor))),
         0
-      )
-      const vendaCount = dataset.reduce((a, o) => a + (isVenda(o.status) ? 1 : 0), 0)
-      
-      const ativoItems = dataset.filter(o => isAtivo(o.status))
-      const perdidoItems = dataset.filter(o => (o.status || '').toUpperCase() === 'PERDIDO')
-      const canceladoItems = dataset.filter(o => (o.status || '').toUpperCase() === 'CANCELADO')
+    )
 
-      return {
-        vendaValue,
-        vendaCount,
-        ativoValue: ativoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
-        ativoCount: ativoItems.length,
-        perdidoValue: perdidoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
-        perdidoCount: perdidoItems.length,
-        canceladoValue: canceladoItems.reduce((a, b) => a + parseValorProposta(b.valor_proposta ?? (b.ticket_valor == null ? null : String(b.ticket_valor))), 0),
-        canceladoCount: canceladoItems.length
-      }
+    // 1. Propostas Geradas (Data Inclusão - Mês Atual)
+    const getPropostas = (s: Date, e: Date) => data.filter(d => {
+        const date = parseDate(d.data_inclusao)
+        return date && isWithinInterval(date, { start: s, end: e })
+    })
+    const propostasCurr = getPropostas(start, end)
+    const propostasLast = getPropostas(prevStart, prevEnd)
+
+    // 2. Vendas (Data Conquistado - Mês Atual + ID Fase)
+    const getVendas = (s: Date, e: Date) => data.filter(d => {
+        if (d.id_fase !== FASE_CONQUISTADO) return false
+        const date = parseDate(d.data_conquistado)
+        return date && isWithinInterval(date, { start: s, end: e })
+    })
+    const vendasCurr = getVendas(start, end)
+    const vendasLast = getVendas(prevStart, prevEnd)
+
+    // 3. Pipeline Ativo (Total - IDs Fase)
+    const pipelineAtivo = data.filter(d => FASE_PIPELINE_ATIVO.includes(d.id_fase || ''))
+
+    // 4. Perdidas (Total - ID Fase)
+    const perdidasTotal = data.filter(d => d.id_fase === FASE_PERDIDO)
+
+    // Helper: Calculate Trend
+    const calcTrend = (curr: number, last: number) => {
+        if (last === 0) return curr > 0 ? 100 : 0
+        return ((curr - last) / last) * 100
     }
 
-    const curr = calculateMetrics(currentData)
-    const last = calculateMetrics(lastData)
+    // Metrics Calculation
+    const vendaVal = sumValue(vendasCurr)
+    const vendaCount = vendasCurr.length
+    const vendaLastVal = sumValue(vendasLast)
 
-    // Propostas (data_inclusao)
-    const countProposals = (s: Date, e: Date) => data.filter(d => {
-       const raw = d.data_inclusao
-       const dateObj = parseDate(raw)
-       return dateObj && isWithinInterval(dateObj, { start: s, end: e })
-    }).length
+    const propCount = propostasCurr.length
+    const propLastCount = propostasLast.length
 
-    const propCurr = countProposals(start, end)
-    const propLast = countProposals(prevStart, prevEnd)
+    const pipelineVal = sumValue(pipelineAtivo)
+    const pipelineCount = pipelineAtivo.length
+
+    const perdidasVal = sumValue(perdidasTotal)
+    const perdidasCount = perdidasTotal.length
+
+    // Conversion (Vendas / Propostas)
+    const conversionCurr = propCount > 0 ? (vendaCount / propCount) * 100 : 0
+    const conversionLast = propLastCount > 0 ? (vendasLast.length / propLastCount) * 100 : 0
+
+    // Avg Ticket (Vendas Val / Vendas Count)
+    const ticketCurr = vendaCount > 0 ? vendaVal / vendaCount : 0
+    const ticketLast = vendasLast.length > 0 ? vendaLastVal / vendasLast.length : 0
 
     // Ligações (PABX)
-    const countCalls = (s: Date, e: Date) => pabxLigacoes.reduce((acc, l) => {
+    const calculateCallStats = (s: Date, e: Date) => pabxLigacoes.reduce((acc, l) => {
        const d = parseDate(l.id_data)
        if (!d) return acc
        if (isWithinInterval(d, { start: s, end: e })) {
-         return acc + l.ligacoes_feitas
+         return {
+           total: acc.total + (l.total_ligacoes_realizadas || 0),
+           atendidas: acc.atendidas + (l.ligacoes_atendidas || 0),
+           naoAtendidas: acc.naoAtendidas + (l.ligacoes_nao_atendidas || 0),
+           falhadas: acc.falhadas + (l.ligacoes_falhadas || 0)
+         }
        }
        return acc
-    }, 0)
+    }, { total: 0, atendidas: 0, naoAtendidas: 0, falhadas: 0 })
 
-    const callsCurr = countCalls(start, end)
-    const callsLast = countCalls(prevStart, prevEnd)
-
-    const calcTrend = (currVal: number, lastVal: number) => {
-      if (lastVal === 0) return currVal > 0 ? 100 : 0
-      return ((currVal - lastVal) / lastVal) * 100
-    }
+    const callsCurr = calculateCallStats(start, end)
+    const callsLast = calculateCallStats(prevStart, prevEnd)
 
     return {
-      venda: { value: curr.vendaValue, count: curr.vendaCount, trend: calcTrend(curr.vendaValue, last.vendaValue) },
-      ativo: { value: curr.ativoValue, count: curr.ativoCount, trend: calcTrend(curr.ativoValue, last.ativoValue) },
-      perdido: { value: curr.perdidoValue, count: curr.perdidoCount, trend: calcTrend(curr.perdidoValue, last.perdidoValue) },
-      cancelado: { value: curr.canceladoValue, count: curr.canceladoCount, trend: calcTrend(curr.canceladoValue, last.canceladoValue) },
+      venda: { value: vendaVal, count: vendaCount, trend: calcTrend(vendaVal, vendaLastVal) },
+      ativo: { value: pipelineVal, count: pipelineCount, trend: 0 }, // No trend for total stock
+      perdido: { value: perdidasVal, count: perdidasCount, trend: 0 }, // No trend for total stock
       conversion: {
-        value: currentData.length ? (curr.vendaCount / currentData.length) * 100 : 0,
-        trend: calcTrend(
-          currentData.length ? (curr.vendaCount / currentData.length) * 100 : 0,
-          lastData.length ? (last.vendaCount / lastData.length) * 100 : 0
-        )
+        value: conversionCurr,
+        trend: calcTrend(conversionCurr, conversionLast)
       },
       avgTicket: {
-        value: curr.vendaCount ? curr.vendaValue / curr.vendaCount : 0,
-        trend: calcTrend(
-          curr.vendaCount ? curr.vendaValue / curr.vendaCount : 0,
-          last.vendaCount ? last.vendaValue / last.vendaCount : 0
-        )
+        value: ticketCurr,
+        trend: calcTrend(ticketCurr, ticketLast)
       },
-      propostasGeradas: { value: propCurr, trend: calcTrend(propCurr, propLast) },
-      ligacoesFeitas: { value: callsCurr, trend: calcTrend(callsCurr, callsLast) }
+      propostasGeradas: { value: propCount, trend: calcTrend(propCount, propLastCount) },
+      ligacoesFeitas: { value: callsCurr.total, trend: calcTrend(callsCurr.total, callsLast.total) },
+      ligacoesAtendidas: { value: callsCurr.atendidas, trend: calcTrend(callsCurr.atendidas, callsLast.atendidas) },
+      ligacoesNaoAtendidas: { value: callsCurr.naoAtendidas, trend: calcTrend(callsCurr.naoAtendidas, callsLast.naoAtendidas) },
+      ligacoesFalhadas: { value: callsCurr.falhadas, trend: calcTrend(callsCurr.falhadas, callsLast.falhadas) }
     }
   }, [data, pabxLigacoes])
 
@@ -275,6 +289,29 @@ export default function VisaoGeral() {
           color="blue"
         />
         <KPI 
+          title="Ligações Atendidas" 
+          value={String(stats.ligacoesAtendidas.value)} 
+          trend={stats.ligacoesAtendidas.trend}
+          icon={Phone}
+          color="emerald"
+        />
+        <KPI 
+          title="Ligações Não Atendidas" 
+          value={String(stats.ligacoesNaoAtendidas.value)} 
+          trend={stats.ligacoesNaoAtendidas.trend}
+          icon={Phone}
+          color="amber"
+        />
+        <KPI 
+          title="Ligações Falhadas" 
+          value={String(stats.ligacoesFalhadas.value)} 
+          trend={stats.ligacoesFalhadas.trend}
+          icon={Phone}
+          color="rose"
+        />
+        
+        {/* Row 2 */}
+        <KPI 
           title="Propostas Geradas" 
           value={String(stats.propostasGeradas.value)} 
           trend={stats.propostasGeradas.trend}
@@ -298,8 +335,15 @@ export default function VisaoGeral() {
           icon={TrendingUp}
           color="sky"
         />
+        <KPI 
+          title="Ticket Médio" 
+          value={formatCurrency(stats.avgTicket.value)} 
+          trend={stats.avgTicket.trend}
+          icon={ShoppingCart}
+          color="emerald"
+        />
         
-        {/* Row 2 */}
+        {/* Row 3 */}
         <KPI 
           title="Taxa de Conversão" 
           value={`${stats.conversion.value.toFixed(1)}%`} 
@@ -308,14 +352,7 @@ export default function VisaoGeral() {
           color="violet"
         />
         <KPI 
-          title="Ticket Médio" 
-          value={formatCurrency(stats.avgTicket.value)} 
-          trend={stats.avgTicket.trend}
-          icon={ShoppingCart}
-          color="emerald"
-        />
-        <KPI 
-          title="Perdido" 
+          title="Perdidas (Total)" 
           value={formatCurrency(stats.perdido.value)} 
           count={stats.perdido.count}
           trend={stats.perdido.trend}
@@ -323,23 +360,14 @@ export default function VisaoGeral() {
           invertTrend
           color="rose"
         />
-        <KPI 
-          title="Cancelado" 
-          value={formatCurrency(stats.cancelado.value)} 
-          count={stats.cancelado.count}
-          trend={stats.cancelado.trend}
-          icon={X} 
-          invertTrend
-          color="gray"
-        />
       </div>
 
       {/* META PROGRESS BAR */}
       <div className="mb-6">
         <MetaProgressBar 
           current={stats.venda.value} 
-          target={meta?.meta_valor_financeiro ? Number(meta.meta_valor_financeiro) : 0} 
-          label="Super Meta"
+          target={meta?.supermeta_valor_financeiro ? Number(meta.supermeta_valor_financeiro) : 0} 
+          label="Meta Comercial"
           onClick={() => setIsMetaModalOpen(true)}
         />
       </div>
@@ -457,44 +485,76 @@ const KPI = ({
 =========================== */
 const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
   const funnelData = useMemo(() => {
-    const stages = [
-      { id: 'PROSPECCAO', label: 'Prospecção', color: '#818cf8' },
-      { id: 'QUALIFICACAO', label: 'Qualificação', color: '#60a5fa' },
-      { id: 'APRESENTACAO', label: 'Apresentação', color: '#38bdf8' },
-      { id: 'PROPOSTA', label: 'Proposta', color: '#2dd4bf' },
-      { id: 'NEGOCIACAO', label: 'Negociação', color: '#fbbf24' }
-    ]
+    // 1. Definição das Fases com seus IDs correspondentes
+    const phases = {
+      LEADS: ['f045b8fe-ce70-466d-a323-3285bdb418e3', '6f68aa0d-6915-4aef-9542-811c9e8fce12'],
+      QUALIFICADOS: ['3a1bf927-141e-4ffd-b3f5-8a02e018a128'],
+      NEGOCIACAO: ['705b9fc4-ba5c-4837-91c6-d7b2f55dde2f', '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e'],
+      CONQUISTADO: ['88a8b9bb-30db-4eb7-a351-182daeeb0f02'],
+      POS_VENDA: ['bfa976f8-fe0e-48e7-ab93-a29ea0bbc252']
+    }
 
-    const grouped = data.reduce((acc, item) => {
-      // Normalização robusta: usa etapa
-      const raw = (item.fase || '').toUpperCase()
-      const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/Ç/g, 'C').replace(/[^A-Z]/g, '')
-      
-      let stageId = ''
-      // Mapeamento exato baseado no input do usuário
-      if (normalized.includes('PROSPECCAO')) stageId = 'PROSPECCAO'
-      else if (normalized.includes('QUALIFICACAO')) stageId = 'QUALIFICACAO'
-      else if (normalized.includes('APRESENTACAO')) stageId = 'APRESENTACAO'
-      else if (normalized.includes('PROPOSTA')) stageId = 'PROPOSTA'
-      else if (normalized.includes('NEGOCIACAO')) stageId = 'NEGOCIACAO'
+    // 2. Acumuladores
+    const acc = {
+      LEADS: { count: 0, value: 0 },
+      QUALIFICADOS: { count: 0, value: 0 },
+      NEGOCIACAO: { count: 0, value: 0 },
+      CONQUISTADO: { count: 0, value: 0 },
+      POS_VENDA: { count: 0, value: 0 }
+    }
 
-      if (stageId) {
-        if (!acc[stageId]) acc[stageId] = { count: 0, value: 0 }
-        acc[stageId].count += 1
-        acc[stageId].value += parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
-      }
-      return acc
-    }, {} as Record<string, { count: number, value: number }>)
+    // 3. Processamento dos dados
+    // Helper to check if date is in current month (SP Timezone)
+    const isCurrentMonth = (dateStr: string | null) => {
+        if (!dateStr) return false
+        const date = parseDate(dateStr)
+        if (!date) return false
+        
+        const now = new Date()
+        const spDate = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
+        const start = startOfMonth(spDate)
+        const end = endOfMonth(spDate)
+        
+        return isWithinInterval(date, { start, end })
+    }
 
-    return stages.map(stage => {
-      const info = grouped[stage.id] || { count: 0, value: 0 }
-      return {
-        name: stage.label,
-        value: info.count,
-        totalValue: info.value,
-        fill: stage.color
+    data.forEach(item => {
+      const faseId = item.id_fase
+      if (!faseId) return
+
+      const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
+
+      if (phases.LEADS.includes(faseId)) {
+        acc.LEADS.count += 1
+      } else if (phases.QUALIFICADOS.includes(faseId)) {
+        acc.QUALIFICADOS.count += 1
+      } else if (phases.NEGOCIACAO.includes(faseId)) {
+        acc.NEGOCIACAO.count += 1
+        acc.NEGOCIACAO.value += valor
+      } else if (phases.CONQUISTADO.includes(faseId)) {
+        // Conquistado: Apenas do Mês Atual (baseado em data_conquistado)
+        if (isCurrentMonth(item.data_conquistado)) {
+            acc.CONQUISTADO.count += 1
+            acc.CONQUISTADO.value += valor
+        }
+      } else if (phases.POS_VENDA.includes(faseId)) {
+        // Pós Venda: Apenas do Mês Atual
+        if (isCurrentMonth(item.data_posvenda || item.data_conquistado)) {
+             acc.POS_VENDA.count += 1
+             // Pós Venda: Apenas quantidade (valor = 0)
+             // acc.POS_VENDA.value += valor
+        }
       }
     })
+
+    // 4. Formatação para o novo Componente FunnelVendas
+    return [
+      { id: 'LEADS', label: 'Leads', count: acc.LEADS.count, value: acc.LEADS.value, color: '#1E3A8A', hideValue: true },
+      { id: 'QUALIFICADOS', label: 'Leads Qualificados', count: acc.QUALIFICADOS.count, value: acc.QUALIFICADOS.value, color: '#16A34A', hideValue: true },
+      { id: 'NEGOCIACAO', label: 'Negociação', count: acc.NEGOCIACAO.count, value: acc.NEGOCIACAO.value, color: '#EA580C' },
+      { id: 'CONQUISTADO', label: 'Conquistado', count: acc.CONQUISTADO.count, value: acc.CONQUISTADO.value, color: '#F59E0B' },
+      { id: 'POS_VENDA', label: 'Pós Venda', count: acc.POS_VENDA.count, value: acc.POS_VENDA.value, color: '#7C3AED', hideValue: true }
+    ]
   }, [data])
 
   return (
@@ -504,75 +564,9 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         Funil de Vendas (Fases)
       </h3>
       
-      <div className="flex-1 w-full min-h-[450px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart layout="vertical" data={funnelData} margin={{ top: 0, right: 180, left: 20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis type="number" hide />
-            <YAxis 
-              type="category" 
-              dataKey="name" 
-              width={120}
-              tick={({ x, y, payload }) => (
-                <text x={x} y={y} dy={4} textAnchor="end" fill="#ffffff" fontSize={14} fontWeight={700}>
-                  {payload.value}
-                </text>
-              )}
-              axisLine={false}
-              tickLine={false}
-              interval={0}
-            />
-            <Tooltip 
-              cursor={{ fill: 'rgba(255,255,255,0.03)' }}
-              contentStyle={{ 
-                backgroundColor: '#1e293b', 
-                borderColor: 'rgba(255,255,255,0.1)', 
-                borderRadius: '8px',
-                color: '#f8fafc',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-              formatter={(value: any, name: any, props: any) => [
-                <div key="tooltip" className="flex flex-col gap-1 py-1">
-                  <span className="font-bold text-white text-lg">{value} ops</span>
-                  <span className="text-sm text-gray-400">
-                    Total: <span className="text-emerald-400 font-medium">{formatCurrency(props.payload.totalValue)}</span>
-                  </span>
-                </div>,
-                name
-              ]}
-            />
-            <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={40}>
-              {funnelData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.fill} />
-              ))}
-              <LabelList 
-                dataKey="value" 
-                position="right"
-                content={(props: any) => {
-                  const { x, y, height, value, index } = props
-                  const item = funnelData[index]
-                  if (!item) return null
-                  return (
-                    <text 
-                      x={x + 12} 
-                      y={y + height / 2} 
-                      dy={6} 
-                      fontSize={16} 
-                      fontWeight={700} 
-                      fill="#ffffff" 
-                      className="animate-pulse"
-                      style={{ filter: 'drop-shadow(0px 1px 2px rgba(0,0,0,0.8))' }}
-                    >
-                      {formatCurrency(item.totalValue)}
-                      <tspan dx={12} fill="#ffffff" fontWeight={400} fontSize={14}>—</tspan>
-                      <tspan dx={12} fill="#ffffff" fontWeight={700} fontSize={16}>{value}</tspan> <tspan fontSize={14} fill="#cbd5e1" fontWeight={500}>ops</tspan>
-                    </text>
-                  )
-                }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="flex-1 w-full min-h-[450px] flex items-center justify-center">
+        {/* New Funnel Component */}
+        <FunnelVendas data={funnelData} />
       </div>
     </div>
   )
@@ -582,27 +576,41 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
    RANKING COMPONENT
 =========================== */
 const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
+  // Uses the same logic as the Vendedores.tsx page for consistency
   const ranking = useMemo(() => {
     const now = new Date()
     const currentM = String(now.getMonth() + 1).padStart(2, '0')
     const currentY = String(now.getFullYear())
 
+    // Filter Sales for Current Month
     const vendasDoMes = data.filter(d => {
-       const isSold = isVenda(d.status)
+       const isSold = isVenda(d.status) // Checks if status is 'Venda' or 'Conquistado'
        const ym = getYearMonth(d)
        return isSold && (ym ? ym[0] === currentY && ym[1] === currentM : false)
     })
 
+    // Group by Seller
     const grouped = vendasDoMes.reduce((acc, item) => {
       const vendedor = item.vendedor || 'Não Identificado'
       const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
-      if (!acc[vendedor]) acc[vendedor] = 0
-      acc[vendedor] += valor
+      
+      if (!acc[vendedor]) {
+        acc[vendedor] = { total: 0, avatar: null }
+      }
+      
+      acc[vendedor].total += valor
+      
+      // Capture avatar if available (take the first non-null one found)
+      if (!acc[vendedor].avatar && (item as any)?.vendedor_avatar_url) {
+        acc[vendedor].avatar = (item as any).vendedor_avatar_url
+      }
+      
       return acc
-    }, {} as Record<string, number>)
+    }, {} as Record<string, { total: number, avatar: string | null }>)
 
+    // Sort Descending
     const sorted = Object.entries(grouped)
-      .map(([name, total]) => ({ name, total }))
+      .map(([name, info]) => ({ name, total: info.total, avatar: info.avatar }))
       .sort((a, b) => b.total - a.total)
 
     const maxVal = sorted.length > 0 ? sorted[0].total : 0
@@ -622,7 +630,7 @@ const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
              <Award size={32} className="text-[var(--text-muted)]" />
            </div>
            <p className="text-sm font-medium">Sem vendas confirmadas</p>
-           <p className="text-xs mt-1 opacity-60">Janeiro/2026</p>
+           <p className="text-xs mt-1 opacity-60">{formatTimeBR(new Date()).split(' ')[0].substring(3)}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pr-2 space-y-5 custom-scrollbar max-h-[400px]">
@@ -638,6 +646,15 @@ const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
                     <span className={`font-black w-6 text-center ${medalColor} ${isTop3 ? 'text-lg' : 'text-sm'}`}>
                       {index + 1}º
                     </span>
+                    
+                    {/* Avatar Integration */}
+                    <div 
+                      className="w-8 h-8 rounded-full bg-[var(--bg-body)] border border-[var(--border)] bg-center bg-cover flex items-center justify-center font-black uppercase text-[10px] text-[var(--text-main)] shadow-sm"
+                      style={item.avatar ? { backgroundImage: `url(${item.avatar})` } : undefined}
+                    >
+                      {!item.avatar ? item.name.substring(0, 2) : null}
+                    </div>
+
                     <span className="text-sm font-bold text-[var(--text-main)] truncate max-w-[150px]">
                       {item.name}
                     </span>

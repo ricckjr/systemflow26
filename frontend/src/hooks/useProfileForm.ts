@@ -182,7 +182,7 @@ export function useProfileForm() {
 
       const { error: updateError, count } = await supabase
         .from('profiles')
-        .update(patch, { returning: 'minimal', count: 'exact' })
+        .update(patch, { count: 'exact' })
         .eq('id', userId)
 
       if (updateError) throw updateError
@@ -199,7 +199,7 @@ export function useProfileForm() {
             ramal: form.ramal || null,
             avatar_url: avatarUrl || null,
             ativo: true,
-          } as any, { returning: 'minimal' })
+          } as any)
 
         if (insertError) throw insertError
       }

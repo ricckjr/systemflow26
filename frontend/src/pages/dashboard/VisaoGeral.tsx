@@ -36,6 +36,7 @@ import { formatTimeBR } from '@/utils/datetime'
 import { Modal } from '@/components/ui'
 import { useTvMode } from '@/hooks/useTvMode'
 import FunnelVendas from '@/components/crm/FunilVendas'
+import { FeedVendasMes } from '@/components/dashboard/FeedVendasMes'
 
 /* ===========================
    HELPERS
@@ -381,7 +382,7 @@ export default function VisaoGeral() {
 
         {/* RANKING - Takes 5 cols */}
         <div className="xl:col-span-5 h-full">
-          <RankingSection data={data} />
+          <FeedVendasMes />
         </div>
       </div>
       
@@ -568,118 +569,6 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         {/* New Funnel Component */}
         <FunnelVendas data={funnelData} />
       </div>
-    </div>
-  )
-}
-
-/* ===========================
-   RANKING COMPONENT
-=========================== */
-const RankingSection = ({ data }: { data: CRM_Oportunidade[] }) => {
-  // Uses the same logic as the Vendedores.tsx page for consistency
-  const ranking = useMemo(() => {
-    const now = new Date()
-    const currentM = String(now.getMonth() + 1).padStart(2, '0')
-    const currentY = String(now.getFullYear())
-
-    // Filter Sales for Current Month
-    const vendasDoMes = data.filter(d => {
-       const isSold = isVenda(d.status) // Checks if status is 'Venda' or 'Conquistado'
-       const ym = getYearMonth(d)
-       return isSold && (ym ? ym[0] === currentY && ym[1] === currentM : false)
-    })
-
-    // Group by Seller
-    const grouped = vendasDoMes.reduce((acc, item) => {
-      const vendedor = item.vendedor || 'Não Identificado'
-      const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
-      
-      if (!acc[vendedor]) {
-        acc[vendedor] = { total: 0, avatar: null }
-      }
-      
-      acc[vendedor].total += valor
-      
-      // Capture avatar if available (take the first non-null one found)
-      if (!acc[vendedor].avatar && (item as any)?.vendedor_avatar_url) {
-        acc[vendedor].avatar = (item as any).vendedor_avatar_url
-      }
-      
-      return acc
-    }, {} as Record<string, { total: number, avatar: string | null }>)
-
-    // Sort Descending
-    const sorted = Object.entries(grouped)
-      .map(([name, info]) => ({ name, total: info.total, avatar: info.avatar }))
-      .sort((a, b) => b.total - a.total)
-
-    const maxVal = sorted.length > 0 ? sorted[0].total : 0
-    return { list: sorted, max: maxVal }
-  }, [data])
-
-  return (
-    <div className="card-panel p-6 flex flex-col h-full">
-      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
-        <Award size={16} className="text-yellow-500" />
-        Ranking de Vendedores (Mês Atual)
-      </h3>
-
-      {ranking.list.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-[var(--text-soft)] min-h-[300px] border-2 border-dashed border-[var(--border)] rounded-xl bg-[var(--bg-body)]/50">
-           <div className="p-4 rounded-full bg-[var(--bg-body)] mb-3">
-             <Award size={32} className="text-[var(--text-muted)]" />
-           </div>
-           <p className="text-sm font-medium">Sem vendas confirmadas</p>
-           <p className="text-xs mt-1 opacity-60">{formatTimeBR(new Date()).split(' ')[0].substring(3)}</p>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto pr-2 space-y-5 custom-scrollbar max-h-[400px]">
-          {ranking.list.map((item, index) => {
-            const isTop3 = index < 3
-            const medalColor = index === 0 ? 'text-yellow-400 drop-shadow-md' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-700' : 'text-gray-600'
-            const percent = ranking.max > 0 ? (item.total / ranking.max) * 100 : 0
-            
-            return (
-              <div key={item.name} className="relative group">
-                <div className="flex items-center justify-between mb-2 z-10 relative">
-                  <div className="flex items-center gap-3">
-                    <span className={`font-black w-6 text-center ${medalColor} ${isTop3 ? 'text-lg' : 'text-sm'}`}>
-                      {index + 1}º
-                    </span>
-                    
-                    {/* Avatar Integration */}
-                    <div 
-                      className="w-8 h-8 rounded-full bg-[var(--bg-body)] border border-[var(--border)] bg-center bg-cover flex items-center justify-center font-black uppercase text-[10px] text-[var(--text-main)] shadow-sm"
-                      style={item.avatar ? { backgroundImage: `url(${item.avatar})` } : undefined}
-                    >
-                      {!item.avatar ? item.name.substring(0, 2) : null}
-                    </div>
-
-                    <span className="text-sm font-bold text-[var(--text-main)] truncate max-w-[150px]">
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                    {formatCurrency(item.total)}
-                  </span>
-                </div>
-                
-                <div className="h-2.5 w-full bg-[var(--bg-body)] rounded-full overflow-hidden border border-[var(--border)]">
-                  <div 
-                    className="h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
-                    style={{ 
-                      width: `${percent}%`,
-                      backgroundColor: index === 0 ? '#fbbf24' : 'var(--primary)' 
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }

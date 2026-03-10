@@ -65,32 +65,8 @@ export default defineConfig(({ mode }) => {
             }
           : undefined,
       },
-      optimizeDeps: {
-        include: ['react', 'react-dom'],
-      },
       build: {
-        rollupOptions: {
-          output: {
-            manualChunks(id) {
-              if (id.includes('node_modules')) {
-                if (id.includes('/react-dom/') || id.includes('\\react-dom\\') || id.includes('/react/') || id.includes('\\react\\') || id.includes('/scheduler/') || id.includes('\\scheduler\\')) return 'vendor-react-core'
-                if (id.includes('react-router')) return 'vendor-router'
-                if (id.includes('@supabase')) return 'vendor-supabase'
-                if (id.includes('jspdf')) return 'vendor-jspdf'
-                if (id.includes('html2canvas')) return 'vendor-html2canvas'
-                if (id.includes('@hello-pangea/dnd')) return 'vendor-dnd'
-                if (id.includes('lucide-react')) return 'vendor-icons'
-                if (id.includes('recharts')) return 'vendor-charts'
-                if (id.includes('date-fns')) return 'vendor-date'
-                if (id.includes('@tanstack/react-query')) return 'vendor-query'
-                if (id.includes('emoji-picker-react')) return 'vendor-emoji'
-                if (id.includes('@google/genai')) return 'vendor-genai'
-                return 'vendor'
-              }
-              return undefined
-            },
-          },
-        },
+        rollupOptions: {},
       },
       plugins: [react(), tailwindcss()],
       define: {

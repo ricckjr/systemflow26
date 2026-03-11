@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WheelEvent as ReactWheelEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd'
 import { 
   LayoutDashboard, 
@@ -479,6 +480,7 @@ const OpportunityCard = ({
 }
 
 export default function OportunidadesKanban() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [opportunities, setOpportunities] = useState<CRM_Oportunidade[]>([])
   const [stages, setStages] = useState<Stage[]>(FALLBACK_STAGES)
   const [statuses, setStatuses] = useState<CRM_Status[]>([])
@@ -559,6 +561,18 @@ export default function OportunidadesKanban() {
   const [itensDisplayByOport, setItensDisplayByOport] = useState<Record<string, string>>({})
   const [itensSearchLoading, setItensSearchLoading] = useState(false)
   const [listSort, setListSort] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'valor', direction: 'desc' })
+  const [stageMoveModalOpen, setStageMoveModalOpen] = useState(false)
+  const [stageMoveComment, setStageMoveComment] = useState('')
+  const [stageMoveSaving, setStageMoveSaving] = useState(false)
+  const [stageMoveError, setStageMoveError] = useState<string | null>(null)
+  const [pendingStageMove, setPendingStageMove] = useState<{
+    draggableId: string
+    newStageId: string
+    oldStageId: string
+    faseLabel: string | null
+    faseLabelOld: string | null
+    originalOpportunities: CRM_Oportunidade[]
+  } | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [createSaving, setCreateSaving] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -658,7 +672,7 @@ export default function OportunidadesKanban() {
   const [draftItensTouched, setDraftItensTouched] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState('')
   const [tab, setTab] = useState<
-    'pagamento' | 'temperatura' | 'atividades' | 'observacoes' | 'producao' | 'transportadora'
+    'pagamento' | 'temperatura' | 'atividades' | 'comentarios' | 'observacoes' | 'producao'
   >('pagamento')
   const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
   const draftItensTouchedRef = useRef(false)
@@ -1736,9 +1750,22 @@ export default function OportunidadesKanban() {
   }
 
   const openEdit = (id: string) => {
-    setActiveId(String(id || '').trim())
+    const nextId = String(id || '').trim()
+    if (!nextId) return
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('id', nextId)
+    setSearchParams(nextParams, { replace: true })
+    setActiveId(nextId)
     setFormOpen(true)
   }
+
+  useEffect(() => {
+    const id = String(searchParams.get('id') || '').trim()
+    if (!id) return
+    if (formOpen && String(activeId || '').trim() === id) return
+    setActiveId(id)
+    setFormOpen(true)
+  }, [activeId, formOpen, searchParams])
 
   useEffect(() => {
     if (!formOpen) return
@@ -2633,47 +2660,74 @@ export default function OportunidadesKanban() {
     const oldStageId = source.droppableId
     const faseLabelOld = stages.find(s => s.id === oldStageId)?.label || null
 
-    let comentario = ''
-    while (true) {
-      const entered = prompt(
-        `Informe um comentário para registrar a mudança de fase:\n${String(faseLabelOld || '').trim() || '—'} → ${String(faseLabel || '').trim() || '—'}`,
-        ''
-      )
-      if (entered === null) return
-      const t = String(entered || '').trim()
-      if (!t) {
-        alert('Informe um comentário.')
-        continue
-      }
-      comentario = t
-      break
-    }
-    
-    // 1. Optimistic Update
-    const originalOpportunities = [...opportunities]
-    setOpportunities(prev => prev.map(op => {
-      const id = (op.id_oport || (op as any).id_oportunidade)
-      if (id === draggableId) {
-        return { ...op, id_fase: newStageId, fase: faseLabel }
-      }
-      return op
-    }))
-
-    // 2. API Call
-    try {
-       await updateOportunidade(draggableId, { id_fase: newStageId, fase: faseLabel } as any)
-       if (faseLabelOld && faseLabel && draggableId) {
-         try {
-           await createOportunidadeComentario(String(draggableId), `Fase alterada: ${faseLabelOld} → ${faseLabel}\nComentário: ${comentario}`)
-         } catch {}
-       }
-    } catch (error) {
-       console.error('Failed to update stage', error)
-       // Rollback
-       setOpportunities(originalOpportunities)
-       alert('Falha ao atualizar a fase da proposta comercial.')
-    }
+    setPendingStageMove({
+      draggableId,
+      newStageId,
+      oldStageId,
+      faseLabel,
+      faseLabelOld,
+      originalOpportunities: [...opportunities]
+    })
+    setStageMoveComment('')
+    setStageMoveError(null)
+    setStageMoveModalOpen(true)
   }, [opportunities, stages])
+
+  const closeStageMoveModal = useCallback(() => {
+    if (stageMoveSaving) return
+    setStageMoveModalOpen(false)
+    setPendingStageMove(null)
+    setStageMoveError(null)
+  }, [stageMoveSaving])
+
+  const confirmStageMove = useCallback(async () => {
+    if (stageMoveSaving) return
+    if (!pendingStageMove) return
+
+    const comentario = String(stageMoveComment || '').trim()
+    if (!comentario) {
+      setStageMoveError('Informe um comentário.')
+      return
+    }
+
+    setStageMoveSaving(true)
+    setStageMoveError(null)
+
+    const targetId = String(pendingStageMove.draggableId || '').trim()
+    setOpportunities((prev) =>
+      prev.map((op) => {
+        const id = String((op as any)?.id_oport ?? (op as any)?.id_oportunidade ?? '').trim()
+        if (!id || id !== targetId) return op
+        return { ...op, id_fase: pendingStageMove.newStageId, fase: pendingStageMove.faseLabel } as any
+      })
+    )
+
+    try {
+      await updateOportunidade(targetId, { id_fase: pendingStageMove.newStageId, fase: pendingStageMove.faseLabel } as any)
+      if (pendingStageMove.faseLabelOld && pendingStageMove.faseLabel && targetId) {
+        try {
+          await createOportunidadeComentario(
+            targetId,
+            `Fase alterada: ${pendingStageMove.faseLabelOld} → ${pendingStageMove.faseLabel}\nComentário: ${comentario}`
+          )
+        } catch {}
+      }
+      setStageMoveModalOpen(false)
+      setPendingStageMove(null)
+      setStageMoveError(null)
+    } catch (error) {
+      console.error('Failed to update stage', error)
+      setOpportunities(pendingStageMove.originalOpportunities)
+      setStageMoveError('Falha ao atualizar a fase da proposta comercial.')
+      pushToast({
+        kind: 'system',
+        title: 'Falha ao atualizar fase',
+        message: 'Não foi possível salvar a mudança de fase. Tente novamente.'
+      })
+    } finally {
+      setStageMoveSaving(false)
+    }
+  }, [pendingStageMove, pushToast, stageMoveComment, stageMoveSaving])
 
   useEffect(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -3102,6 +3156,19 @@ export default function OportunidadesKanban() {
     }>
 
     rows.sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
+    return rows
+  }, [comentarios])
+
+  const comentariosUsuario = useMemo(() => {
+    const rows = (comentarios || []).filter((c) => {
+      const raw = String((c as any)?.comentario || '').trim()
+      const firstLine = String(raw.split('\n')[0] || '').trim().toLowerCase()
+      if (firstLine.startsWith('status alterado:')) return false
+      if (firstLine.startsWith('fase alterada:')) return false
+      if (firstLine.startsWith('andamento:')) return false
+      return true
+    })
+    rows.sort((a: any, b: any) => new Date(String(b?.created_at || '')).getTime() - new Date(String(a?.created_at || '')).getTime())
     return rows
   }, [comentarios])
 
@@ -3619,6 +3686,83 @@ export default function OportunidadesKanban() {
       )}
 
       <Modal
+        isOpen={stageMoveModalOpen}
+        onClose={closeStageMoveModal}
+        title={
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+              <Pencil size={16} className="text-cyan-300" />
+            </div>
+            Registrar mudança de fase
+          </div>
+        }
+        size="lg"
+        zIndex={140}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeStageMoveModal}
+              disabled={stageMoveSaving}
+              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmStageMove}
+              disabled={stageMoveSaving}
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+            >
+              {stageMoveSaving ? <Loader2 className="animate-spin" size={16} /> : null}
+              Confirmar mudança
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {stageMoveError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+              {stageMoveError}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">De</div>
+                <div className="text-sm font-bold text-slate-100 truncate">
+                  {String(pendingStageMove?.faseLabelOld || '').trim() || '—'}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Para</div>
+                <div className="text-sm font-bold text-slate-100 truncate">
+                  {String(pendingStageMove?.faseLabel || '').trim() || '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Comentário</label>
+            <textarea
+              value={stageMoveComment}
+              onChange={(e) => {
+                setStageMoveComment(e.target.value)
+                if (stageMoveError) setStageMoveError(null)
+              }}
+              rows={4}
+              placeholder="Descreva o motivo da mudança de fase..."
+              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              autoFocus
+              disabled={stageMoveSaving}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={createOpen}
         onClose={() => {
           if (createSaving || createContatoSaving) return
@@ -4025,6 +4169,9 @@ export default function OportunidadesKanban() {
         isOpen={formOpen}
         onClose={() => {
           if (saving) return
+          const nextParams = new URLSearchParams(searchParams)
+          nextParams.delete('id')
+          setSearchParams(nextParams, { replace: true })
           setFormOpen(false)
           setActiveId(null)
         }}
@@ -4774,9 +4921,9 @@ export default function OportunidadesKanban() {
                       { id: 'pagamento', label: 'Pagamentos', editable: true },
                       { id: 'temperatura', label: 'Previsão de Fechamento', editable: true },
                       { id: 'atividades', label: 'Atividades', editable: false },
+                      { id: 'comentarios', label: 'Comentários', editable: false },
                       { id: 'observacoes', label: 'Observações', editable: true },
-                      { id: 'producao', label: 'Produção', editable: false },
-                      { id: 'transportadora', label: 'Transportadora', editable: true },
+                      { id: 'producao', label: 'Produção', editable: true },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -5311,7 +5458,19 @@ export default function OportunidadesKanban() {
                             )}
                           </div>
                         </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
+                {tab === 'comentarios' && (
+                  <div className="space-y-4">
+                    {!activeId ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                        Salve a proposta para inserir e visualizar comentários.
+                      </div>
+                    ) : (
+                      <>
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                           <div className="text-xs font-black uppercase tracking-widest text-slate-300">Adicionar Comentário</div>
                           <textarea
@@ -5331,8 +5490,12 @@ export default function OportunidadesKanban() {
                                 setComentarioSaving(true)
                                 try {
                                   await createOportunidadeComentario(activeId, text)
-                                  const acts = await fetchOportunidadeAtividades(activeId)
-                                  setAtividades(acts)
+                                  const [rows, acts] = await Promise.all([
+                                    fetchOportunidadeComentarios(activeId).catch(() => [] as any[]),
+                                    fetchOportunidadeAtividades(activeId).catch(() => [] as any[]),
+                                  ])
+                                  setComentarios(rows as any)
+                                  setAtividades(acts as any)
                                   setComentarioTexto('')
                                 } finally {
                                   setComentarioSaving(false)
@@ -5345,48 +5508,33 @@ export default function OportunidadesKanban() {
                             </button>
                           </div>
                         </div>
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Comentários</div>
+                          <div className="mt-3 space-y-3">
+                            {comentariosUsuario.map((c: any) => {
+                                const when = new Date(String(c?.created_at || '')).toLocaleString('pt-BR')
+                                const createdBy = String(c?.created_by || '').trim()
+                                const author = createdBy ? vendedorNameById[createdBy] || statusHistoryUserById[createdBy] || createdBy : 'Usuário'
+                                const text = String(c?.comentario || '').trim() || '-'
+                                return (
+                                  <div key={String(c?.comentario_id || '') || `${when}-${Math.random()}`} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                                    <div className="text-[11px] text-slate-400">
+                                      {author} comentou • {when}
+                                    </div>
+                                    <div className="mt-2 text-sm text-slate-100 whitespace-pre-wrap">{text}</div>
+                                  </div>
+                                )
+                              })}
+                            {comentariosUsuario.length === 0 ? <div className="text-sm text-slate-400">Nenhum comentário.</div> : null}
+                          </div>
+                        </div>
                       </>
                     )}
                   </div>
                 )}
 
                 {tab === 'producao' && (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={!canOpenEquipmentEntry}
-                          onClick={() => setEquipmentEntryOpen(true)}
-                          className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
-                            canOpenEquipmentEntry
-                              ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                              : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          <Wrench size={16} />
-                          Entrada de Equipamento
-                        </button>
-                      </div>
-                    </div>
-                    {String((equipmentInitialData as any)?.cod_proposta || '').trim() ? (
-                      <EquipmentList
-                        codProposta={String((equipmentInitialData as any)?.cod_proposta || '').trim()}
-                        lastUpdate={equipmentLastUpdate}
-                      />
-                    ) : (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                        Salve a proposta para vincular equipamentos em produção.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {tab === 'transportadora' && (
                   <div className="space-y-5">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                       <div className="flex items-start justify-between gap-4">
@@ -5506,6 +5654,38 @@ export default function OportunidadesKanban() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!canOpenEquipmentEntry}
+                          onClick={() => setEquipmentEntryOpen(true)}
+                          className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
+                            canOpenEquipmentEntry
+                              ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
+                              : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <Wrench size={16} />
+                          Entrada de Equipamento
+                        </button>
+                      </div>
+                    </div>
+                    {String((equipmentInitialData as any)?.cod_proposta || '').trim() ? (
+                      <EquipmentList
+                        codProposta={String((equipmentInitialData as any)?.cod_proposta || '').trim()}
+                        lastUpdate={equipmentLastUpdate}
+                      />
+                    ) : (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                        Salve a proposta para vincular equipamentos em produção.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -6149,6 +6329,11 @@ export default function OportunidadesKanban() {
                     await deleteOportunidade(activeId)
                     setOpportunities((prev) => prev.filter((p) => (p.id_oport || (p as any).id_oportunidade) !== activeId))
                     setDeleteOpen(false)
+                    {
+                      const nextParams = new URLSearchParams(searchParams)
+                      nextParams.delete('id')
+                      setSearchParams(nextParams, { replace: true })
+                    }
                     setFormOpen(false)
                     setActiveId(null)
                     await loadData()

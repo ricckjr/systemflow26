@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FC, WheelEvent as ReactWheelEvent } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { AlertTriangle, Calendar, Hash, Loader2, Mail, RefreshCw, Search, Truck, User, Wrench } from 'lucide-react'
-import { Modal } from '@/components/ui/Modal'
-import { EquipmentEntryModal } from '@/components/producao/EquipmentEntryModal'
-import { EquipmentList } from '@/components/producao/EquipmentList'
+import { AlertTriangle, Calendar, Loader2, RefreshCw, Search, Truck } from 'lucide-react'
 import { useUsuarios } from '@/hooks/useUsuarios'
-import { CRM_Oportunidade, CRM_Status, createOportunidadeComentario, fetchCrmStatus, fetchOportunidades, updateOportunidade } from '@/services/crm'
+import { CRM_Oportunidade, CRM_Status, fetchCrmFases, fetchCrmStatus, fetchOportunidades, updateOportunidade } from '@/services/crm'
+import { PropostaComercialCompletaModal } from '@/components/crm/PropostaComercialCompletaModal'
 import { logError } from '@/utils/logger'
 
 type ColumnDef = { id: string; label: string; cor: string | null }
-
-const ATIVOS_STATUS_ID = 'd2649868-1c22-49bd-ac81-56b6a0e7aff7'
-const ATIVOS_STATUS_LABEL = 'Ativos'
+type Stage = { id: string; label: string; ordem: number; cor: string | null }
+const DEFAULT_FASES_LABELS = [
+  'Aguardando Materiais',
+  'Análise Técnica',
+  'Aguardando Aprovação',
+  'Em Produção',
+  'Controle de Qualidade',
+  'Pronto para Faturamento',
+  'Entrega Concluída',
+  'Finalizado'
+]
 
 const normalizeText = (v: string) =>
   String(v || '')
@@ -24,6 +30,7 @@ const normalizeText = (v: string) =>
 const getCodProposta = (o: CRM_Oportunidade) => String(o.cod_oport ?? o.cod_oportunidade ?? '').trim()
 const getCliente = (o: CRM_Oportunidade) => String(o.cliente_nome ?? o.cliente ?? '').trim()
 const getDescricao = (o: CRM_Oportunidade) => String(o.descricao_oport ?? o.descricao_oportunidade ?? '').trim()
+const getOportunidadeId = (o: CRM_Oportunidade) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
 
 const parseDateInputLocal = (dateInput?: string | null) => {
   const v = String(dateInput || '').trim().slice(0, 10)
@@ -60,6 +67,19 @@ const formatDateTimeBR = (dateString?: string | null) => {
   return dt.toLocaleString('pt-BR', { hour12: false })
 }
 
+const calcTempoAbertoLabel = (dateString?: string | null) => {
+  const v = String(dateString || '').trim()
+  if (!v) return '-'
+  const start = new Date(v)
+  if (Number.isNaN(start.getTime())) return '-'
+  const ms = Date.now() - start.getTime()
+  if (!Number.isFinite(ms) || ms < 0) return '-'
+  const totalMinutes = Math.floor(ms / (60 * 1000))
+  const days = Math.floor(totalMinutes / (60 * 24))
+  const hours = Math.floor((totalMinutes - days * 60 * 24) / 60)
+  return `${days}d ${hours}h`
+}
+
 const normalizeWheelDelta = (delta: number, deltaMode: number, target: HTMLElement) => {
   if (deltaMode === 1) return delta * 16
   if (deltaMode === 2) return delta * target.clientHeight
@@ -82,25 +102,22 @@ const Logistica: FC = () => {
   const [search, setSearch] = useState('')
 
   const { usuarios } = useUsuarios()
+  const [fases, setFases] = useState<Stage[]>([])
   const [statuses, setStatuses] = useState<CRM_Status[]>([])
   const [oportunidades, setOportunidades] = useState<CRM_Oportunidade[]>([])
   const [loadedOnce, setLoadedOnce] = useState(false)
-  const [selectedStatusIds, setSelectedStatusIds] = useState<string[]>([])
-  const [statusFilterOpen, setStatusFilterOpen] = useState(false)
-  const statusFilterRef = useRef<HTMLDivElement | null>(null)
+  const [selectedFaseIds, setSelectedFaseIds] = useState<string[]>([])
+  const [faseFilterOpen, setFaseFilterOpen] = useState(false)
+  const faseFilterRef = useRef<HTMLDivElement | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [selected, setSelected] = useState<CRM_Oportunidade | null>(null)
-  const [andamentoOpen, setAndamentoOpen] = useState(false)
-  const [andamentoStatusId, setAndamentoStatusId] = useState('')
-  const [andamentoObs, setAndamentoObs] = useState('')
-  const [andamentoError, setAndamentoError] = useState<string | null>(null)
-  const [equipmentEntryOpen, setEquipmentEntryOpen] = useState(false)
-  const [equipmentLastUpdate, setEquipmentLastUpdate] = useState(0)
+  const [detailsId, setDetailsId] = useState<string | null>(null)
 
   const boardRef = useRef<HTMLDivElement | null>(null)
 
   const openDetails = (o: CRM_Oportunidade) => {
-    setSelected(o)
+    const id = getOportunidadeId(o)
+    if (!id) return
+    setDetailsId(id)
     setDetailsOpen(true)
   }
 
@@ -108,9 +125,17 @@ const Logistica: FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const [ops, sts] = await Promise.all([fetchOportunidades(), fetchCrmStatus()])
+      const [ops, fasesRows, statusRows] = await Promise.all([fetchOportunidades(), fetchCrmFases(), fetchCrmStatus()])
       setOportunidades(Array.isArray(ops) ? ops : [])
-      setStatuses(Array.isArray(sts) ? sts : [])
+      setFases(
+        (Array.isArray(fasesRows) ? fasesRows : []).map((f: any) => ({
+          id: String(f?.fase_id || f?.id || '').trim(),
+          label: String(f?.fase_desc || f?.label || '').trim(),
+          ordem: Number(f?.fase_ordem ?? f?.ordem ?? 999999),
+          cor: String(f?.fase_cor || f?.cor || '').trim() || null
+        }))
+      )
+      setStatuses(Array.isArray(statusRows) ? (statusRows as any) : [])
     } catch (e: any) {
       if (import.meta?.env?.DEV) logError('Logistica', 'Erro ao carregar dados', e)
       setError(String(e?.message || 'Erro ao carregar dados.'))
@@ -124,130 +149,76 @@ const Logistica: FC = () => {
     void loadData()
   }, [])
 
-  const statusOptions = useMemo(() => {
-    const forcedAtivos: CRM_Status = {
-      status_id: ATIVOS_STATUS_ID as any,
-      status_desc: ATIVOS_STATUS_LABEL as any,
-      status_obs: null as any,
-      status_ordem: -1 as any,
-      status_cor: null as any,
-      integ_id: null as any,
-      criado_em: null as any,
-      atualizado_em: null as any
-    } as any
-    const merged = (() => {
-      const hasAtivos = statuses.some((s) => String((s as any)?.status_id || '').trim() === ATIVOS_STATUS_ID)
-      return hasAtivos ? statuses : [forcedAtivos, ...statuses]
-    })()
-    const sorted = [...merged].sort((a, b) => {
-      const ao = a.status_ordem ?? 999999
-      const bo = b.status_ordem ?? 999999
-      if (ao !== bo) return ao - bo
-      return String(a.status_desc || '').localeCompare(String(b.status_desc || ''), 'pt-BR')
-    })
-    return sorted.map((s) => ({ id: String(s.status_id || '').trim(), label: String(s.status_desc || '').trim() }))
+  const faseOptions = useMemo(() => {
+    const sorted = [...(fases || [])]
+      .map((f) => ({
+        id: String(f.id || '').trim(),
+        label: String(f.label || '').trim(),
+        ordem: Number.isFinite(f.ordem as any) ? f.ordem : 999999,
+        cor: String(f.cor || '').trim() || null
+      }))
+      .filter((f) => !!f.id && !!f.label)
+      .sort((a, b) => {
+        if (a.ordem !== b.ordem) return a.ordem - b.ordem
+        return a.label.localeCompare(b.label, 'pt-BR')
+      })
+    return sorted
+  }, [fases])
+
+  const vendedorNameById = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const u of usuarios as any[]) {
+      if (u?.id && u?.nome) m[String(u.id)] = String(u.nome)
+    }
+    return m
+  }, [usuarios])
+
+  const vendedorAvatarById = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const u of usuarios as any[]) {
+      if (u?.id && u?.avatar_url) m[String(u.id)] = String(u.avatar_url)
+    }
+    return m
+  }, [usuarios])
+
+  const statusInfoById = useMemo(() => {
+    const m = new Map<string, { desc: string; cor: string | null }>()
+    for (const s of statuses || []) {
+      const id = String((s as any)?.status_id || '').trim()
+      if (!id) continue
+      m.set(id, { desc: String((s as any)?.status_desc || '').trim() || '-', cor: String((s as any)?.status_cor || '').trim() || null })
+    }
+    return m
   }, [statuses])
 
-  const statusById = useMemo(() => {
-    return statusOptions.reduce((acc, s) => {
-      acc[s.id] = s.label
-      return acc
-    }, {} as Record<string, string>)
-  }, [statusOptions])
-
-  const vendedorProfile = useMemo(() => {
-    if (!selected) return null
-    const id = String(selected.id_vendedor || '').trim()
-    if (id) {
-      const byId = usuarios.find((u) => String(u.id || '').trim() === id)
-      if (byId) return byId
-    }
-    const name = String((selected as any).vendedor_nome || selected.vendedor_nome || selected.vendedor || '').trim()
-    if (!name) return null
-    return usuarios.find((u) => String(u.nome || '').trim() === name) || null
-  }, [selected, usuarios])
-
-  const equipmentInitialData = useMemo(() => {
-    if (!selected) return {} as any
-    const email = String((vendedorProfile as any)?.email_login || (vendedorProfile as any)?.email_corporativo || '').trim()
-    return {
-      cod_proposta: getCodProposta(selected),
-      cliente: getCliente(selected),
-      cnpj: String((selected as any).cliente_documento || selected.cliente_documento || '').trim(),
-      solucao: selected.solucao,
-      vendedor: String((selected as any).vendedor_nome || selected.vendedor_nome || selected.vendedor || (vendedorProfile as any)?.nome || '').trim() || null,
-      email_vendedor: email || null,
-      empresa_correspondente: String((selected as any).empresa_correspondente || '').trim() || null
-    } as any
-  }, [selected, vendedorProfile])
-
-  const canOpenEquipmentEntry = useMemo(() => {
-    if (!selected) return false
-    const cod = String((equipmentInitialData as any)?.cod_proposta || '').trim()
-    const cliente = String((equipmentInitialData as any)?.cliente || '').trim()
-    return !!cod && !!cliente && !saving
-  }, [equipmentInitialData, saving, selected])
-
   useEffect(() => {
     if (!loadedOnce) return
-    if (selectedStatusIds.length > 0) return
-    const all = statusOptions.map((s) => String(s.id || '').trim()).filter(Boolean)
-    setSelectedStatusIds(all)
-  }, [loadedOnce, selectedStatusIds.length, statusOptions])
-
-  const fixedMissingStatusRef = useRef(false)
-  useEffect(() => {
-    if (!loadedOnce) return
-    if (fixedMissingStatusRef.current) return
-    if (!Array.isArray(oportunidades) || oportunidades.length === 0) return
-
-    const missingIds = oportunidades
-      .filter((o) => !String((o as any)?.id_status || '').trim())
-      .map((o) => String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim())
-      .filter(Boolean)
-
-    if (missingIds.length === 0) {
-      fixedMissingStatusRef.current = true
-      return
-    }
-
-    fixedMissingStatusRef.current = true
-    setOportunidades((cur) =>
-      cur.map((o) => {
-        const id = String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
-        if (!id || !missingIds.includes(id)) return o
-        return { ...o, id_status: ATIVOS_STATUS_ID } as any
-      })
+    if (selectedFaseIds.length > 0) return
+    const byLabel = new Map(faseOptions.map((f) => [normalizeText(f.label), f.id]))
+    const desired = Array.from(
+      new Set(
+        DEFAULT_FASES_LABELS.map((l) => byLabel.get(normalizeText(l)) || '')
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+      )
     )
-
-    ;(async () => {
-      const queue = [...missingIds]
-      const workerCount = Math.min(3, queue.length)
-      const workers = Array.from({ length: workerCount }).map(async () => {
-        while (queue.length) {
-          const id = queue.shift()
-          if (!id) continue
-          try {
-            await updateOportunidade(id, { id_status: ATIVOS_STATUS_ID } as any)
-          } catch (e: any) {
-            if (import.meta?.env?.DEV) logError('Logistica', 'Falha ao corrigir status ausente', { id, e })
-          }
-        }
-      })
-      await Promise.all(workers)
-    })()
-  }, [loadedOnce, oportunidades])
+    if (desired.length > 0) {
+      setSelectedFaseIds(desired)
+    } else {
+      setSelectedFaseIds(faseOptions.map((f) => f.id))
+    }
+  }, [faseOptions, loadedOnce, selectedFaseIds.length])
 
   useEffect(() => {
-    if (!statusFilterOpen) return
+    if (!faseFilterOpen) return
     const onPointerDown = (e: MouseEvent) => {
-      const el = statusFilterRef.current
+      const el = faseFilterRef.current
       if (!el) return
       if (el.contains(e.target as Node)) return
-      setStatusFilterOpen(false)
+      setFaseFilterOpen(false)
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setStatusFilterOpen(false)
+      if (e.key === 'Escape') setFaseFilterOpen(false)
     }
     window.addEventListener('mousedown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
@@ -255,19 +226,14 @@ const Logistica: FC = () => {
       window.removeEventListener('mousedown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [statusFilterOpen])
+  }, [faseFilterOpen])
 
   const columns: ColumnDef[] = useMemo(() => {
-    const selected = new Set(selectedStatusIds)
-    return statusOptions
-      .filter((s) => selected.has(s.id))
-      .map((s) => {
-        const id = String(s.id || '').trim()
-        const st = statuses.find((x) => String((x as any)?.status_id || '').trim() === id) || null
-        const cor = String((st as any)?.status_cor || '').trim() || null
-        return { id, label: s.label, cor }
-      })
-  }, [selectedStatusIds, statusOptions, statuses])
+    const selected = new Set(selectedFaseIds)
+    return faseOptions
+      .filter((f) => selected.has(f.id))
+      .map((f) => ({ id: f.id, label: f.label, cor: f.cor }))
+  }, [faseOptions, selectedFaseIds])
 
   const filteredOportunidades = useMemo(() => {
     const term = normalizeText(search)
@@ -282,7 +248,8 @@ const Logistica: FC = () => {
     const map: Record<string, CRM_Oportunidade[]> = {}
     for (const c of columns) map[c.id] = []
     for (const o of filteredOportunidades) {
-      const col = String((o as any).id_status || '').trim() || ATIVOS_STATUS_ID
+      const col = String((o as any).id_fase || '').trim()
+      if (!col) continue
       if (!map[col]) continue
       map[col].push(o)
     }
@@ -327,18 +294,21 @@ const Logistica: FC = () => {
     cards.scrollTop += normalizeWheelDelta(e.deltaY, e.deltaMode, cards)
   }, [])
 
-  const moveToStatus = async (id: string, nextStatusId: string | null) => {
+  const moveToFase = async (id: string, nextFaseId: string) => {
     if (saving) return
     setSaving(true)
     setError(null)
     const prev = oportunidades
-    setOportunidades((cur) => cur.map((o) => (o.id_oport === id ? { ...o, id_status: nextStatusId } : o)))
+    const faseLabel = String(faseOptions.find((f) => f.id === nextFaseId)?.label || '').trim() || null
+    setOportunidades((cur) =>
+      cur.map((o) => (getOportunidadeId(o) === id ? { ...o, id_fase: nextFaseId, fase: faseLabel } : o))
+    )
     try {
-      await updateOportunidade(id, { id_status: nextStatusId } as any)
+      await updateOportunidade(id, { id_fase: nextFaseId, fase: faseLabel } as any)
     } catch (e: any) {
-      if (import.meta?.env?.DEV) logError('Logistica', 'Erro ao atualizar status', { id, nextStatusId, e })
+      if (import.meta?.env?.DEV) logError('Logistica', 'Erro ao atualizar fase', { id, nextFaseId, e })
       setOportunidades(prev)
-      setError(String(e?.message || 'Erro ao atualizar status.'))
+      setError(String(e?.message || 'Erro ao atualizar fase.'))
     } finally {
       setSaving(false)
     }
@@ -348,7 +318,7 @@ const Logistica: FC = () => {
     const { destination, source, draggableId } = result
     if (!destination) return
     if (destination.droppableId === source.droppableId && destination.index === source.index) return
-    void moveToStatus(draggableId, destination.droppableId)
+    void moveToFase(draggableId, destination.droppableId)
   }
 
   const getColumnTheme = (label: string) => {
@@ -412,46 +382,45 @@ const Logistica: FC = () => {
       <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Status</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Fases</div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
               Colunas do Kanban
             </div>
           </div>
-          <div ref={statusFilterRef} className="relative">
+          <div ref={faseFilterRef} className="relative">
             <button
               type="button"
-              onClick={() => setStatusFilterOpen((v) => !v)}
+              onClick={() => setFaseFilterOpen((v) => !v)}
               className="h-9 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:bg-[var(--bg-panel)] transition-colors text-sm font-bold inline-flex items-center gap-2"
             >
-              <span>Status</span>
-              {selectedStatusIds.filter(Boolean).length > 0 ? (
+              <span>Fases</span>
+              {selectedFaseIds.filter(Boolean).length > 0 ? (
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
-                  {selectedStatusIds.filter(Boolean).length}
+                  {selectedFaseIds.filter(Boolean).length}
                 </span>
               ) : null}
               <span className="text-[var(--text-muted)]">▼</span>
             </button>
 
-            {statusFilterOpen ? (
+            {faseFilterOpen ? (
               <div className="absolute right-0 z-[200] mt-2 w-[320px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
                 <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Status</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Fases</div>
                   <button
                     type="button"
-                    onClick={() => setSelectedStatusIds([])}
+                    onClick={() => setSelectedFaseIds([])}
                     className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
-                    disabled={selectedStatusIds.length === 0}
+                    disabled={selectedFaseIds.length === 0}
                   >
                     Limpar
                   </button>
                 </div>
                 <div className="max-h-[320px] overflow-auto custom-scrollbar p-2">
-                  {statusOptions.map((s) => {
+                  {faseOptions.map((s) => {
                       const id = String(s.id || '').trim()
-                      const label = String(s.label || '').trim() || `Status ${id.slice(0, 6)}`
-                      const checked = !!id && selectedStatusIds.includes(id)
-                      const st = statuses.find((x) => String((x as any)?.status_id || '').trim() === id) || null
-                      const cor = String((st as any)?.status_cor || '').trim() || null
+                      const label = String(s.label || '').trim() || `Fase ${id.slice(0, 6)}`
+                      const checked = !!id && selectedFaseIds.includes(id)
+                      const cor = String((s as any)?.cor || '').trim() || null
                       return (
                         <label key={id || label} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer">
                           <input
@@ -459,7 +428,7 @@ const Logistica: FC = () => {
                             checked={checked}
                             onChange={() => {
                               if (!id) return
-                              setSelectedStatusIds((prev) => {
+                              setSelectedFaseIds((prev) => {
                                 if (prev.includes(id)) return prev.filter((x) => x !== id)
                                 return [...prev, id]
                               })
@@ -471,8 +440,8 @@ const Logistica: FC = () => {
                         </label>
                       )
                     })}
-                  {statusOptions.length === 0 ? (
-                    <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
+                  {faseOptions.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-slate-400">Nenhuma fase cadastrada.</div>
                   ) : null}
                 </div>
               </div>
@@ -503,10 +472,10 @@ const Logistica: FC = () => {
                   <div className="text-sm font-black">Kanban sem colunas</div>
                   <div className="mt-1 text-xs text-amber-100/80">
                     {loading
-                      ? 'Carregando status do CRM...'
-                      : statuses.length
-                        ? 'Nenhum status selecionado para exibir.'
-                        : 'Não foi possível carregar os status do CRM. Verifique o cadastro de CRM Status e as permissões do usuário.'}
+                      ? 'Carregando fases do CRM...'
+                      : fases.length
+                        ? 'Nenhuma fase selecionada para exibir.'
+                        : 'Não foi possível carregar as fases do CRM. Verifique o cadastro de CRM Fases e as permissões do usuário.'}
                   </div>
                 </div>
               </div>
@@ -554,32 +523,29 @@ const Logistica: FC = () => {
                         }`}
                       >
                         {items.map((o, index) => {
+                          const oid = getOportunidadeId(o)
+                          if (!oid) return null
                           const cod = getCodProposta(o) || '-'
                           const cliente = getCliente(o) || '-'
-                          const desc = getDescricao(o)
-                          const prevEntrega = String((o as any).prev_entrega || '').trim()
-                          const diasEntrega = daysUntilDateInput(prevEntrega)
-                          const entregaBadge =
-                            diasEntrega === null
-                              ? null
-                              : diasEntrega < 0
-                                ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
-                                : diasEntrega <= 3
-                                  ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
-                                  : diasEntrega <= 7
-                                    ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
-                                    : 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
-                          const entregaLabel =
-                            diasEntrega === null
-                              ? null
-                              : diasEntrega < 0
-                                ? `Atrasado ${Math.abs(diasEntrega)}d`
-                                : diasEntrega === 0
-                                  ? 'Entrega hoje'
-                                  : `Entrega em ${diasEntrega}d`
+                          const solucao = String((o as any)?.solucao || (o as any)?.solucao_desc || '').trim() || '-'
+                          const dataInclusao = String((o as any)?.criado_em || (o as any)?.data_inclusao || (o as any)?.created_at || '').trim() || null
+                          const tempoAberto = calcTempoAbertoLabel(dataInclusao)
+
+                          const vendedorId = String((o as any)?.id_vendedor ?? (o as any)?.vendedor_id ?? '').trim()
+                          const vendedorNome =
+                            String((o as any)?.vendedor_nome || (o as any)?.vendedor || '').trim() || (vendedorId ? String(vendedorNameById[vendedorId] || '').trim() : '') || ''
+                          const vendedorAvatarUrl =
+                            (vendedorId ? String(vendedorAvatarById[vendedorId] || '').trim() : '') || String((o as any)?.vendedor_avatar_url || '').trim() || ''
+
+                          const statusId = String((o as any)?.id_status || (o as any)?.status_id || '').trim()
+                          const statusFromMap = statusId ? statusInfoById.get(statusId) : null
+                          const statusDesc = String((o as any)?.status || (o as any)?.status_desc || '').trim() || statusFromMap?.desc || '-'
+                          const statusCor = (statusFromMap?.cor || String((o as any)?.status_cor || '').trim() || null) as string | null
+                          const statusBg = statusCor ? hexToRgba(statusCor, 0.16) : undefined
+                          const statusBorder = statusCor ? hexToRgba(statusCor, 0.35) : undefined
 
                           return (
-                            <Draggable draggableId={o.id_oport} index={index} key={o.id_oport}>
+                            <Draggable draggableId={oid} index={index} key={oid}>
                               {(dragProvided, dragSnapshot) => (
                                 <div
                                   ref={dragProvided.innerRef}
@@ -595,16 +561,48 @@ const Logistica: FC = () => {
                                     <div className="min-w-0">
                                       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest truncate">{cod}</div>
                                       <div className="mt-1 text-sm font-bold text-slate-100 truncate">{cliente}</div>
-                                      {desc ? <div className="mt-1 text-xs text-slate-400 line-clamp-2">{desc}</div> : null}
-                                      {entregaBadge && entregaLabel ? (
-                                        <div className="mt-2 flex items-center justify-between gap-2">
-                                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-black ${entregaBadge}`}>
-                                            <Calendar size={14} />
-                                            {entregaLabel}
-                                          </span>
-                                          <span className="text-[11px] text-slate-400 font-mono">{formatDateBR(prevEntrega)}</span>
+                                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                                        <div>
+                                          <span className="text-slate-500 font-bold uppercase tracking-widest">Tempo Aberto</span>
+                                          <div className="mt-1 font-mono text-slate-200">{tempoAberto}</div>
                                         </div>
-                                      ) : null}
+                                        <div>
+                                          <span className="text-slate-500 font-bold uppercase tracking-widest">Solução</span>
+                                          <div className="mt-1 font-black text-slate-200 truncate">{solucao}</div>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-3 flex items-center justify-between gap-2">
+                                        <span
+                                          className="inline-flex items-center px-3 py-1 rounded-xl border text-[11px] font-black"
+                                          style={{
+                                            backgroundColor: statusBg,
+                                            borderColor: statusBorder,
+                                            color: statusCor || undefined
+                                          }}
+                                        >
+                                          {statusDesc}
+                                        </span>
+                                        {vendedorId ? (
+                                          vendedorAvatarUrl ? (
+                                            <img
+                                              src={vendedorAvatarUrl}
+                                              alt={vendedorNome || 'Vendedor'}
+                                              className="h-9 w-9 rounded-full object-cover border border-white/10"
+                                            />
+                                          ) : (
+                                            <div className="h-9 w-9 rounded-full bg-white/5 border border-white/10 inline-flex items-center justify-center text-[11px] font-black text-slate-200">
+                                              {String(vendedorNome || '?')
+                                                .trim()
+                                                .split(/\s+/)
+                                                .slice(0, 2)
+                                                .map((p) => p[0])
+                                                .join('')
+                                                .toUpperCase() || '?'}
+                                            </div>
+                                          )
+                                        ) : null}
+                                      </div>
                                     </div>
                                     {saving ? <Loader2 className="animate-spin text-slate-500" size={16} /> : null}
                                   </div>
@@ -625,266 +623,16 @@ const Logistica: FC = () => {
         </div>
       </DragDropContext>
 
-      <Modal
+      <PropostaComercialCompletaModal
         isOpen={detailsOpen}
+        oportunidadeId={detailsId}
+        usuarios={usuarios}
         onClose={() => {
           setDetailsOpen(false)
-          setSelected(null)
-        }}
-        size="4xl"
-        title={
-          selected ? (
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
-                  <Truck size={18} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Proposta Comercial</div>
-                  <div className="mt-1 text-lg font-black text-[var(--text-main)] truncate">{getCodProposta(selected) || '-'}</div>
-                  <div className="text-xs text-[var(--text-muted)] truncate">{getCliente(selected) || '-'}</div>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
-                {String(statusById[String(selected.id_status || '').trim()] || '').trim() || 'Sem status'}
-              </span>
-            </div>
-          ) : (
-            'Proposta Comercial'
-          )
-        }
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setDetailsOpen(false)
-                setSelected(null)
-              }}
-              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
-            >
-              Fechar
-            </button>
-            <button
-              type="button"
-              disabled={!selected}
-              onClick={() => {
-                if (!selected) return
-                setAndamentoError(null)
-                setAndamentoObs('')
-                setAndamentoStatusId(String(selected.id_status || ''))
-                setAndamentoOpen(true)
-              }}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50"
-            >
-              NOVO ANDAMENTO
-            </button>
-          </>
-        }
-      >
-        {selected ? (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
-                  <Hash size={14} />
-                  Código
-                </div>
-                <div className="mt-2 text-2xl font-black text-[var(--text-main)]">{getCodProposta(selected) || '-'}</div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4 lg:col-span-2">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
-                  <User size={14} />
-                  Nome Cliente
-                </div>
-                <div className="mt-2 text-lg font-black text-[var(--text-main)]">{getCliente(selected) || '-'}</div>
-                {String((selected as any).cliente_documento || selected.cliente_documento || '').trim() ? (
-                  <div className="mt-1 text-xs text-[var(--text-muted)]">
-                    {String((selected as any).cliente_documento || selected.cliente_documento || '').trim()}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {getDescricao(selected) ? (
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Solicitação do cliente</div>
-                <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap">{getDescricao(selected)}</div>
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Status</div>
-                <div className="mt-2 text-base font-black text-[var(--text-main)]">
-                  {String(statusById[String(selected.id_status || '').trim()] || '').trim() || 'Sem status'}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Solução</div>
-                <div className="mt-2 text-base font-black text-[var(--text-main)]">{String(selected.solucao || '-')}</div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Frete</div>
-                <div className="mt-2 text-base font-black text-[var(--text-main)]">{String((selected as any).tipo_frete || '-')}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4 lg:col-span-2">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Vendedor</div>
-                <div className="mt-2 text-base font-black text-[var(--text-main)]">
-                  {String(vendedorProfile?.nome || (selected as any).vendedor_nome || selected.vendedor_nome || selected.vendedor || '-')}
-                </div>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-[var(--text-muted)]">
-                  <div className="inline-flex items-center gap-2">
-                    <Mail size={14} />
-                    {String(vendedorProfile?.email_corporativo || vendedorProfile?.email_login || '-')}
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <Hash size={14} />
-                    Ramal {String(vendedorProfile?.ramal || '-')}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Datas</div>
-                <div className="mt-2 text-xs text-[var(--text-muted)] space-y-1">
-                  <div className="inline-flex items-center gap-2">
-                    <Calendar size={14} />
-                    Inclusão: {formatDateTimeBR(selected.data_inclusao || (selected as any).criado_em)}
-                  </div>
-                  <div className="inline-flex items-center gap-2">
-                    <Calendar size={14} />
-                    Previsão entrega: {formatDateBR(selected.prev_entrega)}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Equipamentos</div>
-                  <div className="mt-1 text-xs text-[var(--text-muted)]">Entradas vinculadas à proposta</div>
-                </div>
-                <button
-                  type="button"
-                  disabled={!canOpenEquipmentEntry}
-                  onClick={() => setEquipmentEntryOpen(true)}
-                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
-                    canOpenEquipmentEntry
-                      ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                      : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  <Wrench size={16} />
-                  Entrada de Equipamento
-                </button>
-              </div>
-              <div className="mt-4">
-                {String((equipmentInitialData as any)?.cod_proposta || '').trim() ? (
-                  <EquipmentList
-                    codProposta={String((equipmentInitialData as any)?.cod_proposta || '').trim()}
-                    lastUpdate={equipmentLastUpdate}
-                  />
-                ) : (
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 text-sm text-[var(--text-muted)]">
-                    Código da proposta não informado para vincular equipamentos.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
-
-      <EquipmentEntryModal
-        isOpen={equipmentEntryOpen}
-        onClose={() => setEquipmentEntryOpen(false)}
-        initialData={equipmentInitialData}
-        onSuccess={() => {
-          setEquipmentLastUpdate(Date.now())
+          setDetailsId(null)
         }}
       />
 
-      <Modal
-        isOpen={andamentoOpen}
-        onClose={() => setAndamentoOpen(false)}
-        title="Andamento"
-        size="sm"
-        zIndex={210}
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setAndamentoOpen(false)}
-              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                if (!selected) return
-                const next = andamentoStatusId.trim()
-                if (!next) {
-                  setAndamentoError('Selecione um status.')
-                  return
-                }
-                setAndamentoError(null)
-                await moveToStatus(selected.id_oport, next)
-                const obs = andamentoObs.trim()
-                if (obs) {
-                  try {
-                    await createOportunidadeComentario(selected.id_oport, obs)
-                  } catch (e: any) {
-                    if (import.meta?.env?.DEV) logError('Logistica', 'Falha ao criar comentário de andamento', e)
-                  }
-                }
-                setAndamentoOpen(false)
-              }}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
-            >
-              Confirmar
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {andamentoError ? (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{andamentoError}</div>
-          ) : null}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Status</label>
-            <select
-              value={andamentoStatusId}
-              onChange={(e) => setAndamentoStatusId(e.target.value)}
-              className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-            >
-              <option value="">-</option>
-              {statusOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Observação</label>
-            <textarea
-              value={andamentoObs}
-              onChange={(e) => setAndamentoObs(e.target.value)}
-              className="w-full h-28 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
-              placeholder="Descreva o andamento..."
-            />
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

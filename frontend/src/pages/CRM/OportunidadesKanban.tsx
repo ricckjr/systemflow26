@@ -112,7 +112,12 @@ const normalizeWheelDelta = (delta: number, deltaMode: number, target: HTMLEleme
   return delta
 }
 
-const HIDDEN_STATUS_IDS_IN_ANDAMENTO = new Set(['c684a1c0-83ea-4b78-be4f-416cafa282c8'])
+const STATUS_CONQUISTADO_ID = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
+const STATUS_PERDIDA_ID = 'c684a1c0-83ea-4b78-be4f-416cafa282c8'
+const FASE_EM_PRODUCAO_ID = '7a51b000-774c-4020-874b-30c2f934e4f9'
+const FASE_PERDIDA_ID = 'd0760550-2e1b-4ca8-845f-2f4f4e1dae94'
+
+const HIDDEN_STATUS_IDS_IN_ANDAMENTO = new Set([STATUS_CONQUISTADO_ID, STATUS_PERDIDA_ID])
 const HIDDEN_FASE_IDS_IN_ANDAMENTO = new Set(['88a8b9bb-30db-4eb7-a351-182daeeb0f02', '8491b5a4-9c86-48f0-9d3c-6dc1fe285caa'])
 
 const FALLBACK_STAGES: Stage[] = [
@@ -125,9 +130,6 @@ const FALLBACK_STAGES: Stage[] = [
   { id: 'Perdidos', label: 'Perdidos', ordem: 70, cor: '#fb7185' },
   { id: 'Pós-Venda', label: 'Pós-Venda', ordem: 80, cor: '#22d3ee' }
 ]
-
-const ATIVOS_STATUS_ID = 'd2649868-1c22-49bd-ac81-56b6a0e7aff7'
-const ATIVOS_STATUS_LABEL = 'Ativos'
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test((value || '').trim())
@@ -218,6 +220,31 @@ const toMonthKey = (dateString: string | null | undefined) => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
 
+const normalizeStageLabel = (value: string | null | undefined) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return raw
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const getStageDateForMonthFilter = (stageLabel: string | null | undefined, op: any) => {
+  const norm = normalizeStageLabel(stageLabel)
+  if (norm.includes('CONQUIST')) return (op as any)?.data_conquistado ?? null
+  if (norm.includes('PERDID') || norm.includes('NAO CONQUIST')) return (op as any)?.data_perdidos ?? (op as any)?.data_perdido ?? null
+  return (op as any)?.data_inclusao ?? (op as any)?.criado_em ?? (op as any)?.created_at ?? null
+}
+
+const getStageMonthFilterTitle = (stageLabel: string | null | undefined) => {
+  const norm = normalizeStageLabel(stageLabel)
+  if (norm.includes('CONQUIST')) return 'Filtrar por mês (data de conquista)'
+  if (norm.includes('PERDID') || norm.includes('NAO CONQUIST')) return 'Filtrar por mês (data de perda)'
+  return 'Filtrar por mês (data de inclusão)'
+}
+
 const formatMonthKey = (monthKey: string) => {
   if (!monthKey) return '-'
   return formatMonthYear(`${monthKey}-01`)
@@ -301,6 +328,7 @@ const OpportunityCard = ({
     'Novo Cliente'
   const vendedorLabel = ((opportunity as any).vendedor_nome || opportunity.vendedor || vendedorNome || '').trim() || null
   const statusText = String(statusLabel || (opportunity as any).status_desc || (opportunity as any).status || '').trim()
+  const statusId = String((opportunity as any).id_status || '').trim()
   const statusColor = String(statusCor || '').trim() || null
   const statusBorder = statusColor ? hexToRgba(statusColor, 0.45) : undefined
   const statusBg = statusColor ? hexToRgba(statusColor, 0.12) : undefined
@@ -324,7 +352,7 @@ const OpportunityCard = ({
       ? (opportunity as any).dias_parado
       : calcDaysSince((opportunity as any).data_parado ?? (opportunity as any).data_alteracao ?? (opportunity as any).atualizado_em ?? null)
   const tempoAbertoDias = (() => {
-    const start = (opportunity as any).data_inclusao ?? null
+    const start = (opportunity as any).data_inclusao ?? (opportunity as any).criado_em ?? (opportunity as any).created_at ?? null
     if (!start) return null
     const end = (opportunity as any).data_conquistado ?? (opportunity as any).data_perdidos ?? null
     if (end) return calcDaysBetween(start, end)
@@ -338,6 +366,13 @@ const OpportunityCard = ({
         : tempoAbertoDias <= 25
           ? 'text-amber-200 bg-amber-500/10 border-amber-500/20'
           : 'text-rose-200 bg-rose-500/10 border-rose-500/20'
+  const statusNorm = statusText
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+  const isConquistada = statusId === STATUS_CONQUISTADO_ID || statusNorm.includes('CONQUIST')
+  const dataConquistada = String((opportunity as any).data_conquistado || '').trim() || null
 
   return (
     <Draggable draggableId={id} index={index}>
@@ -374,6 +409,12 @@ const OpportunityCard = ({
               <Calendar size={12} className="text-slate-500" />
               <span>{formatDate(opportunity.data_inclusao)}</span>
             </div>
+            {isConquistada && dataConquistada ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-200" title="Data de conquista">
+                <Check size={12} className="text-emerald-300" />
+                <span>{`Conquistado: ${formatDate(dataConquistada)}`}</span>
+              </div>
+            ) : null}
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Parado (dias)">
               <Clock size={12} className="text-slate-500" />
               <span>{`Parado: ${formatDias(diasParado)}`}</span>
@@ -451,19 +492,7 @@ export default function OportunidadesKanban() {
   const [loading, setLoading] = useState(true)
 
   const statusesForUi = useMemo(() => {
-    const hasAtivos = statuses.some((s) => String((s as any)?.status_id || '').trim() === ATIVOS_STATUS_ID)
-    if (hasAtivos) return statuses
-    const forced: CRM_Status = {
-      status_id: ATIVOS_STATUS_ID as any,
-      status_desc: ATIVOS_STATUS_LABEL as any,
-      status_obs: null as any,
-      status_ordem: -1 as any,
-      status_cor: null as any,
-      integ_id: null as any,
-      criado_em: null as any,
-      atualizado_em: null as any
-    } as any
-    return [forced, ...statuses]
+    return statuses
   }, [statuses])
 
   const fixedMissingStatusRef = useRef(false)
@@ -485,12 +514,19 @@ export default function OportunidadesKanban() {
       return
     }
 
+    const andamento = statuses.find((s) => String((s as any)?.status_desc || '').trim().toLowerCase() === 'andamento')
+    const andamentoId = String((andamento as any)?.status_id || '').trim()
+    if (!andamentoId) {
+      fixedMissingStatusRef.current = true
+      return
+    }
+
     fixedMissingStatusRef.current = true
     setOpportunities((cur) =>
       cur.map((o) => {
         const id = String((o as any)?.id_oport ?? (o as any)?.id_oportunidade ?? '').trim()
         if (!id || !missingIds.includes(id)) return o
-        return { ...o, id_status: ATIVOS_STATUS_ID } as any
+        return { ...o, id_status: andamentoId } as any
       })
     )
 
@@ -502,13 +538,13 @@ export default function OportunidadesKanban() {
           const id = queue.shift()
           if (!id) continue
           try {
-            await updateOportunidade(id, { id_status: ATIVOS_STATUS_ID } as any)
+            await updateOportunidade(id, { id_status: andamentoId } as any)
           } catch {}
         }
       })
       await Promise.all(workers)
     })()
-  }, [loading, opportunities])
+  }, [loading, opportunities, statuses])
 
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban')
   const [searchTerm, setSearchTerm] = useState('')
@@ -622,7 +658,7 @@ export default function OportunidadesKanban() {
   const [draftItensTouched, setDraftItensTouched] = useState(false)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState('')
   const [tab, setTab] = useState<
-    'pagamento' | 'transportadora' | 'temperatura' | 'documentos_complementares' | 'atividades' | 'observacoes' | 'producao'
+    'pagamento' | 'temperatura' | 'atividades' | 'observacoes' | 'producao' | 'transportadora'
   >('pagamento')
   const pedidoCompraInputRef = useRef<HTMLInputElement | null>(null)
   const draftItensTouchedRef = useRef(false)
@@ -646,7 +682,6 @@ export default function OportunidadesKanban() {
   const [transferError, setTransferError] = useState<string | null>(null)
 
   const [statusChangeOpen, setStatusChangeOpen] = useState(false)
-  const [statusChangeId, setStatusChangeId] = useState('')
   const [statusChangeFaseId, setStatusChangeFaseId] = useState('')
   const [statusChangeObs, setStatusChangeObs] = useState('')
   const [statusChangeError, setStatusChangeError] = useState<string | null>(null)
@@ -767,9 +802,8 @@ export default function OportunidadesKanban() {
 
   useEffect(() => {
     if (!formOpen) return
-    if (tab !== 'documentos_complementares') return
     void loadDocsComplementares()
-  }, [formOpen, tab, loadDocsComplementares])
+  }, [formOpen, loadDocsComplementares])
 
   const [formasPagamento, setFormasPagamento] = useState<FinFormaPagamento[]>([])
   const [condicoesPagamento, setCondicoesPagamento] = useState<FinCondicaoPagamento[]>([])
@@ -1055,7 +1089,7 @@ export default function OportunidadesKanban() {
       setBaselineFaseId(active.id_fase || null)
       {
         const sid = String(active.id_status || '').trim()
-        const final = sid || ATIVOS_STATUS_ID
+        const final = sid || andamentoStatusId || ''
         setDraftStatusId(final)
         setBaselineStatusId(final)
       }
@@ -1133,8 +1167,8 @@ export default function OportunidadesKanban() {
       setDraftEmpresaCorrespondenteId(defaultEmpresaCorrespondenteId)
       setDraftFaseId(leadStageId || '')
       setBaselineFaseId(leadStageId || null)
-      setDraftStatusId(ATIVOS_STATUS_ID)
-      setBaselineStatusId(ATIVOS_STATUS_ID)
+      setDraftStatusId(andamentoStatusId || '')
+      setBaselineStatusId(andamentoStatusId || '')
       setDraftMotivoId('')
       setDraftOrigemId('')
       setDraftSolucao('PRODUTO')
@@ -1189,13 +1223,13 @@ export default function OportunidadesKanban() {
     setVendedorOpen(false)
     setOrigemOpen(false)
     setTab('pagamento')
-  }, [formOpen, activeId, active, canCrmControl, myUserId, myUserName])
+  }, [formOpen, activeId, active, canCrmControl, myUserId, myUserName, leadStageId, defaultEmpresaCorrespondenteId, clienteNameById, andamentoStatusId])
 
   useEffect(() => {
     if (!formOpen) return
     if (activeId) return
     if (!draftFaseId && leadStageId) setDraftFaseId(leadStageId)
-    if (!draftStatusId) setDraftStatusId(ATIVOS_STATUS_ID)
+    if (!draftStatusId && andamentoStatusId) setDraftStatusId(andamentoStatusId)
   }, [formOpen, activeId, draftFaseId, draftStatusId, leadStageId, andamentoStatusId])
 
   useEffect(() => {
@@ -1562,7 +1596,7 @@ export default function OportunidadesKanban() {
     if (label) setContatoQuery(label)
   }, [formOpen, draftContatoId, contatoOptions, contatoQuery])
 
-  const dataInclusao = active?.data_inclusao ?? (active as any)?.criado_em ?? null
+  const dataInclusao = active?.data_inclusao ?? (active as any)?.criado_em ?? (active as any)?.created_at ?? null
   const dataFechamento = (active as any)?.data_conquistado ?? (active as any)?.data_perdidos ?? null
   const dataAlteracao = (active as any)?.data_parado ?? active?.data_alteracao ?? (active as any)?.atualizado_em ?? null
   const tempoAbertoDias = dataFechamento ? calcDaysBetween(dataInclusao, dataFechamento) : calcDaysSince(dataInclusao)
@@ -2067,17 +2101,17 @@ export default function OportunidadesKanban() {
         .replace(/[\u0300-\u036f]/g, '')
         .trim()
         .toUpperCase()
-    const statusId = String(draftStatusId || andamentoStatusId || (active as any)?.id_status || ATIVOS_STATUS_ID).trim()
+    const statusId = String(draftStatusId || andamentoStatusId || (active as any)?.id_status || '').trim()
     const desc = String(statusesForUi.find((s) => String(s.status_id || '').trim() === statusId)?.status_desc || '').trim()
     return normKey(desc)
   }, [active, andamentoStatusId, draftStatusId, statusesForUi])
 
   const isPropostaConquistada = useMemo(() => {
-    return statusKeyAtual === 'APROVADO' || statusKeyAtual.includes('CONQUIST')
+    return statusKeyAtual.includes('CONQUIST')
   }, [statusKeyAtual])
 
   const isPropostaPerdida = useMemo(() => {
-    return statusKeyAtual === 'PERDIDO' || statusKeyAtual.includes('PERDID')
+    return statusKeyAtual.includes('PERDID')
   }, [statusKeyAtual])
 
   const disableOutcomeActions = useMemo(() => {
@@ -2307,8 +2341,8 @@ export default function OportunidadesKanban() {
       : null
     const prev_faturamento = draftPrevFaturamento.trim() || null
     const prev_entrega = draftPrevEntrega.trim() || null
-    const prev_fechamento = draftPrevFechamento.trim() || null
-    const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ATIVOS_STATUS_ID
+    let prev_fechamento = draftPrevFechamento.trim() || null
+    const finalStatusId = (opts?.statusIdOverride || '').trim() || draftStatusId || andamentoStatusId || ''
     const finalMotivoId = String(opts?.motivoIdOverride ?? draftMotivoId ?? '').trim()
     const normKey = (v: string) =>
       String(v || '')
@@ -2323,31 +2357,18 @@ export default function OportunidadesKanban() {
     if (faseOverride) finalFaseId = faseOverride
     let faseLabel = stages.find((s) => s.id === finalFaseId)?.label || null
 
-    if (normKey(statusDesc) === 'APROVADO') {
-      const missingPayments =
-        paymentsSchemaOk === false ||
-        !draftFormaPagamentoId.trim() ||
-        !draftCondicaoPagamentoId.trim()
-      const missingItens = draftItens.length === 0
-      if (missingPayments || missingItens) {
-        const msg =
-          'Para aprovar a proposta, é necessário informar os dados de pagamento e incluir ao menos 1 Produto/Serviço.'
-        setFormError(msg)
-        try {
-          alert(msg)
-        } catch {}
-        return null
-      }
-      const conquistado =
-        stages.find((s) => normKey(s.label) === 'CONQUISTADO') ||
-        stages.find((s) => normKey(s.label).includes('CONQUIST')) ||
-        null
-      if (!conquistado?.id) {
-        setFormError('Nenhuma Fase "CONQUISTADO" encontrada em CRM > Configs > Fases.')
-        return null
-      }
-      finalFaseId = conquistado.id
-      faseLabel = conquistado.label
+    if (finalStatusId === STATUS_CONQUISTADO_ID && !faseOverride) {
+      finalFaseId = FASE_EM_PRODUCAO_ID
+      faseLabel = stages.find((s) => s.id === finalFaseId)?.label || faseLabel
+    }
+    if (finalStatusId === STATUS_PERDIDA_ID && !faseOverride) {
+      finalFaseId = FASE_PERDIDA_ID
+      faseLabel = stages.find((s) => s.id === finalFaseId)?.label || faseLabel
+    }
+
+    if (String(opts?.statusIdOverride || '').trim() === STATUS_CONQUISTADO_ID) {
+      const today = toDateInputValue(new Date())
+      if (!prev_fechamento) prev_fechamento = today
     }
     const solucao = draftSolucao
     const empresaId = (draftEmpresaCorrespondenteId || '').trim() || defaultEmpresaCorrespondenteId
@@ -2428,6 +2449,9 @@ export default function OportunidadesKanban() {
       medidas: draftMedidas.trim() || null,
       transportadora: draftTransportadora.trim() || null,
       fase: faseLabel
+    }
+    if (String(opts?.statusIdOverride || '').trim() === STATUS_CONQUISTADO_ID) {
+      payload.data_conquistado = new Date().toISOString()
     }
     if (paymentsSchemaOk !== false) {
       payload.forma_pagamento_id = draftFormaPagamentoId.trim() || null
@@ -2608,6 +2632,22 @@ export default function OportunidadesKanban() {
     const faseLabel = stages.find(s => s.id === newStageId)?.label || null
     const oldStageId = source.droppableId
     const faseLabelOld = stages.find(s => s.id === oldStageId)?.label || null
+
+    let comentario = ''
+    while (true) {
+      const entered = prompt(
+        `Informe um comentário para registrar a mudança de fase:\n${String(faseLabelOld || '').trim() || '—'} → ${String(faseLabel || '').trim() || '—'}`,
+        ''
+      )
+      if (entered === null) return
+      const t = String(entered || '').trim()
+      if (!t) {
+        alert('Informe um comentário.')
+        continue
+      }
+      comentario = t
+      break
+    }
     
     // 1. Optimistic Update
     const originalOpportunities = [...opportunities]
@@ -2624,7 +2664,7 @@ export default function OportunidadesKanban() {
        await updateOportunidade(draggableId, { id_fase: newStageId, fase: faseLabel } as any)
        if (faseLabelOld && faseLabel && draggableId) {
          try {
-           await createOportunidadeComentario(String(draggableId), `Fase alterada: ${faseLabelOld} → ${faseLabel}`)
+           await createOportunidadeComentario(String(draggableId), `Fase alterada: ${faseLabelOld} → ${faseLabel}\nComentário: ${comentario}`)
          } catch {}
        }
     } catch (error) {
@@ -2767,11 +2807,11 @@ export default function OportunidadesKanban() {
       const raw = String((op as any)?.id_status || '').trim()
       if (raw) return raw
       const label = String((op as any)?.status || '').trim()
-      if (!label) return ATIVOS_STATUS_ID
+      if (!label) return andamentoStatusId || ''
       const match = statuses.find((s) => String(s.status_desc || '').trim().toLowerCase() === label.toLowerCase())
-      return match ? String(match.status_id || '').trim() : ATIVOS_STATUS_ID
+      return match ? String(match.status_id || '').trim() : (andamentoStatusId || '')
     },
-    [statuses]
+    [statuses, andamentoStatusId]
   )
 
   useEffect(() => {
@@ -2890,7 +2930,7 @@ export default function OportunidadesKanban() {
     const monthOptions = Array.from(
       new Set(
         stageItemsAll
-          .map((op) => toMonthKey((op as any)?.data_inclusao ?? (op as any)?.criado_em ?? null))
+          .map((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)))
           .filter(Boolean)
       )
     ) as string[]
@@ -2899,7 +2939,7 @@ export default function OportunidadesKanban() {
     const wantMonthKey = String(monthFilterByStageId[stage.id] || '').trim()
     const stageItems =
       wantMonthKey && wantMonthKey !== '__ALL__'
-        ? stageItemsAll.filter((op) => toMonthKey((op as any)?.data_inclusao ?? (op as any)?.criado_em ?? null) === wantMonthKey)
+        ? stageItemsAll.filter((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)) === wantMonthKey)
         : stageItemsAll
 
     return {
@@ -2932,8 +2972,7 @@ export default function OportunidadesKanban() {
         '-'
       const statusId = resolveStatusId(op)
       const statusObj = statusesForUi.find((s) => String(s.status_id) === String(statusId)) || null
-      const statusDesc =
-        String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || (statusId === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '')).trim() || '-'
+      const statusDesc = String(statusObj?.status_desc || (op as any)?.status_desc || (op as any)?.status || '').trim() || '-'
       const statusCor = String(statusObj?.status_cor || '').trim() || null
       const hasTemperatura =
         (op as any).temperatura !== null && (op as any).temperatura !== undefined && String((op as any).temperatura).trim() !== ''
@@ -3031,13 +3070,16 @@ export default function OportunidadesKanban() {
         const firstLine = String(raw.split('\n')[0] || '').trim()
         const isStatus = firstLine.toLowerCase().startsWith('status alterado:')
         const isFase = firstLine.toLowerCase().startsWith('fase alterada:')
-        if (!isStatus && !isFase) return null
+        const isAndamento = firstLine.toLowerCase().startsWith('andamento:')
+        if (!isStatus && !isFase && !isAndamento) return null
 
         const lines = raw.split('\n')
         const first = String(lines[0] || '').trim()
         const detail = isStatus
           ? first.replace(/^status alterado:\s*/i, '').trim() || '-'
-          : first.replace(/^fase alterada:\s*/i, '').trim() || '-'
+          : isFase
+            ? first.replace(/^fase alterada:\s*/i, '').trim() || '-'
+            : first.replace(/^andamento:\s*/i, '').trim() || '-'
         const rest = lines.slice(1).join('\n').trim()
         const comentarioText = rest.replace(/^(coment[aá]rio|obs)\s*:\s*/i, '').trim()
 
@@ -3045,16 +3087,16 @@ export default function OportunidadesKanban() {
           id: String((c as any)?.comentario_id || '').trim() || `${(c as any)?.created_at || ''}-${Math.random()}`,
           when: String((c as any)?.created_at || '').trim(),
           createdBy: String((c as any)?.created_by || '').trim() || null,
-          kind: isStatus ? ('STATUS' as const) : ('FASE' as const),
+          kind: isStatus ? ('STATUS' as const) : isFase ? ('FASE' as const) : ('ANDAMENTO' as const),
           detail,
-          comentario: comentarioText || '-'
+          comentario: (isAndamento ? '' : comentarioText).trim() || '-'
         }
       })
       .filter(Boolean) as Array<{
       id: string
       when: string
       createdBy: string | null
-      kind: 'STATUS' | 'FASE'
+      kind: 'STATUS' | 'FASE' | 'ANDAMENTO'
       detail: string
       comentario: string
     }>
@@ -3491,7 +3533,7 @@ export default function OportunidadesKanban() {
                           }}
                           disabled={!Array.isArray((column as any).monthOptions) || (column as any).monthOptions.length === 0}
                           className="rounded-lg bg-[#0F172A] border border-white/10 px-2 py-1 text-[10px] font-bold text-slate-200 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
-                          title="Filtrar por mês (data de inclusão)"
+                          title={getStageMonthFilterTitle(column.label)}
                         >
                           <option value="">Todos</option>
                           {(column as any).monthOptions.map((m: string) => (
@@ -3531,8 +3573,7 @@ export default function OportunidadesKanban() {
                                     const sid = resolveStatusId(item)
                                     const s = statusesForUi.find((x) => String(x.status_id || '').trim() === String(sid).trim()) || null
                                     const label =
-                                      String(s?.status_desc || (item as any).status_desc || (item as any).status || '').trim() ||
-                                      (sid === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '')
+                                      String(s?.status_desc || (item as any).status_desc || (item as any).status || '').trim()
                                     return label.trim() || null
                                   })()
                                 }
@@ -4056,7 +4097,6 @@ export default function OportunidadesKanban() {
                             value={
                               String(
                                 statusesForUi.find((s) => String(s.status_id) === String(draftStatusId))?.status_desc ||
-                                  (String(draftStatusId || '').trim() === ATIVOS_STATUS_ID ? ATIVOS_STATUS_LABEL : '') ||
                                   ''
                               ).trim() || '-'
                             }
@@ -4479,19 +4519,11 @@ export default function OportunidadesKanban() {
                           placeholder="Número do pedido de compra..."
                           className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
                         />
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Arquivo do Pedido de Compra</label>
-                        </div>
-                        <input
-                          value={draftPedidoCompraPath ? (draftPedidoCompraPath.split('/').pop() || draftPedidoCompraPath) : '-'}
-                          readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
-                        />
                         <input
                           ref={pedidoCompraInputRef}
                           type="file"
                           className="hidden"
-                          accept="application/pdf,image/*"
+                          accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
                           onChange={async (e) => {
                             const file = e.target.files?.[0]
                             e.target.value = ''
@@ -4519,64 +4551,217 @@ export default function OportunidadesKanban() {
                             }
                           }}
                         />
+                        <input
+                          ref={docsComplementaresInputRef}
+                          type="file"
+                          className="hidden"
+                          multiple
+                          accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || [])
+                            e.target.value = ''
+                            if (!activeId) return
+                            if (files.length === 0) return
+                            if (docsComplementaresUploading) return
+                            setDocsComplementaresUploading(true)
+                            setDocsComplementaresError(null)
+                            try {
+                              const id = String(activeId || '').trim()
+                              const dir = `${bucketDocsComplementares}/${id}`
+                              const userId = (myUserId || '').trim() || (await supabase.auth.getUser()).data.user?.id || ''
+                              if (!userId) throw new Error('Sessão não encontrada. Faça login novamente.')
+                              for (const file of files) {
+                                const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_')
+                                const path = `${dir}/${Date.now()}-${Math.random().toString(16).slice(2)}-${safeName}`
+                                const r = await supabase.storage.from(bucketDocsComplementares).upload(path, file, {
+                                  upsert: false,
+                                  contentType: file.type || undefined
+                                } as any)
+                                if (r.error) throw r.error
+                              }
+                              pushToast({ kind: 'system', title: 'Documentos', message: 'Documento(s) anexado(s) com sucesso.' })
+                              await loadDocsComplementares(id)
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : 'Falha ao anexar.'
+                              setDocsComplementaresError(msg)
+                              setFormError(msg)
+                            } finally {
+                              setDocsComplementaresUploading(false)
+                            }
+                          }}
+                        />
+                        {docsComplementaresError ? <div className="mt-2 text-sm text-rose-200">{docsComplementaresError}</div> : null}
                       </div>
                       <div className="lg:col-span-4 flex gap-2 justify-end">
                         <button
                           type="button"
+                          onClick={() => docsComplementaresInputRef.current?.click()}
+                          disabled={!activeId || docsComplementaresUploading}
+                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                        >
+                          {docsComplementaresUploading ? 'Anexando...' : 'Anexar Documento'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void loadDocsComplementares()}
+                          disabled={!activeId || docsComplementaresLoading}
+                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                        >
+                          Atualizar
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => pedidoCompraInputRef.current?.click()}
-                          disabled={pedidoCompraUploading}
+                          disabled={!activeId || pedidoCompraUploading}
                           className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
                         >
-                          {pedidoCompraUploading ? 'Anexando...' : 'Anexar Arquivo'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!draftPedidoCompraPath.trim()}
-                          onClick={() => {
-                            const path = draftPedidoCompraPath.trim()
-                            if (!path) return
-                            const url = supabase.storage.from('crm-pedidos-compra').getPublicUrl(path).data.publicUrl
-                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
-                          }}
-                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
-                        >
-                          Abrir
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!draftPedidoCompraPath.trim() || pedidoCompraUploading}
-                          onClick={async () => {
-                            const path = draftPedidoCompraPath.trim()
-                            if (!path) return
-                            if (!confirm('Excluir o arquivo do Pedido de Compra?')) return
-                            if (pedidoCompraUploading) return
-                            setPedidoCompraUploading(true)
-                            setPedidoCompraError(null)
-                            try {
-                              const r = await supabase.storage.from('crm-pedidos-compra').remove([path])
-                              if (r.error) throw r.error
-                              setDraftPedidoCompraPath('')
-                              const id = String(activeId || '').trim()
-                              if (id) {
-                                try {
-                                  await updateOportunidade(id, { pedido_compra_path: null } as any)
-                                } catch {}
-                              }
-                              pushToast({ kind: 'system', title: 'Documentos', message: 'Arquivo do Pedido de Compra excluído.' })
-                            } catch (err) {
-                              const msg = err instanceof Error ? err.message : 'Falha ao excluir.'
-                              setPedidoCompraError(msg)
-                              setFormError(msg)
-                              pushToast({ kind: 'system', title: 'Documentos', message: msg })
-                            } finally {
-                              setPedidoCompraUploading(false)
-                            }
-                          }}
-                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 font-black text-sm disabled:opacity-50 transition-colors"
-                        >
-                          Excluir
+                          {pedidoCompraUploading ? 'Anexando PC...' : 'Anexar Pedido de Compra'}
                         </button>
                       </div>
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
+                      <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Arquivos anexados</div>
+                        <span className="text-[10px] font-black bg-white/5 text-slate-300 px-2 py-1 rounded-full border border-white/10">
+                          {(draftPedidoCompraPath ? 1 : 0) + (docsComplementares.length || 0)}
+                        </span>
+                      </div>
+
+                      {!activeId ? (
+                        <div className="px-4 py-4 text-xs text-slate-400">Salve a proposta para anexar documentos.</div>
+                      ) : docsComplementaresLoading ? (
+                        <div className="px-4 py-4 text-xs text-slate-400 inline-flex items-center gap-2">
+                          <Loader2 className="animate-spin" size={14} />
+                          Carregando...
+                        </div>
+                      ) : (draftPedidoCompraPath ? 1 : 0) + docsComplementares.length === 0 ? (
+                        <div className="px-4 py-4 text-xs text-slate-400">Nenhum documento anexado ainda.</div>
+                      ) : (
+                        <div className="divide-y divide-white/10">
+                          {draftPedidoCompraPath ? (
+                            <div className="px-4 py-3 flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText size={14} className="text-slate-300 shrink-0" />
+                                  <div className="text-sm font-bold text-slate-100 truncate">
+                                    {draftPedidoCompraPath.split('/').pop() || 'Pedido de Compra'}
+                                  </div>
+                                </div>
+                                <div className="mt-1 text-[11px] text-slate-400">Pedido de Compra</div>
+                              </div>
+                              <div className="shrink-0 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const path = draftPedidoCompraPath.trim()
+                                    if (!path) return
+                                    const url = supabase.storage.from('crm-pedidos-compra').getPublicUrl(path).data.publicUrl
+                                    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                                  }}
+                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                                  title="Abrir"
+                                  aria-label="Abrir"
+                                >
+                                  <ArrowUpRight size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const path = draftPedidoCompraPath.trim()
+                                    if (!path) return
+                                    if (!confirm('Excluir o arquivo do Pedido de Compra?')) return
+                                    if (pedidoCompraUploading) return
+                                    setPedidoCompraUploading(true)
+                                    setPedidoCompraError(null)
+                                    try {
+                                      const r = await supabase.storage.from('crm-pedidos-compra').remove([path])
+                                      if (r.error) throw r.error
+                                      setDraftPedidoCompraPath('')
+                                      const id = String(activeId || '').trim()
+                                      if (id) {
+                                        try {
+                                          await updateOportunidade(id, { pedido_compra_path: null } as any)
+                                        } catch {}
+                                      }
+                                      pushToast({ kind: 'system', title: 'Documentos', message: 'Arquivo do Pedido de Compra excluído.' })
+                                    } catch (err) {
+                                      const msg = err instanceof Error ? err.message : 'Falha ao excluir.'
+                                      setPedidoCompraError(msg)
+                                      setFormError(msg)
+                                      pushToast({ kind: 'system', title: 'Documentos', message: msg })
+                                    } finally {
+                                      setPedidoCompraUploading(false)
+                                    }
+                                  }}
+                                  disabled={pedidoCompraUploading}
+                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center disabled:opacity-50"
+                                  title="Remover"
+                                  aria-label="Remover"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {docsComplementares.map((d) => (
+                            <div key={d.path} className="px-4 py-3 flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FileText size={14} className="text-slate-300 shrink-0" />
+                                  <div className="text-sm font-bold text-slate-100 truncate">{d.name}</div>
+                                </div>
+                                <div className="mt-1 text-[11px] text-slate-400">
+                                  {formatFileSize(d.size)} · {d.mimeType || 'arquivo'} · {formatDateTime(d.createdAt || d.updatedAt)}
+                                </div>
+                              </div>
+                              <div className="shrink-0 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      const r = await supabase.storage.from(bucketDocsComplementares).createSignedUrl(d.path, 60 * 10)
+                                      if (r.error) throw r.error
+                                      const url = r.data?.signedUrl
+                                      if (url) window.open(url, '_blank', 'noopener,noreferrer')
+                                    } catch (err) {
+                                      const msg = err instanceof Error ? err.message : 'Falha ao abrir.'
+                                      setDocsComplementaresError(msg)
+                                      pushToast({ kind: 'system', title: 'Documentos', message: msg })
+                                    }
+                                  }}
+                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                                  title="Abrir"
+                                  aria-label="Abrir"
+                                >
+                                  <ArrowUpRight size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm('Remover este documento?')) return
+                                    try {
+                                      const r = await supabase.storage.from(bucketDocsComplementares).remove([d.path])
+                                      if (r.error) throw r.error
+                                      pushToast({ kind: 'system', title: 'Documentos', message: 'Documento removido.' })
+                                      await loadDocsComplementares()
+                                    } catch (err) {
+                                      const msg = err instanceof Error ? err.message : 'Falha ao remover.'
+                                      setDocsComplementaresError(msg)
+                                      pushToast({ kind: 'system', title: 'Documentos', message: msg })
+                                    }
+                                  }}
+                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center"
+                                  title="Remover"
+                                  aria-label="Remover"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -4587,12 +4772,11 @@ export default function OportunidadesKanban() {
                   <div className="flex gap-2 pb-2">
                     {[
                       { id: 'pagamento', label: 'Pagamentos', editable: true },
-                      { id: 'transportadora', label: 'Transportadora', editable: true },
-                      { id: 'temperatura', label: 'Temperatura e Previsão', editable: true },
-                      { id: 'documentos_complementares', label: 'Documento Complementar', editable: true },
+                      { id: 'temperatura', label: 'Previsão de Fechamento', editable: true },
                       { id: 'atividades', label: 'Atividades', editable: false },
                       { id: 'observacoes', label: 'Observações', editable: true },
                       { id: 'producao', label: 'Produção', editable: false },
+                      { id: 'transportadora', label: 'Transportadora', editable: true },
                     ].map((t) => (
                       <button
                         key={t.id}
@@ -4695,26 +4879,6 @@ export default function OportunidadesKanban() {
                         ) : (
                           <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Bruto: {formatCurrency(ticketCalculadoBruto)}</div>
                         )}
-                      </div>
-
-                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão de Faturamento</div>
-                        <input
-                          type="date"
-                          value={draftPrevFaturamento}
-                          onChange={(e) => setDraftPrevFaturamento(e.target.value)}
-                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-
-                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão de Entrega (Cliente)</div>
-                        <input
-                          type="date"
-                          value={draftPrevEntrega}
-                          onChange={(e) => setDraftPrevEntrega(e.target.value)}
-                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
                       </div>
 
                       <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
@@ -4926,143 +5090,35 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
 
-                {tab === 'transportadora' && (
-                  <div className="space-y-5">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
-                        <textarea
-                          value={draftRemetenteCompleto}
-                          onChange={(e) => setDraftRemetenteCompleto(e.target.value)}
-                          rows={4}
-                          placeholder="Informe o remetente completo..."
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
-                        <textarea
-                          value={draftDestinatarioCompleto}
-                          onChange={(e) => setDraftDestinatarioCompleto(e.target.value)}
-                          rows={4}
-                          placeholder="Informe o destinatário completo..."
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Pagador do Frete (CIF ou FOB)</label>
-                        <select
-                          value={draftTipoFrete}
-                          onChange={(e) => setDraftTipoFrete(e.target.value as any)}
-                          disabled={paymentsSchemaOk === false}
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
-                        >
-                          <option value="">-</option>
-                          <option value="FOB">FOB</option>
-                          <option value="CIF">CIF</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
-                        <input
-                          value={draftNumeroNotaFiscal}
-                          onChange={(e) => setDraftNumeroNotaFiscal(e.target.value)}
-                          placeholder="Ex: 123456"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
-                        <input
-                          value={draftValorNotaFiscal}
-                          onChange={(e) => setDraftValorNotaFiscal(e.target.value)}
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
-                        <input
-                          value={draftTransportadora}
-                          onChange={(e) => setDraftTransportadora(e.target.value)}
-                          placeholder="Nome da transportadora..."
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
-                        <input
-                          value={draftMaterial}
-                          onChange={(e) => setDraftMaterial(e.target.value)}
-                          placeholder="Descrição do material..."
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
-                        <input
-                          value={draftQuantidadeVolumes}
-                          onChange={(e) => setDraftQuantidadeVolumes(e.target.value.replace(/[^\d]/g, ''))}
-                          inputMode="numeric"
-                          placeholder="0"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie (Caixa, Palete etc)</label>
-                        <input
-                          value={draftEspecie}
-                          onChange={(e) => setDraftEspecie(e.target.value)}
-                          placeholder="Ex: Caixa"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
-                        <input
-                          value={draftPeso}
-                          onChange={(e) => setDraftPeso(e.target.value)}
-                          inputMode="decimal"
-                          placeholder="0"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
-                        <input
-                          value={draftMedidas}
-                          onChange={(e) => setDraftMedidas(e.target.value)}
-                          placeholder="Ex: 10x20x30"
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {tab === 'temperatura' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão de Fechamento</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Data prevista</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Datas previstas da proposta</div>
                         </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão - Data prevista</label>
+                          <input
+                            type="date"
+                            value={draftPrevFaturamento}
+                            onChange={(e) => setDraftPrevFaturamento(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Entrega Equipamento</label>
+                          <input
+                            type="date"
+                            value={draftPrevEntrega}
+                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                          />
+                        </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Fechamento</label>
                           <input
@@ -5330,6 +5386,129 @@ export default function OportunidadesKanban() {
                   </div>
                 )}
 
+                {tab === 'transportadora' && (
+                  <div className="space-y-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Transportadora</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Dados de transporte e nota fiscal</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
+                            <textarea
+                              value={draftRemetenteCompleto}
+                              onChange={(e) => setDraftRemetenteCompleto(e.target.value)}
+                              rows={4}
+                              placeholder="Informe o remetente completo..."
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
+                            <textarea
+                              value={draftDestinatarioCompleto}
+                              onChange={(e) => setDraftDestinatarioCompleto(e.target.value)}
+                              rows={4}
+                              placeholder="Informe o destinatário completo..."
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
+                            <input
+                              value={draftNumeroNotaFiscal}
+                              onChange={(e) => setDraftNumeroNotaFiscal(e.target.value)}
+                              placeholder="Ex: 123456"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
+                            <input
+                              value={draftValorNotaFiscal}
+                              onChange={(e) => setDraftValorNotaFiscal(e.target.value)}
+                              inputMode="decimal"
+                              placeholder="0,00"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-2 md:col-span-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
+                            <input
+                              value={draftTransportadora}
+                              onChange={(e) => setDraftTransportadora(e.target.value)}
+                              placeholder="Nome da transportadora..."
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2 md:col-span-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
+                            <input
+                              value={draftMaterial}
+                              onChange={(e) => setDraftMaterial(e.target.value)}
+                              placeholder="Descrição do material..."
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
+                            <input
+                              value={draftQuantidadeVolumes}
+                              onChange={(e) => setDraftQuantidadeVolumes(e.target.value.replace(/[^\d]/g, ''))}
+                              inputMode="numeric"
+                              placeholder="0"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie (Caixa, Palete etc)</label>
+                            <input
+                              value={draftEspecie}
+                              onChange={(e) => setDraftEspecie(e.target.value)}
+                              placeholder="Ex: Caixa"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
+                            <input
+                              value={draftPeso}
+                              onChange={(e) => setDraftPeso(e.target.value)}
+                              inputMode="decimal"
+                              placeholder="0"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
+                            <input
+                              value={draftMedidas}
+                              onChange={(e) => setDraftMedidas(e.target.value)}
+                              placeholder="Ex: 10x20x30"
+                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {tab === 'observacoes' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -5341,167 +5520,6 @@ export default function OportunidadesKanban() {
                         placeholder="Observações do cliente..."
                       />
                     </div>
-                  </div>
-                )}
-
-                {tab === 'documentos_complementares' && (
-                  <div className="space-y-4">
-                    {!activeId ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                        Salve a proposta para anexar documentos complementares.
-                      </div>
-                    ) : (
-                      <>
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <div className="text-xs font-black uppercase tracking-widest text-slate-300">Documento Complementar</div>
-                              <div className="mt-1 text-[11px] text-slate-400">Anexe PDFs, imagens e documentos relacionados à proposta</div>
-                            </div>
-                            <div className="shrink-0 flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!activeId) return
-                                  docsComplementaresInputRef.current?.click()
-                                }}
-                                disabled={docsComplementaresUploading}
-                                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-xs disabled:opacity-50 transition-colors inline-flex items-center gap-2"
-                              >
-                                <Upload size={14} />
-                                {docsComplementaresUploading ? 'Anexando...' : 'Anexar'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void loadDocsComplementares()}
-                                disabled={docsComplementaresLoading}
-                                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-xs disabled:opacity-50 transition-colors inline-flex items-center gap-2"
-                              >
-                                <RefreshCcw size={14} className={docsComplementaresLoading ? 'animate-spin' : ''} />
-                                Atualizar
-                              </button>
-                            </div>
-                          </div>
-
-                          <input
-                            ref={docsComplementaresInputRef}
-                            type="file"
-                            className="hidden"
-                            multiple
-                            accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
-                            onChange={async (e) => {
-                              const files = Array.from(e.target.files || [])
-                              e.target.value = ''
-                              if (!activeId) return
-                              if (files.length === 0) return
-                              if (docsComplementaresUploading) return
-                              setDocsComplementaresUploading(true)
-                              setDocsComplementaresError(null)
-                              try {
-                                const id = String(activeId || '').trim()
-                                const dir = `${bucketDocsComplementares}/${id}`
-                                const userId = (myUserId || '').trim() || (await supabase.auth.getUser()).data.user?.id || ''
-                                if (!userId) throw new Error('Sessão não encontrada. Faça login novamente.')
-                                for (const file of files) {
-                                  const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_')
-                                  const path = `${dir}/${Date.now()}-${Math.random().toString(16).slice(2)}-${safeName}`
-                                  const r = await supabase.storage.from(bucketDocsComplementares).upload(path, file, {
-                                    upsert: false,
-                                    contentType: file.type || undefined
-                                  } as any)
-                                  if (r.error) throw r.error
-                                }
-                                pushToast({ kind: 'system', title: 'Anexos', message: 'Documento(s) anexado(s) com sucesso.' })
-                                await loadDocsComplementares(id)
-                              } catch (err) {
-                                const msg = err instanceof Error ? err.message : 'Falha ao anexar.'
-                                setDocsComplementaresError(msg)
-                                setFormError(msg)
-                              } finally {
-                                setDocsComplementaresUploading(false)
-                              }
-                            }}
-                          />
-
-                          {docsComplementaresError ? (
-                            <div className="mt-3 text-sm text-rose-200">{docsComplementaresError}</div>
-                          ) : null}
-                        </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Arquivos anexados</div>
-                          <div className="mt-3 space-y-2">
-                            {docsComplementaresLoading ? (
-                              <div className="text-sm text-slate-400 inline-flex items-center gap-2">
-                                <Loader2 className="animate-spin" size={14} />
-                                Carregando...
-                              </div>
-                            ) : docsComplementares.length === 0 ? (
-                              <div className="text-sm text-slate-400">Nenhum documento complementar anexado.</div>
-                            ) : (
-                              docsComplementares.map((d) => (
-                                <div key={d.path} className="rounded-xl border border-white/10 bg-[#0F172A] p-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <FileText size={14} className="text-slate-300 shrink-0" />
-                                        <div className="text-sm font-bold text-slate-100 truncate">{d.name}</div>
-                                      </div>
-                                      <div className="mt-1 text-[11px] text-slate-400">
-                                        {formatFileSize(d.size)} · {d.mimeType || 'arquivo'} · {formatDateTime(d.createdAt || d.updatedAt)}
-                                      </div>
-                                    </div>
-                                    <div className="shrink-0 flex gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          try {
-                                            const r = await supabase.storage.from(bucketDocsComplementares).createSignedUrl(d.path, 60 * 10)
-                                            if (r.error) throw r.error
-                                            const url = r.data?.signedUrl
-                                            if (url) window.open(url, '_blank', 'noopener,noreferrer')
-                                          } catch (err) {
-                                            const msg = err instanceof Error ? err.message : 'Falha ao abrir.'
-                                            setDocsComplementaresError(msg)
-                                            pushToast({ kind: 'system', title: 'Anexos', message: msg })
-                                          }
-                                        }}
-                                        className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
-                                        title="Abrir"
-                                        aria-label="Abrir"
-                                      >
-                                        <ArrowUpRight size={16} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          if (!confirm('Remover este documento?')) return
-                                          try {
-                                            const r = await supabase.storage.from(bucketDocsComplementares).remove([d.path])
-                                            if (r.error) throw r.error
-                                            pushToast({ kind: 'system', title: 'Anexos', message: 'Documento removido.' })
-                                            await loadDocsComplementares()
-                                          } catch (err) {
-                                            const msg = err instanceof Error ? err.message : 'Falha ao remover.'
-                                            setDocsComplementaresError(msg)
-                                            pushToast({ kind: 'system', title: 'Anexos', message: msg })
-                                          }
-                                        }}
-                                        className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center"
-                                        title="Remover"
-                                        aria-label="Remover"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </div>
                 )}
               </div>
@@ -5545,10 +5563,6 @@ export default function OportunidadesKanban() {
                       onClick={() => {
                         setStatusChangeError(null)
                         setStatusChangeObs('')
-                        {
-                          const current = String(draftStatusId || andamentoStatusId || '').trim()
-                          setStatusChangeId(HIDDEN_STATUS_IDS_IN_ANDAMENTO.has(current) ? '' : current)
-                        }
                         setStatusChangeFaseId('')
                         setStatusChangeOpen(true)
                       }}
@@ -5562,20 +5576,14 @@ export default function OportunidadesKanban() {
                       disabled={!canConquistar || disableOutcomeActions}
                       onClick={async () => {
                         if (disableOutcomeActions) return
-                        const normKey = (v: string) =>
-                          String(v || '')
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')
-                            .trim()
-                            .toUpperCase()
-                        const target = statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'APROVADO')
-                        if (!target?.status_id) {
-                          setFormError('Nenhum status "APROVADO" encontrado em CRM > Configs > Status.')
-                          return
-                        }
-                        setDraftStatusId(String(target.status_id))
+                        const today = toDateInputValue(new Date())
+                        setDraftStatusId(STATUS_CONQUISTADO_ID)
+                        setDraftFaseId(FASE_EM_PRODUCAO_ID)
+                        setDraftMotivoId('')
+                        setDraftPrevFechamento(today)
                         await handleSave({
-                          statusIdOverride: String(target.status_id),
+                          statusIdOverride: STATUS_CONQUISTADO_ID,
+                          faseIdOverride: FASE_EM_PRODUCAO_ID,
                           skipStatusObsCheck: true,
                           statusObs: 'Conquistado'
                         })
@@ -5604,7 +5612,7 @@ export default function OportunidadesKanban() {
                           : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/15'
                       }`}
                     >
-                      PERDIDO
+                      PERDIDA
                     </button>
 
                     <div className="h-px bg-white/10 my-2" />
@@ -5923,7 +5931,7 @@ export default function OportunidadesKanban() {
                       {movementHistoryRows.map((r) => (
                         <tr key={r.id} className="border-b border-white/5">
                           <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">
-                            {r.kind === 'STATUS' ? 'Status' : 'Fase'}
+                            {r.kind === 'STATUS' ? 'Status' : r.kind === 'FASE' ? 'Fase' : 'Andamento'}
                           </td>
                           <td className="px-4 py-3 text-[11px] text-slate-200 whitespace-nowrap">{r.detail}</td>
                           <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">
@@ -5946,7 +5954,7 @@ export default function OportunidadesKanban() {
         <Modal
           isOpen={lostOpen}
           onClose={() => setLostOpen(false)}
-          title="Marcar como Perdido"
+          title="Marcar como Perdida"
           size="sm"
           zIndex={210}
           footer={
@@ -5966,38 +5974,15 @@ export default function OportunidadesKanban() {
                     setLostError('Selecione o motivo da perda.')
                     return
                   }
-                  const normKey = (v: string) =>
-                    String(v || '')
-                      .normalize('NFD')
-                      .replace(/[\u0300-\u036f]/g, '')
-                      .trim()
-                      .toUpperCase()
-                  const statusPerdido =
-                    statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDA') ||
-                    statuses.find((s) => normKey(String((s as any).status_desc || '')) === 'PERDIDO')
-                  if (!statusPerdido?.status_id) {
-                    setLostError('Nenhum status "PERDIDA" (ou "PERDIDO") encontrado em CRM > Configs > Status.')
-                    return
-                  }
-                  const faseNaoConquistado =
-                    stages.find((s) => normKey(String(s.label || '')) === 'NAO CONQUISTADO') ||
-                    stages.find((s) => normKey(String(s.label || '')).includes('NAO CONQUIST')) ||
-                    stages.find((s) => normKey(String(s.label || '')) === 'PERDIDOS') ||
-                    stages.find((s) => normKey(String(s.label || '')).includes('PERDID')) ||
-                    null
-                  if (!faseNaoConquistado?.id) {
-                    setLostError('Nenhuma Fase "NÃO CONQUISTADO" (ou "Perdidos") encontrada em CRM > Configs > Fases.')
-                    return
-                  }
                   const motivoDesc = String(motivos.find((m) => String((m as any).motiv_id || '').trim() === motivoId)?.descricao_motiv || '').trim()
                   setLostError(null)
                   setLostOpen(false)
-                  setDraftStatusId(String(statusPerdido.status_id))
-                  setDraftFaseId(String(faseNaoConquistado.id))
+                  setDraftStatusId(STATUS_PERDIDA_ID)
+                  setDraftFaseId(FASE_PERDIDA_ID)
                   setDraftMotivoId(motivoId)
                   await handleSave({
-                    statusIdOverride: String(statusPerdido.status_id),
-                    faseIdOverride: String(faseNaoConquistado.id),
+                    statusIdOverride: STATUS_PERDIDA_ID,
+                    faseIdOverride: FASE_PERDIDA_ID,
                     motivoIdOverride: motivoId,
                     skipStatusObsCheck: true,
                     statusObs: motivoDesc ? `Motivo: ${motivoDesc}` : 'Motivo informado no cadastro.'
@@ -6045,7 +6030,7 @@ export default function OportunidadesKanban() {
         <Modal
           isOpen={statusChangeOpen}
           onClose={() => setStatusChangeOpen(false)}
-          title="Andamento"
+          title="Novo Andamento"
           size="sm"
           zIndex={210}
           footer={
@@ -6060,37 +6045,14 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={async () => {
-                  const next = statusChangeId.trim()
-                  if (!next) {
-                    setStatusChangeError('Selecione um status.')
+                  if (!activeId) {
+                    setStatusChangeError('Salve a proposta antes de registrar andamento.')
                     return
                   }
-                  {
-                    const normKey = (v: string) =>
-                      String(v || '')
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .trim()
-                        .toUpperCase()
-                    const statusDesc = String(
-                      statuses.find((s) => String(s.status_id || '').trim() === next)?.status_desc || ''
-                    ).trim()
-                    if (normKey(statusDesc) === 'APROVADO') {
-                      const missingPayments =
-                        paymentsSchemaOk === false ||
-                        !draftFormaPagamentoId.trim() ||
-                        !draftCondicaoPagamentoId.trim()
-                      const missingItens = draftItens.length === 0
-                      if (missingPayments || missingItens) {
-                        const msg =
-                          'Para aprovar a proposta, é necessário informar os dados de pagamento e incluir ao menos 1 Produto/Serviço.'
-                        setStatusChangeError(msg)
-                        try {
-                          alert(msg)
-                        } catch {}
-                        return
-                      }
-                    }
+                  const statusId = String(andamentoStatusId || '').trim()
+                  if (!statusId) {
+                    setStatusChangeError('Status ANDAMENTO não encontrado.')
+                    return
                   }
                   const obs = statusChangeObs.trim()
                   if (!obs) {
@@ -6099,15 +6061,22 @@ export default function OportunidadesKanban() {
                   }
                   const faseOverride = statusChangeFaseId.trim()
                   setStatusChangeError(null)
-                  setDraftStatusId(next)
+                  setDraftStatusId(statusId)
                   if (faseOverride) setDraftFaseId(faseOverride)
                   setStatusChangeOpen(false)
                   await handleSave({
-                    statusIdOverride: next,
+                    statusIdOverride: statusId,
                     faseIdOverride: faseOverride || null,
                     skipStatusObsCheck: true,
                     statusObs: obs
                   })
+                  if (!faseOverride) {
+                    try {
+                      await createOportunidadeComentario(String(activeId), `Andamento: ${obs}`)
+                      const rows = await fetchOportunidadeComentarios(String(activeId))
+                      setComentarios(rows)
+                    } catch {}
+                  }
                 }}
                 className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
               >
@@ -6120,23 +6089,6 @@ export default function OportunidadesKanban() {
             {statusChangeError ? (
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{statusChangeError}</div>
             ) : null}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Novo Status</label>
-              <select
-                value={statusChangeId}
-                onChange={(e) => setStatusChangeId(e.target.value)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
-              >
-                <option value="">-</option>
-                {statuses
-                  .filter((s) => !HIDDEN_STATUS_IDS_IN_ANDAMENTO.has(String((s as any).status_id || '').trim()))
-                  .map((s) => (
-                  <option key={s.status_id} value={s.status_id}>
-                    {s.status_desc}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Fase</label>
               <select

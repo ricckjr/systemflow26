@@ -199,9 +199,13 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   const total = subtotal * (1 - descontoPropostaPercent / 100)
 
   const emissaoLabel = formatDateTimeBr((opp as any)?.data_inclusao || (opp as any)?.criado_em || null)
+  const ultimaMovLabel = formatDateTimeBr(
+    (opp as any)?.data_alteracao || (opp as any)?.atualizado_em || (opp as any)?.data_inclusao || (opp as any)?.criado_em || null
+  )
   const previsaoFaturamentoLabel = formatDateBr(
     String(((opp as any)?.prev_faturamento ?? (opp as any)?.prev_entrega) || '').slice(0, 10)
   )
+  const previsaoEntregaLabel = formatDateBr(String((opp as any)?.prev_entrega || '').slice(0, 10))
   const vendedorLabel = String((opp as any)?.vendedor_nome || (opp as any)?.vendedor || '-').trim() || '-'
   const vendedorId = String((opp as any)?.id_vendedor || '').trim()
   let vendedorEmail = ''
@@ -351,7 +355,7 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
       const mime = logoDataUrl.startsWith('data:') ? logoDataUrl.slice(5, logoDataUrl.indexOf(';')) : ''
       const fmt = mime.includes('png') ? 'PNG' : mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : ''
       if (fmt) {
-        doc.addImage(logoDataUrl, fmt as any, left, 10, 18, 18)
+        doc.addImage(logoDataUrl, fmt as any, left, 10, 14, 14)
         hasLogo = true
       }
     }
@@ -390,7 +394,7 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
 
     if (hasLogo) {
       doc.setDrawColor(220)
-      doc.rect(left, 10, 18, 18)
+      doc.rect(left, 10, 14, 14)
       doc.setDrawColor(160)
     }
 
@@ -496,11 +500,11 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   ensureSpace(60)
   textLeft('Pagamentos e Vencimentos', left, y, 10, true)
   y += 6
-  y = wrapLeft(`Forma: ${formaLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Forma Pag: ${formaLabel}`, left, y, maxContentWidth, 8, false, 4.2)
   y = wrapLeft(`Condição: ${condicaoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
   y = wrapLeft(`Desconto: ${formatNumber2(descontoPropostaPercent)}%`, left, y, maxContentWidth, 8, false, 4.2)
   y = wrapLeft(`Frete: ${tipoFreteLabel}`, left, y, maxContentWidth, 8, false, 4.2)
-  y = wrapLeft(`Previsão de Faturamento: ${previsaoFaturamentoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Previsão de Entrega: ${previsaoEntregaLabel}`, left, y, maxContentWidth, 8, false, 4.2)
   y += 6
 
   textLeft('Vencimentos À Vista', left, y, 10, true)
@@ -527,15 +531,19 @@ async function buildPropostaPdfBlob(opts: PropostaPdfOptions) {
   ensureSpace(45)
   textLeft('Outras Informações', left, y, 10, true)
   y += 6
-  y = wrapLeft(`Proposta Comercial: ${emissaoLabel}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`Proposta Comercial: ${ultimaMovLabel}`, left, y, maxContentWidth, 8, false, 4.2)
   y = wrapLeft(`Vendedor: ${vendedorLabel}`, left, y, maxContentWidth, 8, false, 4.2)
-  y = wrapLeft(`Email Vendedor: ${vendedorEmail || '-'}`, left, y, maxContentWidth, 8, false, 4.2)
+  y = wrapLeft(`E-mail Vendedor: ${vendedorEmail || '-'}`, left, y, maxContentWidth, 8, false, 4.2)
   y += 6
 
   const solucaoTexto =
     inferred === 'PRODUTO' ? 'fornecimento de produto' : inferred === 'SERVICO' ? 'prestação de serviço' : 'fornecimento de produto ou prestação de serviço'
-  const paragrafo = `Esta proposta comercial foi gerada automaticamente pelo sistema CRM, com base na oportunidade vinculada ao cliente '${clienteNome}', referente à solução '${solucaoTexto}', elaborada pelo usuário '${vendedorLabel}' em '${emissaoLabel}'. O presente documento possui validade até '${validadeLabel}'. Após este prazo, os valores e as condições comerciais estarão sujeitos à reavaliação.`
-  wrapLeft(paragrafo, left, y, maxContentWidth, 7.4, false, 3.8)
+  const p1 = `Esta proposta comercial foi gerada automaticamente pelo sistema de CRM da empresa, com base na oportunidade registrada para o cliente ${clienteNome}, referente à solução "${solucaoTexto}", elaborada por ${vendedorLabel}.`
+  const p2 = `A última atualização deste documento foi realizada em ${ultimaMovLabel}.`
+  const p3 = `O presente documento possui validade até ${validadeLabel}. Após esse prazo, os valores, prazos e demais condições comerciais poderão ser revisados ou atualizados, conforme as políticas comerciais vigentes.`
+  y = wrapLeft(p1, left, y, maxContentWidth, 7.4, false, 3.8)
+  y = wrapLeft(p2, left, y, maxContentWidth, 7.4, false, 3.8)
+  wrapLeft(p3, left, y, maxContentWidth, 7.4, false, 3.8)
 
   const filenameBase = `Proposta-${propostaCodigo}`.replaceAll('/', '-').replaceAll('\\', '-').replaceAll(':', '-')
   const filename = `${filenameBase}.pdf`

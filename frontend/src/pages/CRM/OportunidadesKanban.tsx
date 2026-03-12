@@ -5095,6 +5095,17 @@ export default function OportunidadesKanban() {
                         </div>
 
                         <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Data de Faturamento</label>
+                          <input
+                            type="date"
+                            value={draftPrevFaturamento}
+                            onChange={(e) => setDraftPrevFaturamento(e.target.value)}
+                            disabled={paymentsSchemaOk === false}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Desconto (%)</label>
                           <input
                             value={draftDescontoPropostaPercent}

@@ -16,7 +16,10 @@ import {
   Maximize2,
   Minimize2,
   Factory,
-  Star
+  Star,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown
 } from 'lucide-react'
 import {
   BarChart,
@@ -521,18 +524,255 @@ const KPI = ({
 /* ===========================
    FUNNEL COMPONENT
 =========================== */
-const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
-  const funnelData = useMemo(() => {
-    // 1. Definição das Fases com seus IDs correspondentes
-    const phases = {
-      LEADS: ['f045b8fe-ce70-466d-a323-3285bdb418e3', '6f68aa0d-6915-4aef-9542-811c9e8fce12'],
-      QUALIFICADOS: ['3a1bf927-141e-4ffd-b3f5-8a02e018a128'],
-      NEGOCIACAO: ['705b9fc4-ba5c-4837-91c6-d7b2f55dde2f', '0773b832-d4f7-4aa8-b962-23c8efd2b8a4', '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e'],
-      POS_VENDA: ['608e0e07-d5cc-4f9a-93a6-dcaaf9568963']
-    }
-    const STATUS_CONQUISTADO = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
+const FUNNEL_PHASES = {
+  LEADS: ['f045b8fe-ce70-466d-a323-3285bdb418e3', '6f68aa0d-6915-4aef-9542-811c9e8fce12'],
+  QUALIFICADOS: ['3a1bf927-141e-4ffd-b3f5-8a02e018a128'],
+  NEGOCIACAO: ['705b9fc4-ba5c-4837-91c6-d7b2f55dde2f', '0773b832-d4f7-4aa8-b962-23c8efd2b8a4', '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e'],
+  POS_VENDA: ['608e0e07-d5cc-4f9a-93a6-dcaaf9568963']
+}
+const STATUS_CONQUISTADO_ID = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
 
-    // 2. Acumuladores
+const FUNNEL_STAGE_LABELS: Record<string, string> = {
+  LEADS: 'Leads',
+  QUALIFICADOS: 'Leads Qualificados',
+  NEGOCIACAO: 'Negociação',
+  CONQUISTADO: 'Conquistado',
+  POS_VENDA: 'Pós Venda',
+}
+
+const FUNNEL_STAGE_COLORS: Record<string, string> = {
+  LEADS: '#1E3A8A',
+  QUALIFICADOS: '#16A34A',
+  NEGOCIACAO: '#EA580C',
+  CONQUISTADO: '#F59E0B',
+  POS_VENDA: '#7C3AED',
+}
+
+function getTemperaturaLabel(temperatura: number | null): { label: string; className: string } {
+  if (temperatura == null) return { label: '—', className: 'text-[var(--text-muted)]' }
+  if (temperatura <= 30) return { label: 'Fria', className: 'text-blue-400 bg-blue-400/10 border-blue-400/30' }
+  if (temperatura <= 60) return { label: 'Morna', className: 'text-amber-400 bg-amber-400/10 border-amber-400/30' }
+  if (temperatura <= 85) return { label: 'Quente', className: 'text-orange-400 bg-orange-400/10 border-orange-400/30' }
+  return { label: 'Muito Quente', className: 'text-red-400 bg-red-400/10 border-red-400/30' }
+}
+
+function filterByStage(data: CRM_Oportunidade[], stageId: string): CRM_Oportunidade[] {
+  return data.filter(item => {
+    const faseId = item.id_fase
+    const statusId = item.id_status
+    if (stageId === 'LEADS') return faseId != null && FUNNEL_PHASES.LEADS.includes(faseId)
+    if (stageId === 'QUALIFICADOS') return faseId != null && FUNNEL_PHASES.QUALIFICADOS.includes(faseId)
+    if (stageId === 'NEGOCIACAO') return faseId != null && FUNNEL_PHASES.NEGOCIACAO.includes(faseId)
+    if (stageId === 'CONQUISTADO') return statusId === STATUS_CONQUISTADO_ID
+    if (stageId === 'POS_VENDA') return faseId != null && FUNNEL_PHASES.POS_VENDA.includes(faseId)
+    return false
+  })
+}
+
+type SortKey = 'data_inclusao' | 'cliente' | 'vendedor' | 'solucao' | 'temperatura' | 'prev_fechamento' | 'valor'
+type SortDir = 'asc' | 'desc'
+
+const FunnelPropostasModal = ({
+  stageId,
+  propostas,
+  onClose,
+}: {
+  stageId: string | null
+  propostas: CRM_Oportunidade[]
+  onClose: () => void
+}) => {
+  const [sortKey, setSortKey] = useState<SortKey>('data_inclusao')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const stageLabel = stageId ? (FUNNEL_STAGE_LABELS[stageId] ?? stageId) : ''
+  const stageColor = stageId ? (FUNNEL_STAGE_COLORS[stageId] ?? '#888') : '#888'
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const getVal = (p: CRM_Oportunidade): string | number => {
+      if (sortKey === 'data_inclusao') {
+        const d = parseDate(p.data_inclusao)
+        return d ? d.getTime() : 0
+      }
+      if (sortKey === 'cliente') return (p.cliente_nome ?? p.cliente ?? '').toLowerCase()
+      if (sortKey === 'vendedor') return (p.vendedor_nome ?? p.vendedor ?? '').toLowerCase()
+      if (sortKey === 'solucao') return (p.solucao ?? '').toLowerCase()
+      if (sortKey === 'temperatura') return p.temperatura ?? -1
+      if (sortKey === 'prev_fechamento') {
+        const d = parseDate(p.prev_fechamento)
+        return d ? d.getTime() : 0
+      }
+      if (sortKey === 'valor') return parseValorProposta(p.valor_proposta ?? (p.ticket_valor == null ? null : String(p.ticket_valor)))
+      return ''
+    }
+    return [...propostas].sort((a, b) => {
+      const av = getVal(a)
+      const bv = getVal(b)
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [propostas, sortKey, sortDir])
+
+  const formatData = (d: string | null | undefined) => {
+    if (!d) return '—'
+    const parsed = parseDate(d)
+    if (!parsed) return d
+    return parsed.toLocaleDateString('pt-BR')
+  }
+
+  const formatSolucao = (s: string | null | undefined) => {
+    if (s === 'PRODUTO') return 'Produto'
+    if (s === 'SERVICO') return 'Serviço'
+    return s ?? '—'
+  }
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ChevronsUpDown size={12} className="opacity-30" />
+    return sortDir === 'asc'
+      ? <ChevronUp size={12} className="text-indigo-400" />
+      : <ChevronDown size={12} className="text-indigo-400" />
+  }
+
+  const thClass = "py-3 px-3 text-[11px] uppercase font-semibold text-[var(--text-muted)] whitespace-nowrap select-none cursor-pointer hover:text-[var(--text-main)] transition-colors"
+
+  return (
+    <Modal
+      isOpen={!!stageId}
+      onClose={onClose}
+      size="full"
+      title={
+        <div className="flex items-center gap-3">
+          <span
+            className="w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: stageColor }}
+          />
+          <span>Propostas — {stageLabel}</span>
+          <span className="ml-1 text-sm font-normal text-[var(--text-muted)]">
+            ({propostas.length} {propostas.length === 1 ? 'proposta' : 'propostas'})
+          </span>
+        </div>
+      }
+    >
+      {propostas.length === 0 ? (
+        <div className="py-12 text-center text-[var(--text-muted)]">
+          Nenhuma proposta nesta fase.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-[var(--bg-panel)] z-10">
+              <tr className="border-b border-[var(--border)]">
+                <th className={`${thClass} text-left`} onClick={() => handleSort('data_inclusao')}>
+                  <span className="flex items-center gap-1">Data Inclusão <SortIcon col="data_inclusao" /></span>
+                </th>
+                <th className={`${thClass} text-left`} onClick={() => handleSort('cliente')}>
+                  <span className="flex items-center gap-1">Cliente <SortIcon col="cliente" /></span>
+                </th>
+                <th className={`${thClass} text-left`} onClick={() => handleSort('vendedor')}>
+                  <span className="flex items-center gap-1">Vendedor <SortIcon col="vendedor" /></span>
+                </th>
+                <th className={`${thClass} text-left`} onClick={() => handleSort('solucao')}>
+                  <span className="flex items-center gap-1">Solução <SortIcon col="solucao" /></span>
+                </th>
+                <th className={`${thClass} text-left`} onClick={() => handleSort('temperatura')}>
+                  <span className="flex items-center gap-1">Temperatura <SortIcon col="temperatura" /></span>
+                </th>
+                <th className={`${thClass} text-left`} onClick={() => handleSort('prev_fechamento')}>
+                  <span className="flex items-center gap-1">Prev. Fechamento <SortIcon col="prev_fechamento" /></span>
+                </th>
+                <th className={`${thClass} text-right`} onClick={() => handleSort('valor')}>
+                  <span className="flex items-center justify-end gap-1">Valor <SortIcon col="valor" /></span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((p, i) => {
+                const temp = getTemperaturaLabel(p.temperatura)
+                const valor = parseValorProposta(p.valor_proposta ?? (p.ticket_valor == null ? null : String(p.ticket_valor)))
+                const vendedorNome = p.vendedor_nome ?? p.vendedor ?? '—'
+                const avatarUrl = p.vendedor_avatar_url
+                const initials = vendedorNome !== '—'
+                  ? vendedorNome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                  : '?'
+                return (
+                  <tr
+                    key={p.id_oport}
+                    className={`border-b border-[var(--border)] transition-colors hover:bg-[var(--bg-body)] ${i % 2 !== 0 ? 'bg-[var(--bg-body)]/40' : ''}`}
+                  >
+                    <td className="py-3 px-3 text-[var(--text-main)] whitespace-nowrap">
+                      {formatData(p.data_inclusao)}
+                    </td>
+                    <td className="py-3 px-3 text-[var(--text-main)] max-w-[180px] truncate">
+                      {p.cliente_nome ?? p.cliente ?? '—'}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={vendedorNome}
+                            className="w-7 h-7 rounded-full object-cover shrink-0 border border-[var(--border)]"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white bg-indigo-600">
+                            {initials}
+                          </div>
+                        )}
+                        <span className="text-[var(--text-main)] whitespace-nowrap">{vendedorNome}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-[var(--text-main)]">
+                      {formatSolucao(p.solucao)}
+                    </td>
+                    <td className="py-3 px-3">
+                      {p.temperatura != null ? (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${temp.className}`}>
+                          {Math.round(p.temperatura)}° {temp.label}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-[var(--text-main)] whitespace-nowrap">
+                      {formatData(p.prev_fechamento)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-semibold text-[var(--text-main)] whitespace-nowrap">
+                      {valor > 0 ? formatCurrency(valor) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
+
+  const funnelData = useMemo(() => {
+    const isCurrentMonth = (dateStr: string | null) => {
+        if (!dateStr) return false
+        const date = parseDate(dateStr)
+        if (!date) return false
+        const now = new Date()
+        const spDate = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
+        const start = startOfMonth(spDate)
+        const end = endOfMonth(spDate)
+        return isWithinInterval(date, { start, end })
+    }
+
     const acc = {
       LEADS: { count: 0, value: 0 },
       QUALIFICADOS: { count: 0, value: 0 },
@@ -541,46 +781,28 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
       POS_VENDA: { count: 0, value: 0 }
     }
 
-    // 3. Processamento dos dados
-    // Helper to check if date is in current month (SP Timezone)
-    const isCurrentMonth = (dateStr: string | null) => {
-        if (!dateStr) return false
-        const date = parseDate(dateStr)
-        if (!date) return false
-        
-        const now = new Date()
-        const spDate = new Date(now.toLocaleString('en-US', { timeZone: APP_TIME_ZONE }))
-        const start = startOfMonth(spDate)
-        const end = endOfMonth(spDate)
-        
-        return isWithinInterval(date, { start, end })
-    }
-
     data.forEach(item => {
       const faseId = item.id_fase
       const statusId = item.id_status
-
       const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
 
-      if (faseId && phases.LEADS.includes(faseId)) {
+      if (faseId && FUNNEL_PHASES.LEADS.includes(faseId)) {
         acc.LEADS.count += 1
-      } else if (faseId && phases.QUALIFICADOS.includes(faseId)) {
+      } else if (faseId && FUNNEL_PHASES.QUALIFICADOS.includes(faseId)) {
         acc.QUALIFICADOS.count += 1
-      } else if (faseId && phases.NEGOCIACAO.includes(faseId)) {
+      } else if (faseId && FUNNEL_PHASES.NEGOCIACAO.includes(faseId)) {
         acc.NEGOCIACAO.count += 1
         acc.NEGOCIACAO.value += valor
-      } else if (statusId === STATUS_CONQUISTADO) {
-        // Conquistado: Apenas do Mês Atual (baseado em data_conquistado)
+      } else if (statusId === STATUS_CONQUISTADO_ID) {
         if (isCurrentMonth(item.data_conquistado)) {
             acc.CONQUISTADO.count += 1
             acc.CONQUISTADO.value += valor
         }
-      } else if (faseId && phases.POS_VENDA.includes(faseId)) {
+      } else if (faseId && FUNNEL_PHASES.POS_VENDA.includes(faseId)) {
         acc.POS_VENDA.count += 1
       }
     })
 
-    // 4. Formatação para o novo Componente FunnelVendas
     return [
       { id: 'LEADS', label: 'Leads', count: acc.LEADS.count, value: acc.LEADS.value, color: '#1E3A8A', hideValue: true },
       { id: 'QUALIFICADOS', label: 'Leads Qualificados', count: acc.QUALIFICADOS.count, value: acc.QUALIFICADOS.value, color: '#16A34A', hideValue: true },
@@ -590,18 +812,30 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
     ]
   }, [data])
 
+  const modalPropostas = useMemo(
+    () => selectedStageId ? filterByStage(data, selectedStageId) : [],
+    [data, selectedStageId]
+  )
+
   return (
-    <div className="card-panel p-6 h-full flex flex-col">
-      <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
-        <TrendingUp size={16} className="text-indigo-400" />
-        Funil de Vendas (Fases)
-      </h3>
-      
-      <div className="flex-1 w-full min-h-[450px] flex items-center justify-center">
-        {/* New Funnel Component */}
-        <FunnelVendas data={funnelData} />
+    <>
+      <div className="card-panel p-6 h-full flex flex-col">
+        <h3 className="text-[14px] font-semibold text-[var(--text-main)] mb-6 uppercase tracking-wider flex items-center gap-2">
+          <TrendingUp size={16} className="text-indigo-400" />
+          Funil de Vendas (Fases)
+        </h3>
+
+        <div className="flex-1 w-full min-h-[450px] flex items-center justify-center">
+          <FunnelVendas data={funnelData} onStageClick={setSelectedStageId} />
+        </div>
       </div>
-    </div>
+
+      <FunnelPropostasModal
+        stageId={selectedStageId}
+        propostas={modalPropostas}
+        onClose={() => setSelectedStageId(null)}
+      />
+    </>
   )
 }
 

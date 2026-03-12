@@ -15,9 +15,10 @@ export interface FunnelStageData {
 interface FunnelVendasProps {
   data: FunnelStageData[]
   className?: string
+  onStageClick?: (stageId: string) => void
 }
 
-const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '' }) => {
+const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onStageClick }) => {
   const navigate = useNavigate()
 
   // Calculate conversion rates (relative to previous stage)
@@ -36,9 +37,11 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '' }) => 
   }, [data])
 
   const handleStageClick = (stageId: string) => {
-    // Navigate to CRM with filter query param
-    // The CRM page should handle this param to pre-filter the list
-    navigate(`/app/crm/oportunidades?fase=${stageId.toLowerCase()}`)
+    if (onStageClick) {
+      onStageClick(stageId)
+    } else {
+      navigate(`/app/crm/oportunidades?fase=${stageId.toLowerCase()}`)
+    }
   }
 
   // Mobile View Component (List with Progress Bars)

@@ -34,7 +34,8 @@ const corsOrigins = String(process.env.CORS_ORIGINS || '')
   .filter(Boolean);
 
 if (isProd && corsOrigins.length === 0) {
-  console.warn('CORS_ORIGINS is empty; allowing all origins.');
+  console.error('FATAL: CORS_ORIGINS is not configured in production. Refusing to start.');
+  process.exit(1);
 }
 
 const corsOptions = {
@@ -53,8 +54,8 @@ const corsOptions = {
 // Middleware
 app.use(helmet());
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-app.use(morgan('combined')); // Log de requisições
+app.use(express.json({ limit: '2mb' }));
+app.use(morgan(':remote-addr :method :url :status :response-time ms - :res[content-length]'));
 
 // Rota Raiz para Verificação Rápida
 app.get('/', (req, res) => {
@@ -76,7 +77,6 @@ app.get('/status', (req, res) => {
     status: 'online',
     service: 'SystemFlow Backend',
     version: '1.0.0',
-    env: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
     uptime_s: Math.round(process.uptime()),
   });
@@ -121,7 +121,7 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: isProd ? 'Internal Server Error' : msg });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n✅ Backend running on http://0.0.0.0:${PORT}`);
   console.log(`✅ Accessible via http://localhost:${PORT}`);
   console.log(`✅ CORS Policy: ${corsOrigins.length ? `Allowlist (${corsOrigins.length})` : 'Allow All'}`);
@@ -133,3 +133,20 @@ app.listen(PORT, () => {
   }
   process.exit(1);
 });
+
+function gracefulShutdown(signal) {
+  console.log(`\n${signal} received. Graceful shutdown iniciado...`);
+  const shutdownTimeout = setTimeout(() => {
+    console.error('Timeout de graceful shutdown. Forçando saída.');
+    process.exit(1);
+  }, 10000);
+  shutdownTimeout.unref();
+  server.close(() => {
+    console.log('Servidor HTTP fechado.');
+    clearTimeout(shutdownTimeout);
+    process.exit(0);
+  });
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));

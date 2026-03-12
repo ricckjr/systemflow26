@@ -4,7 +4,7 @@ import { fetchOportunidades, fetchPropostasComerciais, fetchLigacoes, fetchPabxL
 export const CRM_KEYS = {
   all: ['crm'] as const,
   oportunidades: () => [...CRM_KEYS.all, 'oportunidades'] as const,
-  propostasComerciais: () => [...CRM_KEYS.all, 'oportunidades'] as const,
+  propostasComerciais: () => [...CRM_KEYS.all, 'propostasComerciais'] as const,
   ligacoes: () => [...CRM_KEYS.all, 'ligacoes'] as const,
   pabxLigacoes: () => [...CRM_KEYS.all, 'pabxLigacoes'] as const,
   vendedoresPerformance: (idData?: string) => [...CRM_KEYS.all, 'vendedoresPerformance', idData] as const,

@@ -7,6 +7,16 @@ const router = express.Router();
 router.use(authenticate);
 router.use(requirePermission('CONFIGURACOES', 'CONTROL'));
 
+const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+
+function sendError(res, err, statusCode = 500) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error('[admin] Error:', msg, err?.stack || '');
+  return res.status(statusCode).json({
+    error: isProd ? 'Internal Server Error' : msg
+  });
+}
+
 function isMissingTable(err, tableName) {
   const msg = String(err?.message || '');
   const details = String(err?.details || '');
@@ -169,7 +179,7 @@ router.get('/users', async (req, res) => {
     });
   } catch (err) {
     console.error('List Users Error:', err);
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -187,7 +197,7 @@ router.get('/users/:id', async (req, res) => {
     const users = await attachRolesToUsers([data]);
     res.json(users[0] ?? data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -281,7 +291,7 @@ router.post('/users', async (req, res) => {
 
   } catch (err) {
     console.error('Create User Error:', err);
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -343,7 +353,7 @@ router.patch('/users/:id', async (req, res) => {
 
   } catch (err) {
     console.error('Update User Error:', err);
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -372,8 +382,7 @@ router.post('/users/:id/avatar', async (req, res) => {
 
     res.json({ avatar_url })
   } catch (err) {
-    console.error('Set Avatar Error:', err)
-    res.status(500).json({ error: err.message })
+    return sendError(res, err)
   }
 })
 
@@ -396,7 +405,7 @@ router.patch('/users/:id/disable', async (req, res) => {
 
     res.json({ message: 'Usuário desativado e sessões invalidadas' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -414,7 +423,7 @@ router.patch('/users/:id/enable', async (req, res) => {
 
     res.json({ message: 'Usuário reativado' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -431,7 +440,7 @@ router.delete('/users/:id', async (req, res) => {
 
     res.json({ message: 'Usuário excluído permanentemente' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -471,7 +480,7 @@ router.get('/rbac/perfis', async (req, res) => {
       return res.json({ perfis });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -496,7 +505,7 @@ router.post('/rbac/perfis', async (req, res) => {
       updated_at: data.updated_at,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -527,7 +536,7 @@ router.patch('/rbac/perfis/:perfilId', async (req, res) => {
       updated_at: data.updated_at,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -542,7 +551,7 @@ router.delete('/rbac/perfis/:perfilId', async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Perfil removido' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -588,7 +597,7 @@ router.get('/rbac/permissoes', async (req, res) => {
       return res.json({ permissoes });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -614,7 +623,7 @@ router.post('/rbac/permissoes', async (req, res) => {
       updated_at: data.updated_at,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -629,7 +638,7 @@ router.delete('/rbac/permissoes/:permissaoId', async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Permissão removida' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -664,7 +673,7 @@ router.get('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
       return res.json({ itens });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -711,7 +720,7 @@ router.put('/rbac/perfis/:perfilId/permissoes', async (req, res) => {
       return res.json({ message: 'Permissões atualizadas' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -756,7 +765,7 @@ router.put('/users/:id/roles', async (req, res) => {
       return res.json({ message: 'Roles atualizadas' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -790,7 +799,7 @@ router.patch('/users/:id/perfil', async (req, res) => {
       return res.json({ message: 'Perfil atribuído' });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 
@@ -821,7 +830,7 @@ router.post('/users/:id/reset-password', async (req, res) => {
 
     res.json({ message: 'Senha redefinida com sucesso' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return sendError(res, err);
   }
 });
 

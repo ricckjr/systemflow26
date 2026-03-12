@@ -9,6 +9,12 @@ services:
       - "7005"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build:
@@ -23,6 +29,12 @@ services:
       - "80"
     networks:
       - proxy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   proxy:

@@ -5,6 +5,9 @@ const { authenticate, requireAdmin } = require('../middleware/auth')
 const router = express.Router()
 
 router.post('/realtime-test', authenticate, requireAdmin, async (req, res) => {
+  if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+    return res.status(404).json({ error: 'Not Found' });
+  }
   const userId = req.user?.id
   if (!userId) return res.status(401).json({ error: 'Unauthorized' })
 

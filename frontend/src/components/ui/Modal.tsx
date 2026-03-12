@@ -9,7 +9,7 @@ export interface ModalProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | 'full';
   className?: string;
   noPadding?: boolean; // Para casos como Kanban onde o padding atrapalha
   scrollableContent?: boolean; // Se false, o container do conteúdo será overflow-hidden (útil para layouts complexos com scroll interno)
@@ -60,6 +60,8 @@ export const Modal: React.FC<ModalProps> = ({
     '2xl': 'max-w-2xl',
     '3xl': 'max-w-3xl',
     '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
     full: 'max-w-[95vw]',
   };
 

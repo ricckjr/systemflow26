@@ -527,10 +527,10 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
     const phases = {
       LEADS: ['f045b8fe-ce70-466d-a323-3285bdb418e3', '6f68aa0d-6915-4aef-9542-811c9e8fce12'],
       QUALIFICADOS: ['3a1bf927-141e-4ffd-b3f5-8a02e018a128'],
-      NEGOCIACAO: ['705b9fc4-ba5c-4837-91c6-d7b2f55dde2f', '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e'],
-      CONQUISTADO: ['88a8b9bb-30db-4eb7-a351-182daeeb0f02'],
-      POS_VENDA: ['bfa976f8-fe0e-48e7-ab93-a29ea0bbc252']
+      NEGOCIACAO: ['705b9fc4-ba5c-4837-91c6-d7b2f55dde2f', '0773b832-d4f7-4aa8-b962-23c8efd2b8a4', '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e'],
+      POS_VENDA: ['608e0e07-d5cc-4f9a-93a6-dcaaf9568963']
     }
+    const STATUS_CONQUISTADO = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
 
     // 2. Acumuladores
     const acc = {
@@ -558,30 +558,25 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
 
     data.forEach(item => {
       const faseId = item.id_fase
-      if (!faseId) return
+      const statusId = item.id_status
 
       const valor = parseValorProposta(item.valor_proposta ?? (item.ticket_valor == null ? null : String(item.ticket_valor)))
 
-      if (phases.LEADS.includes(faseId)) {
+      if (faseId && phases.LEADS.includes(faseId)) {
         acc.LEADS.count += 1
-      } else if (phases.QUALIFICADOS.includes(faseId)) {
+      } else if (faseId && phases.QUALIFICADOS.includes(faseId)) {
         acc.QUALIFICADOS.count += 1
-      } else if (phases.NEGOCIACAO.includes(faseId)) {
+      } else if (faseId && phases.NEGOCIACAO.includes(faseId)) {
         acc.NEGOCIACAO.count += 1
         acc.NEGOCIACAO.value += valor
-      } else if (phases.CONQUISTADO.includes(faseId)) {
+      } else if (statusId === STATUS_CONQUISTADO) {
         // Conquistado: Apenas do Mês Atual (baseado em data_conquistado)
         if (isCurrentMonth(item.data_conquistado)) {
             acc.CONQUISTADO.count += 1
             acc.CONQUISTADO.value += valor
         }
-      } else if (phases.POS_VENDA.includes(faseId)) {
-        // Pós Venda: Apenas do Mês Atual
-        if (isCurrentMonth(item.data_posvenda || item.data_conquistado)) {
-             acc.POS_VENDA.count += 1
-             // Pós Venda: Apenas quantidade (valor = 0)
-             // acc.POS_VENDA.value += valor
-        }
+      } else if (faseId && phases.POS_VENDA.includes(faseId)) {
+        acc.POS_VENDA.count += 1
       }
     })
 

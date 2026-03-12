@@ -607,7 +607,7 @@ const Vendedores: React.FC = () => {
         <Modal
           isOpen
           onClose={() => setSelectedSeller(null)}
-          size="4xl"
+          size="6xl"
           title={
             <div className="flex items-center gap-4">
               <div
@@ -917,16 +917,25 @@ const RelatorioVendedorModalContent: React.FC<{
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-[var(--bg-panel)]">
               <tr className="text-[10px] uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
-                <th className="py-3 px-6 text-left">Data Inclusão</th>
-                <th className="py-3 pr-3 text-left">Data Conquista</th>
-                <th className="py-3 pr-3 text-left">Código</th>
+                <th className="py-3 px-6 text-left whitespace-nowrap">Data Inclusão</th>
+                <th className="py-3 pr-3 text-left whitespace-nowrap">Data Conquista</th>
+                <th className="py-3 pr-3 text-left whitespace-nowrap">Tempo Fechamento</th>
+                <th className="py-3 pr-3 text-left whitespace-nowrap">Código</th>
                 <th className="py-3 pr-3 text-left">Cliente</th>
-                <th className="py-3 pr-3 text-right">Valor</th>
+                <th className="py-3 pr-3 text-right whitespace-nowrap">Valor</th>
+                <th className="py-3 pr-3 text-left whitespace-nowrap">Fase</th>
               </tr>
             </thead>
             <tbody>
               {vendasDoVendedorNoMes.map((op) => {
                 const valor = parseValorProposta(op.valor_proposta ?? (op.ticket_valor == null ? null : String(op.ticket_valor)));
+                const tempoDias = (() => {
+                  if (!op.data_inclusao || !op.data_conquistado) return null;
+                  const dInc = new Date(op.data_inclusao);
+                  const dConq = new Date(op.data_conquistado);
+                  const diff = Math.round((dInc.getTime() - dConq.getTime()) / (1000 * 60 * 60 * 24));
+                  return Math.abs(diff);
+                })();
                 return (
                   <tr key={op.id_oport} className="border-b border-[var(--border)] hover:bg-[var(--bg-body)]/30 transition-colors">
                     <td className="py-3 px-6 text-xs text-[var(--text-soft)] whitespace-nowrap">
@@ -934,6 +943,11 @@ const RelatorioVendedorModalContent: React.FC<{
                     </td>
                     <td className="py-3 pr-3 text-xs text-[var(--text-soft)] whitespace-nowrap">
                       {formatDateBR(op.data_conquistado) || '-'}
+                    </td>
+                    <td className="py-3 pr-3 text-xs whitespace-nowrap">
+                      {tempoDias !== null
+                        ? <span className="font-bold text-cyan-400">{tempoDias}d</span>
+                        : <span className="text-[var(--text-muted)]">-</span>}
                     </td>
                     <td className="py-3 pr-3 font-bold text-[var(--text-main)] whitespace-nowrap">
                       {op.cod_oport || '-'}
@@ -944,13 +958,16 @@ const RelatorioVendedorModalContent: React.FC<{
                     <td className="py-3 pr-3 text-right font-black text-emerald-400 whitespace-nowrap">
                       {formatCurrency(valor)}
                     </td>
+                    <td className="py-3 pr-3 text-xs text-[var(--text-soft)] whitespace-nowrap">
+                      {op.fase || '-'}
+                    </td>
                   </tr>
                 );
               })}
 
               {vendasDoVendedorNoMes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 px-6 text-center text-sm text-[var(--text-muted)]">
+                  <td colSpan={7} className="py-8 px-6 text-center text-sm text-[var(--text-muted)]">
                     Nenhuma venda encontrada para este vendedor em {monthStr}.
                   </td>
                 </tr>

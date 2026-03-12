@@ -4,7 +4,7 @@ import { addMonths, format, parseISO, startOfMonth } from 'date-fns'
 import { APP_TIME_ZONE } from '@/constants/timezone'
 import { Briefcase, CalendarDays, Trophy, User, Zap } from 'lucide-react'
 
-const FASE_CONQUISTADO_ID = '88a8b9bb-30db-4eb7-a351-182daeeb0f02'
+const STATUS_CONQUISTADO_ID = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
 
 type Venda = {
   id: string
@@ -101,7 +101,7 @@ export function FeedVendasMes() {
           const newRec = payload.new as any
           
           if (
-            String(newRec?.id_fase || '').trim() === FASE_CONQUISTADO_ID &&
+            String(newRec?.id_status || '').trim() === STATUS_CONQUISTADO_ID &&
             String(newRec?.data_conquistado || '').trim()
           ) {
             const { start, nextStart } = getMonthRange()
@@ -156,7 +156,7 @@ export function FeedVendasMes() {
     const { data, error } = await sb
       .from('crm_oportunidades')
       .select('*')
-      .eq('id_fase', FASE_CONQUISTADO_ID)
+      .eq('id_status', STATUS_CONQUISTADO_ID)
       .not('data_conquistado', 'is', null)
       .gte('data_conquistado', startIso)
       .lt('data_conquistado', nextStartIso)

@@ -14,7 +14,9 @@ import {
   Save,
   Loader2,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Factory,
+  Star
 } from 'lucide-react'
 import {
   BarChart,
@@ -105,13 +107,11 @@ export default function VisaoGeral() {
     const prevEnd = endOfMonth(subMonths(spDate, 1))
 
     // CONSTANTS
-    const FASE_CONQUISTADO = '88a8b9bb-30db-4eb7-a351-182daeeb0f02'
-    const FASE_PERDIDO = '8491b5a4-9c86-48f0-9d3c-6dc1fe285caa'
-    const FASE_PIPELINE_ATIVO = [
-        '705b9fc4-ba5c-4837-91c6-d7b2f55dde2f',
-        '6f84028d-2e5d-4ad3-9d46-20c19c9edf9e',
-        '0773b832-d4f7-4aa8-b962-23c8efd2b8a4'
-    ]
+    const STATUS_VENDAS = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba'
+    const STATUS_PIPELINE_ATIVO = 'd2649868-1c22-49bd-ac81-56b6a0e7aff7'
+    const STATUS_PERDIDO = 'c684a1c0-83ea-4b78-be4f-416cafa282c8'
+    const FASE_EM_PRODUCAO = '7a51b000-774c-4020-874b-30c2f934e4f9'
+    const FASE_POS_VENDA = '608e0e07-d5cc-4f9a-93a6-dcaaf9568963'
 
     // Helper: Sum Value
     const sumValue = (list: CRM_Oportunidade[]) => list.reduce(
@@ -127,20 +127,26 @@ export default function VisaoGeral() {
     const propostasCurr = getPropostas(start, end)
     const propostasLast = getPropostas(prevStart, prevEnd)
 
-    // 2. Vendas (Data Conquistado - Mês Atual + ID Fase)
+    // 2. Vendas (Data Conquistado - Mês Atual + Status ID)
     const getVendas = (s: Date, e: Date) => data.filter(d => {
-        if (d.id_fase !== FASE_CONQUISTADO) return false
+        if (d.id_status !== STATUS_VENDAS) return false
         const date = parseDate(d.data_conquistado)
         return date && isWithinInterval(date, { start: s, end: e })
     })
     const vendasCurr = getVendas(start, end)
     const vendasLast = getVendas(prevStart, prevEnd)
 
-    // 3. Pipeline Ativo (Total - IDs Fase)
-    const pipelineAtivo = data.filter(d => FASE_PIPELINE_ATIVO.includes(d.id_fase || ''))
+    // 3. Pipeline Ativo (Total - Status ID)
+    const pipelineAtivo = data.filter(d => d.id_status === STATUS_PIPELINE_ATIVO)
 
-    // 4. Perdidas (Total - ID Fase)
-    const perdidasTotal = data.filter(d => d.id_fase === FASE_PERDIDO)
+    // 4. Perdidas (Total - Status ID)
+    const perdidasTotal = data.filter(d => d.id_status === STATUS_PERDIDO)
+
+    // 5. Em Produção (Total - Fase ID)
+    const emProducao = data.filter(d => d.id_fase === FASE_EM_PRODUCAO)
+
+    // 6. Pós Venda (Total - Fase ID)
+    const posVenda = data.filter(d => d.id_fase === FASE_POS_VENDA)
 
     // Helper: Calculate Trend
     const calcTrend = (curr: number, last: number) => {
@@ -188,10 +194,17 @@ export default function VisaoGeral() {
     const callsCurr = calculateCallStats(start, end)
     const callsLast = calculateCallStats(prevStart, prevEnd)
 
+    const emProducaoVal = sumValue(emProducao)
+    const emProducaoCount = emProducao.length
+    const posVendaVal = sumValue(posVenda)
+    const posVendaCount = posVenda.length
+
     return {
       venda: { value: vendaVal, count: vendaCount, trend: calcTrend(vendaVal, vendaLastVal) },
-      ativo: { value: pipelineVal, count: pipelineCount, trend: 0 }, // No trend for total stock
-      perdido: { value: perdidasVal, count: perdidasCount, trend: 0 }, // No trend for total stock
+      ativo: { value: pipelineVal, count: pipelineCount, trend: 0 },
+      perdido: { value: perdidasVal, count: perdidasCount, trend: 0 },
+      emProducao: { value: emProducaoVal, count: emProducaoCount, trend: 0 },
+      posVenda: { value: posVendaVal, count: posVendaCount, trend: 0 },
       conversion: {
         value: conversionCurr,
         trend: calcTrend(conversionCurr, conversionLast)
@@ -353,14 +366,28 @@ export default function VisaoGeral() {
           icon={Percent}
           color="violet"
         />
-        <KPI 
-          title="Perdidas (Total)" 
-          value={formatCurrency(stats.perdido.value)} 
+        <KPI
+          title="Perdidas (Total)"
+          value={formatCurrency(stats.perdido.value)}
           count={stats.perdido.count}
           trend={stats.perdido.trend}
-          icon={Ban} 
+          icon={Ban}
           invertTrend
           color="rose"
+        />
+        <KPI
+          title="Em Produção"
+          value={String(stats.emProducao.count)}
+          trend={stats.emProducao.trend}
+          icon={Factory}
+          color="violet"
+        />
+        <KPI
+          title="Pós Venda"
+          value={String(stats.posVenda.count)}
+          trend={stats.posVenda.trend}
+          icon={Star}
+          color="sky"
         />
       </div>
 

@@ -58,7 +58,7 @@ const navItems: NavItem[] = [
     requires: { modulo: 'PAGINA__CRM__PROPOSTAS_COMERCIAIS_KANBAN', acao: 'VIEW' },
     subItems: [
       { label: 'Proposta Comercial', path: '/app/crm/propostas-comerciais-kanban', submodulo: 'oportunidades-kanban', requires: { modulo: 'PAGINA__CRM__PROPOSTAS_COMERCIAIS_KANBAN', acao: 'VIEW' } },
-      { label: 'Ranking', path: '/app/crm/ranking', submodulo: 'ranking', requires: { modulo: 'PAGINA__CRM__RANKING', acao: 'VIEW' } },
+      { label: 'Vendedores', path: '/app/crm/ranking', submodulo: 'ranking', requires: { modulo: 'PAGINA__CRM__RANKING', acao: 'VIEW' } },
       { label: 'Clientes', path: '/app/crm/clientes', submodulo: 'clientes', requires: { modulo: 'PAGINA__CRM__CLIENTES', acao: 'VIEW' } },
     ],
   },

@@ -370,7 +370,7 @@ const Vendedores: React.FC = () => {
             </div>
             <h2 className="text-xl font-bold text-[var(--text-main)]">Performance Comercial</h2>
           </div>
-          <p className="text-xs text-[var(--text-soft)] ml-14">Ranking e indicadores de desempenho individual</p>
+          <p className="text-xs text-[var(--text-soft)] ml-14">Vendedores e indicadores de desempenho individual</p>
         </div>
 
         <div className="flex items-center gap-4 bg-[var(--bg-panel)] border border-[var(--border)] p-1.5 rounded-xl shadow-sm">
@@ -393,7 +393,7 @@ const Vendedores: React.FC = () => {
         <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-black text-[var(--text-main)]">Ranking de Medalhas</div>
+              <div className="text-sm font-black text-[var(--text-main)]">Medalhas dos Vendedores</div>
               <div className="mt-1 text-xs text-[var(--text-soft)] truncate">Top 3 do mês + progresso da meta mensal</div>
             </div>
             <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
@@ -633,7 +633,7 @@ const Vendedores: React.FC = () => {
           }
         >
           <div className="space-y-6">
-            <RelatorioVendedorModalContent seller={selectedSeller} monthStr={currentMonthStr} />
+            <RelatorioVendedorModalContent seller={selectedSeller} monthStr={currentMonthStr} oportunidades={allOportunidades} />
           </div>
         </Modal>
       )}
@@ -644,8 +644,32 @@ const Vendedores: React.FC = () => {
 const RelatorioVendedorModalContent: React.FC<{ 
   seller: SellerStats; 
   monthStr: string; 
-}> = ({ seller, monthStr }) => {
+  oportunidades: CRM_Oportunidade[];
+}> = ({ seller, monthStr, oportunidades }) => {
   const { data: relatorio, isLoading } = useRelatorioMensalVendedor(seller.idUser || undefined, monthStr);
+  const monthDate = useMemo(() => parse(monthStr, 'MM-yyyy', new Date()), [monthStr]);
+  const vendasDoVendedorNoMes = useMemo(() => {
+    const statusVendaId = 'c8535d23-d002-4dbd-9bbe-9be97c2097ba';
+    const list = (oportunidades || []).filter((op) => {
+      if (!op) return false;
+      if (String(op.id_status || '').trim() !== statusVendaId) return false;
+
+      const sameSeller = seller.idUser
+        ? String(op.id_vendedor || '').trim() === String(seller.idUser || '').trim()
+        : String(op.vendedor || '').trim().toLowerCase() === String(seller.name || '').trim().toLowerCase();
+      if (!sameSeller) return false;
+
+      const dateStr = op.data_conquistado || op.data_inclusao || op.data_alteracao;
+      if (!dateStr) return false;
+      return isSameMonth(parseISO(dateStr), monthDate);
+    });
+
+    return list.sort((a, b) => {
+      const da = a.data_conquistado || a.data_inclusao || a.data_alteracao || '';
+      const db = b.data_conquistado || b.data_inclusao || b.data_alteracao || '';
+      return String(db).localeCompare(String(da));
+    });
+  }, [oportunidades, seller.idUser, seller.name, monthDate]);
 
   if (isLoading) {
     return (
@@ -685,6 +709,10 @@ const RelatorioVendedorModalContent: React.FC<{
     if (val == null) return 0;
     return val;
   };
+
+  const supermetaTotal = parseValorProposta(relatorio.supermeta_financeira_total_mes);
+  const supermetaFeita = parseValorProposta(relatorio.supermeta_financeira_feita);
+  const supermetaFalta = Math.max(0, supermetaTotal - supermetaFeita);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -776,6 +804,12 @@ const RelatorioVendedorModalContent: React.FC<{
             <div className="w-full bg-[var(--bg-body)] h-1.5 rounded-full overflow-hidden">
               <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(100, relatorio.percentual_supermeta_financeira)}%` }} />
             </div>
+            <div className="mt-3 text-xs flex items-center justify-between">
+              <div className="text-[var(--text-soft)]">Falta para bater</div>
+              <div className={`font-black ${supermetaFalta <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {formatCurrency(supermetaFalta)}
+              </div>
+            </div>
         </div>
 
         <div className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent p-5">
@@ -849,11 +883,12 @@ const RelatorioVendedorModalContent: React.FC<{
          </div>
          <div className="divide-y divide-[var(--border)]">
            {[
-             { label: 'Proposta', qtd: relatorio.fase_proposta_quantidade, val: relatorio.fase_proposta_valor, color: 'text-blue-400' },
-             { label: 'Pendência', qtd: relatorio.fase_pendencia_quantidade, val: relatorio.fase_pendencia_valor, color: 'text-amber-400' },
+             { label: 'Lead', qtd: relatorio.fase_lead_quantidade, val: relatorio.fase_lead_valor, color: 'text-sky-400' },
+             { label: 'Lead Qualificado', qtd: relatorio.fase_lead_qualificados_quantidade, val: relatorio.fase_lead_qualificados_valor, color: 'text-blue-400' },
              { label: 'Negociação', qtd: relatorio.fase_negociacao_quantidade, val: relatorio.fase_negociacao_valor, color: 'text-purple-400' },
-             { label: 'Conquistado', qtd: relatorio.fase_conquistado_quantidade, val: relatorio.fase_conquistado_valor, color: 'text-emerald-400' },
-             { label: 'Não Conquistado', qtd: relatorio.fase_nao_conquistado_quantidade, val: relatorio.fase_nao_conquistado_valor, color: 'text-rose-400' },
+             { label: 'Em Produção', qtd: relatorio.fase_em_producao_quantidade, val: relatorio.fase_em_producao_valor, color: 'text-indigo-400' },
+             { label: 'Controle de Qualidade', qtd: relatorio.fase_controle_qualidade_quantidade, val: relatorio.fase_controle_qualidade_valor, color: 'text-amber-400' },
+             { label: 'Pós-venda', qtd: relatorio.fase_pos_venda_quantidade, val: relatorio.fase_pos_venda_valor, color: 'text-emerald-400' },
            ].map((item) => (
              <div key={item.label} className="px-6 py-3 flex items-center justify-between hover:bg-[var(--bg-body)]/30 transition-colors">
                <div className={`text-sm font-bold ${item.color}`}>{item.label}</div>
@@ -864,6 +899,65 @@ const RelatorioVendedorModalContent: React.FC<{
              </div>
            ))}
          </div>
+      </div>
+
+      {/* 5. Vendas do Mês */}
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-body)]/50 flex justify-between items-center">
+          <div className="text-sm font-black text-[var(--text-main)] flex items-center gap-2">
+            <Trophy size={16} className="text-emerald-400" />
+            Vendas do Mês
+          </div>
+          <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            {monthStr}
+          </div>
+        </div>
+
+        <div className="max-h-[40vh] overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-[var(--bg-panel)]">
+              <tr className="text-[10px] uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
+                <th className="py-3 px-6 text-left">Data Inclusão</th>
+                <th className="py-3 pr-3 text-left">Data Conquista</th>
+                <th className="py-3 pr-3 text-left">Código</th>
+                <th className="py-3 pr-3 text-left">Cliente</th>
+                <th className="py-3 pr-3 text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendasDoVendedorNoMes.map((op) => {
+                const valor = parseValorProposta(op.valor_proposta ?? (op.ticket_valor == null ? null : String(op.ticket_valor)));
+                return (
+                  <tr key={op.id_oport} className="border-b border-[var(--border)] hover:bg-[var(--bg-body)]/30 transition-colors">
+                    <td className="py-3 px-6 text-xs text-[var(--text-soft)] whitespace-nowrap">
+                      {formatDateBR(op.data_inclusao) || '-'}
+                    </td>
+                    <td className="py-3 pr-3 text-xs text-[var(--text-soft)] whitespace-nowrap">
+                      {formatDateBR(op.data_conquistado) || '-'}
+                    </td>
+                    <td className="py-3 pr-3 font-bold text-[var(--text-main)] whitespace-nowrap">
+                      {op.cod_oport || '-'}
+                    </td>
+                    <td className="py-3 pr-3 text-[var(--text-main)]">
+                      {op.cliente || op.cliente_nome || '-'}
+                    </td>
+                    <td className="py-3 pr-3 text-right font-black text-emerald-400 whitespace-nowrap">
+                      {formatCurrency(valor)}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {vendasDoVendedorNoMes.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 px-6 text-center text-sm text-[var(--text-muted)]">
+                    Nenhuma venda encontrada para este vendedor em {monthStr}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

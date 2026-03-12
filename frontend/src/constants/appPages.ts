@@ -19,7 +19,7 @@ export const APP_PAGES: AppPage[] = [
 
   { path: '/app/crm/propostas-comerciais-kanban', label: 'CRM — Propostas (Kanban)', menu: 'CRM', item: 'Propostas (Kanban)', pageModulo: 'PAGINA__CRM__PROPOSTAS_COMERCIAIS_KANBAN', baseModulo: 'CRM' },
   { path: '/app/crm/proposta/:id/preview', label: 'CRM — Proposta (Preview)', menu: 'CRM', item: 'Proposta (Preview)', pageModulo: 'PAGINA__CRM__PROPOSTA_PREVIEW', baseModulo: 'CRM' },
-  { path: '/app/crm/ranking', label: 'CRM — Ranking', menu: 'CRM', item: 'Ranking', pageModulo: 'PAGINA__CRM__RANKING', baseModulo: 'CRM' },
+  { path: '/app/crm/ranking', label: 'CRM — Vendedores', menu: 'CRM', item: 'Vendedores', pageModulo: 'PAGINA__CRM__RANKING', baseModulo: 'CRM' },
   { path: '/app/crm/clientes', label: 'CRM — Clientes', menu: 'CRM', item: 'Clientes', pageModulo: 'PAGINA__CRM__CLIENTES', baseModulo: 'CRM' },
 
   { path: '/app/crm/configs/origem-leads', label: 'CRM — Configs — Origem Leads', menu: 'Config Gerais', item: 'Origem Leads', pageModulo: 'PAGINA__CRM__CONFIGS__ORIGEM_LEADS', baseModulo: 'CRM' },

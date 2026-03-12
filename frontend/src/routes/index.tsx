@@ -136,7 +136,7 @@ export const router = createBrowserRouter([
         path: 'crm/ranking',
         element: lazyElement(
           () => import('@/pages/CRM/Vendedores'),
-          'Carregando Ranking...',
+          'Carregando Vendedores...',
           (node) => <RequirePermission modulo="PAGINA__CRM__RANKING" acao="VIEW">{node}</RequirePermission>
         )
       },

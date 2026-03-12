@@ -198,17 +198,21 @@ export interface CRM_RelatorioMensalVendedor {
   novas_meta_falta: number
   novas_meta_diaria: number
   novas_progresso_meta: number
-  fase_proposta_quantidade: number
-  fase_proposta_valor: string
-  fase_pendencia_quantidade: number
-  fase_pendencia_valor: string
+  fase_lead_quantidade: number
+  fase_lead_valor: string
+  fase_lead_qualificados_quantidade: number
+  fase_lead_qualificados_valor: string
+  fase_em_producao_quantidade: number
+  fase_em_producao_valor: string
+  fase_controle_qualidade_quantidade: number
+  fase_controle_qualidade_valor: string
+  fase_pos_venda_quantidade: number
+  fase_pos_venda_valor: string
   fase_negociacao_quantidade: number
   fase_negociacao_valor: string
-  fase_conquistado_quantidade: number
-  fase_conquistado_valor: string
-  fase_nao_conquistado_quantidade: number
-  fase_nao_conquistado_valor: string
   percentual_meta_mensal: number
+  ligacoes_atendidas: number
+  ligacoes_falhadas: number
   created_at: string
   updated_at: string
 }

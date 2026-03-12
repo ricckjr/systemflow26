@@ -566,16 +566,17 @@ export async function downloadPropostaPdf(opts: PropostaPdfOptions) {
 }
 
 export async function openPropostaPdfInNewTab(opts: PropostaPdfOptions) {
-  const popup = window.open('about:blank', '_blank', 'noopener,noreferrer')
+  // Abre o popup imediatamente (contexto do clique do usuário) para não ser bloqueado.
+  // Não usar 'noopener' aqui — precisamos da referência para navegar após o await.
+  const popup = window.open('about:blank', '_blank')
   const { blob, filename } = await buildPropostaPdfBlob(opts)
   const url = URL.createObjectURL(blob)
-  if (popup) {
-    try {
-      popup.document.title = filename
-    } catch {}
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  if (popup && !popup.closed) {
+    try { popup.document.title = filename } catch {}
     popup.location.href = url
   } else {
-    window.open(url, '_blank', 'noopener,noreferrer')
+    // Fallback: popup foi bloqueado ou fechado — faz download
+    triggerBrowserDownload(blob, filename)
   }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

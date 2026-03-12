@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WheelEvent as ReactWheelEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd'
@@ -300,7 +300,7 @@ const getInitials = (name: string) => {
 }
 
 // Componente do Cartão de Proposta Comercial
-const OpportunityCard = ({
+const OpportunityCard = memo(function OpportunityCard({
   opportunity,
   index,
   onOpen,
@@ -318,7 +318,7 @@ const OpportunityCard = ({
   statusCor: string | null
   vendedorNome: string | null
   vendedorAvatarUrl: string | null
-}) => {
+}) {
   const id = opportunity.id_oport || (opportunity as any).id_oportunidade
   const cod = opportunity.cod_oport || (opportunity as any).cod_oportunidade || null
   const clienteLabel =
@@ -477,7 +477,7 @@ const OpportunityCard = ({
       )}
     </Draggable>
   )
-}
+})
 
 export default function OportunidadesKanban() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1749,7 +1749,7 @@ export default function OportunidadesKanban() {
     setCreateOpen(true)
   }
 
-  const openEdit = (id: string) => {
+  const openEdit = useCallback((id: string) => {
     const nextId = String(id || '').trim()
     if (!nextId) return
     const nextParams = new URLSearchParams(searchParams)
@@ -1757,15 +1757,17 @@ export default function OportunidadesKanban() {
     setSearchParams(nextParams, { replace: true })
     setActiveId(nextId)
     setFormOpen(true)
-  }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     const id = String(searchParams.get('id') || '').trim()
     if (!id) return
-    if (formOpen && String(activeId || '').trim() === id) return
-    setActiveId(id)
+    setActiveId((prev) => {
+      const cur = String(prev || '').trim()
+      return cur === id ? prev : id
+    })
     setFormOpen(true)
-  }, [activeId, formOpen, searchParams])
+  }, [searchParams])
 
   useEffect(() => {
     if (!formOpen) return
@@ -2095,7 +2097,6 @@ export default function OportunidadesKanban() {
     if (paymentsSchemaOk === false) return false
     if (!draftFormaPagamentoId.trim()) return false
     if (!draftCondicaoPagamentoId.trim()) return false
-    if (!draftPrevFaturamento.trim()) return false
     if (!draftValidadeProposta.trim()) return false
     if (!draftTipoFrete.trim()) return false
     if (draftItens.length === 0) return false
@@ -2105,7 +2106,6 @@ export default function OportunidadesKanban() {
     paymentsSchemaOk,
     draftFormaPagamentoId,
     draftCondicaoPagamentoId,
-    draftPrevFaturamento,
     draftValidadeProposta,
     draftTipoFrete,
     draftItens.length,
@@ -2961,51 +2961,55 @@ export default function OportunidadesKanban() {
     return selected.length > 0 ? selected : stages
   }, [stages, filterFaseIds])
 
-  const stageIds = new Set(visibleStages.map((s) => s.id))
-  const defaultStageId = visibleStages[0]?.id || stages[0]?.id || FALLBACK_STAGES[0]!.id
+  const columns = useMemo(() => {
+    const stageIdsSet = new Set(visibleStages.map((s) => s.id))
+    const defaultSId = visibleStages[0]?.id || stages[0]?.id || FALLBACK_STAGES[0]!.id
 
-  const columns = visibleStages
-    .slice()
-    .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
-    .map(stage => {
-    const stageItemsAll = filteredOpportunities.filter(op => {
-      const rawStageId = (op.id_fase || '').trim()
-      if (rawStageId && stageIds.has(rawStageId)) return rawStageId === stage.id
+    return visibleStages
+      .slice()
+      .sort((a, b) => a.ordem - b.ordem || a.label.localeCompare(b.label))
+      .map(stage => {
+        const stageItemsAll = filteredOpportunities.filter(op => {
+          const rawStageId = (op.id_fase || '').trim()
+          if (rawStageId && stageIdsSet.has(rawStageId)) return rawStageId === stage.id
 
-      const label = (op.fase || '').trim()
-      if (label) {
-        const match = visibleStages.find(s => s.label === label) || stages.find(s => s.label === label)
-        if (match) return match.id === stage.id
-      }
+          const label = (op.fase || '').trim()
+          if (label) {
+            const match = visibleStages.find(s => s.label === label) || stages.find(s => s.label === label)
+            if (match) return match.id === stage.id
+          }
 
-      return stage.id === defaultStageId
-    })
+          return stage.id === defaultSId
+        })
 
-    const monthOptions = Array.from(
-      new Set(
-        stageItemsAll
-          .map((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)))
-          .filter(Boolean)
-      )
-    ) as string[]
-    monthOptions.sort((a, b) => b.localeCompare(a))
+        const monthOptions = Array.from(
+          new Set(
+            stageItemsAll
+              .map((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)))
+              .filter(Boolean)
+          )
+        ) as string[]
+        monthOptions.sort((a, b) => b.localeCompare(a))
 
-    const wantMonthKey = String(monthFilterByStageId[stage.id] || '').trim()
-    const stageItems =
-      wantMonthKey && wantMonthKey !== '__ALL__'
-        ? stageItemsAll.filter((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)) === wantMonthKey)
-        : stageItemsAll
+        const wantMonthKey = String(monthFilterByStageId[stage.id] || '').trim()
+        const stageItems =
+          wantMonthKey && wantMonthKey !== '__ALL__'
+            ? stageItemsAll.filter((op) => toMonthKey(getStageDateForMonthFilter(stage.label, op as any)) === wantMonthKey)
+            : stageItemsAll
 
-    return {
-      ...stage,
-      items: stageItems,
-      monthOptions
-    }
-  })
+        return {
+          ...stage,
+          items: stageItems,
+          monthOptions
+        }
+      })
+  }, [visibleStages, filteredOpportunities, stages, monthFilterByStageId])
 
   // Cálculos de totais
-  const totalValue = filteredOpportunities.reduce((acc, curr) => acc + getValorNumber(curr), 0)
-  const totalCount = filteredOpportunities.length
+  const { totalValue, totalCount } = useMemo(() => ({
+    totalValue: filteredOpportunities.reduce((acc, curr) => acc + getValorNumber(curr), 0),
+    totalCount: filteredOpportunities.length
+  }), [filteredOpportunities])
 
   const listRows = useMemo(() => {
     const rows = (filteredOpportunities || []).map((op) => {
@@ -4919,7 +4923,7 @@ export default function OportunidadesKanban() {
                   <div className="flex gap-2 pb-2">
                     {[
                       { id: 'pagamento', label: 'Pagamentos', editable: true },
-                      { id: 'temperatura', label: 'Previsão de Fechamento', editable: true },
+                      { id: 'temperatura', label: 'Previsão e Temperatura', editable: true },
                       { id: 'atividades', label: 'Atividades', editable: false },
                       { id: 'comentarios', label: 'Comentários', editable: false },
                       { id: 'observacoes', label: 'Observações', editable: true },
@@ -5240,42 +5244,73 @@ export default function OportunidadesKanban() {
                 {tab === 'temperatura' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+                          <Calendar size={15} className="text-cyan-300" />
+                        </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Previsão</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Datas previstas da proposta</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-200">Datas Previstas</div>
+                          <div className="mt-0.5 text-[11px] text-slate-400">Planejamento de fechamento e entrega</div>
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão - Data prevista</label>
-                          <input
-                            type="date"
-                            value={draftPrevFaturamento}
-                            onChange={(e) => setDraftPrevFaturamento(e.target.value)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Entrega Equipamento</label>
-                          <input
-                            type="date"
-                            value={draftPrevEntrega}
-                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Fechamento</label>
+                          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <Calendar size={11} className="text-cyan-400/70" />
+                            Previsão de Fechamento
+                          </label>
                           <input
                             type="date"
                             value={draftPrevFechamento}
                             onChange={(e) => setDraftPrevFechamento(e.target.value)}
                             className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
                           />
+                          <p className="text-[10px] text-slate-500 ml-1">Data prevista para fechar a proposta</p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <Calendar size={11} className="text-indigo-400/70" />
+                            Entrega do Equipamento
+                          </label>
+                          <input
+                            type="date"
+                            value={draftPrevEntrega}
+                            onChange={(e) => setDraftPrevEntrega(e.target.value)}
+                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                          />
+                          <p className="text-[10px] text-slate-500 ml-1">Data prevista para entrega do equipamento</p>
                         </div>
                       </div>
+
+                      {(draftPrevFechamento || draftPrevEntrega) && (
+                        <div className="mt-4 rounded-xl border border-white/10 bg-[#0F172A] p-3 flex flex-col gap-2">
+                          {draftPrevFechamento && (
+                            <div className="flex items-center justify-between gap-3 text-[11px]">
+                              <span className="text-slate-400">Dias até fechamento</span>
+                              <span className="font-black font-mono text-cyan-200">
+                                {(() => {
+                                  const diff = Math.ceil((new Date(draftPrevFechamento).getTime() - Date.now()) / 86400000)
+                                  if (!Number.isFinite(diff)) return '-'
+                                  return diff >= 0 ? `${diff}d` : `${Math.abs(diff)}d atrás`
+                                })()}
+                              </span>
+                            </div>
+                          )}
+                          {draftPrevEntrega && (
+                            <div className="flex items-center justify-between gap-3 text-[11px]">
+                              <span className="text-slate-400">Dias até entrega</span>
+                              <span className="font-black font-mono text-indigo-200">
+                                {(() => {
+                                  const diff = Math.ceil((new Date(draftPrevEntrega).getTime() - Date.now()) / 86400000)
+                                  if (!Number.isFinite(diff)) return '-'
+                                  return diff >= 0 ? `${diff}d` : `${Math.abs(diff)}d atrás`
+                                })()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">

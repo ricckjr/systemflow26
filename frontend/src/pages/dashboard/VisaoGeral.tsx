@@ -408,7 +408,7 @@ export default function VisaoGeral() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-full">
         {/* FUNIL - Takes 7 cols */}
         <div className="xl:col-span-7 h-full">
-          <FunnelSection data={data} />
+          <FunnelSection data={data} onRefresh={invalidateCRM} />
         </div>
 
         {/* RANKING - Takes 5 cols */}
@@ -576,13 +576,21 @@ const FunnelPropostasModal = ({
   stageId,
   propostas,
   onClose,
+  onRefresh,
 }: {
   stageId: string | null
   propostas: CRM_Oportunidade[]
   onClose: () => void
+  onRefresh: () => Promise<void>
 }) => {
   const [sortKey, setSortKey] = useState<SortKey>('data_inclusao')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try { await onRefresh() } finally { setIsRefreshing(false) }
+  }
 
   const stageLabel = stageId ? (FUNNEL_STAGE_LABELS[stageId] ?? stageId) : ''
   const stageColor = stageId ? (FUNNEL_STAGE_COLORS[stageId] ?? '#888') : '#888'
@@ -649,15 +657,24 @@ const FunnelPropostasModal = ({
       onClose={onClose}
       size="full"
       title={
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full">
           <span
             className="w-3 h-3 rounded-full shrink-0"
             style={{ backgroundColor: stageColor }}
           />
           <span>Propostas — {stageLabel}</span>
-          <span className="ml-1 text-sm font-normal text-[var(--text-muted)]">
+          <span className="text-sm font-normal text-[var(--text-muted)]">
             ({propostas.length} {propostas.length === 1 ? 'proposta' : 'propostas'})
           </span>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ml-auto mr-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-indigo-500/50 transition-colors disabled:opacity-50"
+            title="Atualizar lista"
+          >
+            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
         </div>
       }
     >
@@ -758,7 +775,7 @@ const FunnelPropostasModal = ({
   )
 }
 
-const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
+const FunnelSection = ({ data, onRefresh }: { data: CRM_Oportunidade[]; onRefresh: () => Promise<void> }) => {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
 
   const funnelData = useMemo(() => {
@@ -834,6 +851,7 @@ const FunnelSection = ({ data }: { data: CRM_Oportunidade[] }) => {
         stageId={selectedStageId}
         propostas={modalPropostas}
         onClose={() => setSelectedStageId(null)}
+        onRefresh={onRefresh}
       />
     </>
   )

@@ -88,8 +88,42 @@ Se ainda não existe um guardanapo, crie um em .claude/napkin.md
    Ordem: CRM/Vendedores (modal RelatorioVendedorModalContent), Logistica (kanban cards), ConfigGerais, SmartFlow/IAFlow, Universidade/Catalogos.
 
 ---
+## Interface Design Guardrails
 
+1. **[2026-03-13] Main layout should avoid redundant visual wrappers**
+   Do instead: remover wrappers visuais desnecessários quando a hierarquia já estiver resolvida por layout e spacing.
+
+2. **[2026-03-13] Dashboard cards should prioritize density and grouping**
+   Do instead: agrupar KPIs por contexto funcional e usar cards menores, claros e elegantes.
+
+3. **[2026-03-13] Global UI must follow token-only styling**
+   Do instead: substituir hex hardcoded, sombras indevidas, cores fora do sistema e tokens inexistentes por tokens oficiais do design system.
+
+4. **[2026-03-13] Styling passes must preserve business logic**
+   Do instead: alterar apenas layout, spacing, tipografia, superfícies, bordas, alinhamento e polish visual.
+
+   
 ## User Directives
 
 1. **[2026-03-13] Responder sempre em Português Brasileiro**
    Do instead: todas as respostas em pt-BR, incluindo comentários em código novo, mensagens de commit e explicações.
+
+## Claude Skills
+
+1. **[2026-03-13] Use `planning-with-files` before multi-file implementation**
+   Do instead: criar plano com arquivos afetados, riscos, dependências e validação antes de editar várias partes do sistema.
+
+2. **[2026-03-13] Use `web-quality` for frontend layout and UI reviews**
+   Do instead: aplicar em páginas React/Vite para revisar largura de containers, grid, espaçamento, consistência visual, responsividade e legibilidade.
+
+3. **[2026-03-13] Use `pr-review` before accepting important code changes**
+   Do instead: revisar mudanças com foco em regressão, contratos, naming, arquitetura e preservação de regras de negócio.
+
+4. **[2026-03-13] Use `security-check` for auth, permissions and backend-sensitive flows**
+   Do instead: revisar autenticação, autorização, validação de entrada, CORS, segredos, env vars e padrões Supabase/RLS.
+
+5. **[2026-03-13] Use `interface-design` for visual refinement only**
+   Do instead: aplicar para consistência visual, spacing, tipografia, superfícies e densidade sem alterar lógica de negócio.
+
+6. **[2026-03-13] `napkin` must be applied in every session**
+   Do instead: ler, curar e atualizar `.claude/napkin.md` silenciosamente antes de qualquer trabalho.

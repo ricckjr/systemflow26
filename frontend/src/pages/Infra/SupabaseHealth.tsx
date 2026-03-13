@@ -43,19 +43,19 @@ interface VPSHealthLog {
 // --- Components ---
 
 const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-[#0F172A] border border-slate-800 rounded-xl p-6 shadow-sm hover:border-slate-700 transition-colors ${className}`}>
+  <div className={`bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl p-6 hover:border-[var(--border)] transition-colors ${className}`}>
     {children}
   </div>
 );
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+  <div className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1">
     {children}
   </div>
 );
 
 const Value = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <div className={`text-2xl font-semibold text-slate-200 ${className}`}>
+  <div className={`text-2xl font-semibold text-[var(--text-soft)] ${className}`}>
     {children}
   </div>
 );
@@ -90,7 +90,7 @@ const StatusBadge = ({ status }: { status: 'ok' | 'warning' | 'critical' }) => {
 const ProgressBar = ({ value, max, colorClass = 'bg-blue-500' }: { value: number; max: number; colorClass?: string }) => {
   const percentage = Math.min(100, Math.max(0, (value / max) * 100));
   return (
-    <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2">
+    <div className="w-full bg-[var(--bg-panel)] rounded-full h-1.5 mt-2">
       <div 
         className={`h-1.5 rounded-full transition-all duration-500 ${colorClass}`} 
         style={{ width: `${percentage}%` }}
@@ -227,10 +227,10 @@ const SupabaseHealth = () => {
   if (loading && !data) {
     return (
       <div className="p-8 max-w-7xl mx-auto space-y-8 animate-pulse">
-        <div className="h-8 bg-slate-800 rounded w-1/4 mb-8"></div>
+        <div className="h-8 bg-[var(--bg-panel)] rounded w-1/4 mb-8"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-48 bg-slate-800 rounded-xl"></div>
+            <div key={i} className="h-48 bg-[var(--bg-panel)] rounded-xl"></div>
           ))}
         </div>
       </div>
@@ -239,13 +239,13 @@ const SupabaseHealth = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] text-slate-400">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] text-[var(--text-muted)]">
         <AlertTriangle size={48} className="text-rose-500 mb-4" />
-        <h2 className="text-xl font-semibold text-slate-200 mb-2">Erro ao carregar dashboard</h2>
+        <h2 className="text-xl font-semibold text-[var(--text-soft)] mb-2">Erro ao carregar dashboard</h2>
         <p className="mb-6">{error}</p>
         <button 
           onClick={fetchData}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[var(--bg-panel)] hover:bg-[var(--bg-card)] rounded-lg text-white transition-colors flex items-center gap-2"
         >
           <RefreshCw size={16} />
           Tentar novamente
@@ -256,13 +256,13 @@ const SupabaseHealth = () => {
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] text-slate-400">
-        <Server size={48} className="text-slate-600 mb-4" />
-        <h2 className="text-xl font-semibold text-slate-200 mb-2">Nenhum dado disponível</h2>
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] text-[var(--text-muted)]">
+        <Server size={48} className="text-[var(--text-soft)] mb-4" />
+        <h2 className="text-xl font-semibold text-[var(--text-soft)] mb-2">Nenhum dado disponível</h2>
         <p className="mb-6">Aguardando logs do servidor...</p>
         <button 
           onClick={fetchData}
-          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[var(--bg-panel)] hover:bg-[var(--bg-card)] rounded-lg text-white transition-colors flex items-center gap-2"
         >
           <RefreshCw size={16} />
           Atualizar
@@ -272,7 +272,7 @@ const SupabaseHealth = () => {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto bg-[#020617] min-h-screen text-slate-300 font-sans">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto bg-[var(--bg-main)] min-h-screen text-[var(--text-soft)] font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
@@ -280,10 +280,10 @@ const SupabaseHealth = () => {
             <Activity className="text-blue-500" />
             Monitoramento de Infraestrutura
           </h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2 text-sm">
+          <p className="text-[var(--text-muted)] mt-1 flex items-center gap-2 text-sm">
             <Server size={14} />
             {data.host}
-            <span className="w-1 h-1 rounded-full bg-slate-600 mx-1"></span>
+            <span className="w-1 h-1 rounded-full bg-[var(--bg-card)] mx-1"></span>
             Última atualização: {formatDateTimeBR(data.timestamp)}
           </p>
         </div>
@@ -292,7 +292,7 @@ const SupabaseHealth = () => {
            <StatusBadge status={overallStatus} />
            <button 
              onClick={fetchData}
-             className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+             className="p-2 hover:bg-[var(--bg-panel)] rounded-lg text-[var(--text-muted)] hover:text-white transition-colors"
              title="Atualizar agora"
            >
              <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
@@ -315,28 +315,28 @@ const SupabaseHealth = () => {
             <Server className="text-emerald-500" />
           </div>
 
-          <div className="mt-4 space-y-3 text-sm text-slate-400">
+          <div className="mt-4 space-y-3 text-sm text-[var(--text-muted)]">
             <div className="flex items-center justify-between">
               <span>Pronto</span>
-              <span className={apiReady === null ? 'text-slate-400' : apiReady ? 'text-emerald-400' : 'text-rose-400'}>
+              <span className={apiReady === null ? 'text-[var(--text-muted)]' : apiReady ? 'text-emerald-400' : 'text-rose-400'}>
                 {apiReady === null ? '—' : apiReady ? 'Sim' : 'Não'}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span>Latência</span>
-              <span className="text-slate-200">{apiLatencyMs === null ? '—' : `${apiLatencyMs} ms`}</span>
+              <span className="text-[var(--text-soft)]">{apiLatencyMs === null ? '—' : `${apiLatencyMs} ms`}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Ambiente</span>
-              <span className="text-slate-200">{apiMeta?.env || '—'}</span>
+              <span className="text-[var(--text-soft)]">{apiMeta?.env || '—'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Versão</span>
-              <span className="text-slate-200">{apiMeta?.version || '—'}</span>
+              <span className="text-[var(--text-soft)]">{apiMeta?.version || '—'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Atualização</span>
-              <span className="text-slate-200">{apiLastUpdated ? formatDateTimeBR(apiLastUpdated.toISOString()) : '—'}</span>
+              <span className="text-[var(--text-soft)]">{apiLastUpdated ? formatDateTimeBR(apiLastUpdated.toISOString()) : '—'}</span>
             </div>
             {apiError && (
               <div className="mt-2 text-rose-400 text-xs">
@@ -355,23 +355,23 @@ const SupabaseHealth = () => {
                <Label>Servidor</Label>
                <Value>{data.host}</Value>
             </div>
-            <Server className="text-slate-600" size={24} />
+            <Server className="text-[var(--text-soft)]" size={24} />
           </div>
           
           <div className="mt-6 space-y-3">
-            <div className="flex justify-between items-center text-sm border-b border-slate-800/50 pb-2">
-              <span className="text-slate-400">Status</span>
+            <div className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
+              <span className="text-[var(--text-muted)]">Status</span>
               <span className={overallStatus === 'ok' ? 'text-emerald-400' : overallStatus === 'warning' ? 'text-amber-400' : 'text-rose-400'}>
                 {overallStatus === 'ok' ? 'Normal' : overallStatus === 'warning' ? 'Atenção' : 'Crítico'}
               </span>
             </div>
-            <div className="flex justify-between items-center text-sm border-b border-slate-800/50 pb-2">
-              <span className="text-slate-400">Uptime Check</span>
+            <div className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
+              <span className="text-[var(--text-muted)]">Uptime Check</span>
               <span className="text-emerald-400">Online</span>
             </div>
             <div className="flex justify-between items-center text-sm pt-1">
-               <span className="text-slate-400">Região</span>
-               <span className="text-slate-200">sa-east-1</span> 
+               <span className="text-[var(--text-muted)]">Região</span>
+               <span className="text-[var(--text-soft)]">sa-east-1</span> 
             </div>
           </div>
         </Card>
@@ -381,16 +381,16 @@ const SupabaseHealth = () => {
            <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                  <Cpu className="text-blue-500" size={20} />
-                 <h3 className="font-semibold text-slate-200">Processamento</h3>
+                 <h3 className="font-semibold text-[var(--text-soft)]">Processamento</h3>
               </div>
-              <div className="text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded">
+              <div className="text-xs text-[var(--text-muted)] bg-[var(--bg-main)] px-2 py-1 rounded">
                 4 vCPUs
               </div>
            </div>
            
            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-slate-900/50 rounded-lg">
-                 <div className="text-xs text-slate-500 mb-1">1 min</div>
+              <div className="p-3 bg-[var(--bg-main)]/50 rounded-lg">
+                 <div className="text-xs text-[var(--text-muted)] mb-1">1 min</div>
                  <div className={`text-xl font-mono font-medium ${
                    getCpuStatus(data.load_1) === 'ok' ? 'text-emerald-400' : 
                    getCpuStatus(data.load_1) === 'warning' ? 'text-amber-400' : 'text-rose-400'
@@ -398,8 +398,8 @@ const SupabaseHealth = () => {
                    {data.load_1.toFixed(2)}
                  </div>
               </div>
-              <div className="p-3 bg-slate-900/50 rounded-lg">
-                 <div className="text-xs text-slate-500 mb-1">5 min</div>
+              <div className="p-3 bg-[var(--bg-main)]/50 rounded-lg">
+                 <div className="text-xs text-[var(--text-muted)] mb-1">5 min</div>
                  <div className={`text-xl font-mono font-medium ${
                    getCpuStatus(data.load_5) === 'ok' ? 'text-emerald-400' : 
                    getCpuStatus(data.load_5) === 'warning' ? 'text-amber-400' : 'text-rose-400'
@@ -407,8 +407,8 @@ const SupabaseHealth = () => {
                    {data.load_5.toFixed(2)}
                  </div>
               </div>
-              <div className="p-3 bg-slate-900/50 rounded-lg">
-                 <div className="text-xs text-slate-500 mb-1">15 min</div>
+              <div className="p-3 bg-[var(--bg-main)]/50 rounded-lg">
+                 <div className="text-xs text-[var(--text-muted)] mb-1">15 min</div>
                  <div className={`text-xl font-mono font-medium ${
                    getCpuStatus(data.load_15) === 'ok' ? 'text-emerald-400' : 
                    getCpuStatus(data.load_15) === 'warning' ? 'text-amber-400' : 'text-rose-400'
@@ -417,7 +417,7 @@ const SupabaseHealth = () => {
                  </div>
               </div>
            </div>
-           <p className="text-xs text-slate-500 mt-4 text-center">
+           <p className="text-xs text-[var(--text-muted)] mt-4 text-center">
              Load Average ideal deve ser menor que 4.0
            </p>
         </Card>
@@ -427,17 +427,17 @@ const SupabaseHealth = () => {
            <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                  <Database className="text-purple-500" size={20} />
-                 <h3 className="font-semibold text-slate-200">Memória RAM</h3>
+                 <h3 className="font-semibold text-[var(--text-soft)]">Memória RAM</h3>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[var(--text-muted)]">
                 Total: {data.mem_total_gb} GB
               </div>
            </div>
 
            <div className="mb-4">
              <div className="flex justify-between text-sm mb-1">
-               <span className="text-slate-400">Em uso</span>
-               <span className="text-slate-200 font-medium">{data.mem_used_gb} GB</span>
+               <span className="text-[var(--text-muted)]">Em uso</span>
+               <span className="text-[var(--text-soft)] font-medium">{data.mem_used_gb} GB</span>
              </div>
              <ProgressBar 
                value={data.mem_used_gb} 
@@ -449,7 +449,7 @@ const SupabaseHealth = () => {
            <div className="grid grid-cols-2 gap-4 mt-4">
              <div>
                 <Label>Disponível</Label>
-                <div className="text-slate-200">{data.mem_available_gb} GB</div>
+                <div className="text-[var(--text-soft)]">{data.mem_available_gb} GB</div>
              </div>
              <div>
                 <Label>Swap Usado</Label>
@@ -465,9 +465,9 @@ const SupabaseHealth = () => {
            <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                  <HardDrive className="text-cyan-500" size={20} />
-                 <h3 className="font-semibold text-slate-200">Armazenamento</h3>
+                 <h3 className="font-semibold text-[var(--text-soft)]">Armazenamento</h3>
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[var(--text-muted)]">
                 {data.disk_use_percent}% Uso
               </div>
            </div>
@@ -496,18 +496,18 @@ const SupabaseHealth = () => {
                     />
                  </svg>
                  <div className="absolute flex flex-col items-center">
-                    <span className="text-2xl font-bold text-slate-200">{data.disk_use_percent}%</span>
+                    <span className="text-2xl font-bold text-[var(--text-soft)]">{data.disk_use_percent}%</span>
                  </div>
               </div>
            </div>
 
-           <div className="flex justify-between text-xs text-slate-400 mt-2 px-4">
+           <div className="flex justify-between text-xs text-[var(--text-muted)] mt-2 px-4">
               <div className="text-center">
-                 <div className="text-slate-200 font-medium">{data.disk_used_gb} GB</div>
+                 <div className="text-[var(--text-soft)] font-medium">{data.disk_used_gb} GB</div>
                  <div>Usado</div>
               </div>
               <div className="text-center">
-                 <div className="text-slate-200 font-medium">{data.disk_total_gb} GB</div>
+                 <div className="text-[var(--text-soft)] font-medium">{data.disk_total_gb} GB</div>
                  <div>Total</div>
               </div>
            </div>
@@ -518,32 +518,32 @@ const SupabaseHealth = () => {
            <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                  <Box className="text-indigo-500" size={20} />
-                 <h3 className="font-semibold text-slate-200">Docker Stats</h3>
+                 <h3 className="font-semibold text-[var(--text-soft)]">Docker Stats</h3>
               </div>
            </div>
 
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800/50">
+              <div className="bg-[var(--bg-main)]/50 p-4 rounded-lg border border-[var(--border)]">
                  <Label>Containers</Label>
-                 <div className="text-lg text-slate-200 truncate" title={data.docker_containers}>
+                 <div className="text-lg text-[var(--text-soft)] truncate" title={data.docker_containers}>
                    {data.docker_containers}
                  </div>
               </div>
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800/50">
+              <div className="bg-[var(--bg-main)]/50 p-4 rounded-lg border border-[var(--border)]">
                  <Label>Imagens</Label>
-                 <div className="text-lg text-slate-200 truncate" title={data.docker_images}>
+                 <div className="text-lg text-[var(--text-soft)] truncate" title={data.docker_images}>
                    {data.docker_images}
                  </div>
               </div>
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800/50">
+              <div className="bg-[var(--bg-main)]/50 p-4 rounded-lg border border-[var(--border)]">
                  <Label>Volumes</Label>
-                 <div className="text-lg text-slate-200 truncate" title={data.docker_volumes}>
+                 <div className="text-lg text-[var(--text-soft)] truncate" title={data.docker_volumes}>
                    {data.docker_volumes}
                  </div>
               </div>
-              <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800/50">
+              <div className="bg-[var(--bg-main)]/50 p-4 rounded-lg border border-[var(--border)]">
                  <Label>Build Cache</Label>
-                 <div className="text-lg text-slate-200 truncate" title={data.docker_build_cache}>
+                 <div className="text-lg text-[var(--text-soft)] truncate" title={data.docker_build_cache}>
                    {data.docker_build_cache}
                  </div>
               </div>

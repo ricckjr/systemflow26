@@ -58,7 +58,7 @@ const Permissoes: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =
             <p className="text-industrial-text-secondary">Nenhum módulo cadastrado no sistema.</p>
           </div>
         ) : modulos.map(modulo => (
-          <div key={modulo.id} className="bg-industrial-surface p-6 rounded-2xl border border-industrial-border shadow-sm hover:shadow-md transition-shadow">
+          <div key={modulo.id} className="bg-industrial-surface p-6 rounded-2xl border border-industrial-border hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-brand-500/10 text-brand-500 rounded-xl flex items-center justify-center">
                 <Settings size={24} />
@@ -75,12 +75,12 @@ const Permissoes: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =
             <div className="flex items-center gap-3 border-t border-industrial-border pt-4">
                <div className="flex -space-x-2">
                  {[1,2,3].map(i => (
-                   <div key={i} className="w-7 h-7 rounded-full bg-industrial-bg border-2 border-industrial-surface flex items-center justify-center text-[10px] font-bold text-industrial-text-secondary">
+                   <div key={i} className="w-7 h-7 rounded-full bg-industrial-bg border-2 border-industrial-surface flex items-center justify-center text-xs font-bold text-industrial-text-secondary">
                      U{i}
                    </div>
                  ))}
                </div>
-               <span className="text-[10px] text-industrial-text-secondary font-bold uppercase">12 usuários vinculados</span>
+               <span className="text-xs text-industrial-text-secondary font-bold uppercase">12 usuários vinculados</span>
             </div>
           </div>
         ))}

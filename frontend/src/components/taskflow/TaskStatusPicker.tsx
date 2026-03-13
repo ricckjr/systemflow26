@@ -64,9 +64,9 @@ export const TaskStatusPicker: React.FC<TaskStatusPickerProps> = ({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)] hover:border-cyan-500/30 transition-colors disabled:opacity-60 disabled:hover:border-[var(--border)]"
+        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm font-semibold text-[var(--text-main)] hover:border-[var(--primary)]/30 transition-colors disabled:opacity-60 disabled:hover:border-[var(--border)]"
       >
-        <span className="text-xs font-black uppercase tracking-widest text-cyan-400">
+        <span className="text-xs font-black uppercase tracking-widest text-[var(--primary)]">
           {isLoading ? 'Movendo...' : label}
         </span>
         <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -75,7 +75,7 @@ export const TaskStatusPicker: React.FC<TaskStatusPickerProps> = ({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 mt-2 w-full bg-[var(--bg-panel)] rounded-xl shadow-2xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          className="absolute left-0 mt-2 w-full bg-[var(--bg-panel)] rounded-xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         >
           <div className="max-h-64 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {options.map(c => {
@@ -93,8 +93,8 @@ export const TaskStatusPicker: React.FC<TaskStatusPickerProps> = ({
                   }}
                   className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                     c.isCurrent
-                      ? 'bg-cyan-500/10 text-cyan-300 font-bold'
-                      : 'text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                      ? 'bg-[var(--primary-soft)] text-[var(--primary)] font-bold'
+                      : 'text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                   } ${optionDisabled ? 'opacity-60' : ''}`}
                 >
                   <span className="truncate">{c.name}</span>

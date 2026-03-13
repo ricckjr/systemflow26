@@ -87,7 +87,7 @@ function mergeDocAlertStatus(a: DocAlertStatus | null | undefined, b: DocAlertSt
 }
 
 const HeaderCard = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">{children}</div>
+  <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-5">{children}</div>
 )
 
 const sb = supabase as any
@@ -511,11 +511,11 @@ export default function EmpresasCorrespondentes() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Empresas Correspondentes</h1>
-          <p className="text-sm text-slate-400 mt-1">Cadastre os dados e a logo usados na geração de propostas.</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--text-main)]">Empresas Correspondentes</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Cadastre os dados e a logo usados na geração de propostas.</p>
         </div>
-        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Settings size={14} className="text-cyan-400" />
+        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text-soft)]">
+          <Settings size={14} className="text-[var(--primary)]" />
           Financeiro
         </div>
       </div>
@@ -523,18 +523,18 @@ export default function EmpresasCorrespondentes() {
       <HeaderCard>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[220px] group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar empresa..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
             />
           </div>
           <button
             type="button"
             onClick={openCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/15 transition-all active:scale-95"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold shadow-cyan-500/15 transition-all active:scale-95"
           >
             <Plus size={16} />
             Nova Empresa
@@ -546,21 +546,21 @@ export default function EmpresasCorrespondentes() {
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <Loader2 className="animate-spin text-slate-500" size={28} />
+          <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-          <p className="text-sm font-semibold text-slate-200">Nenhum registro encontrado</p>
-          <p className="text-sm text-slate-400 mt-1">Crie o primeiro cadastro para começar.</p>
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-6 text-center">
+          <p className="text-sm font-semibold text-[var(--text-soft)]">Nenhum registro encontrado</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Crie o primeiro cadastro para começar.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/5">
-          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-            <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Logo</div>
-            <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Nome Fantasia</div>
-            <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Razão Social</div>
-            <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">CNPJ</div>
-            <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+            <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Logo</div>
+            <div className="col-span-5 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome Fantasia</div>
+            <div className="col-span-4 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Razão Social</div>
+            <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CNPJ</div>
+            <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
           </div>
           <div className="divide-y divide-white/5">
             {filtered.map((i) => {
@@ -573,17 +573,17 @@ export default function EmpresasCorrespondentes() {
                   tabIndex={0}
                   onClick={() => openDetalhe(i.empresa_id)}
                   onKeyDown={(e) => { if (e.key === 'Enter') openDetalhe(i.empresa_id) }}
-                  className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors cursor-pointer"
+                  className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors cursor-pointer"
                 >
                   <div className="col-span-1 flex items-center">
                     {logoUrl ? (
-                      <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-lg object-contain bg-white/5 border border-white/10" />
+                      <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-lg object-contain bg-[var(--bg-card)] border border-[var(--border)]" />
                     ) : (
-                      <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10" />
+                      <div className="w-9 h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]" />
                     )}
                   </div>
                   <div className="col-span-5 min-w-0">
-                    <div className="text-sm text-slate-200 truncate flex items-center gap-2">
+                    <div className="text-sm text-[var(--text-soft)] truncate flex items-center gap-2">
                       {docAlert ? (
                         <span title={docAlert === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
                           <AlertTriangle size={14} className={`${docAlert === 'vencido' ? 'text-orange-500' : 'text-amber-500'} shrink-0`} />
@@ -591,29 +591,29 @@ export default function EmpresasCorrespondentes() {
                       ) : null}
                       <span className="truncate">{i.nome_fantasia || '-'}</span>
                       {i.ativo ? (
-                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20 shrink-0">
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider border border-emerald-500/20 shrink-0">
                           Ativo
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20 shrink-0">
+                        <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider border border-rose-500/20 shrink-0">
                           Desativado
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-400 truncate">{[i.cidade, i.uf].filter(Boolean).join(' / ') || '-'}</div>
+                    <div className="text-xs text-[var(--text-muted)] truncate">{[i.cidade, i.uf].filter(Boolean).join(' / ') || '-'}</div>
                   </div>
                   <div className="col-span-4 min-w-0">
-                    <div className="text-sm text-slate-300 truncate">{i.razao_social || '-'}</div>
-                    <div className="text-[11px] text-slate-400 truncate">{i.telefone || '-'}</div>
+                    <div className="text-sm text-[var(--text-soft)] truncate">{i.razao_social || '-'}</div>
+                    <div className="text-xs text-[var(--text-muted)] truncate">{i.telefone || '-'}</div>
                   </div>
                   <div className="col-span-1 min-w-0">
-                    <div className="text-[11px] text-slate-300 truncate">{i.cnpj || '-'}</div>
+                    <div className="text-xs text-[var(--text-soft)] truncate">{i.cnpj || '-'}</div>
                   </div>
                   <div className="col-span-1 flex items-center justify-end gap-1">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openEdit(i.empresa_id) }}
-                      className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] border border-transparent hover:border-[var(--primary)]/20 transition-colors"
                       title="Editar"
                     >
                       <Pencil size={14} />
@@ -621,7 +621,7 @@ export default function EmpresasCorrespondentes() {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); askDelete(i.empresa_id) }}
-                      className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
                       title="Excluir"
                     >
                       <Trash2 size={14} />
@@ -644,7 +644,7 @@ export default function EmpresasCorrespondentes() {
             <button
               type="button"
               onClick={() => setIsDetalheOpen(false)}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Fechar
             </button>
@@ -657,7 +657,7 @@ export default function EmpresasCorrespondentes() {
                 openEdit(activeId)
               }}
               disabled={!active}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Editar Dados
             </button>
@@ -684,7 +684,7 @@ export default function EmpresasCorrespondentes() {
               type="button"
               onClick={openDocumento}
               disabled={!active}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <FilePlus size={16} />
               Adicionar Documento
@@ -693,7 +693,7 @@ export default function EmpresasCorrespondentes() {
         }
       >
         {!active ? (
-          <div className="text-sm text-slate-400">Selecione uma empresa.</div>
+          <div className="text-sm text-[var(--text-muted)]">Selecione uma empresa.</div>
         ) : (
           <div className="space-y-6">
             <div className="flex items-center gap-4">
@@ -701,21 +701,21 @@ export default function EmpresasCorrespondentes() {
                 <img
                   src={getFinEmpresaCorrespondenteLogoUrl(active.logo_path)}
                   alt="Logo"
-                  className="w-16 h-16 rounded-xl object-contain bg-white/5 border border-white/10"
+                  className="w-16 h-16 rounded-xl object-contain bg-[var(--bg-card)] border border-[var(--border)]"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10" />
+                <div className="w-16 h-16 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]" />
               )}
               <div className="min-w-0">
                 <div className="text-lg font-extrabold text-white truncate">{active.nome_fantasia || active.razao_social || '—'}</div>
-                <div className="text-sm text-slate-400 truncate">{active.codigo ? `Código: ${active.codigo}` : '—'}</div>
+                <div className="text-sm text-[var(--text-muted)] truncate">{active.codigo ? `Código: ${active.codigo}` : '—'}</div>
                 <div className="mt-2">
                   {active.ativo ? (
-                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider border border-emerald-500/20">
                       Ativo
                     </span>
                   ) : (
-                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[11px] font-bold uppercase tracking-wider border border-rose-500/20">
+                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider border border-rose-500/20">
                       Desativado
                     </span>
                   )}
@@ -725,31 +725,31 @@ export default function EmpresasCorrespondentes() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="col-span-full">
-                <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">Dados da Empresa</h4>
+                <h4 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-3">Dados da Empresa</h4>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Razão Social</div>
-                <div className="text-sm text-slate-200 mt-1">{active.razao_social || '—'}</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Razão Social</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">{active.razao_social || '—'}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CNPJ</div>
-                <div className="text-sm text-slate-200 mt-1">{active.cnpj || '—'}</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CNPJ</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">{active.cnpj || '—'}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
-                <div className="text-sm text-slate-200 mt-1">{active.telefone || '—'}</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Telefone</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">{active.telefone || '—'}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inscrição Estadual</div>
-                <div className="text-sm text-slate-200 mt-1">{active.inscricao_estadual || '—'}</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Inscrição Estadual</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">{active.inscricao_estadual || '—'}</div>
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inscrição Municipal</div>
-                <div className="text-sm text-slate-200 mt-1">{active.inscricao_municipal || '—'}</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Inscrição Municipal</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">{active.inscricao_municipal || '—'}</div>
               </div>
-              <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
-                <div className="text-sm text-slate-200 mt-1">
+              <div className="col-span-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço</div>
+                <div className="text-sm text-[var(--text-soft)] mt-1">
                   {[active.endereco, active.bairro, [active.cidade, active.uf].filter(Boolean).join(' - '), active.cep ? `CEP: ${active.cep}` : null]
                     .filter(Boolean)
                     .join(' • ') || '—'}
@@ -757,20 +757,20 @@ export default function EmpresasCorrespondentes() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-5 mt-2">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5 mt-2">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-bold text-slate-200">Documentos</div>
-                <div className="text-xs text-slate-500">{docsLoaded[active.empresa_id] ? activeDocs.length : '...'}</div>
+                <div className="text-sm font-bold text-[var(--text-soft)]">Documentos</div>
+                <div className="text-xs text-[var(--text-muted)]">{docsLoaded[active.empresa_id] ? activeDocs.length : '...'}</div>
               </div>
               {!docsLoaded[active.empresa_id] ? (
-                <div className="mt-3 text-sm text-slate-500">Carregando documentos...</div>
+                <div className="mt-3 text-sm text-[var(--text-muted)]">Carregando documentos...</div>
               ) : activeDocs.length === 0 ? (
-                <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
+                <div className="mt-3 text-sm text-[var(--text-muted)]">Nenhum documento adicionado.</div>
               ) : (
-                <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+                <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--border)]">
                   <table className="min-w-full text-left">
                     <thead className="bg-white/5">
-                      <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <tr className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
                         <th className="px-4 py-3">Nome</th>
                         <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
                         <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
@@ -794,21 +794,21 @@ export default function EmpresasCorrespondentes() {
                                   <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                                 ) : null}
                                 <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-slate-200 truncate">{d.nome}</div>
-                                  {d.arquivoNome && <div className="text-xs text-slate-500 truncate">{d.arquivoNome}</div>}
+                                  <div className="text-sm font-semibold text-[var(--text-soft)] truncate">{d.nome}</div>
+                                  {d.arquivoNome && <div className="text-xs text-[var(--text-muted)] truncate">{d.arquivoNome}</div>}
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--text-soft)]">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--text-soft)]">
                               <div className="flex items-center gap-2">
                                 <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
                                 {vencido ? (
-                                  <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
+                                  <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider border border-rose-500/20">
                                     Vencido
                                   </span>
                                 ) : vencendo ? (
-                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-xs font-bold uppercase tracking-wider border border-amber-500/20">
                                     Vence em breve
                                   </span>
                                 ) : null}
@@ -816,11 +816,11 @@ export default function EmpresasCorrespondentes() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {statusDoc === 'Inválido' ? (
-                                <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[11px] font-bold uppercase tracking-wider border border-orange-500/20">
+                                <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-xs font-bold uppercase tracking-wider border border-orange-500/20">
                                   Inválido
                                 </span>
                               ) : (
-                                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider border border-emerald-500/20">
                                   Válido
                                 </span>
                               )}
@@ -832,7 +832,7 @@ export default function EmpresasCorrespondentes() {
                                     href={d.arquivoUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                                    className="p-2 rounded-lg bg-[var(--bg-card)] hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                                     title="Baixar Documento"
                                   >
                                     <Download size={16} />
@@ -840,7 +840,7 @@ export default function EmpresasCorrespondentes() {
                                 )}
                                 <button
                                   onClick={() => askDeleteDocumento(d.id)}
-                                  className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                                  className="p-2 rounded-lg bg-[var(--bg-card)] hover:bg-rose-500/20 text-[var(--text-muted)] hover:text-rose-400 transition-colors"
                                   title="Excluir Documento"
                                 >
                                   <Trash2 size={16} />
@@ -869,7 +869,7 @@ export default function EmpresasCorrespondentes() {
             <button
               type="button"
               onClick={() => { setIsDeleteDocOpen(false); setDeleteDocId(null) }}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -884,8 +884,8 @@ export default function EmpresasCorrespondentes() {
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Tem certeza que deseja excluir este documento?</p>
-          <p className="text-xs text-slate-500">Essa ação não pode ser desfeita.</p>
+          <p className="text-sm text-[var(--text-soft)]">Tem certeza que deseja excluir este documento?</p>
+          <p className="text-xs text-[var(--text-muted)]">Essa ação não pode ser desfeita.</p>
         </div>
       </Modal>
 
@@ -899,7 +899,7 @@ export default function EmpresasCorrespondentes() {
             <button
               type="button"
               onClick={() => { setIsDocumentoOpen(false); setIsDetalheOpen(true) }}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -907,7 +907,7 @@ export default function EmpresasCorrespondentes() {
               type="button"
               onClick={handleSalvarDocumento}
               disabled={savingDoc}
-              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {savingDoc ? 'Salvando...' : 'Adicionar'}
             </button>
@@ -917,37 +917,37 @@ export default function EmpresasCorrespondentes() {
         <div className="space-y-4">
           {docError && <div className="text-rose-400 text-xs">{docError}</div>}
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome do Documento</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome do Documento</label>
             <input
               value={docNome}
               onChange={(e) => setDocNome(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+              className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Emissão</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data de Emissão</label>
               <input
                 type="date"
                 value={docEmissao}
                 onChange={(e) => setDocEmissao(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Vencimento</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data de Vencimento</label>
               <input
                 type="date"
                 value={docVencimento}
                 onChange={(e) => setDocVencimento(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Arquivo</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Arquivo</label>
             <div className="relative group">
               <input
                 type="file"
@@ -957,10 +957,10 @@ export default function EmpresasCorrespondentes() {
               />
               <label
                 htmlFor="empresa-doc-file-upload"
-                className="flex items-center justify-center gap-2 w-full px-3 py-4 rounded-xl bg-[#0B1220] border border-dashed border-white/20 text-sm text-slate-400 cursor-pointer hover:border-cyan-500/50 hover:bg-white/5 transition-all"
+                className="flex items-center justify-center gap-2 w-full px-3 py-4 rounded-xl bg-[var(--bg-main)] border border-dashed border-[var(--border)] text-sm text-[var(--text-muted)] cursor-pointer hover:border-[var(--primary)]/50 hover:bg-white/5 transition-all"
               >
                 <Upload size={16} />
-                {docFile ? <span className="text-cyan-400 font-medium">{docFile.name}</span> : <span>Clique para selecionar um arquivo</span>}
+                {docFile ? <span className="text-[var(--primary)] font-medium">{docFile.name}</span> : <span>Clique para selecionar um arquivo</span>}
               </label>
             </div>
           </div>
@@ -999,7 +999,7 @@ export default function EmpresasCorrespondentes() {
                 setActiveId(null)
               }}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1007,7 +1007,7 @@ export default function EmpresasCorrespondentes() {
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {saving ? (
                 <>
@@ -1026,24 +1026,24 @@ export default function EmpresasCorrespondentes() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Logo</div>
-              <div className="mt-2 rounded-2xl border border-white/10 bg-[#0B1220] p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Logo</div>
+              <div className="mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
                 <div className="flex items-center gap-4">
                   {logoPreview ? (
-                    <img src={logoPreview} alt="Logo" className="w-16 h-16 rounded-xl object-contain bg-white/5 border border-white/10" />
+                    <img src={logoPreview} alt="Logo" className="w-16 h-16 rounded-xl object-contain bg-[var(--bg-card)] border border-[var(--border)]" />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10" />
+                    <div className="w-16 h-16 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]" />
                   )}
                   <div className="space-y-2">
                     <button
                       type="button"
                       onClick={handlePickLogo}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-xs font-bold text-[var(--text-soft)] transition-colors"
                     >
                       <Upload size={14} />
                       Enviar Logo
                     </button>
-                    <div className="text-[11px] text-slate-400">JPG, PNG ou WEBP (máx. 3MB)</div>
+                    <div className="text-xs text-[var(--text-muted)]">JPG, PNG ou WEBP (máx. 3MB)</div>
                   </div>
                 </div>
                 <input
@@ -1063,107 +1063,107 @@ export default function EmpresasCorrespondentes() {
 
             <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nome Fantasia</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Nome Fantasia</label>
                 <input
                   value={draftNomeFantasia}
                   onChange={(e) => setDraftNomeFantasia(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Ex: Apliflow"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Razão Social</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Razão Social</label>
                 <input
                   value={draftRazaoSocial}
                   onChange={(e) => setDraftRazaoSocial(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Ex: APLIFLOW EQUIPAMENTOS INDUSTRIAIS LTDA"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">CNPJ</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">CNPJ</label>
                 <input
                   value={draftCnpj}
                   onChange={(e) => setDraftCnpj(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="00.000.000/0000-00"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Telefone</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Telefone</label>
                 <input
                   value={draftTelefone}
                   onChange={(e) => setDraftTelefone(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="(00) 0000-0000"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Inscrição Estadual</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Inscrição Estadual</label>
                 <input
                   value={draftIe}
                   onChange={(e) => setDraftIe(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Opcional"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Inscrição Municipal</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Inscrição Municipal</label>
                 <input
                   value={draftIm}
                   onChange={(e) => setDraftIm(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Opcional"
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Endereço</div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+            <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Endereço</div>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
               <div className="lg:col-span-8 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Endereço</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Endereço</label>
                 <input
                   value={draftEndereco}
                   onChange={(e) => setDraftEndereco(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Rua, número, complemento"
                 />
               </div>
               <div className="lg:col-span-4 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Bairro</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Bairro</label>
                 <input
                   value={draftBairro}
                   onChange={(e) => setDraftBairro(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Bairro"
                 />
               </div>
               <div className="lg:col-span-5 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cidade</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Cidade</label>
                 <input
                   value={draftCidade}
                   onChange={(e) => setDraftCidade(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Cidade"
                 />
               </div>
               <div className="lg:col-span-2 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">UF</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">UF</label>
                 <input
                   value={draftUf}
                   onChange={(e) => setDraftUf(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="MG"
                 />
               </div>
               <div className="lg:col-span-5 space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">CEP</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">CEP</label>
                 <input
                   value={draftCep}
                   onChange={(e) => setDraftCep(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="00000-000"
                 />
               </div>
@@ -1186,7 +1186,7 @@ export default function EmpresasCorrespondentes() {
               type="button"
               onClick={() => setIsDeleteOpen(false)}
               disabled={deleting}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1194,7 +1194,7 @@ export default function EmpresasCorrespondentes() {
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {deleting ? (
                 <>
@@ -1209,8 +1209,8 @@ export default function EmpresasCorrespondentes() {
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Tem certeza que deseja excluir esta empresa?</p>
-          <p className="text-sm text-slate-300">Essa ação não pode ser desfeita.</p>
+          <p className="text-sm text-[var(--text-soft)]">Tem certeza que deseja excluir esta empresa?</p>
+          <p className="text-sm text-[var(--text-soft)]">Essa ação não pode ser desfeita.</p>
         </div>
       </Modal>
     </div>

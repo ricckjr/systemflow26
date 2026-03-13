@@ -334,8 +334,8 @@ export function PropostaComercialCompletaModal(props: {
       title={
         <div className="flex items-center justify-between gap-4 w-full">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Informações da Proposta</div>
-            <div className="mt-1 text-base font-black text-slate-100 truncate">
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Informações da Proposta</div>
+            <div className="mt-1 text-base font-black text-[var(--text-main)] truncate">
               {active ? `${getCodProposta(active) || '-'} · ${getCliente(active) || '-'}` : '-'}
             </div>
           </div>
@@ -354,14 +354,14 @@ export function PropostaComercialCompletaModal(props: {
                     type="button"
                     onClick={() => setTab(t.id)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                      tab === t.id ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                      tab === t.id ? 'bg-[var(--primary-soft)] border-[var(--primary)]/40 text-[var(--primary)]' : 'bg-white/5 border-[var(--border)] text-[var(--text-soft)] hover:bg-white/10'
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
-                      <Icon size={12} className={tab === t.id ? 'text-cyan-200' : 'text-slate-400'} />
+                      <Icon size={12} className={tab === t.id ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'} />
                       {t.label}
                       {typeof t.count === 'number' ? (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-200">
+                        <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-soft)]">
                           {t.count}
                         </span>
                       ) : null}
@@ -375,49 +375,49 @@ export function PropostaComercialCompletaModal(props: {
 
         <div className="px-4 md:px-6 py-4 pb-8">
           {loading ? (
-            <div className="flex items-center justify-center py-10 text-slate-300 gap-2">
+            <div className="flex items-center justify-center py-10 text-[var(--text-soft)] gap-2">
               <Loader2 className="animate-spin" size={18} />
               Carregando...
             </div>
           ) : error ? (
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>
           ) : !active ? (
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Proposta não encontrada.</div>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm text-[var(--text-soft)]">Proposta não encontrada.</div>
           ) : tab === 'geral' ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
-                  <div className="mt-2 text-2xl font-black text-slate-100">{getCodProposta(active) || '-'}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                  <div className="mt-2 text-2xl font-black text-[var(--text-main)]">{getCodProposta(active) || '-'}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-2">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</div>
-                  <div className="mt-2 text-lg font-black text-slate-100 truncate">{getCliente(active) || '-'}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 lg:col-span-2">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Cliente</div>
+                  <div className="mt-2 text-lg font-black text-[var(--text-main)] truncate">{getCliente(active) || '-'}</div>
                   {String((active as any)?.cliente_documento || '').trim() ? (
-                    <div className="mt-1 text-xs text-slate-300">{String((active as any)?.cliente_documento || '').trim()}</div>
+                    <div className="mt-1 text-xs text-[var(--text-soft)]">{String((active as any)?.cliente_documento || '').trim()}</div>
                   ) : null}
                 </div>
               </div>
 
               {getDescricao(active) ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Solicitação do Cliente</div>
-                  <div className="mt-2 text-sm text-slate-100 whitespace-pre-wrap">{getDescricao(active)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Solicitação do Cliente</div>
+                  <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap">{getDescricao(active)}</div>
                 </div>
               ) : null}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nome do Vendedor</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome do Vendedor</div>
                   <div className="mt-2 flex items-center gap-3 min-w-0">
                     {String(vendedorInfo?.avatar_url || '').trim() ? (
                       <img
                         src={String(vendedorInfo?.avatar_url || '').trim()}
                         alt={String(vendedorInfo?.nome || 'Vendedor').trim() || 'Vendedor'}
-                        className="h-10 w-10 rounded-full object-cover border border-white/10 shrink-0"
+                        className="h-10 w-10 rounded-full object-cover border border-[var(--border)] shrink-0"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-white/5 border border-white/10 inline-flex items-center justify-center text-xs font-black text-slate-200 shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-[var(--bg-card)] border border-[var(--border)] inline-flex items-center justify-center text-xs font-black text-[var(--text-soft)] shrink-0">
                         {String(vendedorInfo?.nome || '?')
                           .trim()
                           .split(/\s+/)
@@ -428,54 +428,54 @@ export function PropostaComercialCompletaModal(props: {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <div className="text-sm font-black text-slate-100 truncate">{String(vendedorInfo?.nome || '').trim() || '-'}</div>
-                      <div className="mt-0.5 text-xs text-slate-400 truncate">
+                      <div className="text-sm font-black text-[var(--text-main)] truncate">{String(vendedorInfo?.nome || '').trim() || '-'}</div>
+                      <div className="mt-0.5 text-xs text-[var(--text-muted)] truncate">
                         {String(vendedorInfo?.cargo || '').trim() || 'Vendedor'}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">E-mail</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">E-mail</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">
                     {String(vendedorInfo?.email_corporativo || vendedorInfo?.email_login || '').trim() || '-'}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ramal</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{String(vendedorInfo?.ramal || '').trim() || '-'}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Ramal</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{String(vendedorInfo?.ramal || '').trim() || '-'}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Data de Inclusão</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{formatDateTimeBR(dataInclusaoRaw)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data de Inclusão</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{formatDateTimeBR(dataInclusaoRaw)}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tempo Aberto</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{tempoAbertoLabel}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Tempo Aberto</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{tempoAbertoLabel}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Última Movimentação</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{formatDateTimeBR(ultimaMovRaw)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Última Movimentação</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{formatDateTimeBR(ultimaMovRaw)}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dias sem Movimentação</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{diasSemMov === null ? '-' : `${diasSemMov} dia(s)`}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Dias sem Movimentação</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{diasSemMov === null ? '-' : `${diasSemMov} dia(s)`}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fase</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Fase</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">
                     {getFaseLabel(active) !== '-' ? getFaseLabel(active) : faseLabelById[getFaseId(active)] || '-'}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Status</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">
                     {(() => {
                       const direct = getStatusLabel(active)
                       if (direct && direct !== '-' && direct !== getStatusId(active)) return direct
@@ -484,54 +484,54 @@ export function PropostaComercialCompletaModal(props: {
                     })()}
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Previsão Entrega</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{formatDateBR(String((active as any)?.prev_entrega || '').trim() || null)}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Previsão Entrega</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{formatDateBR(String((active as any)?.prev_entrega || '').trim() || null)}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Solução</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{String((active as any)?.solucao || '-')}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Solução</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{String((active as any)?.solucao || '-')}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Frete</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">{String((active as any)?.tipo_frete || '-')}</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Frete</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">{String((active as any)?.tipo_frete || '-')}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Atualizado em</div>
-                  <div className="mt-2 text-sm font-black text-slate-100">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Atualizado em</div>
+                  <div className="mt-2 text-sm font-black text-[var(--text-main)]">
                     {formatDateTimeBR(String((active as any)?.atualizado_em || (active as any)?.data_alteracao || '').trim() || null)}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-                <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Arquivos anexados</div>
-                  <span className="text-[10px] font-black bg-white/5 text-slate-300 px-2 py-1 rounded-full border border-white/10">{anexosCount}</span>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
+                <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] flex items-center justify-between gap-3">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Arquivos anexados</div>
+                  <span className="text-xs font-black bg-[var(--bg-card)] text-[var(--text-soft)] px-2 py-1 rounded-full border border-[var(--border)]">{anexosCount}</span>
                 </div>
 
                 {docsComplementaresLoading ? (
-                  <div className="px-4 py-4 text-xs text-slate-400 inline-flex items-center gap-2">
+                  <div className="px-4 py-4 text-xs text-[var(--text-muted)] inline-flex items-center gap-2">
                     <Loader2 className="animate-spin" size={14} />
                     Carregando...
                   </div>
                 ) : anexosCount === 0 ? (
-                  <div className="px-4 py-4 text-xs text-slate-400">Nenhum documento anexado ainda.</div>
+                  <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Nenhum documento anexado ainda.</div>
                 ) : (
                   <div className="divide-y divide-white/10">
                     {String((active as any)?.pedido_compra_path || '').trim() ? (
                       <div className="px-4 py-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <FileText size={14} className="text-slate-300 shrink-0" />
-                            <div className="text-sm font-bold text-slate-100 truncate">
+                            <FileText size={14} className="text-[var(--text-soft)] shrink-0" />
+                            <div className="text-sm font-bold text-[var(--text-main)] truncate">
                               {String((active as any)?.pedido_compra_path || '').trim().split('/').pop() || 'Pedido de Compra'}
                             </div>
                           </div>
-                          <div className="mt-1 text-[11px] text-slate-400">Pedido de Compra</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">Pedido de Compra</div>
                         </div>
                         <button
                           type="button"
@@ -541,7 +541,7 @@ export function PropostaComercialCompletaModal(props: {
                             const url = supabase.storage.from(bucketPedidoCompra).getPublicUrl(path).data.publicUrl
                             if (url) window.open(url, '_blank', 'noopener,noreferrer')
                           }}
-                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                          className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors inline-flex items-center justify-center"
                           title="Abrir"
                           aria-label="Abrir"
                         >
@@ -554,10 +554,10 @@ export function PropostaComercialCompletaModal(props: {
                       <div key={d.path} className="px-4 py-3 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <FileText size={14} className="text-slate-300 shrink-0" />
-                            <div className="text-sm font-bold text-slate-100 truncate">{d.name}</div>
+                            <FileText size={14} className="text-[var(--text-soft)] shrink-0" />
+                            <div className="text-sm font-bold text-[var(--text-main)] truncate">{d.name}</div>
                           </div>
-                          <div className="mt-1 text-[11px] text-slate-400">
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">
                             {formatFileSize(d.size)} · {d.mimeType || 'arquivo'} · {formatDateTimeBR(d.createdAt || d.updatedAt)}
                           </div>
                         </div>
@@ -571,7 +571,7 @@ export function PropostaComercialCompletaModal(props: {
                               if (url) window.open(url, '_blank', 'noopener,noreferrer')
                             } catch {}
                           }}
-                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                          className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors inline-flex items-center justify-center"
                           title="Abrir"
                           aria-label="Abrir"
                         >
@@ -585,11 +585,11 @@ export function PropostaComercialCompletaModal(props: {
             </div>
           ) : tab === 'logistica' ? (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
-                    <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Produção</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">Entrada de equipamento vinculada à proposta</div>
                   </div>
                   <button
                     type="button"
@@ -597,8 +597,8 @@ export function PropostaComercialCompletaModal(props: {
                     onClick={() => setEquipmentEntryOpen(true)}
                     className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
                       canOpenEquipmentEntry
-                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                        : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                        ? 'bg-[var(--primary)] hover:bg-[var(--primary)] text-white shadow-cyan-500/15'
+                        : 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed'
                     }`}
                   >
                     <Wrench size={16} />
@@ -613,39 +613,39 @@ export function PropostaComercialCompletaModal(props: {
                   lastUpdate={equipmentLastUpdate}
                 />
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                   Salve a proposta para vincular equipamentos em produção.
                 </div>
               )}
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-300">Logística</div>
-                    <div className="mt-1 text-[11px] text-slate-400">Dados de transporte e nota fiscal</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Logística</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">Dados de transporte e nota fiscal</div>
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Previsão de Entrega</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Previsão de Entrega</label>
                       <input
                         readOnly
                         value={formatDateBR(String((active as any)?.prev_entrega || '').trim() || null)}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Nº da Nota Fiscal</label>
                       <input
                         readOnly
                         value={String((active as any)?.numero_nota_fiscal || '').trim() || '-'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Valor da Nota Fiscal</label>
                       <input
                         readOnly
                         value={
@@ -653,51 +653,51 @@ export function PropostaComercialCompletaModal(props: {
                             ? '-'
                             : String((active as any)?.valor_nota_fiscal)
                         }
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Transportadora</label>
                       <input
                         readOnly
                         value={String((active as any)?.transportadora || '').trim() || '-'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Remetente Completo</label>
                       <textarea
                         readOnly
                         value={String((active as any)?.remetente_completo || '').trim() || '-'}
                         rows={4}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none resize-y"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none resize-y"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Destinatário Completo</label>
                       <textarea
                         readOnly
                         value={String((active as any)?.destinatario_completo || '').trim() || '-'}
                         rows={4}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none resize-y"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none resize-y"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2 md:col-span-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Material</label>
                       <input
                         readOnly
                         value={String((active as any)?.material || '').trim() || '-'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Quantidade de Volumes</label>
                       <input
                         readOnly
                         value={
@@ -705,31 +705,31 @@ export function PropostaComercialCompletaModal(props: {
                             ? '-'
                             : String((active as any)?.quantidade_volumes)
                         }
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Espécie</label>
                       <input
                         readOnly
                         value={String((active as any)?.especie || '').trim() || '-'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Peso</label>
                       <input
                         readOnly
                         value={(active as any)?.peso === null || (active as any)?.peso === undefined ? '-' : String((active as any)?.peso)}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Medidas (AxCxL)</label>
                       <input
                         readOnly
                         value={String((active as any)?.medidas || '').trim() || '-'}
-                        className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                        className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                       />
                     </div>
                   </div>
@@ -739,15 +739,15 @@ export function PropostaComercialCompletaModal(props: {
           ) : tab === 'atividades' ? (
             <div className="space-y-4">
               {!String(oportunidadeId || '').trim() ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                   Salve a proposta para registrar e visualizar atividades.
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-xs font-black uppercase tracking-widest text-slate-300">Atividades</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Atividades</div>
                   <div className="mt-3 space-y-3">
                     {atividades.length === 0 ? (
-                      <div className="text-sm text-slate-400">Nenhuma atividade registrada.</div>
+                      <div className="text-sm text-[var(--text-muted)]">Nenhuma atividade registrada.</div>
                     ) : (
                       atividades.map((a: any) => {
                         const p = (a?.payload || {}) as any
@@ -794,15 +794,15 @@ export function PropostaComercialCompletaModal(props: {
                         }
 
                         return (
-                          <div key={String(a?.atividade_id || Math.random())} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                          <div key={String(a?.atividade_id || Math.random())} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
                             <div className="flex items-start justify-between gap-4">
                               <div className="min-w-0">
-                                <div className="text-sm font-black text-slate-100">{title}</div>
-                                {detail ? <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{detail}</div> : null}
+                                <div className="text-sm font-black text-[var(--text-main)]">{title}</div>
+                                {detail ? <div className="mt-1 text-xs text-[var(--text-soft)] whitespace-pre-wrap">{detail}</div> : null}
                               </div>
                               <div className="text-right whitespace-nowrap">
-                                <div className="text-[11px] font-bold text-slate-400">{when}</div>
-                                <div className="text-[11px] text-slate-300" title={createdBy || undefined}>
+                                <div className="text-xs font-bold text-[var(--text-muted)]">{when}</div>
+                                <div className="text-xs text-[var(--text-soft)]" title={createdBy || undefined}>
                                   {createdByLabel || '-'}
                                 </div>
                               </div>
@@ -817,12 +817,12 @@ export function PropostaComercialCompletaModal(props: {
             </div>
           ) : tab === 'comentarios' ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300">Adicionar Comentário</div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Adicionar Comentário</div>
                 <textarea
                   value={comentarioTexto}
                   onChange={(e) => setComentarioTexto(e.target.value)}
-                  className="mt-3 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                  className="mt-3 w-full h-28 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
                   placeholder="Escreva um comentário..."
                 />
                 <div className="mt-3 flex justify-end">
@@ -849,15 +849,15 @@ export function PropostaComercialCompletaModal(props: {
                       }
                     }}
                     disabled={comentarioSaving || !comentarioTexto.trim()}
-                    className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    className="px-6 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-black text-sm shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                   >
                     {comentarioSaving ? 'Adicionando...' : 'Adicionar'}
                   </button>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300">Comentários</div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Comentários</div>
                 <div className="mt-3 space-y-3">
                   {(comentarios || [])
                     .filter((c: any) => {
@@ -876,11 +876,11 @@ export function PropostaComercialCompletaModal(props: {
                       const author = createdBy ? statusHistoryUserById[createdBy] || createdBy : 'Usuário'
                       const text = String(c?.comentario || '').trim() || '-'
                       return (
-                        <div key={String(c?.comentario_id || '') || `${when}-${Math.random()}`} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                          <div className="text-[11px] text-slate-400">
+                        <div key={String(c?.comentario_id || '') || `${when}-${Math.random()}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                          <div className="text-xs text-[var(--text-muted)]">
                             {author} comentou • {when}
                           </div>
-                          <div className="mt-2 text-sm text-slate-100 whitespace-pre-wrap">{text}</div>
+                          <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap">{text}</div>
                         </div>
                       )
                     })}
@@ -891,7 +891,7 @@ export function PropostaComercialCompletaModal(props: {
                     if (firstLine.startsWith('fase alterada:')) return false
                     if (firstLine.startsWith('andamento:')) return false
                     return true
-                  }).length === 0 ? <div className="text-sm text-slate-400">Nenhum comentário.</div> : null}
+                  }).length === 0 ? <div className="text-sm text-[var(--text-muted)]">Nenhum comentário.</div> : null}
                 </div>
               </div>
             </div>

@@ -149,27 +149,27 @@ html, body {
 }
 
 .taskflow-kanban-scroll {
-  overflow-x: scroll;
-  scrollbar-gutter: stable;
+  overflow-x: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--primary-600) transparent;
+  scrollbar-color: rgba(255,255,255,0.12) rgba(255,255,255,0.04);
 }
 
 .taskflow-kanban-scroll::-webkit-scrollbar {
-  height: 10px;
+  height: 6px;
 }
 
 .taskflow-kanban-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255,255,255,0.03);
+  border-radius: 999px;
 }
 
 .taskflow-kanban-scroll::-webkit-scrollbar-thumb {
-  background: var(--primary-600);
+  background: rgba(255,255,255,0.12);
   border-radius: 999px;
 }
 
 .taskflow-kanban-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-600);
+  background: rgba(255,255,255,0.22);
 }
 
 @keyframes taskflowPulseGreen {

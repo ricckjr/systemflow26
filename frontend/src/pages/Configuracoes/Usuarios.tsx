@@ -252,8 +252,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
   if (authLoading) {
     return (
-        <div className="flex flex-col items-center justify-center h-64 text-industrial-text-secondary">
-            <Loader2 className="animate-spin mb-4 text-[#38BDF8]" size={48} />
+        <div className="flex flex-col items-center justify-center h-64 text-[var(--text-muted)]">
+            <Loader2 className="animate-spin mb-4 text-[var(--primary)]" size={48} />
             <p>Carregando perfil de acesso...</p>
         </div>
     )
@@ -267,7 +267,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
             <p className="text-sm opacity-80 mb-4">Não foi possível carregar seu perfil de usuário.</p>
             <button 
                 onClick={() => window.location.reload()}
-                className="px-6 py-2 bg-industrial-surface border border-industrial-border rounded-lg text-white hover:bg-industrial-surface/80 transition-colors"
+                className="px-6 py-2 bg-[var(--bg-panel)] border border-[var(--border)] rounded-lg text-white hover:bg-[var(--bg-panel)]/80 transition-colors"
             >
                 Tentar Novamente
             </button>
@@ -278,12 +278,12 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-extrabold text-white">Gerenciamento de Usuários</h2>
+        <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">Gerenciamento de Usuários</h2>
 
         {isAdmin && (
           <button
             onClick={handleOpenCreate}
-            className="h-10 px-6 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-bold tracking-wide transition shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px] flex items-center gap-2"
+            className="h-10 px-6 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#0B0F14] font-bold tracking-wide transition  hover:-translate-y-[1px] flex items-center gap-2"
           >
             <UserPlus size={18} />
             Novo Usuário
@@ -292,29 +292,29 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       </div>
 
       {error && (
-        <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-3 shadow-lg z-50 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-3  z-50 animate-in slide-in-from-bottom-5">
             <AlertTriangle size={20} />
             <span className="font-medium">{error}</span>
             <button onClick={() => setError(null)} className="ml-2 hover:text-white"><X size={16} /></button>
         </div>
       )}
 
-      <div className="bg-industrial-surface rounded-2xl border border-industrial-border overflow-hidden shadow-2xl">
-        <div className="p-4 border-b border-industrial-border flex items-center bg-industrial-bg/30">
+      <div className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="p-4 border-b border-[var(--border)] flex items-center bg-[var(--bg-main)]/30">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-2.5 text-industrial-text-secondary" size={18} />
+            <Search className="absolute left-3 top-2.5 text-[var(--text-muted)]" size={18} />
             <input
               placeholder="Buscar por nome..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 w-full h-10 bg-industrial-bg border border-industrial-border rounded-lg text-white placeholder:text-gray-500 focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all"
+              className="pl-10 w-full h-10 bg-[var(--bg-main)] border border-[var(--border)] rounded-lg text-white placeholder:text-[var(--text-muted)] focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all"
             />
           </div>
         </div>
 
         <HorizontalScrollArea className="overflow-x-scroll touch-pan-y">
             <table className="w-full">
-            <thead className="bg-industrial-bg/80 text-industrial-text-secondary text-xs uppercase tracking-wider font-semibold">
+            <thead className="bg-[var(--bg-main)]/80 text-[var(--text-muted)] text-xs uppercase tracking-wider font-semibold">
                 <tr>
                 <th className="px-6 py-4 text-left">Colaborador</th>
                 <th className="px-6 py-4">Contato</th>
@@ -324,28 +324,28 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                 </tr>
             </thead>
 
-            <tbody className="divide-y divide-industrial-border">
+            <tbody className="divide-y divide-[var(--border)]">
                 {loading ? (
                 <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-industrial-text-secondary">
+                    <td colSpan={5} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="animate-spin text-[#38BDF8]" size={32} />
+                        <Loader2 className="animate-spin text-[var(--primary)]" size={32} />
                         <p>Carregando equipe...</p>
                     </div>
                     </td>
                 </tr>
                 ) : usuarios.length === 0 ? (
                 <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-industrial-text-secondary">
+                    <td colSpan={5} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     Nenhum usuário encontrado
                     </td>
                 </tr>
                 ) : (
                 usuarios.map(user => (
-                    <tr key={user.id} className="hover:bg-industrial-bg/40 transition-colors group">
+                    <tr key={user.id} className="hover:bg-[var(--bg-main)]/40 transition-colors group">
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-industrial-bg border border-industrial-border overflow-hidden flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 rounded-full bg-[var(--bg-main)] border border-[var(--border)] overflow-hidden flex items-center justify-center text-white font-bold">
                                 {user.avatar_url ? (
                                   <img
                                     src={user.avatar_url}
@@ -358,16 +358,16 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                                 )}
                             </div>
                             <div>
-                                <p className="text-white font-bold text-sm">{user.nome}</p>
-                                <p className="text-xs text-industrial-text-secondary">{user.email_login}</p>
+                                <p className="text-[var(--text-main)] font-semibold text-sm">{user.nome}</p>
+                                <p className="text-xs text-[var(--text-muted)]">{user.email_login}</p>
                             </div>
                         </div>
                     </td>
 
                     <td className="px-6 py-4">
-                        <div className="text-sm text-gray-300">
-                            {user.telefone && <div className="flex items-center gap-1"><Phone size={12} className="text-industrial-text-secondary"/> {user.telefone}</div>}
-                            {user.email_corporativo && <div className="flex items-center gap-1 mt-1"><Mail size={12} className="text-industrial-text-secondary"/> {user.email_corporativo}</div>}
+                        <div className="text-sm text-[var(--text-soft)]">
+                            {user.telefone && <div className="flex items-center gap-1"><Phone size={12} className="text-[var(--text-muted)]"/> {user.telefone}</div>}
+                            {user.email_corporativo && <div className="flex items-center gap-1 mt-1"><Mail size={12} className="text-[var(--text-muted)]"/> {user.email_corporativo}</div>}
                         </div>
                     </td>
 
@@ -385,7 +385,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                     </td>
 
                     <td className="px-6 py-4 text-center">
-                        <span className="text-white font-medium bg-industrial-bg px-3 py-1 rounded-lg border border-industrial-border text-xs tracking-wide">
+                        <span className="text-white font-medium bg-[var(--bg-main)] px-3 py-1 rounded-lg border border-[var(--border)] text-xs tracking-wide">
                             {(((user as any)?.rbac_roles || []) as any[]).map(r => r?.nome).filter(Boolean).join(', ') || 'N/A'}
                         </span>
                     </td>
@@ -397,8 +397,8 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                             disabled={!isAdmin || user.id === profile.id}
                             className={`p-2 rounded-lg transition-colors ${
                             user.ativo
-                                ? 'hover:bg-rose-500/10 hover:text-rose-400 text-gray-400'
-                                : 'hover:bg-emerald-500/10 hover:text-emerald-400 text-gray-400'
+                                ? 'hover:bg-rose-500/10 hover:text-rose-400 text-[var(--text-muted)]'
+                                : 'hover:bg-emerald-500/10 hover:text-emerald-400 text-[var(--text-muted)]'
                             }`}
                             title={user.ativo ? 'Desativar acesso' : 'Ativar acesso'}
                         >
@@ -408,7 +408,7 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                         <button
                             onClick={() => handleOpenEdit(user)}
                             disabled={!isAdmin}
-                            className="p-2 text-gray-400 hover:text-[#38BDF8] hover:bg-[#38BDF8]/10 rounded-lg transition-colors"
+                            className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-colors"
                             title="Editar dados"
                         >
                             <Edit2 size={18} />
@@ -429,19 +429,19 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsModalOpen(false)}>
           <div 
-            className="bg-[#0F172A] w-full max-w-2xl rounded-2xl border border-white/10 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col max-h-[90vh]" 
+            className="bg-[var(--bg-panel)] w-full max-w-2xl rounded-2xl border border-[var(--border)] shadow-[var(--shadow-soft)] overflow-hidden flex flex-col max-h-[90vh]" 
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+            <div className="px-8 py-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-card)]">
                 <div>
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        {editingUser ? <Edit2 className="text-[#38BDF8]" size={20} /> : <UserPlus className="text-[#38BDF8]" size={20} />}
+                    <h3 className="text-base font-bold text-[var(--text-main)] flex items-center gap-2">
+                        {editingUser ? <Edit2 className="text-[var(--primary)]" size={20} /> : <UserPlus className="text-[var(--primary)]" size={20} />}
                         {editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}
                     </h3>
-                    <p className="text-sm text-gray-400 mt-1">Preencha os dados corporativos e de acesso.</p>
+                    <p className="text-sm text-[var(--text-muted)] mt-1">Preencha os dados corporativos e de acesso.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+                <button onClick={() => setIsModalOpen(false)} className="text-[var(--text-muted)] hover:text-white transition-colors">
                     <X size={24} />
                 </button>
             </div>
@@ -458,16 +458,16 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                     
                     {/* Seção Pessoal */}
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-2 flex items-center gap-2">
                             <User size={14} /> Dados Pessoais
                         </h4>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Nome Completo *</label>
+                                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Nome Completo *</label>
                                 <input 
                                     required
-                                    className="w-full bg-[#0B0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                    className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl px-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                     placeholder="Ex: João da Silva"
                                     value={formData.nome}
                                     onChange={e => setFormData({...formData, nome: e.target.value})}
@@ -475,10 +475,10 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Cargo</label>
+                                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Cargo</label>
                                 <div className="relative">
                                     <select 
-                                        className="w-full bg-[#0B0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all appearance-none cursor-pointer"
+                                        className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl px-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all appearance-none cursor-pointer"
                                         value={String((formData as any).cargo || '')}
                                         onChange={e => setFormData({ ...formData, cargo: e.target.value as any })}
                                     >
@@ -496,14 +496,14 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                                         <option value="OFICINA">OFICINA</option>
                                         <option value="TECNICO">TÉCNICO</option>
                                     </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)]">
                                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-400 mb-2 uppercase">
+                            <label className="block text-xs font-medium text-[var(--text-muted)] mb-2 uppercase">
                                 Perfis de Permissão *
                             </label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -512,17 +512,17 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                                     return (
                                         <label
                                             key={p.perfil_id}
-                                            className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0B0F14] px-4 py-3 cursor-pointer hover:border-white/20 transition-colors"
+                                            className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] px-4 py-3 cursor-pointer hover:border-[var(--primary)]/20 transition-colors"
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={(e) => toggleRole(p.perfil_id, e.target.checked)}
-                                                className="h-4 w-4 accent-[#38BDF8]"
+                                                className="h-4 w-4 accent-[var(--primary)]"
                                             />
                                             <div className="min-w-0">
                                                 <div className="text-sm font-bold text-white truncate">{p.perfil_nome}</div>
-                                                <div className="text-xs text-gray-500 truncate">{p.perfil_descricao || 'Sem descrição'}</div>
+                                                <div className="text-xs text-[var(--text-muted)] truncate">{p.perfil_descricao || 'Sem descrição'}</div>
                                             </div>
                                         </label>
                                     )
@@ -531,22 +531,22 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                         </div>
                     </div>
 
-                    <hr className="border-white/5" />
+                    <hr className="border-[var(--border)]" />
 
                     {/* Seção Contato */}
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-2 flex items-center gap-2">
                             <Building size={14} /> Contato Corporativo
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Email Corporativo</label>
+                                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Email Corporativo</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
                                     <input 
                                         type="email"
-                                        className="w-full bg-[#0B0F14] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                        className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                         placeholder="nome@empresa.com"
                                         value={formData.email_corporativo}
                                         onChange={e => setFormData({...formData, email_corporativo: e.target.value})}
@@ -556,11 +556,11 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Telefone</label>
+                                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Telefone</label>
                                     <div className="relative">
-                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
                                         <input 
-                                            className="w-full bg-[#0B0F14] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                             placeholder="(00) 00000-0000"
                                             value={formData.telefone}
                                             onChange={e => setFormData({...formData, telefone: maskPhone(e.target.value)})}
@@ -569,11 +569,11 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Ramal</label>
+                                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Ramal</label>
                                     <div className="relative">
-                                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
+                                        <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
                                         <input 
-                                            className="w-full bg-[#0B0F14] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                             placeholder="Ex: 1234"
                                             value={formData.ramal}
                                             onChange={e => setFormData({...formData, ramal: e.target.value})}
@@ -584,21 +584,21 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                         </div>
                     </div>
 
-                    <hr className="border-white/5" />
+                    <hr className="border-[var(--border)]" />
 
                     {/* Seção Acesso */}
                     <div className="space-y-4">
-                        <h4 className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-[var(--primary)] uppercase tracking-wider mb-2 flex items-center gap-2">
                             <Key size={14} /> Credenciais de Acesso
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Email de Login *</label>
+                                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">Email de Login *</label>
                                 <input 
                                     type="email"
                                     required
-                                    className="w-full bg-[#0B0F14] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                    className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl px-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                     placeholder="usuario@login.com"
                                     value={formData.email_login}
                                     onChange={e => setFormData({...formData, email_login: e.target.value})}
@@ -607,15 +607,15 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase">
+                                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 uppercase">
                                     {editingUser ? 'Nova Senha (Opcional)' : 'Senha Inicial *'}
                                 </label>
                                 <div className="relative">
-                                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
+                                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
                                     <input 
                                         type="password"
                                         required={!editingUser}
-                                        className="w-full bg-[#0B0F14] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none transition-all placeholder:text-gray-600"
+                                        className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl pl-11 pr-4 py-3 text-white focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 outline-none transition-all placeholder:text-[var(--text-muted)]"
                                         placeholder={editingUser ? "Deixe em branco para manter" : "Mínimo 6 caracteres"}
                                         value={formData.senha}
                                         onChange={e => setFormData({...formData, senha: e.target.value})}
@@ -627,33 +627,33 @@ export default function Usuarios({ profile: propProfile }: UsuariosProps) {
 
                         {editingUser && (
                             <div className="flex items-center gap-3 pt-2">
-                                <label className="text-sm text-gray-400">Status da Conta:</label>
+                                <label className="text-sm text-[var(--text-muted)]">Status da Conta:</label>
                                 <button
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, ativo: !prev.ativo }))}
-                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${formData.ativo ? 'bg-emerald-500' : 'bg-white/10'}`}
+                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${formData.ativo ? 'bg-emerald-500' : 'bg-[var(--bg-card)]'}`}
                                 >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${formData.ativo ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.ativo ? 'translate-x-6' : 'translate-x-1'}`} />
                                 </button>
-                                <span className={`text-sm font-bold ${formData.ativo ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                <span className={`text-sm font-bold ${formData.ativo ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`}>
                                     {formData.ativo ? 'ATIVO' : 'INATIVO'}
                                 </span>
                             </div>
                         )}
                     </div>
 
-                    <div className="pt-6 flex justify-end gap-3 border-t border-white/5 mt-8">
+                    <div className="pt-6 flex justify-end gap-3 border-t border-[var(--border)] mt-8">
                         <button 
                             type="button" 
                             onClick={() => setIsModalOpen(false)}
-                            className="px-6 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-colors font-medium"
+                            className="px-6 py-3 rounded-xl text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-card)] transition-colors font-medium"
                         >
                             Cancelar
                         </button>
                         <button 
                             type="submit"
                             disabled={formLoading}
-                            className="bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] px-8 py-3 rounded-xl font-bold tracking-wide transition shadow-[0_10px_20px_rgba(56,189,248,0.2)] hover:-translate-y-[1px] disabled:opacity-60 flex items-center gap-2"
+                            className="bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#0B0F14] px-8 py-3 rounded-xl font-bold tracking-wide transition  hover:-translate-y-[1px] disabled:opacity-60 flex items-center gap-2"
                         >
                             {formLoading ? <Loader2 size={18} className="animate-spin" /> : null}
                             {formLoading ? 'Salvando...' : 'Salvar Colaborador'}

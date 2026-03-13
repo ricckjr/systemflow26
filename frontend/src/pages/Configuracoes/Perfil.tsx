@@ -14,7 +14,7 @@ import { useNotificationPreferences } from '@/contexts/useNotificationPreference
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <label className="block text-[11px] uppercase tracking-widest font-medium text-[var(--text-soft)] mb-1">
+  <label className="block text-xs uppercase tracking-widest font-medium text-[var(--text-soft)] mb-1">
     {children}
   </label>
 )
@@ -31,7 +31,7 @@ const ToggleRow = ({
   onToggle: () => void
 }) => {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-white/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="text-[13px] font-semibold text-[var(--text-main)]">{title}</div>
         <div className="mt-0.5 text-[12px] text-[var(--text-soft)]">{description}</div>
@@ -41,8 +41,8 @@ const ToggleRow = ({
         onClick={onToggle}
         className={`shrink-0 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
           enabled
-            ? 'border-cyan-500/25 bg-cyan-600 text-white hover:bg-cyan-500'
-            : 'border-[var(--border)] bg-white/5 text-[var(--text-soft)] hover:bg-white/10 hover:text-[var(--text-main)]'
+            ? 'border-[var(--primary)]/25 bg-[var(--primary)] text-white hover:bg-[var(--primary)]'
+            : 'border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] hover:bg-[var(--bg-card)] hover:text-[var(--text-main)]'
         }`}
       >
         {enabled ? 'Ativo' : 'Desativado'}
@@ -132,7 +132,7 @@ export default function Perfil() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold">Informações pessoais</h2>
           {isDirty && (
-            <span className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
+            <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">
               Alterações não salvas
             </span>
           )}
@@ -162,7 +162,7 @@ export default function Perfil() {
               )}
             </div>
 
-            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-white/5 cursor-pointer text-sm transition-colors">
+            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bg-card)] cursor-pointer text-sm transition-colors">
               <Upload size={16} />
               Alterar foto
               <input
@@ -275,8 +275,8 @@ export default function Perfil() {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-            <Bell size={14} className="text-cyan-400" />
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
+            <Bell size={14} className="text-[var(--primary)]" />
             Sistema
           </div>
           <ToggleRow
@@ -288,8 +288,8 @@ export default function Perfil() {
             }
           />
 
-          <div className="pt-2 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-            <MessageSquare size={14} className="text-cyan-400" />
+          <div className="pt-2 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
+            <MessageSquare size={14} className="text-[var(--primary)]" />
             Mensagens
           </div>
           <ToggleRow

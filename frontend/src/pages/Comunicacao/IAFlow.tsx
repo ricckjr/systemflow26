@@ -188,33 +188,33 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
     </div>
   );
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col bg-[var(--bg-panel)] rounded-3xl border border-[var(--border)] shadow-2xl overflow-hidden relative animate-in fade-in duration-700">
+    <div className="h-[calc(100vh-6rem)] flex flex-col bg-[var(--bg-panel)] rounded-3xl border border-[var(--border)] overflow-hidden relative animate-in fade-in duration-700">
       
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-cyan-500/10 opacity-50"></div>
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-[var(--primary-soft)] opacity-50"></div>
         <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] rounded-full blur-[120px] bg-blue-600/10 opacity-50"></div>
       </div>
 
       {/* Header */}
-      <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-body)]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
+      <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-main)]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-cyan-500/20">
             <Bot size={20} />
           </div>
           <div>
             <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-main)] flex items-center gap-2">
               Assistente Flow
-              <Sparkles size={12} className="text-cyan-400" />
+              <Sparkles size={12} className="text-[var(--primary)]" />
             </h3>
-            <p className="text-[10px] text-[var(--text-muted)]">Inteligência Artificial Corporativa</p>
+            <p className="text-xs text-[var(--text-muted)]">Inteligência Artificial Corporativa</p>
           </div>
         </div>
         
@@ -237,8 +237,8 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-forwards">
-            <div className="w-24 h-24 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-full flex items-center justify-center mb-8 border border-cyan-500/20 shadow-xl shadow-cyan-500/5">
-              <Bot size={48} className="text-cyan-400" />
+            <div className="w-24 h-24 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-full flex items-center justify-center mb-8 border border-[var(--primary)]/20 shadow-cyan-500/5">
+              <Bot size={48} className="text-[var(--primary)]" />
             </div>
             <h2 className="text-3xl font-bold text-[var(--text-main)] mb-3">Como posso ajudar hoje?</h2>
             <p className="text-[var(--text-soft)] max-w-md mb-12">
@@ -250,12 +250,12 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
                 <button
                   key={i}
                   onClick={() => send(s.text)}
-                  className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--bg-body)] border border-[var(--border)] hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all group text-center"
+                  className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--bg-main)] border border-[var(--border)] hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/5 transition-all group text-center"
                 >
-                  <div className="w-10 h-10 rounded-full bg-[var(--bg-panel)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-cyan-400 group-hover:scale-110 transition-all">
+                  <div className="w-10 h-10 rounded-full bg-[var(--bg-panel)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--primary)] group-hover:scale-110 transition-all">
                     {s.icon}
                   </div>
-                  <span className="text-xs font-medium text-[var(--text-main)] group-hover:text-cyan-400 transition-colors">
+                  <span className="text-xs font-medium text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors">
                     {s.text}
                   </span>
                 </button>
@@ -278,20 +278,20 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
                   </div>
 
                   {/* Bubble */}
-                  <div className={`group relative p-4 md:p-6 rounded-2xl text-sm leading-relaxed shadow-sm
+                  <div className={`group relative p-4 md:p-6 rounded-2xl text-sm leading-relaxed
                     ${m.role === 'user' 
-                      ? 'bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-main)] rounded-tr-none' 
-                      : 'bg-gradient-to-br from-cyan-500/5 to-blue-600/5 border border-cyan-500/10 text-[var(--text-main)] rounded-tl-none'}
+                      ? 'bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] rounded-tr-none' 
+                      : 'bg-gradient-to-br from-cyan-500/5 to-blue-600/5 border border-[var(--primary)]/10 text-[var(--text-main)] rounded-tl-none'}
                   `}>
                     <div className="whitespace-pre-wrap">{m.content}</div>
                     
                     {/* Message Actions */}
                     <div className={`absolute -bottom-6 ${m.role === 'user' ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2`}>
-                       <span className="text-[10px] text-[var(--text-muted)]">{formatTimeBR(m.at)}</span>
+                       <span className="text-xs text-[var(--text-muted)]">{formatTimeBR(m.at)}</span>
                        {m.role === 'assistant' && (
                          <button 
                            onClick={() => handleCopy(m.content, m.id)} 
-                           className="p-1 text-[var(--text-muted)] hover:text-cyan-400 transition-colors"
+                           className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                            title="Copiar"
                          >
                            {copiedId === m.id ? <Check size={12} /> : <Copy size={12} />}
@@ -308,7 +308,7 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
                     <Bot size={16} />
                   </div>
-                  <div className="bg-gradient-to-br from-cyan-500/5 to-blue-600/5 border border-cyan-500/10 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-cyan-500/5 to-blue-600/5 border border-[var(--primary)]/10 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
@@ -322,17 +322,17 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
       </div>
 
       {/* Input Area */}
-      <div className="p-4 md:p-6 bg-[var(--bg-body)]/80 backdrop-blur-md border-t border-[var(--border)] z-10">
+      <div className="p-4 md:p-6 bg-[var(--bg-main)]/80 backdrop-blur-md border-t border-[var(--border)] z-10">
         <div className="max-w-4xl mx-auto relative">
           {error && (
             <div className="absolute -top-12 left-0 right-0 flex justify-center animate-in fade-in slide-in-from-bottom-2">
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 backdrop-blur-md shadow-lg">
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 backdrop-blur-md">
                 <AlertCircle size={14} /> {error}
               </div>
             </div>
           )}
           
-          <div className="flex items-center gap-2 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-2 shadow-inner focus-within:ring-2 focus-within:ring-cyan-500/30 focus-within:border-cyan-500/50 transition-all">
+          <div className="flex items-center gap-2 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-2 shadow-inner focus-within:ring-2 focus-within:ring-[var(--primary)]/30 focus-within:border-[var(--primary)]/50 transition-all">
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -345,16 +345,16 @@ const IAFlow: React.FC<{ profile?: Profile; perms?: RbacPermission[] }> = ({ pro
             <button
               onClick={() => send()}
               disabled={!input.trim() || sending}
-              className={`p-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg
+              className={`p-3 rounded-xl transition-all duration-200 flex items-center justify-center
                 ${!input.trim() || sending 
-                  ? 'bg-[var(--bg-body)] text-[var(--text-muted)] shadow-none' 
+                  ? 'bg-[var(--bg-main)] text-[var(--text-muted)] shadow-none' 
                   : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:shadow-cyan-500/25 hover:scale-105 active:scale-95'}
               `}
             >
               {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             </button>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)] text-center mt-3">
+          <p className="text-xs text-[var(--text-muted)] text-center mt-3">
             O Assistente Flow pode cometer erros. Considere verificar informações importantes.
           </p>
         </div>

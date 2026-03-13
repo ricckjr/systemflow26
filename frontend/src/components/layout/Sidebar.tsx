@@ -419,20 +419,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const avatarUrl = profile?.avatar_url;
-  const profileInitial = (profile?.nome || 'U').substring(0, 1).toUpperCase();
+  const profileName = profile?.nome || 'Usuário';
+  const profileInitial = profileName.substring(0, 1).toUpperCase();
 
   return (
     <>
-      {/* HEADER / LOGO */}
-      <div className={`h-16 flex items-center shrink-0 border-b border-white/5 bg-[#0F172A] transition-all duration-300
-        ${showText ? 'px-6 justify-start' : 'px-0 justify-center'}`}>
-        
-        <div className="flex items-center gap-3">
+      {/* LOGO */}
+      <div className={`h-16 flex items-center shrink-0 border-b border-[var(--border)] transition-all duration-300
+        ${showText ? 'px-5 justify-start' : 'px-0 justify-center'}`}>
+        <div className="flex items-center gap-2.5">
           <img
             src="https://apliflow.com.br/wp-content/uploads/2024/06/af-prata-e-azul-1-1.png"
             alt="SystemFlow"
-            className={`transition-all duration-300 object-contain
-              ${showText ? 'h-7 opacity-90' : 'h-6 opacity-80'}`}
+            className={`transition-all duration-300 object-contain ${showText ? 'h-6' : 'h-5'}`}
             draggable={false}
           />
         </div>
@@ -440,60 +439,65 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isMobileMenuOpen && (
           <button
             onClick={() => setIsMobileMenuOpen(false)}
-            className="ml-auto text-slate-400 hover:text-white transition"
+            className="ml-auto p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/5 transition-colors"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         )}
       </div>
 
       {/* NAVIGATION */}
-      <nav className={`flex-1 py-6 overflow-y-auto custom-scrollbar space-y-1 bg-[#0F172A]
-        ${showText ? 'px-4' : 'px-2'}`}>
-        
+      <nav className={`flex-1 py-4 overflow-y-auto custom-scrollbar bg-[var(--bg-panel)]
+        ${showText ? 'px-3' : 'px-2'}`}>
+
         {visibleNavItems.map((item) => {
           const isExpanded = expandedMenu === item.label;
           const hasActiveChild = hasActivePath(item, location.pathname);
           const isActive = hasActiveChild || isExpanded;
 
           return (
-            <div key={item.label} className="mb-2 relative group">
+            <div key={item.label} className="mb-0.5 relative group">
+              {/* Section button */}
               <button
                 onClick={() => toggleMenu(item.label)}
-                className={`w-full flex items-center transition-all duration-200 rounded-lg
-                  ${showText 
-                    ? 'justify-between px-3 py-2.5' 
-                    : 'justify-center p-2.5 aspect-square'
+                className={`w-full flex items-center rounded-lg transition-all duration-150
+                  ${showText
+                    ? 'justify-between px-3 py-2'
+                    : 'justify-center p-2.5'
                   }
-                  ${isActive 
-                    ? 'text-white' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  ${isActive
+                    ? 'text-[var(--text-main)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:bg-white/[0.04]'
                   }
                 `}
               >
-                <div className={`flex items-center ${showText ? 'gap-3' : 'gap-0'}`}>
-                  <div className="relative">
-                    <item.icon 
-                      size={showText ? 18 : 20} 
-                      strokeWidth={1.5}
-                      className={isActive ? 'text-cyan-500' : 'text-slate-500 group-hover:text-slate-300'}
+                <div className={`flex items-center ${showText ? 'gap-3' : ''}`}>
+                  <div className="relative shrink-0">
+                    <item.icon
+                      size={showText ? 16 : 18}
+                      strokeWidth={isActive ? 2 : 1.75}
+                      className={isActive ? 'text-[var(--primary)]' : ''}
                     />
+                    {/* Unread dot — comunidade */}
                     {item.modulo === 'comunidade' && hasAnyChatUnread && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border border-[#0F172A]" />
+                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-[var(--primary)] rounded-full" />
                     )}
+                    {/* Alert — administrativo */}
                     {item.label === 'ADMINISTRATIVO' && (docsInvalidMenu.colabs || docsInvalidMenu.empresas) && (
-                      <span className="absolute -top-1 -right-1 p-0.5 rounded bg-[#0F172A]">
+                      <span className="absolute -top-1 -right-1 p-0.5 rounded bg-[var(--bg-panel)]">
                         <AlertTriangle
-                          size={14}
+                          size={11}
                           className={
-                            docsInvalidMenu.colabs === 'vencido' || docsInvalidMenu.empresas === 'vencido' ? 'text-orange-500' : 'text-amber-500'
+                            docsInvalidMenu.colabs === 'vencido' || docsInvalidMenu.empresas === 'vencido'
+                              ? 'text-[var(--danger)]'
+                              : 'text-[var(--warning)]'
                           }
                         />
                       </span>
                     )}
                   </div>
                   {showText && (
-                    <span className="text-[11px] font-bold tracking-widest uppercase">
+                    <span className={`text-xs font-bold tracking-widest uppercase transition-colors ${isActive ? 'text-[var(--text-main)]' : ''}`}>
                       {item.label}
                     </span>
                   )}
@@ -501,22 +505,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 {showText && (
                   <ChevronDown
-                    size={14}
-                    className={`transition-transform duration-200 opacity-50 ${isExpanded ? 'rotate-180' : ''}`}
+                    size={13}
+                    className={`transition-transform duration-200 shrink-0 ${isActive ? 'text-[var(--text-soft)]' : 'text-[var(--text-muted)] opacity-60'} ${isExpanded ? 'rotate-180' : ''}`}
                   />
                 )}
               </button>
 
-              {/* Tooltip (Collapsed) */}
+              {/* Collapsed tooltip */}
               {!showText && (
-                <div className="hidden group-hover:block absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
+                <div className="pointer-events-none hidden group-hover:block absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-[var(--bg-card)] text-[var(--text-main)] text-xs font-medium rounded-lg shadow-[var(--shadow-soft)] border border-[var(--border)] whitespace-nowrap z-50">
                   {item.label}
                 </div>
               )}
 
               {/* Submenu */}
               {showText && isExpanded && (
-                <div className="mt-1 ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                <div className="mt-0.5 ml-2 pl-3 border-l border-[var(--border)] space-y-0.5 pb-1">
                   {item.subItems?.map((sub) => {
                     const hasNested = !!sub.subItems?.length
                     const nestedActive = hasNested
@@ -529,29 +533,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Link
                           key={sub.path}
                           to={sub.path}
-                          className={`block px-3 py-2 rounded-md text-[13px] font-medium transition-colors
+                          className={`flex items-center justify-between px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150
                             ${active
-                              ? 'text-cyan-400 bg-cyan-500/10'
-                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                              ? 'text-[var(--primary)] bg-[var(--primary-soft)]'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:bg-white/[0.04]'
                             }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span>{sub.label}</span>
-                            <div className="flex items-center gap-2">
-                              {sub.path === '/app/comunidade/chat' && hasAnyChatUnread && (
-                                <span className="w-2 h-2 bg-cyan-500 rounded-full" />
-                              )}
-                              {sub.path === '/app/administrativo/colaboradores' && docsInvalidMenu.colabs && (
-                                <span title={docsInvalidMenu.colabs === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
-                                  <AlertTriangle size={14} className={docsInvalidMenu.colabs === 'vencido' ? 'text-orange-500' : 'text-amber-500'} />
-                                </span>
-                              )}
-                              {sub.path === '/app/financeiro/empresas-correspondentes' && docsInvalidMenu.empresas && (
-                                <span title={docsInvalidMenu.empresas === 'vencido' ? 'Documentos inválidos' : 'Documentos vencendo em breve'}>
-                                  <AlertTriangle size={14} className={docsInvalidMenu.empresas === 'vencido' ? 'text-orange-500' : 'text-amber-500'} />
-                                </span>
-                              )}
-                            </div>
+                          <span className={active ? 'font-medium' : ''}>{sub.label}</span>
+                          <div className="flex items-center gap-1.5">
+                            {sub.path === '/app/comunidade/chat' && hasAnyChatUnread && (
+                              <span className="w-1.5 h-1.5 bg-[var(--primary)] rounded-full" />
+                            )}
+                            {sub.path === '/app/administrativo/colaboradores' && docsInvalidMenu.colabs && (
+                              <AlertTriangle
+                                size={12}
+                                className={docsInvalidMenu.colabs === 'vencido' ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}
+                              />
+                            )}
+                            {sub.path === '/app/financeiro/empresas-correspondentes' && docsInvalidMenu.empresas && (
+                              <AlertTriangle
+                                size={12}
+                                className={docsInvalidMenu.empresas === 'vencido' ? 'text-[var(--danger)]' : 'text-[var(--warning)]'}
+                              />
+                            )}
                           </div>
                         </Link>
                       );
@@ -565,34 +569,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleSubmenu(key)}
-                          className={`w-full px-3 py-2 rounded-md text-[13px] font-medium transition-colors flex items-center justify-between
+                          className={`w-full px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150 flex items-center justify-between
                             ${nestedActive
-                              ? 'text-cyan-400 bg-cyan-500/10'
-                              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                              ? 'text-[var(--primary)] bg-[var(--primary-soft)]'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:bg-white/[0.04]'
                             }`}
                         >
-                          <span>{sub.label}</span>
+                          <span className={nestedActive ? 'font-medium' : ''}>{sub.label}</span>
                           <ChevronDown
-                            size={14}
-                            className={`transition-transform duration-200 opacity-60 ${isSubExpanded ? 'rotate-180' : ''}`}
+                            size={12}
+                            className={`transition-transform duration-200 opacity-50 ${isSubExpanded ? 'rotate-180' : ''}`}
                           />
                         </button>
 
                         {isSubExpanded && (
-                          <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                          <div className="ml-3 pl-3 border-l border-[var(--border)] space-y-0.5">
                             {sub.subItems?.map((nested) => {
                               const active = location.pathname === nested.path
                               return (
                                 <Link
                                   key={nested.path}
                                   to={nested.path}
-                                  className={`block px-3 py-2 rounded-md text-[13px] font-medium transition-colors
+                                  className={`block px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150
                                     ${active
-                                      ? 'text-cyan-400 bg-cyan-500/10'
-                                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                                      ? 'text-[var(--primary)] bg-[var(--primary-soft)] font-medium'
+                                      : 'text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:bg-white/[0.04]'
                                     }`}
                                 >
-                                  <span>{nested.label}</span>
+                                  {nested.label}
                                 </Link>
                               )
                             })}
@@ -608,75 +612,89 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* FOOTER */}
-      <div className={`shrink-0 border-t border-white/5 bg-[#0B1120] transition-all duration-300
-         ${showText ? 'p-4' : 'py-6 flex flex-col items-center gap-6'}`}>
-        
-        <button
-          onClick={openProfilePage}
-          className={`flex items-center gap-3 group transition-colors w-full rounded-lg relative
-            ${showText ? 'hover:bg-white/5 p-2' : 'justify-center'}`}
-        >
-          <div className={`rounded-xl bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-white/10 transition-all duration-300
-            ${showText ? 'w-8 h-8' : 'w-10 h-10 ring-2 ring-white/5 group-hover:ring-white/20'}`}>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className={`${showText ? 'text-xs' : 'text-sm'} font-bold text-slate-400`}>{profileInitial}</span>
-            )}
-          </div>
-          
-          {showText && (
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-[13px] font-medium text-slate-200 truncate group-hover:text-white">
-                {profile?.nome || 'Usuário'}
+      {/* FOOTER — User */}
+      <div className={`shrink-0 border-t border-[var(--border)] bg-[var(--bg-panel)] transition-all duration-300
+        ${showText ? 'p-3' : 'py-4 flex flex-col items-center gap-3'}`}>
+
+        {showText ? (
+          <div className="flex items-center gap-2">
+            {/* Avatar */}
+            <button
+              onClick={openProfilePage}
+              className="relative group shrink-0"
+            >
+              <div className="w-8 h-8 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center overflow-hidden transition-all duration-200 group-hover:border-[var(--primary)]/30">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-[var(--text-soft)]">{profileInitial}</span>
+                )}
+              </div>
+            </button>
+
+            {/* Name + role */}
+            <button
+              onClick={openProfilePage}
+              className="flex-1 min-w-0 text-left group"
+            >
+              <p className="text-[13px] font-medium text-[var(--text-main)] truncate leading-none group-hover:text-[var(--primary)] transition-colors">
+                {profileName}
               </p>
-              <p className="text-[11px] text-slate-500 truncate">
+              <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">
                 {profile?.cargo || 'Membro'}
               </p>
+            </button>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => navigate('/app/configuracoes/perfil')}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/[0.06] transition-colors"
+                title="Perfil"
+              >
+                <User size={14} />
+              </button>
+              <button
+                onClick={handleLogoutClick}
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+                title="Sair"
+              >
+                <LogOut size={14} />
+              </button>
             </div>
-          )}
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={openProfilePage}
+              className="relative group"
+              title={profileName}
+            >
+              <div className="w-9 h-9 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center overflow-hidden transition-all duration-200 group-hover:border-[var(--primary)]/40 group-hover:scale-105">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-sm font-bold text-[var(--text-soft)]">{profileInitial}</span>
+                )}
+              </div>
+              {/* Tooltip */}
+              <div className="pointer-events-none hidden group-hover:block absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-[var(--bg-card)] text-[var(--text-main)] text-xs font-medium rounded-lg shadow-[var(--shadow-soft)] border border-[var(--border)] whitespace-nowrap z-50">
+                {profileName}
+              </div>
+            </button>
 
-          {/* Tooltip (Collapsed) */}
-          {!showText && (
-            <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
-              {profile?.nome || 'Meu Perfil'}
-            </div>
-          )}
-        </button>
-
-        <div className={`flex items-center ${showText ? 'gap-2 mt-2' : 'flex-col gap-3 w-full'}`}>
-           <button
-             onClick={() => navigate('/app/configuracoes/perfil')}
-             className={`group relative flex items-center justify-center rounded-lg border border-white/5 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200
-               ${showText ? 'flex-1 h-8 gap-2' : 'w-10 h-10 hover:scale-105 active:scale-95'}`}
-           >
-             <User size={showText ? 14 : 18} />
-             {showText && <span className="text-[11px] font-medium">Perfil</span>}
-             
-             {/* Tooltip */}
-             {!showText && (
-               <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
-                 Perfil
-               </div>
-             )}
-           </button>
-           <button
-             onClick={handleLogoutClick}
-             className={`group relative flex items-center justify-center rounded-lg border border-white/5 bg-white/5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 transition-all duration-200
-               ${showText ? 'flex-1 h-8 gap-2' : 'w-10 h-10 hover:scale-105 active:scale-95'}`}
-           >
-             <LogOut size={showText ? 14 : 18} />
-             {showText && <span className="text-[11px] font-medium">Sair</span>}
-
-             {/* Tooltip */}
-             {!showText && (
-               <div className="hidden group-hover:block absolute left-full ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-md shadow-xl border border-white/10 whitespace-nowrap z-50">
-                 Sair
-               </div>
-             )}
-           </button>
-        </div>
+            <button
+              onClick={handleLogoutClick}
+              className="group relative p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+              title="Sair"
+            >
+              <LogOut size={15} />
+              <div className="pointer-events-none hidden group-hover:block absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-[var(--bg-card)] text-[var(--text-main)] text-xs font-medium rounded-lg shadow-[var(--shadow-soft)] border border-[var(--border)] whitespace-nowrap z-50">
+                Sair
+              </div>
+            </button>
+          </>
+        )}
       </div>
 
       <LogoutModal

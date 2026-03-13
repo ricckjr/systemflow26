@@ -61,7 +61,7 @@ const DiarioBordo: React.FC = () => {
 
           <button
             type="button"
-            className="h-9 px-3 rounded-lg border border-[var(--border)] bg-white/5 text-[12px] font-semibold text-[var(--text)] hover:bg-white/10 transition"
+            className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-semibold text-[var(--text)] hover:bg-white/10 transition"
             disabled
             title="Em breve"
           >
@@ -73,7 +73,7 @@ const DiarioBordo: React.FC = () => {
           <select
             value={fVeiculoId}
             onChange={(e) => setFVeiculoId(e.target.value)}
-            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
             disabled={veiculosQuery.isLoading || veiculosQuery.isError}
           >
             <option value="">Todos os veículos</option>
@@ -86,7 +86,7 @@ const DiarioBordo: React.FC = () => {
           <select
             value={fResponsavelId}
             onChange={(e) => setFResponsavelId(e.target.value)}
-            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
             disabled={responsaveisQuery.isLoading || responsaveisQuery.isError}
           >
             <option value="">Todos os responsáveis</option>
@@ -100,18 +100,18 @@ const DiarioBordo: React.FC = () => {
             value={fInicio}
             onChange={(e) => setFInicio(e.target.value)}
             type="date"
-            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
           />
           <input
             value={fFim}
             onChange={(e) => setFFim(e.target.value)}
             type="date"
-            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
           />
         </div>
 
         <div className="mt-5 rounded-xl border border-[var(--border)] overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-white/5 text-[11px] font-bold tracking-widest uppercase text-[var(--text-soft)]">
+          <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-[var(--bg-card)] text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
             <div className="col-span-2">Data</div>
             <div className="col-span-3">Veículo</div>
             <div className="col-span-3">Responsável</div>
@@ -144,7 +144,7 @@ const DiarioBordo: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[12px] text-[var(--text-soft)]">
+        <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-[12px] text-[var(--text-soft)]">
           Validações do módulo: KM final ≥ KM inicial; veículo e responsável obrigatórios; histórico imutável (sem DELETE/UPDATE).
         </div>
       </div>

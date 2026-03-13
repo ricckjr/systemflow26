@@ -40,7 +40,7 @@ const Veiculos: React.FC = () => {
               type="button"
               className={`h-9 px-3 rounded-lg border text-[12px] font-semibold transition ${
                 view === 'lista'
-                  ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+                  ? 'border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)]'
                   : 'border-[var(--border)] bg-transparent text-[var(--text-soft)] hover:bg-white/5'
               }`}
               onClick={() => setView('lista')}
@@ -51,7 +51,7 @@ const Veiculos: React.FC = () => {
               type="button"
               className={`h-9 px-3 rounded-lg border text-[12px] font-semibold transition ${
                 view === 'cards'
-                  ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+                  ? 'border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)]'
                   : 'border-[var(--border)] bg-transparent text-[var(--text-soft)] hover:bg-white/5'
               }`}
               onClick={() => setView('cards')}
@@ -60,7 +60,7 @@ const Veiculos: React.FC = () => {
             </button>
             <button
               type="button"
-              className="h-9 px-3 rounded-lg border border-[var(--border)] bg-white/5 text-[12px] font-semibold text-[var(--text)] hover:bg-white/10 transition"
+              className="h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12px] font-semibold text-[var(--text)] hover:bg-white/10 transition"
               disabled
               title="Em breve"
             >
@@ -75,7 +75,7 @@ const Veiculos: React.FC = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar por placa, modelo, marca..."
-              className="w-full h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] placeholder:text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              className="w-full h-10 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[13px] text-[var(--text)] placeholder:text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ const Veiculos: React.FC = () => {
             </div>
           ) : view === 'lista' ? (
             <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-              <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-white/5 text-[11px] font-bold tracking-widest uppercase text-[var(--text-soft)]">
+              <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-[var(--bg-card)] text-xs font-bold tracking-widest uppercase text-[var(--text-soft)]">
                 <div className="col-span-2">Placa</div>
                 <div className="col-span-3">Modelo</div>
                 <div className="col-span-3">Marca</div>
@@ -131,7 +131,7 @@ const Veiculos: React.FC = () => {
                     <div className="col-span-3">{v.marca ?? '-'}</div>
                     <div className="col-span-2">{v.tipo ?? '-'}</div>
                     <div className="col-span-2">
-                      <span className="inline-flex items-center h-6 px-2 rounded-md border border-white/10 bg-white/5 text-[12px] text-[var(--text-soft)]">
+                      <span className="inline-flex items-center h-6 px-2 rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[12px] text-[var(--text-soft)]">
                         {formatFrotaVeiculoStatus(v.status)}
                       </span>
                     </div>
@@ -153,7 +153,7 @@ const Veiculos: React.FC = () => {
                         {(v.marca ?? '-') + (v.modelo ? ` · ${v.modelo}` : '')}
                       </p>
                     </div>
-                    <span className="inline-flex items-center h-6 px-2 rounded-md border border-white/10 bg-white/5 text-[12px] text-[var(--text-soft)]">
+                    <span className="inline-flex items-center h-6 px-2 rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[12px] text-[var(--text-soft)]">
                       {formatFrotaVeiculoStatus(v.status)}
                     </span>
                   </div>

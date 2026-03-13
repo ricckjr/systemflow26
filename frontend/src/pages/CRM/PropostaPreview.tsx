@@ -349,7 +349,7 @@ export default function PropostaPreview() {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="animate-spin text-slate-400" size={28} />
+        <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
       </div>
     )
   }
@@ -458,7 +458,7 @@ export default function PropostaPreview() {
               <div className="flex-1 text-center">
                 <div className="text-sm font-black tracking-wide">{empresaNomeFantasia}</div>
               </div>
-              <div className="text-right text-[10px] leading-4">
+              <div className="text-right text-xs leading-4">
                 {empresa?.cnpj ? <div><span className="font-bold">CNPJ:</span> {empresa.cnpj}</div> : null}
                 {empresa?.inscricao_estadual ? <div><span className="font-bold">Inscrição Estadual:</span> {empresa.inscricao_estadual}</div> : null}
                 {empresa?.inscricao_municipal ? <div><span className="font-bold">Inscrição Municipal:</span> {empresa.inscricao_municipal}</div> : null}
@@ -473,21 +473,21 @@ export default function PropostaPreview() {
                 <div className="flex items-center gap-2">
                   <div className="text-xl font-black">Proposta Comercial N° {propostaCodigo}</div>
                   <span
-                    className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black"
+                    className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-black"
                     style={{ borderColor: theme.primaryHex, color: theme.primaryHex, backgroundColor: theme.lightHex }}
                   >
                     {theme.label}
                   </span>
                 </div>
                 <div className="mt-4 text-sm font-black">Informações do Cliente</div>
-                <div className="mt-3 text-[10px] leading-4">
+                <div className="mt-3 text-xs leading-4">
                   <div className="font-black uppercase">{clienteNome}</div>
                   <div className="mt-2"><span className="font-bold">{clienteDocumentoLabel}:</span> {clienteDocumento}</div>
                   {clienteEnderecoLinha ? <div className="mt-2">{clienteEnderecoLinha}</div> : null}
                 </div>
               </div>
 
-              <div className="col-span-5 text-[10px] leading-4">
+              <div className="col-span-5 text-xs leading-4">
                 <div className="font-black">Contato</div>
                 <div className="mt-2">{contatoNome || '-'}</div>
                 {contatoEmail ? <div>{contatoEmail}</div> : null}
@@ -498,7 +498,7 @@ export default function PropostaPreview() {
             <div className="mt-8">
               <div className="text-sm font-black">{itensLabel}</div>
               <div className="mt-2 border border-neutral-300">
-                <table className="w-full text-[10px]">
+                <table className="w-full text-xs">
                   <thead>
                     <tr style={{ backgroundColor: theme.primaryHex }}>
                       <th className="py-2 px-2 text-left text-white font-black">{itensHeadLabel}</th>
@@ -535,7 +535,7 @@ export default function PropostaPreview() {
               </div>
 
               {showValores ? (
-                <div className="mt-2 flex justify-end text-[10px]">
+                <div className="mt-2 flex justify-end text-xs">
                   <div className="w-[260px] space-y-1">
                     <div className="flex justify-between font-bold">
                       <div>Total:</div>
@@ -554,7 +554,7 @@ export default function PropostaPreview() {
               <div className="col-span-5">
                 <div className="text-sm font-black">Vencimentos À Vista</div>
                 <div className="mt-4 w-full max-w-[240px] border border-neutral-300">
-                  <div className="grid grid-cols-2 text-[10px]">
+                  <div className="grid grid-cols-2 text-xs">
                     <div className="font-bold px-2 py-2 border-b border-neutral-300" style={{ backgroundColor: theme.lightHex }}>Parcela</div>
                     <div className="px-2 py-2 border-b border-neutral-300 text-right" style={{ backgroundColor: theme.lightHex }}>1</div>
                     <div className="font-bold px-2 py-2 border-b border-neutral-300" style={{ backgroundColor: theme.lightHex }}>Vencimento</div>
@@ -567,7 +567,7 @@ export default function PropostaPreview() {
 
               <div className="col-span-7">
                 <div className="text-sm font-black">Outras Informações</div>
-                <div className="mt-4 text-[10px] leading-5">
+                <div className="mt-4 text-xs leading-5">
                   <div><span className="font-bold">Proposta Comercial - incluído em:</span> {emissaoLabel}</div>
                   <div><span className="font-bold">Previsão de Faturamento:</span> {previsaoEntregaLabel}</div>
                   <div><span className="font-bold">Vendedor:</span> {vendedorLabel}</div>

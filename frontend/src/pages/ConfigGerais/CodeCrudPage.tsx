@@ -21,7 +21,7 @@ type CodeCrudPageProps = {
 }
 
 const HeaderCard = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">{children}</div>
+  <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-5">{children}</div>
 )
 
 export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
@@ -150,11 +150,11 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">{title}</h1>
-          <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--text-main)]">{title}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</p>
         </div>
-        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Settings size={14} className="text-cyan-400" />
+        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text-soft)]">
+          <Settings size={14} className="text-[var(--primary)]" />
           Config Gerais
         </div>
       </div>
@@ -162,18 +162,18 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
       <HeaderCard>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[220px] group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={`Buscar ${singularLabel.toLowerCase()}...`}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
             />
           </div>
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/15 transition-all active:scale-95"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold shadow-cyan-500/15 transition-all active:scale-95"
           >
             <Plus size={16} />
             Novo {singularLabel}
@@ -187,34 +187,34 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
 
       {loading ? (
         <div className="flex items-center justify-center h-40">
-          <Loader2 className="animate-spin text-slate-500" size={28} />
+          <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-          <p className="text-sm font-semibold text-slate-200">Nenhum registro encontrado</p>
-          <p className="text-sm text-slate-400 mt-1">Crie o primeiro cadastro para começar.</p>
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-6 text-center">
+          <p className="text-sm font-semibold text-[var(--text-soft)]">Nenhum registro encontrado</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Crie o primeiro cadastro para começar.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/5">
-          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-            <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{codeLabel}</div>
-            <div className="col-span-7 text-[10px] font-black uppercase tracking-widest text-slate-400">{descriptionLabel}</div>
-            <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
+        <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+          <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+            <div className="col-span-4 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">{codeLabel}</div>
+            <div className="col-span-7 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">{descriptionLabel}</div>
+            <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
           </div>
           <div className="divide-y divide-white/5">
             {filtered.map(i => (
-              <div key={i.id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
+              <div key={i.id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors">
                 <div className="col-span-4 min-w-0">
-                  <div className="text-sm font-mono text-slate-200 truncate">{i.codigo}</div>
+                  <div className="text-sm font-mono text-[var(--text-soft)] truncate">{i.codigo}</div>
                 </div>
                 <div className="col-span-7 min-w-0">
-                  <div className="text-sm text-slate-200 truncate">{i.descricao || '-'}</div>
+                  <div className="text-sm text-[var(--text-soft)] truncate">{i.descricao || '-'}</div>
                 </div>
                 <div className="col-span-1 flex items-center justify-end gap-1">
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(i.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
+                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] border border-transparent hover:border-[var(--primary)]/20 transition-colors"
                     title="Editar"
                   >
                     <Pencil size={14} />
@@ -222,7 +222,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
                   <button
                     type="button"
                     onClick={() => handleAskDelete(i.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
+                    className="p-2 rounded-lg text-[var(--text-muted)] hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
                     title="Excluir"
                   >
                     <Trash2 size={14} />
@@ -249,7 +249,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
               type="button"
               onClick={() => setIsFormOpen(false)}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -257,7 +257,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {saving ? (
                 <>
@@ -276,20 +276,20 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>
           )}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{codeLabel}</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">{codeLabel}</label>
             <input
               value={draftCodigo}
               onChange={e => setDraftCodigo(e.target.value)}
-              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+              className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
               placeholder="Ex: 3550308"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{descriptionLabel}</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">{descriptionLabel}</label>
             <input
               value={draftDescricao}
               onChange={e => setDraftDescricao(e.target.value)}
-              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all outline-none"
               placeholder="Opcional"
             />
           </div>
@@ -310,7 +310,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
               type="button"
               onClick={() => setIsDeleteOpen(false)}
               disabled={deleting}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -318,7 +318,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {deleting ? (
                 <>
@@ -333,7 +333,7 @@ export const CodeCrudPage: React.FC<CodeCrudPageProps> = ({
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Essa ação não pode ser desfeita.</p>
+          <p className="text-sm text-[var(--text-soft)]">Essa ação não pode ser desfeita.</p>
         </div>
       </Modal>
     </div>

@@ -488,7 +488,7 @@ const OrdensServico: React.FC = () => {
                     <p className="text-sm text-[var(--text-soft)] leading-relaxed">
                         Por regras de segurança e qualidade, ele só pode ser movido para:
                     </p>
-                    <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center gap-3 shadow-sm">
+                    <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
                             <ArrowRight size={18} />
                         </div>
@@ -695,7 +695,7 @@ const OrdensServico: React.FC = () => {
           title: 'Solicitação do Cliente',
           value: solicitacaoCliente,
           setValue: setSolicitacaoCliente,
-          icon: <FileText size={24} className="text-cyan-400" />,
+          icon: <FileText size={24} className="text-[var(--primary)]" />,
           placeholder: 'Descreva a solicitação do cliente...'
         }
       default:
@@ -714,7 +714,7 @@ const OrdensServico: React.FC = () => {
           <div className="flex gap-2">
             <button
               onClick={handleOpenCreateInternalOs}
-              className="h-9 px-4 rounded-xl bg-[var(--primary)] text-white text-sm font-bold hover:brightness-110 transition flex items-center justify-center gap-2 shadow-lg shadow-[var(--primary)]/20"
+              className="h-9 px-4 rounded-xl bg-[var(--primary)] text-white text-sm font-bold hover:brightness-110 transition flex items-center justify-center gap-2  shadow-[var(--primary)]/20"
               title="Adicionar OS Interna"
             >
               <Plus size={14} />
@@ -722,7 +722,7 @@ const OrdensServico: React.FC = () => {
             </button>
             <button
               onClick={() => toggleTvMode()}
-              className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2"
+              className="h-9 px-4 rounded-xl bg-white/[0.04] border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2"
               title="Entrar em Modo TV"
             >
               <Monitor size={14} />
@@ -731,7 +731,7 @@ const OrdensServico: React.FC = () => {
             <button
               onClick={() => refresh()}
               disabled={loading}
-              className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="h-9 px-4 rounded-xl bg-white/[0.04] border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Atualizar
@@ -767,7 +767,7 @@ const OrdensServico: React.FC = () => {
               <FileText size={18} />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">OS Interna</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">OS Interna</div>
               <div className="text-base font-bold text-[var(--text-main)] truncate">Adicionar Ordem de Serviço</div>
               <div className="text-xs text-[var(--text-muted)] truncate">Cliente padrão: Apliflow Equipamentos Industriais</div>
             </div>
@@ -787,7 +787,7 @@ const OrdensServico: React.FC = () => {
               form="create-internal-os-form"
               type="submit"
               disabled={creatingInternalOs || uploadingInternalOsImages}
-              className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20"
+              className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50  shadow-[var(--primary)]/20"
             >
               {creatingInternalOs ? 'Criando...' : 'Criar OS'}
             </button>
@@ -806,7 +806,7 @@ const OrdensServico: React.FC = () => {
             <div className="text-xs font-bold text-[var(--text-main)] mb-3">Dados do equipamento</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Modelo *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Modelo *</label>
                 <input
                   value={internalOsForm.modelo}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, modelo: e.target.value }))}
@@ -815,7 +815,7 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Fabricante *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Fabricante *</label>
                 <input
                   value={internalOsForm.fabricante}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, fabricante: e.target.value }))}
@@ -824,7 +824,7 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número de Série *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número de Série *</label>
                 <input
                   value={internalOsForm.numero_serie}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, numero_serie: e.target.value }))}
@@ -833,7 +833,7 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número de Série 2 *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número de Série 2 *</label>
                 <input
                   value={internalOsForm.numero_serie2}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, numero_serie2: e.target.value }))}
@@ -842,7 +842,7 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">TAG *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">TAG *</label>
                 <input
                   value={internalOsForm.tag}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, tag: e.target.value }))}
@@ -851,7 +851,7 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Faixa *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Faixa *</label>
                 <input
                   value={internalOsForm.faixa}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, faixa: e.target.value }))}
@@ -860,14 +860,14 @@ const OrdensServico: React.FC = () => {
                 />
               </div>
               <div className="md:col-span-2 space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Solução Solicitada</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Solução Solicitada</label>
                 <div className="h-10 px-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-main)] flex items-center justify-between">
                   <span className="text-sm font-semibold">Serviço Interno</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">fixo</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">fixo</span>
                 </div>
               </div>
               <div className="md:col-span-2 space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Serviços a Serem Executados *</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Serviços a Serem Executados *</label>
                 <textarea
                   value={internalOsForm.servicos_a_fazer}
                   onChange={e => setInternalOsForm(prev => ({ ...prev, servicos_a_fazer: e.target.value }))}
@@ -881,7 +881,7 @@ const OrdensServico: React.FC = () => {
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="text-xs font-bold text-[var(--text-main)]">Imagens</div>
-              <label className={`h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingInternalOsImages ? 'opacity-60 pointer-events-none' : ''}`}>
+              <label className={`h-9 px-4 rounded-xl bg-white/[0.04] border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingInternalOsImages ? 'opacity-60 pointer-events-none' : ''}`}>
                 <Upload size={14} />
                 {uploadingInternalOsImages ? 'Enviando...' : 'Adicionar imagens'}
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleInternalOsFileChange} />
@@ -917,17 +917,17 @@ const OrdensServico: React.FC = () => {
         onClose={handleCloseModal}
         title={
           <div className="flex items-center gap-4">
-             <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+             <div className="p-3 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/20">
                 <Wrench size={24} />
              </div>
              <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Ordem de Serviço</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Ordem de Serviço</span>
                 <span className="text-2xl font-bold text-[var(--text-main)] tracking-tight">{selectedService?.id_rst || '...'}</span>
              </div>
              {selectedService?.fase && (
                 <button 
                   onClick={handleOpenFaseModal}
-                  className="ml-4 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2 shadow-lg shadow-[var(--primary)]/20"
+                  className="ml-4 px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2  shadow-[var(--primary)]/20"
                 >
                   <ArrowRight size={14} />
                   Movimentar Equipamento
@@ -963,7 +963,7 @@ const OrdensServico: React.FC = () => {
                 <button
                   onClick={handleSalvarCampos}
                   disabled={!camposDirty || savingCampos || uploadingImagens}
-                  className="h-11 px-8 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20"
+                  className="h-11 px-8 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all disabled:opacity-50  shadow-[var(--primary)]/20"
                 >
                   {savingCampos ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
@@ -1007,7 +1007,7 @@ const OrdensServico: React.FC = () => {
                 <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar content-start">
                     
                     {/* Card Principal - Cliente */}
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                         <div className="flex items-center gap-2 mb-4">
                             <Building2 size={16} className="text-[var(--primary)]" />
                             <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados do Cliente</h3>
@@ -1015,17 +1015,17 @@ const OrdensServico: React.FC = () => {
                         
                         <div className="grid grid-cols-1 gap-3">
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nome</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Nome</label>
                             <div className="text-base font-bold text-[var(--text-main)] leading-tight">{selectedService.cliente || '-'}</div>
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Documento</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Documento</label>
                             <div className="text-sm font-semibold text-[var(--text-soft)] font-mono">{selectedService.cnpj || '-'}</div>
                           </div>
                         </div>
                     </div>
 
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                       <div className="flex items-center gap-2 mb-4">
                         <Tag size={16} className="text-[var(--primary)]" />
                         <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados da Proposta</h3>
@@ -1035,12 +1035,12 @@ const OrdensServico: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           {solucao.label !== '—' ? (
                             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-black ${solucao.badge}`}>
-                              <span className="uppercase tracking-widest text-[10px]">Solução</span>
+                              <span className="uppercase tracking-widest text-xs">Solução</span>
                               <span className="font-bold normal-case tracking-normal">{solucao.label}</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-black text-[var(--text-muted)]">
-                              <span className="uppercase tracking-widest text-[10px]">Solução</span>
+                              <span className="uppercase tracking-widest text-xs">Solução</span>
                               <span>-</span>
                             </span>
                           )}
@@ -1048,23 +1048,23 @@ const OrdensServico: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Cod Proposta</label>
-                            <div className="text-lg font-bold text-cyan-400">{selectedService.cod_proposta || '-'}</div>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Cod Proposta</label>
+                            <div className="text-lg font-bold text-[var(--primary)]">{selectedService.cod_proposta || '-'}</div>
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Fase Proposta</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Fase Proposta</label>
                             <div className="text-sm font-semibold text-[var(--text-soft)]">{selectedService.etapa_omie || '-'}</div>
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Entrada</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Entrada</label>
                             <div className="text-sm font-semibold text-[var(--text-main)]">{formatDateTimeBR(selectedService.data_entrada)}</div>
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Tempo para Entrega</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Tempo para Entrega</label>
                             {entregaBadge && entregaLabel ? (
                               <div className="flex items-center justify-between gap-2">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-lg border text-[11px] font-black ${entregaBadge}`}>{entregaLabel}</span>
-                                <span className="text-[11px] text-[var(--text-muted)] font-mono">{String(prevEntrega || '-')}</span>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-lg border text-xs font-black ${entregaBadge}`}>{entregaLabel}</span>
+                                <span className="text-xs text-[var(--text-muted)] font-mono">{String(prevEntrega || '-')}</span>
                               </div>
                             ) : (
                               <div className="text-sm font-semibold text-[var(--text-muted)]">-</div>
@@ -1072,14 +1072,14 @@ const OrdensServico: React.FC = () => {
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-between col-span-2">
                             <div>
-                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5">
+                              <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5">
                                 <Timer size={12} />
                                 Tempo Total
                               </label>
                               <div className="text-lg font-bold text-[var(--text-main)]">{formatDuration(selectedService.data_entrada)}</div>
                             </div>
                             <div className="text-right">
-                              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5 justify-end">
+                              <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block flex items-center gap-1.5 justify-end">
                                 <Hourglass size={12} />
                                 Tempo nessa Etapa
                               </label>
@@ -1093,7 +1093,7 @@ const OrdensServico: React.FC = () => {
                     </div>
 
                     {/* Card Vendedor */}
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                         <div className="flex items-center gap-2 mb-4">
                             <User size={16} className="text-[var(--primary)]" />
                             <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Vendedor Responsável</h3>
@@ -1117,7 +1117,7 @@ const OrdensServico: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                       <div className="flex items-center gap-2 mb-4">
                         <FileText size={16} className="text-[var(--primary)]" />
                         <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados da NF</h3>
@@ -1136,7 +1136,7 @@ const OrdensServico: React.FC = () => {
                     </div>
 
                     {/* Card Equipamento */}
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm flex-1">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] flex-1">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <div className="flex items-center gap-2">
                                 <Layers size={16} className="text-[var(--primary)]" />
@@ -1155,7 +1155,7 @@ const OrdensServico: React.FC = () => {
                                         setEquipFaixa(selectedService.faixa || '')
                                       }}
                                       disabled={savingEquipFields}
-                                      className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] transition disabled:opacity-50"
+                                      className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] transition disabled:opacity-50"
                                     >
                                       Cancelar
                                     </button>
@@ -1163,7 +1163,7 @@ const OrdensServico: React.FC = () => {
                                       type="button"
                                       onClick={handleSaveEquipFields}
                                       disabled={savingEquipFields}
-                                      className="h-9 px-3 rounded-xl bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20"
+                                      className="h-9 px-3 rounded-xl bg-[var(--primary)] text-white text-xs font-bold uppercase tracking-wider hover:brightness-110 transition disabled:opacity-50  shadow-[var(--primary)]/20"
                                     >
                                       {savingEquipFields ? 'Salvando...' : 'Salvar'}
                                     </button>
@@ -1172,7 +1172,7 @@ const OrdensServico: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setEditingEquipFields(true)}
-                                    className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] transition flex items-center gap-2"
+                                    className="h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] transition flex items-center gap-2"
                                     title="Editar TAG / Séries / Faixa"
                                   >
                                     <Pencil size={14} />
@@ -1184,15 +1184,15 @@ const OrdensServico: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <div className="col-span-2 p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Modelo</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Modelo</label>
                                 <div className="text-base font-semibold text-[var(--text-main)]">{selectedService.modelo || '-'}</div>
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Fabricante</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Fabricante</label>
                                 <div className="text-sm font-medium text-[var(--text-main)] truncate">{selectedService.fabricante || '-'}</div>
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 1</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 1</label>
                                 {editingEquipFields ? (
                                   <input
                                     value={equipSerie1}
@@ -1206,7 +1206,7 @@ const OrdensServico: React.FC = () => {
                                 )}
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">TAG</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">TAG</label>
                                 {editingEquipFields ? (
                                   <input
                                     value={equipTag}
@@ -1220,7 +1220,7 @@ const OrdensServico: React.FC = () => {
                                 )}
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 2</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Série 2</label>
                                 {editingEquipFields ? (
                                   <input
                                     value={equipSerie2}
@@ -1234,7 +1234,7 @@ const OrdensServico: React.FC = () => {
                                 )}
                             </div>
                             <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Faixa</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Faixa</label>
                                 {editingEquipFields ? (
                                   <input
                                     value={equipFaixa}
@@ -1248,7 +1248,7 @@ const OrdensServico: React.FC = () => {
                                 )}
                             </div>
                              <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Garantia</label>
+                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Garantia</label>
                                 <div className={`text-sm font-bold ${selectedService.garantia ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`}>
                                     {selectedService.garantia ? 'SIM' : 'NÃO'}
                                 </div>
@@ -1257,7 +1257,7 @@ const OrdensServico: React.FC = () => {
                         
                     </div>
 
-                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                    <div className="p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                       <div className="flex items-center gap-2 mb-4">
                         <CheckCircle2 size={16} className="text-[var(--primary)]" />
                         <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Dados do Certificado</h3>
@@ -1266,7 +1266,7 @@ const OrdensServico: React.FC = () => {
                       <div className="grid grid-cols-1 gap-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Certificado</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Nº Certificado</label>
                             <input
                               type="text"
                               value={numeroCertificado}
@@ -1277,7 +1277,7 @@ const OrdensServico: React.FC = () => {
                             />
                           </div>
                           <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Calibração</label>
+                            <label className="text-xs font-bold text-[var(--text-muted)] uppercase mb-1 block">Data Calibração</label>
                             <input
                               type="date"
                               value={dataCalibracao}
@@ -1294,7 +1294,7 @@ const OrdensServico: React.FC = () => {
                         </div>
 
                         <div className="p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Anexo do certificado</div>
+                          <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Anexo do certificado</div>
                           {certificadoDocs.length ? (
                             <div className="space-y-2">
                               {certificadoDocs.slice(0, 3).map((a, idx) => (
@@ -1303,7 +1303,7 @@ const OrdensServico: React.FC = () => {
                                   href={a.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="h-9 px-3 rounded-xl bg-white/5 border border-[var(--border)] text-xs font-bold text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
+                                  className="h-9 px-3 rounded-xl bg-white/[0.04] border border-[var(--border)] text-xs font-bold text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
                                   title={a.name}
                                 >
                                   <ExternalLink size={14} />
@@ -1323,10 +1323,10 @@ const OrdensServico: React.FC = () => {
                 <div className="lg:col-span-8 flex flex-col gap-6 h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 pb-4">
 
-                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                           <div className="flex items-center justify-between mb-4">
                             <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
-                              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                              <div className="p-1.5 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                                 <FileText size={18} />
                               </div>
                               Solicitação do Cliente
@@ -1350,7 +1350,7 @@ const OrdensServico: React.FC = () => {
                         </div>
                         
                         {/* Seção 1: Análise Visual */}
-                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                             <div className="flex items-center justify-between mb-4">
                                 <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
                                     <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
@@ -1378,7 +1378,7 @@ const OrdensServico: React.FC = () => {
 
                         {/* Seção 2: Grid Técnico */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm flex flex-col h-full">
+                            <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] flex flex-col h-full">
                                 <div className="flex items-center justify-between mb-4">
                                     <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
                                         <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
@@ -1403,7 +1403,7 @@ const OrdensServico: React.FC = () => {
                                 />
                             </div>
 
-                            <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm flex flex-col h-full">
+                            <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] flex flex-col h-full">
                                 <div className="flex items-center justify-between mb-4">
                                     <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
                                         <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
@@ -1430,7 +1430,7 @@ const OrdensServico: React.FC = () => {
                         </div>
 
                         {/* Seção 3: Imagens */}
-                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                             <div className="flex items-center justify-between mb-6">
                                 <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
                                     <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
@@ -1447,7 +1447,7 @@ const OrdensServico: React.FC = () => {
                                     className={`h-10 px-4 rounded-xl border transition-all flex items-center gap-2 font-bold text-xs uppercase tracking-wider ${
                                       galleryEditMode
                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/15'
-                                        : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                                        : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                                     } disabled:opacity-50`}
                                     title={galleryEditMode ? 'Sair do modo de edição' : 'Entrar no modo de edição para apagar imagens'}
                                   >
@@ -1480,7 +1480,7 @@ const OrdensServico: React.FC = () => {
                             {(selectedService.imagens && selectedService.imagens.length > 0) ? (
                               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
                                 {selectedService.imagens.map((url, i) => (
-                                  <div key={`${url}-${i}`} className="group relative aspect-square rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)] shadow-sm hover:shadow-md transition-all">
+                                  <div key={`${url}-${i}`} className="group relative aspect-square rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-main)] hover:shadow-md transition-all">
                                     <button
                                       type="button"
                                       onClick={() => setPreviewImageUrl(url)}
@@ -1493,7 +1493,7 @@ const OrdensServico: React.FC = () => {
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors duration-200 pointer-events-none" />
 
                                     <div className="absolute bottom-2 left-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 pointer-events-none">
-                                      <div className="p-2 rounded-lg bg-black/60 text-white shadow-sm">
+                                      <div className="p-2 rounded-lg bg-black/60 text-white">
                                         <Maximize2 size={14} />
                                       </div>
                                     </div>
@@ -1503,7 +1503,7 @@ const OrdensServico: React.FC = () => {
                                         type="button"
                                         onClick={() => setConfirmRemoveImageUrl(url)}
                                         disabled={uploadingImagens || savingCampos}
-                                        className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 translate-y-[-10px] group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:bg-rose-600 shadow-sm disabled:opacity-50"
+                                        className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 translate-y-[-10px] group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:bg-rose-600 disabled:opacity-50"
                                         title="Remover imagem"
                                       >
                                         <X size={14} />
@@ -1522,16 +1522,16 @@ const OrdensServico: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] shadow-sm">
+                        <div className="p-6 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)]">
                           <div className="flex items-center justify-between mb-4 gap-3">
                             <label className="flex items-center gap-3 text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
-                              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+                              <div className="p-1.5 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                                 <FileText size={18} />
                               </div>
                               Documentos Complementares
                             </label>
 
-                            <label className={`h-10 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingAnexos ? 'opacity-60 pointer-events-none' : ''}`}>
+                            <label className={`h-10 px-4 rounded-xl bg-white/[0.04] border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2 cursor-pointer ${uploadingAnexos ? 'opacity-60 pointer-events-none' : ''}`}>
                               <Upload size={14} />
                               {uploadingAnexos ? 'Enviando...' : 'Adicionar arquivos'}
                               <input
@@ -1600,12 +1600,12 @@ const OrdensServico: React.FC = () => {
                               {anexos.map((a, idx) => (
                                 <div key={`${a.url}-${idx}`} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <div className="p-2 rounded-lg bg-white/5 border border-[var(--border)] text-[var(--text-muted)] shrink-0">
+                                    <div className="p-2 rounded-lg bg-white/[0.04] border border-[var(--border)] text-[var(--text-muted)] shrink-0">
                                       <FileText size={16} />
                                     </div>
                                     <div className="min-w-0">
                                       <div className="text-sm font-semibold text-[var(--text-main)] truncate" title={a.name}>{a.name}</div>
-                                      <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                                      <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                                         {a.mimeType ? a.mimeType : 'arquivo'}{a.size ? ` • ${formatBytes(a.size)}` : ''}
                                       </div>
                                     </div>
@@ -1615,7 +1615,7 @@ const OrdensServico: React.FC = () => {
                                       href={a.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="h-9 px-3 rounded-xl bg-white/5 border border-[var(--border)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
+                                      className="h-9 px-3 rounded-xl bg-white/[0.04] border border-[var(--border)] text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center gap-2"
                                       title="Abrir"
                                     >
                                       <ExternalLink size={14} />
@@ -1659,7 +1659,7 @@ const OrdensServico: React.FC = () => {
                 href={previewImageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 px-4 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2 shrink-0"
+                className="h-9 px-4 rounded-xl bg-white/[0.04] border border-[var(--border)] text-sm text-[var(--text-soft)] hover:text-[var(--text-main)] hover:bg-white/10 transition flex items-center justify-center gap-2 shrink-0"
                 title="Abrir em nova aba"
               >
                 <ExternalLink size={14} />
@@ -1679,7 +1679,7 @@ const OrdensServico: React.FC = () => {
             <img
               src={previewImageUrl}
               alt="Imagem"
-              className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl border border-white/10 shadow-2xl"
+              className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl border border-[var(--border)]"
             />
           )}
         </div>
@@ -1714,7 +1714,7 @@ const OrdensServico: React.FC = () => {
                 setConfirmRemoveImageUrl(null)
                 await handleRemoveImagem(url)
               }}
-              className="h-11 px-6 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 transition-all disabled:opacity-50 shadow-lg shadow-rose-500/20"
+              className="h-11 px-6 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 transition-all disabled:opacity-50  shadow-rose-500/20"
               disabled={uploadingImagens || savingCampos}
             >
               Apagar
@@ -1744,7 +1744,7 @@ const OrdensServico: React.FC = () => {
               <History size={18} />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Auditoria</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Auditoria</div>
               <div className="font-bold text-lg text-[var(--text-main)] truncate">Histórico de Movimentação</div>
             </div>
           </div>
@@ -1756,7 +1756,7 @@ const OrdensServico: React.FC = () => {
           <div className="flex items-center justify-end w-full">
             <button
               onClick={() => setShowHistorico(false)}
-              className="h-11 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all shadow-lg shadow-[var(--primary)]/20"
+              className="h-11 px-6 rounded-xl bg-[var(--primary)] text-white font-bold hover:brightness-110 transition-all  shadow-[var(--primary)]/20"
             >
               Fechar
             </button>
@@ -1785,14 +1785,14 @@ const OrdensServico: React.FC = () => {
                 const obs = String((h as any)?.observacoes || '').trim()
 
                 return (
-                  <div key={h.id} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-sm overflow-hidden">
+                  <div key={h.id} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
                     <div className="px-4 py-3 md:px-5 md:py-4 border-b border-[var(--border)] bg-[var(--bg-panel)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="h-8 w-8 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
                           <User size={14} />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Quem fez</div>
+                          <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Quem fez</div>
                           <div className="text-sm font-bold text-[var(--text-main)] truncate">{userName}</div>
                         </div>
                       </div>
@@ -1805,7 +1805,7 @@ const OrdensServico: React.FC = () => {
                     <div className="p-4 md:p-5 space-y-4">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Fase</div>
+                          <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Fase</div>
                           <div className="flex items-center gap-2 text-sm">
                             <span className="font-semibold text-[var(--text-soft)]">{faseOrigem}</span>
                             <ArrowRight size={14} className="text-[var(--text-muted)]" />
@@ -1814,7 +1814,7 @@ const OrdensServico: React.FC = () => {
                         </div>
 
                         <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Responsável</div>
+                          <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Responsável</div>
                           <div className="flex items-center gap-2 text-sm">
                             <span className="font-semibold text-[var(--text-soft)] truncate">{respOrigem}</span>
                             <ArrowRight size={14} className="text-[var(--text-muted)]" />
@@ -1827,7 +1827,7 @@ const OrdensServico: React.FC = () => {
                         <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <Wrench size={14} className="text-[var(--text-muted)]" />
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Serviços realizados</div>
+                            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Serviços realizados</div>
                           </div>
                           <div className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
                             {servicos.length ? servicos : '—'}
@@ -1837,7 +1837,7 @@ const OrdensServico: React.FC = () => {
                         <div className="rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border)] p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <FileText size={14} className="text-[var(--text-muted)]" />
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Observações</div>
+                            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Observações</div>
                           </div>
                           <div className="text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap">
                             {obs.length ? obs : '—'}
@@ -1863,7 +1863,7 @@ const OrdensServico: React.FC = () => {
                 <Layers size={24} />
              </div>
              <div className="flex flex-col">
-               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Ação de Fluxo</span>
+               <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Ação de Fluxo</span>
                <span className="font-bold text-lg text-[var(--text-main)]">Mover Equipamento</span>
              </div>
           </div>
@@ -1882,7 +1882,7 @@ const OrdensServico: React.FC = () => {
                 <button
                   onClick={handleSaveFase}
                   disabled={!nextServicosRealizados.trim()}
-                  className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-[var(--primary)]/20 flex items-center gap-2"
+                  className="h-10 px-6 rounded-xl bg-[var(--primary)] text-white font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50  shadow-[var(--primary)]/20 flex items-center gap-2"
                 >
                   Confirmar Movimentação
                   <ArrowRight size={16} />
@@ -1899,7 +1899,7 @@ const OrdensServico: React.FC = () => {
                   Selecione a Nova Fase
                 </label>
                 {selectedService?.fase && (
-                  <div className="text-[10px] text-[var(--text-muted)]">
+                  <div className="text-xs text-[var(--text-muted)]">
                     Atual: <span className="text-[var(--text-main)] font-semibold">{getOsPhaseConfig(selectedService.fase).label}</span>
                   </div>
                 )}
@@ -1914,7 +1914,7 @@ const OrdensServico: React.FC = () => {
                       onClick={() => setNextFase(fase)}
                       className={`group relative p-3 rounded-xl border text-left text-sm transition-all duration-200 ${
                         isSelected
-                          ? `${config.bg} ${config.border} ring-1 ring-[var(--primary)] shadow-md`
+                          ? `${config.bg} ${config.border} ring-1 ring-[var(--primary)]`
                           : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-[var(--text-muted)] hover:shadow-sm'
                       }`}
                     >
@@ -1949,7 +1949,7 @@ const OrdensServico: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-2 text-[10px] text-[var(--text-muted)] leading-relaxed">
+                  <p className="mt-2 text-xs text-[var(--text-muted)] leading-relaxed">
                     Define quem acompanha esta etapa. Se ficar em branco, mantém o responsável atual.
                   </p>
                 </div>

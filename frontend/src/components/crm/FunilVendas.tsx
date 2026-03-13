@@ -71,7 +71,7 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onSta
               )}
             </div>
             
-            <div className="w-full h-2 bg-[var(--bg-body)] rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-[var(--bg-main)] rounded-full overflow-hidden">
               <div 
                 className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${Math.max(5, percent)}%`, backgroundColor: stage.color }}
@@ -108,7 +108,7 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onSta
             >
               {/* Funnel Layer Shape (CSS Clip Path for Trapezoid) */}
               <div 
-                className="absolute inset-y-0 left-1/2 -translate-x-1/2 shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:brightness-110 flex items-center justify-center"
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2 transition-all duration-300 group-hover:shadow-xl group-hover:brightness-110 flex items-center justify-center"
                 style={{
                   width: `${Math.max(30, topWidth)}%`,
                   backgroundColor: stage.color,
@@ -136,7 +136,7 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onSta
                 className="absolute inset-0 flex items-center justify-center z-0"
               >
                  <div 
-                    className="h-full shadow-lg transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(0,0,0,0.2)] group-hover:brightness-105"
+                    className="h-full transition-all duration-300 group-hover:shadow-[0_0_20px_rgba(0,0,0,0.2)] group-hover:brightness-105"
                     style={{
                         width: `${Math.max(40, 90 - (index * 12))}%`, // decreasing width
                         backgroundColor: stage.color,
@@ -153,7 +153,7 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onSta
                 </span>
                 <div className="flex items-center gap-3 mt-0.5">
                    <span className="text-xs md:text-sm font-medium bg-black/20 px-2 py-0.5 rounded backdrop-blur-sm">
-                     {stage.count} <span className="opacity-70 text-[10px]">ops</span>
+                     {stage.count} <span className="opacity-70 text-xs">ops</span>
                    </span>
                    {!stage.hideValue && (
                      <span className="text-xs md:text-sm font-bold bg-black/20 px-2 py-0.5 rounded backdrop-blur-sm">
@@ -170,7 +170,7 @@ const FunnelVendas: React.FC<FunnelVendasProps> = ({ data, className = '', onSta
                 
                 {/* Arrow Head */}
                 <div 
-                  className="px-3 py-1.5 rounded relative flex items-center justify-center shadow-sm"
+                  className="px-3 py-1.5 rounded relative flex items-center justify-center"
                   style={{ backgroundColor: stage.color }}
                 >
                   {/* Triangle for arrow tip */}

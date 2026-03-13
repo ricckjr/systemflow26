@@ -61,11 +61,11 @@ const getStatusColor = (status: string | undefined) => {
   const s = (status || '').toLowerCase()
   if (s.includes('aprovado')) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
   if (s.includes('análise') || s.includes('analise')) return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
-  if (s.includes('faturado')) return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20'
-  if (s.includes('entregue')) return 'bg-slate-500/10 text-slate-500 border-slate-500/20'
+  if (s.includes('faturado')) return 'bg-[var(--primary-soft)] text-cyan-500 border-[var(--primary)]/20'
+  if (s.includes('entregue')) return 'bg-[var(--bg-card)] text-[var(--text-muted)] border-[var(--border)]/20'
   if (!s.trim()) return 'bg-[var(--bg-main)] text-[var(--text-muted)] border-[var(--border)]'
   const palette = [
-    'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    'bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]/20',
     'bg-violet-500/10 text-violet-400 border-violet-500/20',
     'bg-sky-500/10 text-sky-400 border-sky-500/20',
     'bg-amber-500/10 text-amber-400 border-amber-500/20',
@@ -81,7 +81,7 @@ const getEtapaColor = (etapa: string | undefined | null) => {
   const e = (etapa || '').trim().toLowerCase()
   if (!e) return 'bg-[var(--bg-main)] text-[var(--text-muted)] border-[var(--border)]'
   const palette = [
-    'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    'bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]/20',
     'bg-violet-500/10 text-violet-400 border-violet-500/20',
     'bg-sky-500/10 text-sky-400 border-sky-500/20',
     'bg-amber-500/10 text-amber-400 border-amber-500/20',
@@ -239,7 +239,7 @@ const DualSortableTh = React.memo(
             className="group inline-flex items-center gap-1"
             onClick={() => onSort(leftKey)}
           >
-            <span className={`transition-colors ${leftActive ? 'text-cyan-400' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
+            <span className={`transition-colors ${leftActive ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
               {leftLabel}
             </span>
             <ArrowUpDown
@@ -253,7 +253,7 @@ const DualSortableTh = React.memo(
             className="group inline-flex items-center gap-1"
             onClick={() => onSort(rightKey)}
           >
-            <span className={`transition-colors ${rightActive ? 'text-cyan-400' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
+            <span className={`transition-colors ${rightActive ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
               {rightLabel}
             </span>
             <ArrowUpDown
@@ -323,10 +323,10 @@ const PropostaRow = React.memo(
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-col gap-1.5">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border w-fit whitespace-nowrap ${getEtapaColor(item.etapa)}`}>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded border w-fit whitespace-nowrap ${getEtapaColor(item.etapa)}`}>
             {item.etapa || 'NÃO INFORMADO'}
           </span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border w-fit whitespace-nowrap ${getStatusColor(item.status)}`}>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded border w-fit whitespace-nowrap ${getStatusColor(item.status)}`}>
             {item.status || 'SEM STATUS'}
           </span>
         </div>
@@ -337,7 +337,7 @@ const PropostaRow = React.memo(
             <Calendar size={12} /> {item.data_entrega ? formatDateBR(item.data_entrega) : '-'}
           </span>
           {daysUntilDelivery !== null && !finalized && (
-            <span className={`text-[10px] font-bold ${daysUntilDelivery < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+            <span className={`text-xs font-bold ${daysUntilDelivery < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
               {daysUntilDelivery < 0 ? `Atrasado ${Math.abs(daysUntilDelivery)} dias` : `${daysUntilDelivery} dias restantes`}
             </span>
           )}
@@ -396,20 +396,20 @@ const DetailsModal = React.memo(
       title={
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+            <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
               <Tag size={18} />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Detalhes da Proposta</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Detalhes da Proposta</span>
               <span className="text-lg font-bold text-[var(--text-main)]">{selected.cod_proposta}</span>
-              <span className="text-[10px] font-medium text-[var(--text-muted)]">ID: {selected.id_omie}</span>
+              <span className="text-xs font-medium text-[var(--text-muted)]">ID: {selected.id_omie}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border whitespace-nowrap ${getEtapaColor(selected.etapa)}`}>
+            <span className={`text-xs font-bold px-2 py-1 rounded-lg border whitespace-nowrap ${getEtapaColor(selected.etapa)}`}>
               {selected.etapa || 'ETAPA NÃO INFORMADA'}
             </span>
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border whitespace-nowrap ${getStatusColor(selected.status)}`}>
+            <span className={`text-xs font-bold px-2 py-1 rounded-lg border whitespace-nowrap ${getStatusColor(selected.status)}`}>
               {selected.status || 'SEM STATUS'}
             </span>
           </div>
@@ -444,7 +444,7 @@ const DetailsModal = React.memo(
           <div className="text-sm font-semibold text-[var(--text-main)]">{selected.empresa_correspondente || 'NÃO INFORMADO'}</div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <div className="space-y-6">
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2">
@@ -453,17 +453,17 @@ const DetailsModal = React.memo(
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase">Status</label>
+                  <label className="text-xs text-[var(--text-muted)] uppercase">Status</label>
                   <div className="pt-1">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border w-fit inline-flex ${getStatusColor(selected.status)}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-lg border w-fit inline-flex ${getStatusColor(selected.status)}`}>
                       {selected.status || 'SEM STATUS'}
                     </span>
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase">Etapa</label>
+                  <label className="text-xs text-[var(--text-muted)] uppercase">Etapa</label>
                   <div className="pt-1">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border w-fit inline-flex ${getEtapaColor(selected.etapa)}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-lg border w-fit inline-flex ${getEtapaColor(selected.etapa)}`}>
                       {selected.etapa || 'NÃO INFORMADO'}
                     </span>
                   </div>
@@ -478,26 +478,26 @@ const DetailsModal = React.memo(
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase">Entrega</label>
+                  <label className="text-xs text-[var(--text-muted)] uppercase">Entrega</label>
                   <div className="pt-1 flex flex-col gap-1">
                     <div className="font-medium text-sm">
                       {selected.data_entrega ? formatDateBR(selected.data_entrega) : 'NÃO INFORMADO'}
                     </div>
                     {daysUntilDelivery !== null && !finalized && (
-                      <div className={`text-[10px] font-bold ${daysUntilDelivery < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <div className={`text-xs font-bold ${daysUntilDelivery < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                         {daysUntilDelivery < 0 ? `Atrasado ${Math.abs(daysUntilDelivery)} dias` : `${daysUntilDelivery} dias restantes`}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase">Inclusão</label>
+                  <label className="text-xs text-[var(--text-muted)] uppercase">Inclusão</label>
                   <div className="font-medium text-sm pt-1">
                     {selected.data_inclusao ? formatDateBR(selected.data_inclusao) : 'NÃO INFORMADO'}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)]">
-                  <label className="text-[10px] text-[var(--text-muted)] uppercase">Alteração</label>
+                  <label className="text-xs text-[var(--text-muted)] uppercase">Alteração</label>
                   <div className="font-medium text-sm pt-1">
                     {selected.data_alteracao ? formatDateBR(selected.data_alteracao) : 'NÃO INFORMADO'}
                   </div>
@@ -539,7 +539,7 @@ const DetailsModal = React.memo(
           <div className="flex justify-end mb-3">
             <button
               onClick={openEquipmentModal}
-              className="px-4 py-2 bg-[var(--primary)] hover:brightness-110 text-white rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/20"
+              className="px-4 py-2 bg-[var(--primary)] hover:brightness-110 text-white rounded-xl font-medium text-sm flex items-center gap-2 transition-all  shadow-[var(--primary)]/20"
             >
               <Wrench size={16} />
               ENTRADA DE EQUIPAMENTO
@@ -726,19 +726,19 @@ const Propostas: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-[var(--bg-main)]">
       {/* --- Header --- */}
-      <div className="flex-none px-4 md:px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-panel)] z-10 shadow-sm">
+      <div className="flex-none px-4 md:px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-panel)] z-10 ">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           
           {/* Title */}
           <div className="flex items-center gap-3 min-w-max">
-            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+            <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
               <Layers size={20} />
             </div>
             <div>
               <h1 className="text-lg font-bold text-[var(--text-main)] leading-none">Propostas</h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="text-xs text-[var(--text-muted)] font-medium">Gestão de Propostas</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)]">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-soft)]">
                   {filteredItems.length} de {items.length}
                 </span>
               </div>
@@ -756,7 +756,7 @@ const Propostas: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar proposta, cliente..."
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all"
               />
             </div>
 
@@ -765,7 +765,7 @@ const Propostas: React.FC = () => {
               <select
                 value={vendedor}
                 onChange={(e) => setVendedor(e.target.value)}
-                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all cursor-pointer"
+                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-all cursor-pointer"
               >
                 <option value="all">Vendedor</option>
                 {filterOptions.vendedores.map((v) => (
@@ -776,7 +776,7 @@ const Propostas: React.FC = () => {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all cursor-pointer"
+                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-all cursor-pointer"
               >
                 <option value="all">Status</option>
                 {filterOptions.status.map((v) => (
@@ -787,7 +787,7 @@ const Propostas: React.FC = () => {
               <select
                 value={etapa}
                 onChange={(e) => setEtapa(e.target.value)}
-                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all cursor-pointer"
+                className="h-9 px-3 max-w-[140px] rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 transition-all cursor-pointer"
               >
                 <option value="all">Etapa</option>
                 {filterOptions.etapas.map((v) => (
@@ -802,7 +802,7 @@ const Propostas: React.FC = () => {
                 onClick={handleClearFilters}
                 disabled={!hasActiveFilters}
                 title="Limpar filtros"
-                className="h-9 px-3 flex items-center gap-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-soft)] hover:text-cyan-400 hover:border-cyan-500/30 transition-all disabled:opacity-50"
+                className="h-9 px-3 flex items-center gap-2 rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all disabled:opacity-50"
               >
                 <X size={14} />
                 <span className="text-xs font-bold uppercase tracking-wider">Limpar</span>
@@ -811,7 +811,7 @@ const Propostas: React.FC = () => {
                 onClick={handleRefresh}
                 disabled={isRefreshing}
                 title="Atualizar dados"
-                className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-soft)] hover:text-cyan-400 hover:border-cyan-500/30 transition-all disabled:opacity-50"
+                className="h-9 w-9 flex items-center justify-center rounded-lg bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-soft)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 transition-all disabled:opacity-50"
               >
                 <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
               </button>
@@ -843,9 +843,9 @@ const Propostas: React.FC = () => {
                 <p>Nenhum resultado encontrado para os filtros selecionados.</p>
              </div>
         ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden shadow-sm">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden ">
                 <table className="min-w-[1100px] w-full text-left border-collapse">
-                    <thead className="bg-[var(--bg-body)] text-[var(--text-muted)] text-[10px] uppercase font-bold tracking-wider border-b border-[var(--border)] sticky top-0 z-10">
+                    <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] text-xs uppercase font-bold tracking-wider border-b border-[var(--border)] sticky top-0 z-10">
                         <tr>
                             <SortableTh label="Proposta" sortKey="cod_proposta" widthClass="w-[140px]" sortConfig={sortConfig} onSort={handleSort} />
                             <SortableTh label="Cliente" sortKey="cliente" widthClass="min-w-[260px]" sortConfig={sortConfig} onSort={handleSort} />

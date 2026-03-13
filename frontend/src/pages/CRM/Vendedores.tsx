@@ -352,20 +352,20 @@ const Vendedores: React.FC = () => {
   if ((loadingOps || loadingLig) && allOportunidades.length === 0) {
     return (
       <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-10">
+    <div className="space-y-6 animate-in fade-in duration-700 pb-10">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--primary)] to-sky-500 text-white  shadow-cyan-500/20">
               <Award size={20} />
             </div>
             <h2 className="text-xl font-bold text-[var(--text-main)]">Performance Comercial</h2>
@@ -373,17 +373,17 @@ const Vendedores: React.FC = () => {
           <p className="text-xs text-[var(--text-soft)] ml-14">Vendedores e indicadores de desempenho individual</p>
         </div>
 
-        <div className="flex items-center gap-4 bg-[var(--bg-panel)] border border-[var(--border)] p-1.5 rounded-xl shadow-sm">
-          <button onClick={handlePrevMonth} className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+        <div className="flex items-center gap-4 bg-[var(--bg-panel)] border border-[var(--border)] p-1.5 rounded-xl ">
+          <button onClick={handlePrevMonth} className="p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
             <ChevronRight size={16} className="rotate-180" />
           </button>
           <div className="flex items-center gap-2 px-2 min-w-[140px] justify-center">
-            <Calendar size={14} className="text-cyan-400" />
+            <Calendar size={14} className="text-[var(--primary)]" />
             <span className="text-sm font-bold text-[var(--text-main)] capitalize">
               {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
             </span>
           </div>
-          <button onClick={handleNextMonth} className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
+          <button onClick={handleNextMonth} className="p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
             <ChevronRight size={16} />
           </button>
         </div>
@@ -393,16 +393,16 @@ const Vendedores: React.FC = () => {
         <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-black text-[var(--text-main)]">Medalhas dos Vendedores</div>
+              <div className="text-sm font-semibold text-[var(--text-main)]">Medalhas dos Vendedores</div>
               <div className="mt-1 text-xs text-[var(--text-soft)] truncate">Top 3 do mês + progresso da meta mensal</div>
             </div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            <div className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)]">
               {sellers.length} vendedores
             </div>
           </div>
 
           {sellers.length === 0 ? (
-            <div className="mt-6 bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-6 text-sm text-[var(--text-muted)]">
+            <div className="mt-6 bg-[var(--bg-main)]/40 border border-[var(--border)] rounded-2xl p-6 text-sm text-[var(--text-muted)]">
               Nenhum dado disponível para este mês.
             </div>
           ) : (
@@ -418,11 +418,11 @@ const Vendedores: React.FC = () => {
                 };
                 if (ranking === 2) return { 
                   label: 'Medalha de Prata', 
-                  ring: 'border-slate-300', 
+                  ring: 'border-[var(--border)]', 
                   glow: 'shadow-slate-500/30', 
                   bg: 'from-slate-500/20 via-slate-500/5 to-transparent', 
-                  text: 'text-slate-300',
-                  icon: <Award size={20} className="text-slate-300" />
+                  text: 'text-[var(--text-soft)]',
+                  icon: <Award size={20} className="text-[var(--text-soft)]" />
                 };
                 return { 
                   label: 'Medalha de Bronze', 
@@ -449,7 +449,7 @@ const Vendedores: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedSeller(seller)}
-                    className={`relative w-full flex flex-col justify-between ${pad} ${height} rounded-3xl border border-[var(--border)] bg-gradient-to-b ${m.bg} shadow-2xl ${m.glow} text-left hover:scale-[1.02] hover:border-cyan-500/30 transition-all duration-300 group overflow-hidden`}
+                    className={`relative w-full flex flex-col justify-between ${pad} ${height} rounded-3xl border border-[var(--border)] bg-gradient-to-b ${m.bg} ${m.glow} text-left hover:scale-[1.02] hover:border-[var(--primary)]/30 transition-all duration-300 group overflow-hidden`}
                   >
                     {/* Background Shine Effect */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -457,34 +457,34 @@ const Vendedores: React.FC = () => {
                     <div className="flex flex-col items-center justify-center gap-5 w-full z-10">
                       <div className="relative">
                         <div
-                          className={`${avatarSize} rounded-full flex items-center justify-center font-black uppercase border-4 ${m.ring} bg-[var(--bg-panel)] shadow-2xl bg-center bg-cover transition-transform duration-500 group-hover:rotate-3`}
+                          className={`${avatarSize} rounded-full flex items-center justify-center font-black uppercase border-4 ${m.ring} bg-[var(--bg-panel)] bg-center bg-cover transition-transform duration-500 group-hover:rotate-3`}
                           style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
                         >
                           {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
                         </div>
-                        <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[var(--bg-panel)] border ${m.ring} flex items-center gap-1.5 shadow-lg whitespace-nowrap`}>
+                        <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[var(--bg-panel)] border ${m.ring} flex items-center gap-1.5  whitespace-nowrap`}>
                            {m.icon}
-                           <span className={`text-[10px] font-black uppercase tracking-widest ${m.text}`}>{size === 'lg' ? '1º Lugar' : `${seller.ranking}º Lugar`}</span>
+                           <span className={`text-xs font-black uppercase tracking-widest ${m.text}`}>{size === 'lg' ? '1º Lugar' : `${seller.ranking}º Lugar`}</span>
                         </div>
                       </div>
                       
                       <div className="text-center min-w-0 w-full mt-2">
                         <div className={`font-black text-[var(--text-main)] truncate tracking-tight ${size === 'lg' ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>{seller.name}</div>
-                        <div className={`mt-1 font-bold uppercase tracking-wider text-[10px] ${m.text}`}>{m.label}</div>
-                        <div className="mt-3 inline-block px-4 py-1.5 rounded-xl bg-[var(--bg-body)]/50 border border-[var(--border)] text-sm font-black text-[var(--text-main)] shadow-inner">
+                        <div className={`mt-1 font-bold uppercase tracking-wider text-xs ${m.text}`}>{m.label}</div>
+                        <div className="mt-3 inline-block px-4 py-1.5 rounded-xl bg-[var(--bg-main)]/50 border border-[var(--border)] text-sm font-semibold text-[var(--text-main)]">
                           {formatCurrency(seller.totalVendas)}
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-6 w-full z-10">
-                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
                         <span>Meta Mensal</span>
                         <span className={`${pct >= 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{pct.toFixed(0)}%</span>
                       </div>
-                      <div className="w-full bg-[var(--bg-body)]/50 h-2.5 rounded-full overflow-hidden border border-[var(--border)] backdrop-blur-sm">
+                      <div className="w-full bg-[var(--bg-main)]/50 h-2.5 rounded-full overflow-hidden border border-[var(--border)]">
                         <div
-                          className={`h-full rounded-full bg-gradient-to-r ${pct >= 100 ? 'from-emerald-500 to-emerald-400' : 'from-cyan-500 to-blue-500'} shadow-[0_0_10px_rgba(6,182,212,0.5)]`}
+                          className={`h-full rounded-full bg-gradient-to-r ${pct >= 100 ? 'from-emerald-500 to-emerald-400' : 'from-[var(--primary)] to-sky-400'} shadow-[0_0_10px_rgba(6,182,212,0.5)]`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -494,8 +494,8 @@ const Vendedores: React.FC = () => {
               };
 
               return (
-                <div className="mt-8 relative rounded-3xl border border-[var(--border)] bg-[var(--bg-body)]/30 overflow-hidden pt-16 pb-6 px-6 sm:px-12 sm:pb-12">
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-[var(--bg-body)] to-transparent opacity-50" />
+                <div className="mt-8 relative rounded-3xl border border-[var(--border)] bg-[var(--bg-main)]/30 overflow-hidden pt-16 pb-6 px-6 sm:px-12 sm:pb-12">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-[var(--bg-main)] to-transparent opacity-50" />
                   
                   <div className="relative flex flex-col md:flex-row items-end justify-center gap-6 md:gap-8 h-full max-w-5xl mx-auto">
                     {/* 2nd Place */}
@@ -522,10 +522,10 @@ const Vendedores: React.FC = () => {
         <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6 overflow-hidden">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-sm font-black text-[var(--text-main)]">Vendedores</div>
+              <div className="text-sm font-semibold text-[var(--text-main)]">Vendedores</div>
               <div className="mt-1 text-xs text-[var(--text-soft)] truncate">Vendas do mês, metas, ligações e vendas feitas</div>
             </div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            <div className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)]">
               {currentMonthStr}
             </div>
           </div>
@@ -533,7 +533,7 @@ const Vendedores: React.FC = () => {
           <div className="mt-5 max-h-[60vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-[var(--bg-panel)]">
-                <tr className="text-[10px] uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
+                <tr className="text-xs uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
                   <th className="py-3 pr-3 text-left w-[70px]">Rank</th>
                   <th className="py-4 pr-3 text-left text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Vendedor</th>
                   <th className="py-4 pr-3 text-right text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Venda Feita (R$)</th>
@@ -548,16 +548,16 @@ const Vendedores: React.FC = () => {
                     seller.ranking === 1
                       ? 'bg-yellow-500/15 text-yellow-300 border-yellow-500/20'
                       : seller.ranking === 2
-                        ? 'bg-slate-300/15 text-slate-300 border-slate-400/20'
+                        ? 'bg-white/5 text-[var(--text-soft)] border-[var(--border)]'
                         : seller.ranking === 3
                           ? 'bg-orange-500/15 text-orange-300 border-orange-500/20'
-                          : 'bg-[var(--bg-body)]/30 text-[var(--text-muted)] border-[var(--border)]';
+                          : 'bg-[var(--bg-main)]/30 text-[var(--text-muted)] border-[var(--border)]';
 
                   return (
                     <tr
                       key={seller.name}
                       onClick={() => setSelectedSeller(seller)}
-                      className="border-b border-[var(--border)] hover:bg-[var(--bg-body)]/30 transition-colors cursor-pointer"
+                      className="border-b border-[var(--border)] hover:bg-[var(--bg-main)]/30 transition-colors cursor-pointer"
                     >
                       <td className="py-4 pr-3">
                         <span className={`inline-flex items-center justify-center px-2 py-1 rounded-lg border text-xs font-black ${rankBg}`}>
@@ -567,7 +567,7 @@ const Vendedores: React.FC = () => {
                       <td className="py-4 pr-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div
-                            className="w-10 h-10 rounded-full bg-[var(--bg-body)] border border-[var(--border)] bg-center bg-cover flex items-center justify-center font-black uppercase text-[11px] text-[var(--text-main)]"
+                            className="w-10 h-10 rounded-full bg-[var(--bg-main)] border border-[var(--border)] bg-center bg-cover flex items-center justify-center font-black uppercase text-xs text-[var(--text-main)]"
                             style={seller.avatarUrl ? { backgroundImage: `url(${seller.avatarUrl})` } : undefined}
                           >
                             {!seller.avatarUrl ? seller.name.substring(0, 2) : null}
@@ -583,7 +583,7 @@ const Vendedores: React.FC = () => {
                       <td className="py-4 pr-3 text-right font-bold text-[var(--text-main)]">
                         {seller.novasOpsFeitas}
                       </td>
-                      <td className="py-4 pr-3 text-right font-bold text-cyan-400">
+                      <td className="py-4 pr-3 text-right font-bold text-[var(--primary)]">
                         {seller.ligacoesFeitas}
                       </td>
                     </tr>
@@ -611,13 +611,13 @@ const Vendedores: React.FC = () => {
           title={
             <div className="flex items-center gap-4">
               <div
-                className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white text-sm font-black uppercase shadow-lg shadow-cyan-500/20 bg-center bg-cover overflow-hidden"
+                className="w-11 h-11 rounded-full bg-[var(--bg-panel)] flex items-center justify-center text-white text-sm font-semibold uppercase  shadow-cyan-500/20 bg-center bg-cover overflow-hidden"
                 style={selectedSeller.avatarUrl ? { backgroundImage: `url(${selectedSeller.avatarUrl})` } : undefined}
               >
                 {!selectedSeller.avatarUrl ? selectedSeller.name.substring(0, 2) : null}
               </div>
               <div className="min-w-0">
-                <div className="text-base font-black text-cyan-400">Relatório de Performance Comercial</div>
+                <div className="text-base font-black text-[var(--primary)]">Relatório de Performance Comercial</div>
                 <div className="mt-0.5 text-xs text-[var(--text-soft)] truncate">
                   {selectedSeller.name}
                   {selectedSeller.performance?.ramal ? ` • Ramal ${selectedSeller.performance.ramal}` : ''}
@@ -625,7 +625,7 @@ const Vendedores: React.FC = () => {
                 </div>
               </div>
               <div className="ml-auto">
-                <span className={`px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider ${selectedSeller.performance?.ativo === false ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                <span className={`px-2 py-1 rounded-lg border text-xs font-black uppercase tracking-wider ${selectedSeller.performance?.ativo === false ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                   {selectedSeller.performance?.ativo === false ? 'Inativo' : 'Ativo'}
                 </span>
               </div>
@@ -674,16 +674,16 @@ const RelatorioVendedorModalContent: React.FC<{
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-cyan-500 gap-2">
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-        <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+        <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
       </div>
     );
   }
 
   if (!relatorio) {
     return (
-      <div className="bg-[var(--bg-body)] rounded-2xl border border-[var(--border)] p-8 text-center">
+      <div className="bg-[var(--bg-main)] rounded-2xl border border-[var(--border)] p-8 text-center">
         <div className="mx-auto w-12 h-12 rounded-full bg-[var(--bg-panel)] flex items-center justify-center text-[var(--text-muted)] mb-3">
           <TrendingUp size={24} />
         </div>
@@ -721,7 +721,7 @@ const RelatorioVendedorModalContent: React.FC<{
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-sm font-black text-emerald-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-400 uppercase tracking-wider">
               <DollarSign size={16} />
               Meta Financeira
             </div>
@@ -754,13 +754,13 @@ const RelatorioVendedorModalContent: React.FC<{
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent p-6">
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--primary)]/20 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent p-6">
            <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-sm font-black text-cyan-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--primary)] uppercase tracking-wider">
               <Phone size={16} />
               Ligações
             </div>
-            <div className={`text-xs font-black px-2 py-1 rounded-lg border ${relatorio.progresso_ligacoes >= 100 ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/20' : 'bg-blue-500/20 text-blue-400 border-blue-500/20'}`}>
+            <div className={`text-xs font-black px-2 py-1 rounded-lg border ${relatorio.progresso_ligacoes >= 100 ? 'bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]/20' : 'bg-blue-500/20 text-blue-400 border-blue-500/20'}`}>
               {percent(relatorio.progresso_ligacoes)} Realizado
             </div>
           </div>
@@ -770,7 +770,7 @@ const RelatorioVendedorModalContent: React.FC<{
             <div className="text-sm text-[var(--text-soft)] mb-1.5">/ {int(relatorio.ligacoes_falta)} (Restantes)</div>
           </div>
 
-          <div className="mt-4 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-cyan-500/10">
+          <div className="mt-4 w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--primary)]/10">
             <div 
               className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-1000" 
               style={{ width: `${Math.min(100, relatorio.progresso_ligacoes)}%` }} 
@@ -801,7 +801,7 @@ const RelatorioVendedorModalContent: React.FC<{
               <div className="text-xl font-black text-[var(--text-main)]">{money(relatorio.supermeta_financeira_feita)}</div>
               <div className="text-xs text-[var(--text-muted)] mb-1">Meta: {money(relatorio.supermeta_financeira_total_mes)}</div>
             </div>
-            <div className="w-full bg-[var(--bg-body)] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-[var(--bg-main)] h-1.5 rounded-full overflow-hidden">
               <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.min(100, relatorio.percentual_supermeta_financeira)}%` }} />
             </div>
             <div className="mt-3 text-xs flex items-center justify-between">
@@ -814,7 +814,7 @@ const RelatorioVendedorModalContent: React.FC<{
 
         <div className="relative overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent p-5">
            <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-sm font-black text-purple-400 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-sm font-semibold text-purple-400 uppercase tracking-wider">
               <Target size={16} />
               Novas Oportunidades
             </div>
@@ -849,25 +849,25 @@ const RelatorioVendedorModalContent: React.FC<{
 
       {/* 3. Indicadores de Performance */}
       <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-6">
-        <div className="text-sm font-black text-[var(--text-main)] mb-4 flex items-center gap-2">
-          <TrendingUp size={16} className="text-cyan-400" />
+        <div className="text-sm font-semibold text-[var(--text-main)] mb-4 flex items-center gap-2">
+          <TrendingUp size={16} className="text-[var(--primary)]" />
           Indicadores de Performance
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-center">
-            <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Taxa de Conversão</div>
+          <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-center">
+            <div className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Taxa de Conversão</div>
             <div className="text-lg font-black text-emerald-400">{percent(relatorio.taxa_conversao_real)}</div>
           </div>
-          <div className="p-4 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-center">
-            <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Ticket Médio</div>
-            <div className="text-lg font-black text-cyan-400">{money(relatorio.ticket_medio)}</div>
+          <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-center">
+            <div className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Ticket Médio</div>
+            <div className="text-lg font-black text-[var(--primary)]">{money(relatorio.ticket_medio)}</div>
           </div>
-          <div className="p-4 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-center">
-            <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Temperatura</div>
+          <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-center">
+            <div className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Temperatura</div>
             <div className="text-lg font-black text-amber-400">{int(relatorio.temperatura_media)}°</div>
           </div>
-          <div className="p-4 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-center">
-            <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">Pipeline Total</div>
+          <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-center">
+            <div className="text-xs uppercase font-bold text-[var(--text-muted)] mb-1">Pipeline Total</div>
             <div className="text-lg font-black text-[var(--text-main)]">{money(relatorio.total_pipeline_valor)}</div>
           </div>
         </div>
@@ -875,9 +875,9 @@ const RelatorioVendedorModalContent: React.FC<{
 
       {/* 4. Funil de Vendas Detalhado */}
       <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl overflow-hidden">
-         <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-body)]/50 flex justify-between items-center">
-            <div className="text-sm font-black text-[var(--text-main)] flex items-center gap-2">
-              <BarChart2 size={16} className="text-cyan-400" />
+         <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-main)]/50 flex justify-between items-center">
+            <div className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-2">
+              <BarChart2 size={16} className="text-[var(--primary)]" />
               Funil de Vendas Detalhado
             </div>
          </div>
@@ -890,11 +890,11 @@ const RelatorioVendedorModalContent: React.FC<{
              { label: 'Controle de Qualidade', qtd: relatorio.fase_controle_qualidade_quantidade, val: relatorio.fase_controle_qualidade_valor, color: 'text-amber-400' },
              { label: 'Pós-venda', qtd: relatorio.fase_pos_venda_quantidade, val: relatorio.fase_pos_venda_valor, color: 'text-emerald-400' },
            ].map((item) => (
-             <div key={item.label} className="px-6 py-3 flex items-center justify-between hover:bg-[var(--bg-body)]/30 transition-colors">
+             <div key={item.label} className="px-6 py-3 flex items-center justify-between hover:bg-[var(--bg-main)]/30 transition-colors">
                <div className={`text-sm font-bold ${item.color}`}>{item.label}</div>
                <div className="text-right">
-                 <div className="text-sm font-black text-[var(--text-main)]">{money(item.val)}</div>
-                 <div className="text-[10px] text-[var(--text-muted)]">{int(item.qtd)} oportunidades</div>
+                 <div className="text-sm font-semibold text-[var(--text-main)]">{money(item.val)}</div>
+                 <div className="text-xs text-[var(--text-muted)]">{int(item.qtd)} oportunidades</div>
                </div>
              </div>
            ))}
@@ -903,12 +903,12 @@ const RelatorioVendedorModalContent: React.FC<{
 
       {/* 5. Vendas do Mês */}
       <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-body)]/50 flex justify-between items-center">
-          <div className="text-sm font-black text-[var(--text-main)] flex items-center gap-2">
+        <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--bg-main)]/50 flex justify-between items-center">
+          <div className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-2">
             <Trophy size={16} className="text-emerald-400" />
             Vendas do Mês
           </div>
-          <div className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+          <div className="text-xs font-black uppercase tracking-wider text-[var(--text-muted)]">
             {monthStr}
           </div>
         </div>
@@ -916,7 +916,7 @@ const RelatorioVendedorModalContent: React.FC<{
         <div className="max-h-[40vh] overflow-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-10 bg-[var(--bg-panel)]">
-              <tr className="text-[10px] uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
+              <tr className="text-xs uppercase tracking-wider font-black text-[var(--text-muted)] border-b border-[var(--border)]">
                 <th className="py-3 px-6 text-left whitespace-nowrap">Data Inclusão</th>
                 <th className="py-3 pr-3 text-left whitespace-nowrap">Data Conquista</th>
                 <th className="py-3 pr-3 text-left whitespace-nowrap">Tempo Fechamento</th>
@@ -937,7 +937,7 @@ const RelatorioVendedorModalContent: React.FC<{
                   return Math.abs(diff);
                 })();
                 return (
-                  <tr key={op.id_oport} className="border-b border-[var(--border)] hover:bg-[var(--bg-body)]/30 transition-colors">
+                  <tr key={op.id_oport} className="border-b border-[var(--border)] hover:bg-[var(--bg-main)]/30 transition-colors">
                     <td className="py-3 px-6 text-xs text-[var(--text-soft)] whitespace-nowrap">
                       {formatDateBR(op.data_inclusao) || '-'}
                     </td>
@@ -946,7 +946,7 @@ const RelatorioVendedorModalContent: React.FC<{
                     </td>
                     <td className="py-3 pr-3 text-xs whitespace-nowrap">
                       {tempoDias !== null
-                        ? <span className="font-bold text-cyan-400">{tempoDias}d</span>
+                        ? <span className="font-bold text-[var(--primary)]">{tempoDias}d</span>
                         : <span className="text-[var(--text-muted)]">-</span>}
                     </td>
                     <td className="py-3 pr-3 font-bold text-[var(--text-main)] whitespace-nowrap">

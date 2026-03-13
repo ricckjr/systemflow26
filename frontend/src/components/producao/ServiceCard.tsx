@@ -69,7 +69,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
             `}
           >
              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 bg-[var(--primary)] px-2 py-1 rounded-md border border-[var(--primary)]/40 shadow-sm shadow-[var(--primary)]/20">
+                <div className="flex items-center gap-1.5 bg-[var(--primary)] px-2 py-1 rounded-md border border-[var(--primary)]/40 shadow-[var(--primary)]/20">
                     <Hash size={10} className="text-white/80" />
                     <span className="text-xs font-black tracking-wide text-white">{service.cod_proposta}</span>
                 </div>
@@ -155,7 +155,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
         >
             {/* Header: ID e Proposta */}
             <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black tracking-wider px-2 py-1 rounded-md bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border)]">
+                <span className="text-xs font-black tracking-wider px-2 py-1 rounded-md bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border)]">
                     {service.id_rst || 'N/A'}
                 </span>
                 <div className="flex items-center gap-2 text-sm font-black text-white bg-[var(--primary)] px-3 py-1.5 rounded-lg border border-[var(--primary)]/40 shadow-md shadow-[var(--primary)]/25">
@@ -170,20 +170,20 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                     {service.modelo || 'Modelo não informado'}
                 </h4>
                 <div className="flex items-center gap-2">
-                     <span className="text-[10px] text-[var(--text-soft)] font-mono" title="Número de Série">
+                     <span className="text-xs text-[var(--text-soft)] font-mono" title="Número de Série">
                         SN: {service.numero_serie || '-'}
                      </span>
                 </div>
                 {(service.etapa_omie || service.vendedor) && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     {service.etapa_omie ? (
-                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[10px] font-black text-[var(--text-main)]">
+                      <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-xs font-black text-[var(--text-main)]">
                         <Tag size={12} className="text-[var(--text-muted)]" />
                         {`Fase Proposta: ${service.etapa_omie}`}
                       </span>
                     ) : null}
                     {service.vendedor ? (
-                      <span className="text-[10px] text-[var(--text-muted)] font-semibold truncate" title={`Vendedor: ${service.vendedor}`}>
+                      <span className="text-xs text-[var(--text-muted)] font-semibold truncate" title={`Vendedor: ${service.vendedor}`}>
                         {`Vendedor: ${service.vendedor}`}
                       </span>
                     ) : null}
@@ -198,7 +198,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                         <Wrench size={10} className="text-[var(--text-muted)]" />
                         <span className="text-[9px] font-bold uppercase text-[var(--text-muted)] tracking-wider">Solução</span>
                     </div>
-                    <p className="text-[10px] text-[var(--text-soft)] line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-[var(--text-soft)] line-clamp-2 leading-relaxed">
                         {service.solucao}
                     </p>
                 </div>
@@ -209,20 +209,20 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                 {/* Times (Left) */}
                 <div className="flex flex-col gap-1.5">
                     {entregaBadge && entregaLabel ? (
-                      <div className="flex items-center gap-1.5 text-[10px]">
-                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[10px] font-black ${entregaBadge}`}>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-black ${entregaBadge}`}>
                           <Calendar size={12} />
                           {entregaLabel}
                         </span>
-                        <span className="text-[10px] text-[var(--text-muted)] font-mono">{String(prevEntrega || '').slice(0, 10)}</span>
+                        <span className="text-xs text-[var(--text-muted)] font-mono">{String(prevEntrega || '').slice(0, 10)}</span>
                       </div>
                     ) : null}
-                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]" title="Tempo total na oficina">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]" title="Tempo total na oficina">
                         <Clock size={12} className="text-[var(--text-soft)]" />
                         <span className="font-medium">Total: {formatDuration(service.data_entrada)}</span>
                     </div>
                     {service.data_fase_atual && (
-                        <div className={`flex items-center gap-1.5 text-[10px] font-bold ${getStatusDurationColor(service.data_fase_atual)}`} title="Tempo nesta etapa">
+                        <div className={`flex items-center gap-1.5 text-xs font-bold ${getStatusDurationColor(service.data_fase_atual)}`} title="Tempo nesta etapa">
                             <Hourglass size={12} />
                             <span>Etapa: {formatDuration(service.data_fase_atual)}</span>
                         </div>
@@ -239,7 +239,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, index, onClic
                      
                      {service.responsavel ? (
                         <div
-                          className="max-w-[160px] px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 text-[10px] font-black tracking-wide truncate"
+                          className="max-w-[160px] px-2.5 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 text-xs font-black tracking-wide truncate"
                           title={`Responsável: ${service.responsavel}`}
                         >
                           {service.responsavel}

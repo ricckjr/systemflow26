@@ -183,11 +183,11 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
       onClose={onClose}
       title={
         <div className="flex items-start gap-3 min-w-0">
-          <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
+          <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] shrink-0">
             <Wrench size={18} />
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Entrada de Equipamento</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Entrada de Equipamento</div>
             <div className="text-base font-bold text-[var(--text-main)] truncate">
               {formData.cod_proposta ? `Proposta ${formData.cod_proposta}` : 'Nova entrada'}
             </div>
@@ -230,7 +230,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
           <div className="text-xs font-bold text-[var(--text-main)] mb-3">Identificação</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número NF</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número NF</label>
               <input
                 name="numero_nf"
                 value={formData.numero_nf || ''}
@@ -240,7 +240,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Número Pedido</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Número Pedido</label>
               <input
                 name="numero_pedido"
                 value={formData.numero_pedido || ''}
@@ -255,7 +255,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
           <div className="text-xs font-bold text-[var(--text-main)] mb-3">Solicitação do Cliente</div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Descrição</label>
+            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Descrição</label>
             <textarea
               name="solicitacao_cliente"
               value={formData.solicitacao_cliente || ''}
@@ -271,27 +271,27 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
           <div className="text-xs font-bold text-[var(--text-main)] mb-3">Dados do equipamento</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">TAG</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">TAG</label>
               <input name="tag" value={formData.tag || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Fabricante</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Fabricante</label>
               <input name="fabricante" value={formData.fabricante || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Modelo</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Modelo</label>
               <input name="modelo" value={formData.modelo || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 1</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Série 1</label>
               <input name="numero_serie" value={formData.numero_serie || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 2</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Série 2</label>
               <input name="numero_serie2" value={formData.numero_serie2 || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Faixa</label>
+              <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Faixa</label>
               <input name="faixa" value={formData.faixa || ''} onChange={handleChange} className={inputBase} />
             </div>
             <div className="flex items-end">
@@ -312,7 +312,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
           <div className="text-xs font-bold text-[var(--text-main)] mb-3">Análise visual</div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Observações</label>
+            <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Observações</label>
             <textarea
               name="observacoes_equipamento"
               value={formData.observacoes_equipamento || ''}
@@ -327,7 +327,7 @@ export const EquipmentEntryModal: React.FC<EquipmentEntryModalProps> = ({
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="text-xs font-bold text-[var(--text-main)]">Imagens</div>
-            <label className="inline-flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:border-[var(--primary)]/30 hover:bg-[var(--bg-body)] transition-colors cursor-pointer">
+            <label className="inline-flex items-center gap-2 px-3 h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] text-[var(--text-main)] hover:border-[var(--primary)]/30 hover:bg-[var(--bg-main)] transition-colors cursor-pointer">
               {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
               <span className="text-xs font-bold">Adicionar</span>
               <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />

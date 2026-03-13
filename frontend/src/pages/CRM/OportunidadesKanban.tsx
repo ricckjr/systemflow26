@@ -361,7 +361,7 @@ const OpportunityCard = memo(function OpportunityCard({
   })()
   const tempoAbertoBadge =
     tempoAbertoDias === null
-      ? 'text-slate-300 bg-white/5 border-white/10'
+      ? 'text-[var(--text-soft)] bg-[var(--bg-card)] border-[var(--border)]'
       : tempoAbertoDias <= 15
         ? 'text-emerald-200 bg-emerald-500/10 border-emerald-500/20'
         : tempoAbertoDias <= 25
@@ -384,82 +384,89 @@ const OpportunityCard = memo(function OpportunityCard({
           {...provided.dragHandleProps}
           onClick={() => onOpen(id)}
           className={`
-            group relative flex flex-col gap-3 p-4 mb-3 rounded-xl border transition-all duration-200
-            ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-cyan-500 rotate-2 scale-105 z-50 bg-[#1E293B]' : 'bg-[#0F172A] border-white/5 shadow-sm hover:shadow-md hover:border-white/10'}
+            group relative flex flex-col gap-2.5 p-3.5 mb-2 rounded-xl border cursor-pointer
+            transition-all duration-150
+            ${snapshot.isDragging
+              ? 'ring-2 ring-[var(--primary)]/60 rotate-1 scale-[1.02] z-50 bg-[var(--bg-card)] border-[var(--primary)]/30'
+              : 'bg-[var(--bg-panel)] border-[var(--border)] hover:border-[var(--primary)]/20 hover:bg-[var(--bg-card)]'
+            }
           `}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h4 className="text-sm font-bold text-slate-100 leading-snug line-clamp-2" title={clienteLabel}>
-                {clienteLabel}
-              </h4>
-            </div>
+          {/* Linha de cor do status no topo */}
+          {statusColor && (
+            <div
+              className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl"
+              style={{ backgroundColor: statusColor }}
+            />
+          )}
+
+          {/* Header: cliente + código */}
+          <div className="flex items-start justify-between gap-2 mt-0.5">
+            <h4 className="text-[13px] font-semibold text-[var(--text-main)] leading-snug line-clamp-2 flex-1 min-w-0" title={clienteLabel}>
+              {clienteLabel}
+            </h4>
             {cod ? (
-              <span className="shrink-0 text-[10px] font-black text-slate-300 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+              <span className="shrink-0 text-xs font-medium text-[var(--text-muted)] tabular-nums">
                 #{cod}
               </span>
             ) : null}
           </div>
 
-          <div className="space-y-1">
-            <div className="text-[11px] text-slate-400">
-              <span className="text-slate-500">Solução: </span>
-              {formatSolucaoLabel(opportunity.solucao)}
+          {/* Valor destaque */}
+          {valorNumber > 0 && (
+            <div className="text-base font-bold text-[var(--text-main)] font-mono tabular-nums leading-none">
+              {formatCurrency(valorNumber)}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Data de inclusão">
-              <Calendar size={12} className="text-slate-500" />
-              <span>{formatDate(opportunity.data_inclusao)}</span>
-            </div>
-            {isConquistada && dataConquistada ? (
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-200" title="Data de conquista">
-                <Check size={12} className="text-emerald-300" />
-                <span>{`Conquistado: ${formatDate(dataConquistada)}`}</span>
-              </div>
-            ) : null}
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400" title="Parado (dias)">
-              <Clock size={12} className="text-slate-500" />
-              <span>{`Parado: ${formatDias(diasParado)}`}</span>
-            </div>
-            <div className="text-[11px] text-slate-400" title="Valor da proposta">
-              <span className="text-slate-500">Valor: </span>
-              <span className="font-black text-emerald-200 font-mono">{formatCurrency(valorNumber)}</span>
-            </div>
-            {tempoAbertoDias !== null ? (
-              <div className="pt-1">
-                <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-wider ${tempoAbertoBadge}`}>
-                  {`Tempo aberto: ${tempoAbertoDias}d`}
-                </span>
-              </div>
-            ) : null}
+          )}
+
+          {/* Metadados compactos */}
+          <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+            <span className="flex items-center gap-1">
+              <Calendar size={11} />
+              {formatDate(opportunity.data_inclusao)}
+            </span>
+            {diasParado !== null && (
+              <span className="flex items-center gap-1">
+                <Clock size={11} />
+                {formatDias(diasParado)}
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
-            <div className="flex items-center gap-2">
-              {tempBucket && (
-                <div className="flex items-center gap-2" title={`Temperatura: ${temperatura}% (${tempBucket})`}>
-                  <span className={`text-[11px] font-black px-3 py-1 rounded-xl border ${tempBadge}`}>{`🌡${Math.min(100, Math.max(0, Math.round(temperatura)))}º`}</span>
-                </div>
-              )}
-            </div>
+          {/* Badges: tempo aberto + temperatura */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isConquistada && dataConquistada ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/20">
+                <Check size={10} />
+                {formatDate(dataConquistada)}
+              </span>
+            ) : tempoAbertoDias !== null ? (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${tempoAbertoBadge}`}>
+                {tempoAbertoDias}d aberto
+              </span>
+            ) : null}
+            {tempBucket && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${tempBadge}`}
+                title={`Temperatura: ${temperatura}% (${tempBucket})`}>
+                {Math.round(temperatura)}°
+              </span>
+            )}
+          </div>
 
-            <div className="flex-1 flex justify-center px-2">
-              {statusText ? (
-                <span
-                  className="max-w-[180px] truncate text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 px-3 py-1 rounded-xl border border-white/10 inline-flex items-center gap-2"
-                  title={statusText}
-                  style={{
-                    borderColor: statusBorder,
-                    backgroundColor: statusBg
-                  }}
-                >
-                  {statusColor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} /> : null}
-                  <span className="truncate">{statusText}</span>
-                </span>
-              ) : null}
-            </div>
+          {/* Footer: status + vendedor */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border)]">
+            {statusText ? (
+              <span
+                className="truncate text-xs font-medium text-[var(--text-soft)] inline-flex items-center gap-1.5 min-w-0"
+                title={statusText}
+              >
+                {statusColor ? <span className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor }} /> : null}
+                <span className="truncate">{statusText}</span>
+              </span>
+            ) : <span />}
 
             <div
-              className="w-8 h-8 rounded-full border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[10px] font-black text-cyan-100"
+              className="shrink-0 w-6 h-6 rounded-full border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden flex items-center justify-center text-xs font-semibold text-[var(--text-muted)]"
               title={vendedorLabel || 'Vendedor'}
             >
               {vendedorAvatarUrl || (opportunity as any).vendedor_avatar_url ? (
@@ -3054,7 +3061,7 @@ export default function OportunidadesKanban() {
               ? 'text-orange-200 bg-orange-500/10 border-orange-500/20'
               : tempBucket === 'MUITO QUENTE'
                 ? 'text-rose-200 bg-rose-500/10 border-rose-500/20'
-                : 'text-slate-200 bg-white/5 border-white/10'
+                : 'text-[var(--text-soft)] bg-[var(--bg-card)] border-[var(--border)]'
       const vendedorId = String((op as any)?.id_vendedor ?? (op as any)?.vendedor_id ?? '').trim()
       const vendedorLabel =
         String((op as any)?.vendedor_nome || op.vendedor || '').trim() ||
@@ -3246,32 +3253,32 @@ export default function OportunidadesKanban() {
       {/* Header Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+          <div className="p-2.5 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] shadow-none shadow-indigo-500/20">
             <LayoutDashboard size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-100">Pipeline de Vendas</h1>
-            <p className="text-xs text-slate-400">Gerencie suas propostas comerciais e negociações</p>
+            <h1 className="text-xl font-bold text-[var(--text-main)]">Pipeline de Vendas</h1>
+            <p className="text-xs text-[var(--text-muted)]">Gerencie suas propostas comerciais e negociações</p>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <div className="hidden md:flex flex-col items-end mr-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total em Pipeline</span>
+            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Total em Pipeline</span>
             <span className="text-sm font-bold text-emerald-400">{formatCurrency(totalValue)}</span>
           </div>
           <div className="hidden md:flex flex-col items-end mr-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Propostas Comerciais</span>
-            <span className="text-sm font-bold text-slate-200">{totalCount}</span>
+            <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Propostas Comerciais</span>
+            <span className="text-sm font-bold text-[var(--text-soft)]">{totalCount}</span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="inline-flex rounded-xl overflow-hidden border border-white/10 bg-[#0F172A]">
+            <div className="inline-flex rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-panel)]">
               <button
                 type="button"
                 onClick={() => setViewMode('kanban')}
                 className={`px-3 py-2 text-xs font-black inline-flex items-center gap-2 transition-colors ${
-                  viewMode === 'kanban' ? 'bg-cyan-600 text-white' : 'bg-transparent text-slate-200 hover:bg-white/5'
+                  viewMode === 'kanban' ? 'bg-[var(--primary)] text-[#041018]' : 'bg-transparent text-[var(--text-soft)] hover:bg-white/5'
                 }`}
                 title="Visualizar em Kanban"
               >
@@ -3282,7 +3289,7 @@ export default function OportunidadesKanban() {
                 type="button"
                 onClick={() => setViewMode('lista')}
                 className={`px-3 py-2 text-xs font-black inline-flex items-center gap-2 transition-colors ${
-                  viewMode === 'lista' ? 'bg-cyan-600 text-white' : 'bg-transparent text-slate-200 hover:bg-white/5'
+                  viewMode === 'lista' ? 'bg-[var(--primary)] text-[#041018]' : 'bg-transparent text-[var(--text-soft)] hover:bg-white/5'
                 }`}
                 title="Visualizar em Lista"
               >
@@ -3295,26 +3302,26 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setFaseFilterOpen((v) => !v)}
-                className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 inline-flex items-center gap-2"
+                className="h-[38px] rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-3 text-xs font-bold text-[var(--text-soft)] outline-none focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 inline-flex items-center gap-2"
                 title="Filtrar por Fase"
               >
                 <span>Fase</span>
                 {filterFaseIds.length > 0 ? (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[var(--primary-soft)] border border-[var(--primary)]/20 text-[var(--primary)]">
                     {filterFaseIds.length}
                   </span>
                 ) : null}
-                <span className="text-slate-500">▼</span>
+                <span className="text-[var(--text-muted)]">▼</span>
               </button>
 
               {faseFilterOpen ? (
-                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
-                  <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Fase</div>
+                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] shadow-none overflow-hidden">
+                  <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Filtro: Fase</div>
                     <button
                       type="button"
                       onClick={() => setFilterFaseIds([])}
-                      className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                      className="text-xs font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
                       disabled={filterFaseIds.length === 0}
                     >
                       Limpar
@@ -3344,14 +3351,14 @@ export default function OportunidadesKanban() {
                                   return [...prev, id]
                                 })
                               }}
-                              className="h-4 w-4 accent-cyan-500"
+                              className="h-4 w-4 accent-[var(--primary)]"
                             />
                             {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
-                            <span className="text-xs font-bold text-slate-200">{label}</span>
+                            <span className="text-xs font-bold text-[var(--text-soft)]">{label}</span>
                           </label>
                         )
                       })}
-                    {stages.length === 0 ? <div className="px-2 py-3 text-sm text-slate-400">Nenhuma fase.</div> : null}
+                    {stages.length === 0 ? <div className="px-2 py-3 text-sm text-[var(--text-muted)]">Nenhuma fase.</div> : null}
                   </div>
                 </div>
               ) : null}
@@ -3361,26 +3368,26 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setStatusFilterOpen((v) => !v)}
-                className="h-[38px] rounded-xl bg-[#0F172A] border border-white/10 px-3 text-xs font-bold text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 inline-flex items-center gap-2"
+                className="h-[38px] rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-3 text-xs font-bold text-[var(--text-soft)] outline-none focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 inline-flex items-center gap-2"
                 title="Filtrar por Status"
               >
                 <span>Status</span>
                 {filterStatusIds.length > 0 ? (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[var(--primary-soft)] border border-[var(--primary)]/20 text-[var(--primary)]">
                     {filterStatusIds.length}
                   </span>
                 ) : null}
-                <span className="text-slate-500">▼</span>
+                <span className="text-[var(--text-muted)]">▼</span>
               </button>
 
               {statusFilterOpen ? (
-                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
-                  <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Status</div>
+                <div className="absolute z-[200] mt-2 w-[280px] rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] shadow-none overflow-hidden">
+                  <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Filtro: Status</div>
                     <button
                       type="button"
                       onClick={() => setFilterStatusIds([])}
-                      className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                      className="text-xs font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
                       disabled={filterStatusIds.length === 0}
                     >
                       Limpar
@@ -3410,15 +3417,15 @@ export default function OportunidadesKanban() {
                                   return [...prev, id]
                                 })
                               }}
-                              className="h-4 w-4 accent-cyan-500"
+                              className="h-4 w-4 accent-[var(--primary)]"
                             />
                             {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
-                            <span className="text-xs font-bold text-slate-200">{label}</span>
+                            <span className="text-xs font-bold text-[var(--text-soft)]">{label}</span>
                           </label>
                         )
                       })}
                     {statusesForUi.length === 0 ? (
-                      <div className="px-2 py-3 text-sm text-slate-400">Nenhum status cadastrado.</div>
+                      <div className="px-2 py-3 text-sm text-[var(--text-muted)]">Nenhum status cadastrado.</div>
                     ) : null}
                   </div>
                 </div>
@@ -3428,19 +3435,19 @@ export default function OportunidadesKanban() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative group">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por cliente, código da proposta ou item..."
-                className="pl-10 pr-4 py-2 rounded-xl bg-[#0F172A] border border-white/10 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 w-48 transition-all"
+                className="pl-10 pr-4 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30 w-48 transition-all"
               />
             </div>
 
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
+              className="flex items-center gap-2 bg-cyan-600 hover:bg-[var(--primary-600)] text-white px-4 py-2 rounded-xl font-bold text-xs shadow-none  transition-all active:scale-95"
             >
               <Plus size={16} />
               CRIAR OPORTUNIDADE
@@ -3450,11 +3457,11 @@ export default function OportunidadesKanban() {
       </div>
 
       {viewMode === 'lista' ? (
-        <div className="flex-1 min-h-0 rounded-2xl border border-white/5 bg-[#0F172A] overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between gap-3">
-            <div className="text-xs font-black uppercase tracking-widest text-slate-300">Lista de Propostas</div>
+        <div className="flex-1 min-h-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between gap-3">
+            <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Lista de Propostas</div>
             {itensSearchLoading ? (
-              <div className="text-[11px] text-slate-400 inline-flex items-center gap-2">
+              <div className="text-xs text-[var(--text-muted)] inline-flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin" />
                 Buscando itens...
               </div>
@@ -3462,8 +3469,8 @@ export default function OportunidadesKanban() {
           </div>
           <div className="h-full overflow-auto custom-scrollbar">
             <table className="w-full text-left">
-              <thead className="sticky top-0 bg-[#0B1220] border-b border-white/10">
-                <tr className="text-[10px] uppercase tracking-wider text-slate-400">
+              <thead className="sticky top-0 bg-[var(--bg-main)] border-b border-[var(--border)]">
+                <tr className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
                   {(
                     [
                       { key: 'codigo', label: 'Código', align: 'left' as const },
@@ -3486,10 +3493,10 @@ export default function OportunidadesKanban() {
                             return { key: c.key, direction: c.key === 'valor' ? 'desc' : 'asc' }
                           })
                         }}
-                        className="inline-flex items-center gap-2 hover:text-cyan-200 transition-colors"
+                        className="inline-flex items-center gap-2 hover:text-[var(--primary)] transition-colors"
                       >
                         <span>{c.label}</span>
-                        <ArrowUpDown size={12} className={listSort.key === c.key ? 'text-cyan-300' : 'text-slate-500'} />
+                        <ArrowUpDown size={12} className={listSort.key === c.key ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'} />
                       </button>
                     </th>
                   ))}
@@ -3499,17 +3506,17 @@ export default function OportunidadesKanban() {
                 {listRows.map((r) => (
                   <tr
                     key={r.id || r.cod}
-                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                    className="border-b border-[var(--border)] hover:bg-white/5 cursor-pointer"
                     onClick={() => (r.id ? openEdit(r.id) : null)}
                   >
-                    <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">{r.cod ? `#${r.cod}` : '-'}</td>
-                    <td className="px-4 py-3 text-xs text-slate-200 max-w-[320px] truncate" title={r.clienteLabel}>
+                    <td className="px-4 py-3 text-xs font-black text-[var(--text-soft)] whitespace-nowrap">{r.cod ? `#${r.cod}` : '-'}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--text-soft)] max-w-[320px] truncate" title={r.clienteLabel}>
                       {r.clienteLabel}
                     </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-nowrap">{r.solucaoLabel}</td>
-                    <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[220px]" title={r.statusDesc}>
+                    <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap">{r.solucaoLabel}</td>
+                    <td className="px-4 py-3 text-xs text-[var(--text-soft)] max-w-[220px]" title={r.statusDesc}>
                       <span
-                        className="inline-flex items-center gap-2 max-w-[220px] truncate rounded-xl border px-3 py-1 text-[10px] font-black uppercase tracking-wider text-slate-200 bg-white/5 border-white/10"
+                        className="inline-flex items-center gap-2 max-w-[220px] truncate rounded-xl border px-3 py-1 text-xs font-black uppercase tracking-wider text-[var(--text-soft)] bg-[var(--bg-card)] border-[var(--border)]"
                         style={{
                           borderColor: r.statusCor ? hexToRgba(r.statusCor, 0.45) : undefined,
                           backgroundColor: r.statusCor ? hexToRgba(r.statusCor, 0.12) : undefined
@@ -3519,38 +3526,38 @@ export default function OportunidadesKanban() {
                         <span className="truncate">{r.statusDesc}</span>
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-nowrap" title={r.dataInclusaoLabel}>
+                    <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap" title={r.dataInclusaoLabel}>
                       {r.dataInclusaoLabel}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 min-w-0" title={r.vendedorLabel}>
-                        <div className="w-7 h-7 rounded-full border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[10px] font-black text-cyan-100 shrink-0">
+                        <div className="w-7 h-7 rounded-full border border-[var(--primary)]/20 bg-[var(--primary-soft)] overflow-hidden flex items-center justify-center text-xs font-black text-[var(--text-main)] shrink-0">
                           {r.vendedorAvatarUrl ? (
                             <img src={r.vendedorAvatarUrl} alt={r.vendedorLabel} className="w-full h-full object-cover" />
                           ) : (
                             <span>{getInitials(r.vendedorLabel || r.vendedorId)}</span>
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-200 truncate">{r.vendedorLabel}</span>
+                        <span className="text-xs text-[var(--text-soft)] truncate">{r.vendedorLabel}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-slate-200 text-right whitespace-nowrap">{formatCurrency(r.valor)}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-[var(--text-soft)] text-right whitespace-nowrap">{formatCurrency(r.valor)}</td>
                     <td className="px-4 py-3">
                       {r.tempBucket ? (
-                        <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-wider ${r.tempBadge}`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-xl border text-xs font-black uppercase tracking-wider ${r.tempBadge}`}>
                           {`🌡${Math.min(100, Math.max(0, Math.round(r.temperatura ?? 0)))}º`}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-500">-</span>
+                        <span className="text-xs text-[var(--text-muted)]">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs font-black text-slate-200 text-right whitespace-nowrap">{formatDias(r.diasSemMov)}</td>
+                    <td className="px-4 py-3 text-xs font-black text-[var(--text-soft)] text-right whitespace-nowrap">{formatDias(r.diasSemMov)}</td>
                   </tr>
                 ))}
 
                 {listRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
                       Nenhuma proposta encontrada com os filtros atuais.
                     </td>
                   </tr>
@@ -3562,9 +3569,9 @@ export default function OportunidadesKanban() {
       ) : (
         <DragDropContext onDragEnd={onDragEnd}>
           {loading && opportunities.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center rounded-2xl border border-white/5 bg-[#0F172A]">
-              <div className="flex items-center gap-3 text-slate-300">
-                <Loader2 className="animate-spin text-cyan-400" size={18} />
+            <div className="flex-1 flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]">
+              <div className="flex items-center gap-3 text-[var(--text-soft)]">
+                <Loader2 className="animate-spin text-[var(--primary)]" size={18} />
                 <span className="text-sm font-semibold">Carregando propostas comerciais...</span>
               </div>
             </div>
@@ -3577,48 +3584,48 @@ export default function OportunidadesKanban() {
                 <div className="flex h-full gap-4 min-w-[1400px] px-1">
                   {columns.map(column => (
                     <div key={column.id} className="flex flex-col w-80 shrink-0 h-full min-h-0" data-kanban-col="1">
+                    {/* Cabeçalho da coluna */}
                     <div
-                      className="flex items-start justify-between gap-3 mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
-                      style={{
-                        borderBottomColor: column.cor ? hexToRgba(column.cor, 0.55) : undefined,
-                        backgroundColor: column.cor ? hexToRgba(column.cor, 0.08) : undefined
-                      }}
+                      className="flex items-center justify-between gap-2 mb-2 px-1 pb-2 border-b border-[var(--border)]"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {column.cor && (
+                          <span
+                            className="shrink-0 w-2 h-2 rounded-full"
+                            style={{ backgroundColor: column.cor }}
+                          />
+                        )}
                         <span
-                          className="text-xs font-black uppercase tracking-wider"
-                          style={{ color: column.cor || undefined }}
+                          className="text-xs font-semibold uppercase tracking-widest truncate text-[var(--text-soft)]"
                         >
                           {column.label}
                         </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
+                        <span className="shrink-0 text-xs font-medium text-[var(--text-muted)] tabular-nums">
                           {column.items.length}
                         </span>
-                        <select
-                          value={String((monthFilterByStageId as any)[column.id] || '')}
-                          onChange={(e) => {
-                            const next = String(e.target.value || '')
-                            setMonthFilterByStageId((cur) => ({ ...cur, [column.id]: next }))
-                          }}
-                          disabled={!Array.isArray((column as any).monthOptions) || (column as any).monthOptions.length === 0}
-                          className="rounded-lg bg-[#0F172A] border border-white/10 px-2 py-1 text-[10px] font-bold text-slate-200 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
-                          title={getStageMonthFilterTitle(column.label)}
-                        >
-                          <option value="">Todos</option>
-                          {(column as any).monthOptions.map((m: string) => (
-                            <option key={m} value={m}>
-                              {formatMonthKey(m)}
-                            </option>
-                          ))}
-                        </select>
                       </div>
+                      <select
+                        value={String((monthFilterByStageId as any)[column.id] || '')}
+                        onChange={(e) => {
+                          const next = String(e.target.value || '')
+                          setMonthFilterByStageId((cur) => ({ ...cur, [column.id]: next }))
+                        }}
+                        disabled={!Array.isArray((column as any).monthOptions) || (column as any).monthOptions.length === 0}
+                        className="rounded-lg bg-[var(--bg-panel)] border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-muted)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none disabled:opacity-30 max-w-[90px]"
+                        title={getStageMonthFilterTitle(column.label)}
+                      >
+                        <option value="">Todos</option>
+                        {(column as any).monthOptions.map((m: string) => (
+                          <option key={m} value={m}>
+                            {formatMonthKey(m)}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div
-                      className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
-                      style={{ backgroundColor: column.cor ? hexToRgba(column.cor, 0.05) : undefined }}
+                      className="flex flex-col flex-1 min-h-0 rounded-xl border border-[var(--border)] p-2 transition-colors"
+                      style={{ backgroundColor: column.cor ? hexToRgba(column.cor, 0.03) : 'rgba(255,255,255,0.01)' }}
                     >
                       <Droppable droppableId={column.id}>
                         {(provided, snapshot) => (
@@ -3626,7 +3633,7 @@ export default function OportunidadesKanban() {
                             ref={provided.innerRef}
                             {...provided.droppableProps}
                             data-kanban-cards="1"
-                            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''}`}
+                            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors rounded-lg ${snapshot.isDraggingOver ? 'bg-[var(--primary)]/5' : ''}`}
                           >
                             {column.items.map((item, index) => (
                               <OpportunityCard
@@ -3663,10 +3670,10 @@ export default function OportunidadesKanban() {
 
                             {column.items.length === 0 && (
                               <div className="flex flex-col items-center justify-center h-24 opacity-30">
-                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-500 flex items-center justify-center mb-2">
-                                  <Plus size={14} className="text-slate-500" />
+                                <div className="w-8 h-8 rounded-full border-2 border-dashed border-[var(--border)] flex items-center justify-center mb-2">
+                                  <Plus size={14} className="text-[var(--text-muted)]" />
                                 </div>
-                                <span className="text-[10px] text-slate-500 font-medium">Arraste ou crie aqui</span>
+                                <span className="text-xs text-[var(--text-muted)] font-medium">Arraste ou crie aqui</span>
                               </div>
                             )}
                           </div>
@@ -3675,8 +3682,8 @@ export default function OportunidadesKanban() {
                     </div>
 
                     <div className="mt-2 px-2 flex justify-between items-center opacity-60">
-                      <span className="text-[9px] font-bold text-slate-500 uppercase">Total</span>
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase">Total</span>
+                      <span className="text-xs font-mono text-[var(--text-muted)]">
                         {formatCurrency(column.items.reduce((acc, i) => acc + getValorNumber(i), 0))}
                       </span>
                     </div>
@@ -3694,8 +3701,8 @@ export default function OportunidadesKanban() {
         onClose={closeStageMoveModal}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <Pencil size={16} className="text-cyan-300" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <Pencil size={16} className="text-[var(--primary)]" />
             </div>
             Registrar mudança de fase
           </div>
@@ -3708,7 +3715,7 @@ export default function OportunidadesKanban() {
               type="button"
               onClick={closeStageMoveModal}
               disabled={stageMoveSaving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -3716,7 +3723,7 @@ export default function OportunidadesKanban() {
               type="button"
               onClick={confirmStageMove}
               disabled={stageMoveSaving}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {stageMoveSaving ? <Loader2 className="animate-spin" size={16} /> : null}
               Confirmar mudança
@@ -3731,17 +3738,17 @@ export default function OportunidadesKanban() {
             </div>
           )}
 
-          <div className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">De</div>
-                <div className="text-sm font-bold text-slate-100 truncate">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">De</div>
+                <div className="text-sm font-bold text-[var(--text-main)] truncate">
                   {String(pendingStageMove?.faseLabelOld || '').trim() || '—'}
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Para</div>
-                <div className="text-sm font-bold text-slate-100 truncate">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Para</div>
+                <div className="text-sm font-bold text-[var(--text-main)] truncate">
                   {String(pendingStageMove?.faseLabel || '').trim() || '—'}
                 </div>
               </div>
@@ -3749,7 +3756,7 @@ export default function OportunidadesKanban() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Comentário</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Comentário</label>
             <textarea
               value={stageMoveComment}
               onChange={(e) => {
@@ -3758,7 +3765,7 @@ export default function OportunidadesKanban() {
               }}
               rows={4}
               placeholder="Descreva o motivo da mudança de fase..."
-              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none"
               autoFocus
               disabled={stageMoveSaving}
             />
@@ -3774,8 +3781,8 @@ export default function OportunidadesKanban() {
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <Plus size={16} className="text-cyan-300" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <Plus size={16} className="text-[var(--primary)]" />
             </div>
             Criar Oportunidade
           </div>
@@ -3788,7 +3795,7 @@ export default function OportunidadesKanban() {
               type="button"
               onClick={() => setCreateOpen(false)}
               disabled={createSaving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -3796,7 +3803,7 @@ export default function OportunidadesKanban() {
               type="button"
               onClick={handleCreateOportunidade}
               disabled={createSubmitDisabled}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
             >
               {createSaving ? 'Criando...' : 'Criar Oportunidade'}
             </button>
@@ -3813,12 +3820,12 @@ export default function OportunidadesKanban() {
           <div className="grid grid-cols-1 gap-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Empresa Correspondente</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Empresa Correspondente</label>
                 <select
                   value={createEmpresaCorrespondenteId}
                   onChange={(e) => setCreateEmpresaCorrespondenteId(e.target.value)}
                   disabled={createSaving || empresasCorrespondentes.length === 0}
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-bold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-50"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-bold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none disabled:opacity-50"
                 >
                   {empresasCorrespondentes.length === 0 ? (
                     <option value="">Cadastre no Financeiro</option>
@@ -3837,9 +3844,9 @@ export default function OportunidadesKanban() {
             </div>
 
             <div className="relative">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Cliente</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Cliente</label>
               <div className="relative mt-2">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   value={createClienteQuery}
                   onChange={(e) => {
@@ -3850,18 +3857,18 @@ export default function OportunidadesKanban() {
                   onFocus={() => setCreateClienteOpen(true)}
                   onBlur={() => window.setTimeout(() => setCreateClienteOpen(false), 150)}
                   placeholder="Pesquisar cliente..."
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] pl-9 pr-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
                 {createClienteOpen && (
-                  <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
+                  <div className="absolute z-30 mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-none overflow-hidden">
                     <div className="max-h-72 overflow-y-auto custom-scrollbar">
                       {createClienteLoading ? (
-                        <div className="px-4 py-3 text-xs text-slate-400 flex items-center gap-2">
+                        <div className="px-4 py-3 text-xs text-[var(--text-muted)] flex items-center gap-2">
                           <Loader2 className="animate-spin" size={14} />
                           Buscando...
                         </div>
                       ) : createClienteOptions.length === 0 ? (
-                        <div className="px-4 py-3 text-xs text-slate-400">Nenhum cliente encontrado.</div>
+                        <div className="px-4 py-3 text-xs text-[var(--text-muted)]">Nenhum cliente encontrado.</div>
                       ) : (
                         createClienteOptions.map((c) => (
                           <button
@@ -3875,8 +3882,8 @@ export default function OportunidadesKanban() {
                             }}
                             className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
                           >
-                            <div className="text-sm font-semibold text-slate-100 truncate">{c.cliente_nome_razao_social}</div>
-                            <div className="text-[11px] text-slate-400 truncate">
+                            <div className="text-sm font-semibold text-[var(--text-main)] truncate">{c.cliente_nome_razao_social}</div>
+                            <div className="text-xs text-[var(--text-muted)] truncate">
                               {(c.cliente_documento_formatado || c.cliente_documento || '-') +
                                 (c.cliente_cidade ? ` · ${c.cliente_cidade}` : '') +
                                 (c.cliente_uf ? `/${c.cliente_uf}` : '')}
@@ -3892,11 +3899,11 @@ export default function OportunidadesKanban() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Origem</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Origem</label>
                 <select
                   value={createOrigemId}
                   onChange={(e) => setCreateOrigemId(e.target.value)}
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 >
                   <option value="">-</option>
                   {origens.map((o) => (
@@ -3907,12 +3914,12 @@ export default function OportunidadesKanban() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Vendedor</label>
+                <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Vendedor</label>
                 <select
                   value={createVendedorId}
                   onChange={(e) => setCreateVendedorId(e.target.value)}
                   disabled={!canCrmControl}
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 >
                   <option value="">{canCrmControl ? '-' : (myUserName || '-')}</option>
                   {!canCrmControl && myUserId && !usuarios.some((u: UsuarioSimples) => u.id === myUserId) && (
@@ -3928,11 +3935,11 @@ export default function OportunidadesKanban() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solução</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Solução</label>
               <select
                 value={createSolucao}
                 onChange={(e) => setCreateSolucao(e.target.value as any)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               >
                 <option value="PRODUTO">Venda de Produto</option>
                 <option value="SERVICO">Venda de Serviço</option>
@@ -3940,12 +3947,12 @@ export default function OportunidadesKanban() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Solicitação do Cliente</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Solicitação do Cliente</label>
               <input
                 value={createSolicitacao}
                 onChange={(e) => setCreateSolicitacao(e.target.value)}
                 placeholder="Descreva a solicitação do cliente..."
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               />
             </div>
           </div>
@@ -3960,8 +3967,8 @@ export default function OportunidadesKanban() {
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <UserPlus size={18} className="text-cyan-300" />
+            <div className="w-9 h-9 rounded-2xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <UserPlus size={18} className="text-[var(--primary)]" />
             </div>
             Novo Contato
           </div>
@@ -3974,7 +3981,7 @@ export default function OportunidadesKanban() {
               type="button"
               onClick={() => setCreateContatoModalOpen(false)}
               disabled={createContatoSaving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -4051,7 +4058,7 @@ export default function OportunidadesKanban() {
               disabled={
                 createContatoSaving || !contatoModalClienteId.trim() || !createContatoDraft.contato_nome.trim()
               }
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {createContatoSaving ? (
                 <>
@@ -4072,23 +4079,23 @@ export default function OportunidadesKanban() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente</div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 space-y-4">
+            <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Cliente</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome/Razão Social</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Nome/Razão Social</label>
                 <input
                   value={contatoModalClienteNome || contatoModalClienteId.trim() || '-'}
                   readOnly
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">CNPJ/CPF</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">CNPJ/CPF</label>
                 <input
                   value={contatoModalClienteDocumento || '-'}
                   readOnly
-                  className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                 />
               </div>
             </div>
@@ -4096,20 +4103,20 @@ export default function OportunidadesKanban() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Nome</label>
               <input
                 value={createContatoDraft.contato_nome}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_nome: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: João da Silva"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">ID Integração</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">ID Integração</label>
               <input
                 value={createContatoDraft.integ_id}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, integ_id: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: OMIE_CONTATO_123"
               />
             </div>
@@ -4117,20 +4124,20 @@ export default function OportunidadesKanban() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cargo</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Cargo</label>
               <input
                 value={createContatoDraft.contato_cargo}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_cargo: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: Compras, Financeiro..."
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Email</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Email</label>
               <input
                 value={createContatoDraft.contato_email}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_email: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="email@empresa.com"
               />
             </div>
@@ -4138,31 +4145,31 @@ export default function OportunidadesKanban() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 01</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Telefone 01</label>
               <input
                 value={createContatoDraft.contato_telefone01}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_telefone01: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                 placeholder="(00) 00000-0000"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 02</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Telefone 02</label>
               <input
                 value={createContatoDraft.contato_telefone02}
                 onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_telefone02: e.target.value }))}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                 placeholder="(00) 00000-0000"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observações</label>
             <textarea
               value={createContatoDraft.contato_obs}
               onChange={(e) => setCreateContatoDraft((prev) => ({ ...prev, contato_obs: e.target.value }))}
-              className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              className="w-full h-28 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none"
               placeholder="Observações do contato..."
             />
           </div>
@@ -4187,7 +4194,7 @@ export default function OportunidadesKanban() {
               </div>
               <div className="flex items-center gap-2 min-w-0">
                 <span className="truncate">{activeId ? 'Informações da Proposta Comercial' : 'Nova Proposta Comercial'}</span>
-                <span className={`shrink-0 inline-flex items-center rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider border ${solucaoUi.badge}`}>
+                <span className={`shrink-0 inline-flex items-center rounded-lg px-2 py-1 text-xs font-black uppercase tracking-wider border ${solucaoUi.badge}`}>
                   {solucaoUi.label}
                 </span>
               </div>
@@ -4200,10 +4207,10 @@ export default function OportunidadesKanban() {
                   setStatusHistoryError(null)
                   setStatusHistoryOpen(true)
                 }}
-                className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 inline-flex items-center justify-center transition-colors active:scale-[0.99]"
+                className="w-10 h-10 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-main)] inline-flex items-center justify-center transition-colors active:scale-[0.99]"
                 title="Histórico de Movimentos"
               >
-                <Clock size={16} className="text-slate-200" />
+                <Clock size={16} className="text-[var(--text-soft)]" />
               </button>
             </div>
           </div>
@@ -4220,30 +4227,30 @@ export default function OportunidadesKanban() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="min-w-0">
-              <div className="px-4 md:px-6 py-4 md:py-5 border-b border-white/10 bg-[#0B1220]">
+              <div className="px-4 md:px-6 py-4 md:py-5 border-b border-[var(--border)] bg-[var(--bg-main)]">
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                    <div className="xl:col-span-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Identificação</div>
+                    <div className="xl:col-span-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Identificação</div>
                       <div className="mt-4 grid grid-cols-1 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Código da Proposta</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Código da Proposta</label>
                           <input
                             value={(draftCod || '').trim() || '-'}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-black text-[var(--text-main)] outline-none font-mono"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Solução</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Solução</label>
                           <input
                             value={solucaoLabel}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Status Atual</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Status Atual</label>
                           <input
                             value={
                               String(
@@ -4252,16 +4259,16 @@ export default function OportunidadesKanban() {
                               ).trim() || '-'
                             }
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="xl:col-span-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Vendedor</div>
+                    <div className="xl:col-span-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Vendedor</div>
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-[3rem_minmax(0,1fr)] gap-4 items-start">
-                        <div className="w-12 h-12 rounded-2xl border border-cyan-500/20 bg-cyan-900/20 overflow-hidden flex items-center justify-center text-[11px] font-black text-cyan-100">
+                        <div className="w-12 h-12 rounded-2xl border border-[var(--primary)]/20 bg-[var(--primary-soft)] overflow-hidden flex items-center justify-center text-xs font-black text-[var(--text-main)]">
                           {vendedorAvatarUrl ? (
                             <img
                               src={vendedorAvatarUrl}
@@ -4273,95 +4280,95 @@ export default function OportunidadesKanban() {
                           )}
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Vendedor</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Nome do Vendedor</label>
                           <input
                             value={(vendedorQuery || '').trim() || '-'}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Telefone</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Telefone</label>
                           <input
                             value={vendedorTelefone || '-'}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">E-mail</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">E-mail</label>
                           <input
                             value={vendedorEmail || '-'}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ramal</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Ramal</label>
                           <input
                             value={vendedorRamal || '-'}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="xl:col-span-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">DATA</div>
+                    <div className="xl:col-span-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">DATA</div>
                       <div className="mt-4 grid grid-cols-1 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data de Inclusão</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Data de Inclusão</label>
                           <input
                             value={dataInclusaoLabel}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tempo aberto</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Tempo aberto</label>
                           <input
                             value={formatDias(tempoAbertoDias)}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-black text-[var(--text-main)] outline-none font-mono"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Última Movimentação</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Última Movimentação</label>
                           <input
                             value={ultimaMovimentacaoLabel}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Dias sem Movimentação</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Dias sem Movimentação</label>
                           <input
                             value={formatDias(diasSemMovimentacao)}
                             readOnly
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-black text-slate-100 outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-black text-[var(--text-main)] outline-none font-mono"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <div className="xl:col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Solicitação do Cliente</div>
+                    <div className="xl:col-span-12 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Solicitação do Cliente</div>
                       <textarea
                         value={draftDescricao}
                         onChange={(e) => setDraftDescricao(e.target.value)}
                         placeholder="Descreva a solicitação do cliente..."
-                        className="mt-4 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                        className="mt-4 w-full h-28 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                    <div className="xl:col-span-12 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="xl:col-span-12 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Cliente / Contatos</div>
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Cliente / Contatos</div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -4375,7 +4382,7 @@ export default function OportunidadesKanban() {
                               })
                             }}
                             disabled={!draftClienteId.trim()}
-                            className="h-[36px] px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-wider shadow-lg shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                            className="h-[36px] px-3 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-black text-xs uppercase tracking-wider shadow-none  transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
                           >
                             Adicionar Contato
                           </button>
@@ -4398,7 +4405,7 @@ export default function OportunidadesKanban() {
                               setCreateContatoModalOpen(true)
                             }}
                             disabled={createContatoSaving || !draftClienteId.trim()}
-                            className="h-[36px] px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-black text-[10px] uppercase tracking-wider transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-2"
+                            className="h-[36px] px-3 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] font-black text-xs uppercase tracking-wider transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-2"
                           >
                             <UserPlus size={14} />
                             Novo Contato
@@ -4408,27 +4415,27 @@ export default function OportunidadesKanban() {
                       <div className="mt-4 space-y-4">
                         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-end">
                           <div className="xl:col-span-6 space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Cliente</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Cliente</label>
                             <input
                               value={clienteQuery}
                               readOnly
                               placeholder="Cliente"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none"
                             />
                           </div>
                           <div className="xl:col-span-3 space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">CNPJ/CPF</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">CNPJ/CPF</label>
                             <input
                               value={draftClienteDocumento || '-'}
                               readOnly
                               placeholder="CNPJ/CPF"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none font-mono"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none font-mono"
                             />
                           </div>
                           <div className="xl:col-span-3 space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Origem</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Origem</label>
                             <div className="relative">
-                              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                               <input
                                 value={origemQuery}
                                 onChange={(e) => {
@@ -4439,13 +4446,13 @@ export default function OportunidadesKanban() {
                                 onFocus={() => setOrigemOpen(true)}
                                 onBlur={() => window.setTimeout(() => setOrigemOpen(false), 150)}
                                 placeholder="Pesquisar origem..."
-                                className="w-full rounded-xl bg-[#0F172A] border border-white/10 pl-9 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] pl-9 pr-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                               />
                               {origemOpen && (
-                                <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0F172A] shadow-2xl overflow-hidden">
+                                <div className="absolute z-30 mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-none overflow-hidden">
                                   <div className="max-h-72 overflow-y-auto custom-scrollbar">
                                     {origemFiltered.length === 0 ? (
-                                      <div className="px-4 py-3 text-xs text-slate-400">Nenhuma origem encontrada.</div>
+                                      <div className="px-4 py-3 text-xs text-[var(--text-muted)]">Nenhuma origem encontrada.</div>
                                     ) : (
                                       origemFiltered.map((o) => (
                                         <button
@@ -4459,7 +4466,7 @@ export default function OportunidadesKanban() {
                                           }}
                                           className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
                                         >
-                                          <div className="text-sm font-semibold text-slate-100 truncate">{o.descricao_orig}</div>
+                                          <div className="text-sm font-semibold text-[var(--text-main)] truncate">{o.descricao_orig}</div>
                                         </button>
                                       ))
                                     )}
@@ -4481,10 +4488,10 @@ export default function OportunidadesKanban() {
                             )}
 
                             {contatoAddBarOpen && (
-                              <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-4">
+                              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
                                 <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
                                   <div className="relative">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                                     <input
                                       value={contatoAddQuery}
                                       onChange={(e) => {
@@ -4496,13 +4503,13 @@ export default function OportunidadesKanban() {
                                       onBlur={() => window.setTimeout(() => setContatoAddOpen(false), 150)}
                                       disabled={!draftClienteId.trim() || contatoLoading || oportunidadeContatosLoading}
                                       placeholder={contatoLoading ? 'Carregando...' : 'Pesquisar contato...'}
-                                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 pl-9 pr-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none disabled:opacity-40"
+                                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] pl-9 pr-4 py-3 text-sm font-semibold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none disabled:opacity-40"
                                     />
                                     {contatoAddOpen && (
-                                      <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
+                                      <div className="absolute z-30 mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] shadow-none overflow-hidden">
                                         <div className="max-h-72 overflow-y-auto custom-scrollbar">
                                           {contatoAddFiltered.length === 0 ? (
-                                            <div className="px-4 py-3 text-xs text-slate-400">Nenhum contato encontrado.</div>
+                                            <div className="px-4 py-3 text-xs text-[var(--text-muted)]">Nenhum contato encontrado.</div>
                                           ) : (
                                             contatoAddFiltered.map((c) => (
                                               <button
@@ -4516,8 +4523,8 @@ export default function OportunidadesKanban() {
                                                 }}
                                                 className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors"
                                               >
-                                                <div className="text-sm font-semibold text-slate-100 truncate">{c.contato_nome}</div>
-                                                <div className="text-[11px] text-slate-400 truncate">
+                                                <div className="text-sm font-semibold text-[var(--text-main)] truncate">{c.contato_nome}</div>
+                                                <div className="text-xs text-[var(--text-muted)] truncate">
                                                   {(c.contato_cargo || '-') +
                                                     ' · ' +
                                                     (c.contato_email || '-') +
@@ -4535,7 +4542,7 @@ export default function OportunidadesKanban() {
                                     type="button"
                                     onClick={addContatoToProposta}
                                     disabled={contatoOpsSaving || !contatoAddId.trim() || !draftClienteId.trim()}
-                                    className="h-[46px] px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                                    className="h-[46px] px-4 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-black text-xs uppercase tracking-wider shadow-none  transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
                                   >
                                     Adicionar
                                   </button>
@@ -4543,15 +4550,15 @@ export default function OportunidadesKanban() {
                               </div>
                             )}
 
-                            <div className="rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
-                              <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3">
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Contatos</div>
-                                <span className="text-[10px] font-black bg-white/5 text-slate-300 px-2 py-1 rounded-full border border-white/10">
+                            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
+                              <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] flex items-center justify-between gap-3">
+                                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Contatos</div>
+                                <span className="text-xs font-black bg-[var(--bg-card)] text-[var(--text-soft)] px-2 py-1 rounded-full border border-[var(--border)]">
                                   {oportunidadeContatos.length}
                                 </span>
                               </div>
 
-                              <div className="hidden xl:grid grid-cols-12 gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-white/10">
+                              <div className="hidden xl:grid grid-cols-12 gap-3 px-4 py-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)]">
                                 <div className="col-span-1">#</div>
                                 <div className="col-span-3">Contato</div>
                                 <div className="col-span-3">Cargo</div>
@@ -4561,32 +4568,32 @@ export default function OportunidadesKanban() {
                               </div>
 
                               {oportunidadeContatosLoading ? (
-                                <div className="px-4 py-4 text-xs text-slate-400 flex items-center gap-2">
+                                <div className="px-4 py-4 text-xs text-[var(--text-muted)] flex items-center gap-2">
                                   <Loader2 className="animate-spin" size={14} />
                                   Carregando contatos...
                                 </div>
                               ) : oportunidadeContatos.length === 0 ? (
-                                <div className="px-4 py-4 text-xs text-slate-400">Nenhum contato vinculado ainda.</div>
+                                <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Nenhum contato vinculado ainda.</div>
                               ) : (
                                 <div className="divide-y divide-white/10">
                                   {oportunidadeContatos.map((c, idx) => (
                                     <div key={c.contatoId} className="px-4 py-3 grid grid-cols-1 xl:grid-cols-12 gap-3 items-center">
-                                      <div className="xl:col-span-1 text-xs font-black text-slate-300">{idx + 1}</div>
+                                      <div className="xl:col-span-1 text-xs font-black text-[var(--text-soft)]">{idx + 1}</div>
                                       <div className="xl:col-span-3 min-w-0">
                                         <div className="flex items-center gap-2 min-w-0">
                                           {c.isPrincipal && <Star size={14} className="text-amber-300 shrink-0" />}
-                                          <div className="text-sm font-bold text-slate-100 truncate">
+                                          <div className="text-sm font-bold text-[var(--text-main)] truncate">
                                             {c.contato?.contato_nome || `Contato ${idx + 1}`}
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="xl:col-span-3 text-sm font-semibold text-slate-200 truncate">
+                                      <div className="xl:col-span-3 text-sm font-semibold text-[var(--text-soft)] truncate">
                                         {c.contato?.contato_cargo || '-'}
                                       </div>
-                                      <div className="xl:col-span-3 text-sm font-semibold text-slate-200 truncate">
+                                      <div className="xl:col-span-3 text-sm font-semibold text-[var(--text-soft)] truncate">
                                         {c.contato?.contato_email || '-'}
                                       </div>
-                                      <div className="xl:col-span-1 text-sm font-semibold text-slate-200 truncate font-mono">
+                                      <div className="xl:col-span-1 text-sm font-semibold text-[var(--text-soft)] truncate font-mono">
                                         {c.contato?.contato_telefone01 || '-'}
                                       </div>
                                       <div className="xl:col-span-1 flex items-center justify-start xl:justify-end gap-2">
@@ -4595,7 +4602,7 @@ export default function OportunidadesKanban() {
                                           onClick={() => setContatoPrincipalOnProposta(c.contatoId)}
                                           disabled={contatoOpsSaving || c.isPrincipal}
                                           title="Definir como principal"
-                                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
+                                          className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
                                         >
                                           <LogIn size={16} className="text-amber-300" />
                                         </button>
@@ -4603,7 +4610,7 @@ export default function OportunidadesKanban() {
                                           type="button"
                                           onClick={() => removeContatoFromProposta(c.contatoId)}
                                           disabled={contatoOpsSaving}
-                                          className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
+                                          className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-rose-200 transition-colors disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
                                           title="Remover"
                                         >
                                           <Trash2 size={16} />
@@ -4621,26 +4628,26 @@ export default function OportunidadesKanban() {
 
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Detalhes Comerciais</div>
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Detalhes Comerciais</div>
                     <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
                       <div className="lg:col-span-4 space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ticket Calculado</label>
+                        <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Ticket Calculado</label>
                         <input
                           value={formatCurrency(ticketCalculado)}
                           readOnly
-                          className="w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-3 text-sm font-black text-emerald-300 outline-none font-mono"
+                          className="w-full rounded-xl bg-[var(--bg-panel)] border border-emerald-500/20 px-4 py-3 text-sm font-black text-emerald-300 outline-none font-mono"
                         />
                       </div>
                       <div className="lg:col-span-4 space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Empresa Correspondente</label>
-                          <Pencil size={12} className="text-slate-500" />
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Empresa Correspondente</label>
+                          <Pencil size={12} className="text-[var(--text-muted)]" />
                         </div>
                         <select
                           value={draftEmpresaCorrespondenteId}
                           onChange={(e) => setDraftEmpresaCorrespondenteId(e.target.value)}
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                          className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                         >
                           {empresasCorrespondentes.length === 0 ? (
                             <option value="">Cadastre no Financeiro</option>
@@ -4656,19 +4663,19 @@ export default function OportunidadesKanban() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-300">Documentos</div>
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Documentos</div>
                     <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
                       <div className="lg:col-span-8 space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Número do Pedido de Compra</label>
-                          <Pencil size={12} className="text-slate-500" />
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Número do Pedido de Compra</label>
+                          <Pencil size={12} className="text-[var(--text-muted)]" />
                         </div>
                         <input
                           value={draftPedidoCompraNumero}
                           onChange={(e) => setDraftPedidoCompraNumero(e.target.value)}
                           placeholder="Número do pedido de compra..."
-                          className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                          className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                         />
                         <input
                           ref={pedidoCompraInputRef}
@@ -4748,7 +4755,7 @@ export default function OportunidadesKanban() {
                           type="button"
                           onClick={() => docsComplementaresInputRef.current?.click()}
                           disabled={!activeId || docsComplementaresUploading}
-                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                          className="px-4 py-3 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-main)] font-black text-sm disabled:opacity-50 transition-colors"
                         >
                           {docsComplementaresUploading ? 'Anexando...' : 'Anexar Documento'}
                         </button>
@@ -4756,7 +4763,7 @@ export default function OportunidadesKanban() {
                           type="button"
                           onClick={() => void loadDocsComplementares()}
                           disabled={!activeId || docsComplementaresLoading}
-                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                          className="px-4 py-3 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-main)] font-black text-sm disabled:opacity-50 transition-colors"
                         >
                           Atualizar
                         </button>
@@ -4764,41 +4771,41 @@ export default function OportunidadesKanban() {
                           type="button"
                           onClick={() => pedidoCompraInputRef.current?.click()}
                           disabled={!activeId || pedidoCompraUploading}
-                          className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 font-black text-sm disabled:opacity-50 transition-colors"
+                          className="px-4 py-3 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-main)] font-black text-sm disabled:opacity-50 transition-colors"
                         >
                           {pedidoCompraUploading ? 'Anexando PC...' : 'Anexar Pedido de Compra'}
                         </button>
                       </div>
                     </div>
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
-                      <div className="px-4 py-3 bg-white/5 border-b border-white/10 flex items-center justify-between gap-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Arquivos anexados</div>
-                        <span className="text-[10px] font-black bg-white/5 text-slate-300 px-2 py-1 rounded-full border border-white/10">
+                    <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
+                      <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] flex items-center justify-between gap-3">
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Arquivos anexados</div>
+                        <span className="text-xs font-black bg-[var(--bg-card)] text-[var(--text-soft)] px-2 py-1 rounded-full border border-[var(--border)]">
                           {(draftPedidoCompraPath ? 1 : 0) + (docsComplementares.length || 0)}
                         </span>
                       </div>
 
                       {!activeId ? (
-                        <div className="px-4 py-4 text-xs text-slate-400">Salve a proposta para anexar documentos.</div>
+                        <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Salve a proposta para anexar documentos.</div>
                       ) : docsComplementaresLoading ? (
-                        <div className="px-4 py-4 text-xs text-slate-400 inline-flex items-center gap-2">
+                        <div className="px-4 py-4 text-xs text-[var(--text-muted)] inline-flex items-center gap-2">
                           <Loader2 className="animate-spin" size={14} />
                           Carregando...
                         </div>
                       ) : (draftPedidoCompraPath ? 1 : 0) + docsComplementares.length === 0 ? (
-                        <div className="px-4 py-4 text-xs text-slate-400">Nenhum documento anexado ainda.</div>
+                        <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Nenhum documento anexado ainda.</div>
                       ) : (
                         <div className="divide-y divide-white/10">
                           {draftPedidoCompraPath ? (
                             <div className="px-4 py-3 flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <FileText size={14} className="text-slate-300 shrink-0" />
-                                  <div className="text-sm font-bold text-slate-100 truncate">
+                                  <FileText size={14} className="text-[var(--text-soft)] shrink-0" />
+                                  <div className="text-sm font-bold text-[var(--text-main)] truncate">
                                     {draftPedidoCompraPath.split('/').pop() || 'Pedido de Compra'}
                                   </div>
                                 </div>
-                                <div className="mt-1 text-[11px] text-slate-400">Pedido de Compra</div>
+                                <div className="mt-1 text-xs text-[var(--text-muted)]">Pedido de Compra</div>
                               </div>
                               <div className="shrink-0 flex gap-2">
                                 <button
@@ -4809,7 +4816,7 @@ export default function OportunidadesKanban() {
                                     const url = supabase.storage.from('crm-pedidos-compra').getPublicUrl(path).data.publicUrl
                                     if (url) window.open(url, '_blank', 'noopener,noreferrer')
                                   }}
-                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                                  className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors inline-flex items-center justify-center"
                                   title="Abrir"
                                   aria-label="Abrir"
                                 >
@@ -4845,7 +4852,7 @@ export default function OportunidadesKanban() {
                                     }
                                   }}
                                   disabled={pedidoCompraUploading}
-                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center disabled:opacity-50"
+                                  className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-rose-200 transition-colors inline-flex items-center justify-center disabled:opacity-50"
                                   title="Remover"
                                   aria-label="Remover"
                                 >
@@ -4859,10 +4866,10 @@ export default function OportunidadesKanban() {
                             <div key={d.path} className="px-4 py-3 flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <FileText size={14} className="text-slate-300 shrink-0" />
-                                  <div className="text-sm font-bold text-slate-100 truncate">{d.name}</div>
+                                  <FileText size={14} className="text-[var(--text-soft)] shrink-0" />
+                                  <div className="text-sm font-bold text-[var(--text-main)] truncate">{d.name}</div>
                                 </div>
-                                <div className="mt-1 text-[11px] text-slate-400">
+                                <div className="mt-1 text-xs text-[var(--text-muted)]">
                                   {formatFileSize(d.size)} · {d.mimeType || 'arquivo'} · {formatDateTime(d.createdAt || d.updatedAt)}
                                 </div>
                               </div>
@@ -4881,7 +4888,7 @@ export default function OportunidadesKanban() {
                                       pushToast({ kind: 'system', title: 'Documentos', message: msg })
                                     }
                                   }}
-                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors inline-flex items-center justify-center"
+                                  className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors inline-flex items-center justify-center"
                                   title="Abrir"
                                   aria-label="Abrir"
                                 >
@@ -4902,7 +4909,7 @@ export default function OportunidadesKanban() {
                                       pushToast({ kind: 'system', title: 'Documentos', message: msg })
                                     }
                                   }}
-                                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-rose-200 transition-colors inline-flex items-center justify-center"
+                                  className="h-9 w-9 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-rose-200 transition-colors inline-flex items-center justify-center"
                                   title="Remover"
                                   aria-label="Remover"
                                 >
@@ -4935,12 +4942,12 @@ export default function OportunidadesKanban() {
                         onClick={() => setTab(t.id as any)}
                         className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
                           tab === t.id
-                            ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200'
-                            : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                            ? 'bg-cyan-500/15 border-cyan-500/40 text-[var(--primary)]'
+                            : 'bg-white/5 border-[var(--border)] text-[var(--text-soft)] hover:bg-white/10'
                         }`}
                       >
                         <span className="inline-flex items-center gap-2">
-                          {t.editable ? <Pencil size={12} className={tab === t.id ? 'text-cyan-200' : 'text-slate-400'} /> : null}
+                          {t.editable ? <Pencil size={12} className={tab === t.id ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'} /> : null}
                           {t.label}
                         </span>
                       </button>
@@ -4964,7 +4971,7 @@ export default function OportunidadesKanban() {
                             setItemDesconto('0')
                             setItemModalOpen(true)
                           }}
-                          className="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black text-sm shadow-lg shadow-orange-500/15 transition-all active:scale-[0.99]"
+                          className="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black text-sm shadow-none shadow-orange-500/15 transition-all active:scale-[0.99]"
                         >
                           Adicionar Produto
                         </button>
@@ -4979,7 +4986,7 @@ export default function OportunidadesKanban() {
                             setItemDesconto('0')
                             setItemModalOpen(true)
                           }}
-                          className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-lg shadow-blue-500/15 transition-all active:scale-[0.99]"
+                          className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-none shadow-blue-500/15 transition-all active:scale-[0.99]"
                         >
                           Adicionar Serviço
                         </button>
@@ -4995,7 +5002,7 @@ export default function OportunidadesKanban() {
                               setItemDesconto('0')
                               setItemModalOpen(true)
                             }}
-                            className="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black text-sm shadow-lg shadow-orange-500/15 transition-all active:scale-[0.99]"
+                            className="w-full px-4 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black text-sm shadow-none shadow-orange-500/15 transition-all active:scale-[0.99]"
                           >
                             Adicionar Produto
                           </button>
@@ -5009,42 +5016,42 @@ export default function OportunidadesKanban() {
                               setItemDesconto('0')
                               setItemModalOpen(true)
                             }}
-                            className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-lg shadow-blue-500/15 transition-all active:scale-[0.99]"
+                            className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-none shadow-blue-500/15 transition-all active:scale-[0.99]"
                           >
                             Adicionar Serviço
                           </button>
                         </>
                       )}
 
-                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Calculado</div>
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Valor Calculado</div>
                         <input
                           value={formatCurrency(ticketCalculado)}
                           readOnly
-                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-emerald-500/20 px-4 py-2.5 text-sm font-black text-emerald-300 outline-none font-mono"
+                          className="mt-2 w-full rounded-xl bg-[var(--bg-panel)] border border-emerald-500/20 px-4 py-2.5 text-sm font-black text-emerald-300 outline-none font-mono"
                         />
                         {descontoPropostaPercent > 0 ? (
-                          <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <div className="mt-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
                             Bruto: {formatCurrency(ticketCalculadoBruto)} · Desconto {descontoPropostaPercent}%
                           </div>
                         ) : (
-                          <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Bruto: {formatCurrency(ticketCalculadoBruto)}</div>
+                          <div className="mt-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Bruto: {formatCurrency(ticketCalculadoBruto)}</div>
                         )}
                       </div>
 
-                      <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Validade da Proposta</div>
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Validade da Proposta</div>
                         <input
                           type="date"
                           value={draftValidadeProposta}
                           onChange={(e) => setDraftValidadeProposta(e.target.value)}
-                          className="mt-2 w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-2.5 text-sm font-black text-slate-100 outline-none font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                          className="mt-2 w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-2.5 text-sm font-black text-[var(--text-main)] outline-none font-mono focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                         />
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Pagamentos</div>
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Pagamentos</div>
 
                       {paymentsSchemaOk === false ? (
                         <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
@@ -5055,12 +5062,12 @@ export default function OportunidadesKanban() {
 
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Forma de Pagamento</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Forma de Pagamento</label>
                           <select
                             value={draftFormaPagamentoId}
                             onChange={(e) => setDraftFormaPagamentoId(e.target.value)}
                             disabled={paymentsSchemaOk === false}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                           >
                             <option value="">-</option>
                             {formasPagamento.map((f) => (
@@ -5072,7 +5079,7 @@ export default function OportunidadesKanban() {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Condição de Pagamento</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Condição de Pagamento</label>
                           <select
                             value={draftCondicaoPagamentoId}
                             onChange={(e) => {
@@ -5083,7 +5090,7 @@ export default function OportunidadesKanban() {
                               setDraftPrevFaturamento(addDaysToDateInput(new Date(), days))
                             }}
                             disabled={paymentsSchemaOk === false}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                           >
                             <option value="">-</option>
                             {condicoesPagamento.map((c) => (
@@ -5095,18 +5102,18 @@ export default function OportunidadesKanban() {
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Data de Faturamento</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Data de Faturamento</label>
                           <input
                             type="date"
                             value={draftPrevFaturamento}
                             onChange={(e) => setDraftPrevFaturamento(e.target.value)}
                             disabled={paymentsSchemaOk === false}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Desconto (%)</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Desconto (%)</label>
                           <input
                             value={draftDescontoPropostaPercent}
                             onChange={(e) => {
@@ -5122,18 +5129,18 @@ export default function OportunidadesKanban() {
                             }}
                             disabled={paymentsSchemaOk === false}
                             inputMode="decimal"
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                             placeholder="0"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Tipo de Frete</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Tipo de Frete</label>
                           <select
                             value={draftTipoFrete}
                             onChange={(e) => setDraftTipoFrete(e.target.value as any)}
                             disabled={paymentsSchemaOk === false}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                           >
                             <option value="">-</option>
                             <option value="FOB">FOB</option>
@@ -5143,16 +5150,16 @@ export default function OportunidadesKanban() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 overflow-hidden">
-                      <div className="text-xs font-black uppercase tracking-widest text-slate-300">Itens</div>
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 overflow-hidden">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Itens</div>
 
                       {draftItens.length === 0 ? (
-                        <div className="mt-3 text-sm text-slate-400">Nenhum item adicionado.</div>
+                        <div className="mt-3 text-sm text-[var(--text-muted)]">Nenhum item adicionado.</div>
                       ) : (
                         <div className="mt-3 overflow-x-auto">
                           <table className="min-w-[720px] w-full text-left text-xs">
-                            <thead className="text-[10px] uppercase tracking-widest text-slate-400">
-                              <tr className="border-b border-white/10">
+                            <thead className="text-xs uppercase tracking-widest text-[var(--text-muted)]">
+                              <tr className="border-b border-[var(--border)]">
                                 <th className="py-2 pr-3">Tipo</th>
                                 <th className="py-2 pr-3">Item</th>
                                 <th className="py-2 pr-3 w-[110px]">Qtd</th>
@@ -5164,7 +5171,7 @@ export default function OportunidadesKanban() {
                             </thead>
                             <tbody>
                               {draftItens.map((it) => (
-                                <tr key={it.localId} className="border-b border-white/5">
+                                <tr key={it.localId} className="border-b border-[var(--border)]">
                                   <td className="py-3 pr-3">
                                     <span className={`px-2 py-1 rounded-lg font-black ${
                                       it.tipo === 'PRODUTO' ? 'bg-orange-500/15 text-orange-200 border border-orange-500/30' : 'bg-blue-500/15 text-blue-200 border border-blue-500/30'
@@ -5173,7 +5180,7 @@ export default function OportunidadesKanban() {
                                     </span>
                                   </td>
                                   <td className="py-3 pr-3">
-                                    <div className="text-slate-100 font-semibold truncate max-w-[340px]" title={it.descricao}>
+                                    <div className="text-[var(--text-main)] font-semibold truncate max-w-[340px]" title={it.descricao}>
                                       {it.descricao}
                                     </div>
                                   </td>
@@ -5188,7 +5195,7 @@ export default function OportunidadesKanban() {
                                         )
                                       }}
                                       inputMode="decimal"
-                                      className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 text-slate-100 font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 outline-none"
+                                      className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-2 text-[var(--text-main)] font-mono focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 outline-none"
                                     />
                                   </td>
                                   <td className="py-3 pr-3">
@@ -5206,7 +5213,7 @@ export default function OportunidadesKanban() {
                                         )
                                       }}
                                       inputMode="decimal"
-                                      className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 text-slate-100 font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 outline-none"
+                                      className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-2 text-[var(--text-main)] font-mono focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 outline-none"
                                     />
                                   </td>
                                   <td className="py-3 pr-3">
@@ -5221,7 +5228,7 @@ export default function OportunidadesKanban() {
                                         )
                                       }}
                                       inputMode="decimal"
-                                      className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-3 py-2 text-slate-100 font-mono focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 outline-none"
+                                      className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-2 text-[var(--text-main)] font-mono focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 outline-none"
                                     />
                                   </td>
                                   <td className="py-3 pr-3 text-emerald-300 font-black font-mono">{formatCurrency(calcItemTotal(it))}</td>
@@ -5236,7 +5243,7 @@ export default function OportunidadesKanban() {
                                         markDraftItensTouched()
                                         setDraftItens((prev) => prev.filter((x) => x.localId !== it.localId))
                                       }}
-                                      className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
+                                      className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-[var(--text-soft)] transition-colors"
                                       aria-label="Remover item"
                                     >
                                       <Trash2 size={16} />
@@ -5254,52 +5261,52 @@ export default function OportunidadesKanban() {
 
                 {tab === 'temperatura' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-5">
                       <div className="flex items-center gap-3 mb-5">
-                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                          <Calendar size={15} className="text-cyan-300" />
+                        <div className="w-8 h-8 rounded-xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center shrink-0">
+                          <Calendar size={15} className="text-[var(--primary)]" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-200">Datas Previstas</div>
-                          <div className="mt-0.5 text-[11px] text-slate-400">Planejamento de fechamento e entrega</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Datas Previstas</div>
+                          <div className="mt-0.5 text-xs text-[var(--text-muted)]">Planejamento de fechamento e entrega</div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Calendar size={11} className="text-cyan-400/70" />
+                          <label className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
+                            <Calendar size={11} className="text-[var(--primary)]/70" />
                             Previsão de Fechamento
                           </label>
                           <input
                             type="date"
                             value={draftPrevFechamento}
                             onChange={(e) => setDraftPrevFechamento(e.target.value)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                           />
-                          <p className="text-[10px] text-slate-500 ml-1">Data prevista para fechar a proposta</p>
+                          <p className="text-xs text-[var(--text-muted)] ml-1">Data prevista para fechar a proposta</p>
                         </div>
                         <div className="space-y-2">
-                          <label className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Calendar size={11} className="text-indigo-400/70" />
+                          <label className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
+                            <Calendar size={11} className="text-[var(--text-muted)]" />
                             Entrega do Equipamento
                           </label>
                           <input
                             type="date"
                             value={draftPrevEntrega}
                             onChange={(e) => setDraftPrevEntrega(e.target.value)}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                           />
-                          <p className="text-[10px] text-slate-500 ml-1">Data prevista para entrega do equipamento</p>
+                          <p className="text-xs text-[var(--text-muted)] ml-1">Data prevista para entrega do equipamento</p>
                         </div>
                       </div>
 
                       {(draftPrevFechamento || draftPrevEntrega) && (
-                        <div className="mt-4 rounded-xl border border-white/10 bg-[#0F172A] p-3 flex flex-col gap-2">
+                        <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3 flex flex-col gap-2">
                           {draftPrevFechamento && (
-                            <div className="flex items-center justify-between gap-3 text-[11px]">
-                              <span className="text-slate-400">Dias até fechamento</span>
-                              <span className="font-black font-mono text-cyan-200">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <span className="text-[var(--text-muted)]">Dias até fechamento</span>
+                              <span className="font-black font-mono text-[var(--primary)]">
                                 {(() => {
                                   const diff = Math.ceil((new Date(draftPrevFechamento).getTime() - Date.now()) / 86400000)
                                   if (!Number.isFinite(diff)) return '-'
@@ -5309,9 +5316,9 @@ export default function OportunidadesKanban() {
                             </div>
                           )}
                           {draftPrevEntrega && (
-                            <div className="flex items-center justify-between gap-3 text-[11px]">
-                              <span className="text-slate-400">Dias até entrega</span>
-                              <span className="font-black font-mono text-indigo-200">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <span className="text-[var(--text-muted)]">Dias até entrega</span>
+                              <span className="font-black font-mono text-[var(--text-main)]">
                                 {(() => {
                                   const diff = Math.ceil((new Date(draftPrevEntrega).getTime() - Date.now()) / 86400000)
                                   if (!Number.isFinite(diff)) return '-'
@@ -5324,7 +5331,7 @@ export default function OportunidadesKanban() {
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 md:p-5">
                       {(() => {
                         const raw = String(draftTemperatura || '').trim()
                         const n0 = raw ? Number.parseInt(raw, 10) : 0
@@ -5342,10 +5349,10 @@ export default function OportunidadesKanban() {
                           <div className="space-y-4">
                             <div className="flex items-start justify-between gap-4">
                               <div className="min-w-0">
-                                <div className="text-xs font-black uppercase tracking-widest text-slate-300">Temperatura da Proposta</div>
-                                <div className="mt-1 text-[11px] text-slate-400">Probabilidade por faixa</div>
+                                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Temperatura da Proposta</div>
+                                <div className="mt-1 text-xs text-[var(--text-muted)]">Probabilidade por faixa</div>
                               </div>
-                              <div className={`shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-black ${bucketColor}`}>
+                              <div className={`shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-xl border text-xs font-black ${bucketColor}`}>
                                 <span>{`🌡${temp}º`}</span>
                                 <span className="hidden sm:inline">{bucket}</span>
                               </div>
@@ -5363,28 +5370,28 @@ export default function OportunidadesKanban() {
                               />
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Temperatura (%)</label>
+                                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Temperatura (%)</label>
                                   <input
                                     value={draftTemperatura}
                                     onChange={(e) => setDraftTemperatura(e.target.value)}
                                     inputMode="numeric"
-                                    className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                                    className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                                     placeholder="0"
                                   />
                                 </div>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Faixa</label>
+                                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Faixa</label>
                                   <input
                                     value={bucket}
                                     readOnly
-                                    className={`w-full rounded-xl bg-[#0F172A] border px-4 py-3 text-sm font-black outline-none ${bucketColor}`}
+                                    className={`w-full rounded-xl bg-[var(--bg-panel)] border px-4 py-3 text-sm font-black outline-none ${bucketColor}`}
                                   />
                                 </div>
                               </div>
                             </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
-                              <div className="grid grid-cols-[1.3fr_1fr_0.9fr_1.3fr] gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-white/10">
+                            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
+                              <div className="grid grid-cols-[1.3fr_1fr_0.9fr_1.3fr] gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)]">
                                 <div>Temperatura</div>
                                 <div>Prob.</div>
                                 <div>Cor</div>
@@ -5396,15 +5403,15 @@ export default function OportunidadesKanban() {
                                 { t: 'Quente', p: '61–85%', c: 'Laranja', u: 'Alta chance', badge: 'text-orange-200 bg-orange-500/10 border-orange-500/20' },
                                 { t: 'Muito Quente', p: '86–100%', c: 'Vermelho', u: 'Fechamento iminente', badge: 'text-rose-200 bg-rose-500/10 border-rose-500/20' }
                               ].map((r) => (
-                                <div key={r.t} className="grid grid-cols-[1.3fr_1fr_0.9fr_1.3fr] gap-2 px-4 py-2 text-[11px] text-slate-200 border-b border-white/5 last:border-b-0">
+                                <div key={r.t} className="grid grid-cols-[1.3fr_1fr_0.9fr_1.3fr] gap-2 px-4 py-2 text-xs text-[var(--text-soft)] border-b border-[var(--border)] last:border-b-0">
                                   <div className="font-black">{r.t}</div>
-                                  <div className="text-slate-300 font-mono">{r.p}</div>
+                                  <div className="text-[var(--text-soft)] font-mono">{r.p}</div>
                                   <div>
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg border text-[10px] font-black ${r.badge}`}>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg border text-xs font-black ${r.badge}`}>
                                       {r.c}
                                     </span>
                                   </div>
-                                  <div className="text-slate-300">{r.u}</div>
+                                  <div className="text-[var(--text-soft)]">{r.u}</div>
                                 </div>
                               ))}
                             </div>
@@ -5418,16 +5425,16 @@ export default function OportunidadesKanban() {
                 {tab === 'atividades' && (
                   <div className="space-y-4">
                     {!activeId ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                         Salve a proposta para registrar e visualizar atividades.
                       </div>
                     ) : (
                       <>
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Atividades</div>
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Atividades</div>
                           <div className="mt-3 space-y-3">
                             {atividades.length === 0 ? (
-                              <div className="text-sm text-slate-400">Nenhuma atividade registrada.</div>
+                              <div className="text-sm text-[var(--text-muted)]">Nenhuma atividade registrada.</div>
                             ) : (
                               atividades.map((a) => {
                                 const p = (a.payload || {}) as any
@@ -5483,17 +5490,17 @@ export default function OportunidadesKanban() {
                                 }
 
                                 return (
-                                  <div key={a.atividade_id} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
+                                  <div key={a.atividade_id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="min-w-0">
-                                        <div className="text-sm font-black text-slate-100">{title}</div>
+                                        <div className="text-sm font-black text-[var(--text-main)]">{title}</div>
                                         {detail ? (
-                                          <div className="mt-1 text-xs text-slate-300 whitespace-pre-wrap">{detail}</div>
+                                          <div className="mt-1 text-xs text-[var(--text-soft)] whitespace-pre-wrap">{detail}</div>
                                         ) : null}
                                       </div>
                                       <div className="text-right whitespace-nowrap">
-                                        <div className="text-[11px] font-bold text-slate-400">{when}</div>
-                                        <div className="text-[11px] text-slate-300" title={createdBy || undefined}>
+                                        <div className="text-xs font-bold text-[var(--text-muted)]">{when}</div>
+                                        <div className="text-xs text-[var(--text-soft)]" title={createdBy || undefined}>
                                           {createdByLabel || '-'}
                                         </div>
                                       </div>
@@ -5512,17 +5519,17 @@ export default function OportunidadesKanban() {
                 {tab === 'comentarios' && (
                   <div className="space-y-4">
                     {!activeId ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                         Salve a proposta para inserir e visualizar comentários.
                       </div>
                     ) : (
                       <>
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Adicionar Comentário</div>
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Adicionar Comentário</div>
                           <textarea
                             value={comentarioTexto}
                             onChange={(e) => setComentarioTexto(e.target.value)}
-                            className="mt-3 w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                            className="mt-3 w-full h-28 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
                             placeholder="Escreva um comentário..."
                           />
                           <div className="mt-3 flex justify-end">
@@ -5548,15 +5555,15 @@ export default function OportunidadesKanban() {
                                 }
                               }}
                               disabled={comentarioSaving || !comentarioTexto.trim()}
-                              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-black text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                             >
                               {comentarioSaving ? 'Adicionando...' : 'Adicionar'}
                             </button>
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Comentários</div>
+                        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Comentários</div>
                           <div className="mt-3 space-y-3">
                             {comentariosUsuario.map((c: any) => {
                                 const when = new Date(String(c?.created_at || '')).toLocaleString('pt-BR')
@@ -5564,15 +5571,15 @@ export default function OportunidadesKanban() {
                                 const author = createdBy ? vendedorNameById[createdBy] || statusHistoryUserById[createdBy] || createdBy : 'Usuário'
                                 const text = String(c?.comentario || '').trim() || '-'
                                 return (
-                                  <div key={String(c?.comentario_id || '') || `${when}-${Math.random()}`} className="rounded-xl border border-white/10 bg-[#0F172A] p-4">
-                                    <div className="text-[11px] text-slate-400">
+                                  <div key={String(c?.comentario_id || '') || `${when}-${Math.random()}`} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                                    <div className="text-xs text-[var(--text-muted)]">
                                       {author} comentou • {when}
                                     </div>
-                                    <div className="mt-2 text-sm text-slate-100 whitespace-pre-wrap">{text}</div>
+                                    <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap">{text}</div>
                                   </div>
                                 )
                               })}
-                            {comentariosUsuario.length === 0 ? <div className="text-sm text-slate-400">Nenhum comentário.</div> : null}
+                            {comentariosUsuario.length === 0 ? <div className="text-sm text-[var(--text-muted)]">Nenhum comentário.</div> : null}
                           </div>
                         </div>
                       </>
@@ -5582,130 +5589,130 @@ export default function OportunidadesKanban() {
 
                 {tab === 'producao' && (
                   <div className="space-y-5">
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Transportadora</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Dados de transporte e nota fiscal</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Transportadora</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">Dados de transporte e nota fiscal</div>
                         </div>
                       </div>
 
                       <div className="mt-4 space-y-5">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Remetente Completo</label>
                             <textarea
                               value={draftRemetenteCompleto}
                               onChange={(e) => setDraftRemetenteCompleto(e.target.value)}
                               rows={4}
                               placeholder="Informe o remetente completo..."
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all resize-y"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Destinatário Completo</label>
                             <textarea
                               value={draftDestinatarioCompleto}
                               onChange={(e) => setDraftDestinatarioCompleto(e.target.value)}
                               rows={4}
                               placeholder="Informe o destinatário completo..."
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all resize-y"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Nº da Nota Fiscal</label>
                             <input
                               value={draftNumeroNotaFiscal}
                               onChange={(e) => setDraftNumeroNotaFiscal(e.target.value)}
                               placeholder="Ex: 123456"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Valor da Nota Fiscal</label>
                             <input
                               value={draftValorNotaFiscal}
                               onChange={(e) => setDraftValorNotaFiscal(e.target.value)}
                               inputMode="decimal"
                               placeholder="0,00"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all font-mono"
                             />
                           </div>
 
                           <div className="space-y-2 md:col-span-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Transportadora</label>
                             <input
                               value={draftTransportadora}
                               onChange={(e) => setDraftTransportadora(e.target.value)}
                               placeholder="Nome da transportadora..."
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                             />
                           </div>
 
                           <div className="space-y-2 md:col-span-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Material</label>
                             <input
                               value={draftMaterial}
                               onChange={(e) => setDraftMaterial(e.target.value)}
                               placeholder="Descrição do material..."
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Quantidade de Volumes</label>
                             <input
                               value={draftQuantidadeVolumes}
                               onChange={(e) => setDraftQuantidadeVolumes(e.target.value.replace(/[^\d]/g, ''))}
                               inputMode="numeric"
                               placeholder="0"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all font-mono"
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie (Caixa, Palete etc)</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Espécie (Caixa, Palete etc)</label>
                             <input
                               value={draftEspecie}
                               onChange={(e) => setDraftEspecie(e.target.value)}
                               placeholder="Ex: Caixa"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Peso</label>
                             <input
                               value={draftPeso}
                               onChange={(e) => setDraftPeso(e.target.value)}
                               inputMode="decimal"
                               placeholder="0"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all font-mono"
                             />
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
+                            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Medidas (AxCxL)</label>
                             <input
                               value={draftMedidas}
                               onChange={(e) => setDraftMedidas(e.target.value)}
                               placeholder="Ex: 10x20x30"
-                              className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono"
+                              className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all font-mono"
                             />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
-                          <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
+                          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Produção</div>
+                          <div className="mt-1 text-xs text-[var(--text-muted)]">Entrada de equipamento vinculada à proposta</div>
                         </div>
                         <button
                           type="button"
@@ -5713,8 +5720,8 @@ export default function OportunidadesKanban() {
                           onClick={() => setEquipmentEntryOpen(true)}
                           className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
                             canOpenEquipmentEntry
-                              ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                              : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                              ? 'bg-cyan-600 hover:bg-[var(--primary-600)] text-white shadow-none '
+                              : 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed'
                           }`}
                         >
                           <Wrench size={16} />
@@ -5728,7 +5735,7 @@ export default function OportunidadesKanban() {
                         lastUpdate={equipmentLastUpdate}
                       />
                     ) : (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                      <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                         Salve a proposta para vincular equipamentos em produção.
                       </div>
                     )}
@@ -5738,11 +5745,11 @@ export default function OportunidadesKanban() {
                 {tab === 'observacoes' && (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+                      <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observações</label>
                       <textarea
                         value={draftObs}
                         onChange={(e) => setDraftObs(e.target.value)}
-                        className="w-full h-32 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                        className="w-full h-32 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
                         placeholder="Observações do cliente..."
                       />
                     </div>
@@ -5751,7 +5758,7 @@ export default function OportunidadesKanban() {
               </div>
             </div>
 
-            <div className="w-full border-t lg:border-t-0 lg:border-l border-white/10 bg-[#0B1220] px-4 md:px-6 py-4 md:py-6 lg:sticky lg:top-0 lg:self-start">
+            <div className="w-full border-t lg:border-t-0 lg:border-l border-[var(--border)] bg-[var(--bg-main)] px-4 md:px-6 py-4 md:py-6 lg:sticky lg:top-0 lg:self-start">
               <div className="space-y-4">
                 <button
                   type="button"
@@ -5763,7 +5770,7 @@ export default function OportunidadesKanban() {
                   className={`w-full px-6 py-3 rounded-xl font-black text-sm transition-all inline-flex items-center justify-center gap-2 ${
                     saveUiState === 'saved'
                       ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-200 cursor-default'
-                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/15 active:scale-[0.99]'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-none shadow-blue-500/15 active:scale-[0.99]'
                   } ${saveUiState !== 'dirty' ? 'opacity-60 pointer-events-none shadow-none' : ''}`}
                 >
                   {saveUiState === 'saving' ? (
@@ -5781,8 +5788,8 @@ export default function OportunidadesKanban() {
                   )}
                 </button>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Ações</div>
                   <div className="mt-4 grid grid-cols-1 gap-2">
                     <button
                       type="button"
@@ -5792,7 +5799,7 @@ export default function OportunidadesKanban() {
                         setStatusChangeFaseId('')
                         setStatusChangeOpen(true)
                       }}
-                      className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-[0.99]"
+                      className="w-full px-4 py-3 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-black text-sm shadow-none  transition-all active:scale-[0.99]"
                     >
                       NOVO ANDAMENTO
                     </button>
@@ -5816,8 +5823,8 @@ export default function OportunidadesKanban() {
                       }}
                       className={`w-full px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
                         canConquistar && !disableOutcomeActions
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/15'
-                          : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-none shadow-emerald-500/15'
+                          : 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed'
                       }`}
                     >
                       CONQUISTADO
@@ -5832,9 +5839,9 @@ export default function OportunidadesKanban() {
                         setLostMotivoId('')
                         setLostOpen(true)
                       }}
-                      className={`w-full px-4 py-3 rounded-xl font-black text-sm shadow-lg transition-all active:scale-[0.99] ${
+                      className={`w-full px-4 py-3 rounded-xl font-black text-sm shadow-none transition-all active:scale-[0.99] ${
                         disableOutcomeActions
-                          ? 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed shadow-none'
+                          ? 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed shadow-none'
                           : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/15'
                       }`}
                     >
@@ -5851,8 +5858,8 @@ export default function OportunidadesKanban() {
                       }}
                       className={`w-full px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
                         canGenerateProposta
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/15'
-                          : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-none shadow-emerald-500/15'
+                          : 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed'
                       }`}
                     >
                       GERAR PROPOSTA
@@ -5868,7 +5875,7 @@ export default function OportunidadesKanban() {
                         setTransferVendedorId(draftVendedorId)
                         setTransferOpen(true)
                       }}
-                      className="w-full px-4 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-sm shadow-lg shadow-violet-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
+                      className="w-full px-4 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#041018] font-bold text-sm shadow-none shadow-violet-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
                     >
                       TRANSFERIR PROPOSTA
                     </button>
@@ -5886,7 +5893,7 @@ export default function OportunidadesKanban() {
                         setDraftStatusId(String(target.status_id))
                         await handleSave({ statusIdOverride: String(target.status_id) })
                       }}
-                      className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-lg shadow-blue-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
+                      className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-sm shadow-none shadow-blue-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none"
                     >
                       SEPARAR PARA FATURAR
                     </button>
@@ -5900,7 +5907,7 @@ export default function OportunidadesKanban() {
                           setDeleteError(null)
                           setDeleteOpen(true)
                         }}
-                        className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
+                        className="w-full px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-sm shadow-none shadow-rose-500/15 transition-all active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none"
                       >
                         EXCLUIR PROPOSTA
                       </button>
@@ -5949,7 +5956,7 @@ export default function OportunidadesKanban() {
                     setGeneratePdfLoading(false)
                   }
                 }}
-                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50 disabled:shadow-none"
+                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-none shadow-emerald-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50 disabled:shadow-none"
               >
                 {generatePdfLoading ? (
                   <>
@@ -5983,7 +5990,7 @@ export default function OportunidadesKanban() {
                     setGeneratePdfLoading(false)
                   }
                 }}
-                className="px-7 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-sm transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                className="px-7 py-2.5 rounded-xl bg-[var(--bg-card)] hover:bg-white/10 border border-[var(--border)] text-white font-bold text-sm transition-colors active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               >
                 VISUALIZAR PDF
               </button>
@@ -5992,7 +5999,7 @@ export default function OportunidadesKanban() {
         >
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipo de Proposta</div>
+              <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] ml-1">Tipo de Proposta</div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -6000,8 +6007,8 @@ export default function OportunidadesKanban() {
                   onClick={() => setGenerateShowValores(true)}
                   className={`px-4 py-3 rounded-xl border text-sm font-black transition-colors disabled:opacity-50 ${
                     generateShowValores
-                      ? 'bg-cyan-600 hover:bg-cyan-500 border-cyan-500/30 text-white'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-100'
+                      ? 'bg-cyan-600 hover:bg-[var(--primary-600)] border-cyan-500/30 text-white'
+                      : 'bg-white/5 hover:bg-white/10 border-[var(--border)] text-[var(--text-main)]'
                   }`}
                 >
                   Com Valor
@@ -6012,14 +6019,14 @@ export default function OportunidadesKanban() {
                   onClick={() => setGenerateShowValores(false)}
                   className={`px-4 py-3 rounded-xl border text-sm font-black transition-colors disabled:opacity-50 ${
                     !generateShowValores
-                      ? 'bg-cyan-600 hover:bg-cyan-500 border-cyan-500/30 text-white'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-100'
+                      ? 'bg-cyan-600 hover:bg-[var(--primary-600)] border-cyan-500/30 text-white'
+                      : 'bg-white/5 hover:bg-white/10 border-[var(--border)] text-[var(--text-main)]'
                   }`}
                 >
                   Sem Valor
                 </button>
               </div>
-              <div className="text-[11px] text-slate-400">
+              <div className="text-xs text-[var(--text-muted)]">
                 {generateShowValores ? 'Gera proposta comercial com valores.' : 'Gera proposta técnica sem valores.'}
               </div>
             </div>
@@ -6027,7 +6034,7 @@ export default function OportunidadesKanban() {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{generatePdfError}</div>
             ) : null}
             {generatePreparing ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-200 inline-flex items-center gap-2">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-xs text-[var(--text-soft)] inline-flex items-center gap-2">
                 <Loader2 className="animate-spin" size={14} />
                 Preparando proposta...
               </div>
@@ -6050,7 +6057,7 @@ export default function OportunidadesKanban() {
                 type="button"
                 onClick={() => setTransferOpen(false)}
                 disabled={transferSaving}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cancelar
               </button>
@@ -6079,7 +6086,7 @@ export default function OportunidadesKanban() {
                   }
                 }}
                 disabled={transferSaving}
-                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
               >
                 {transferSaving ? (
                   <>
@@ -6098,11 +6105,11 @@ export default function OportunidadesKanban() {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{transferError}</div>
             )}
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Vendedor</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Vendedor</label>
               <select
                 value={transferVendedorId}
                 onChange={(e) => setTransferVendedorId(e.target.value)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               >
                 <option value="">-</option>
                 {(usuarios as any[]).map((u: any) => (
@@ -6120,7 +6127,7 @@ export default function OportunidadesKanban() {
           onClose={() => setStatusHistoryOpen(false)}
           title={
             <div className="inline-flex items-center gap-2">
-              <Clock size={16} className="text-cyan-300" />
+              <Clock size={16} className="text-[var(--primary)]" />
               Histórico de Movimentos
             </div>
           }
@@ -6133,19 +6140,19 @@ export default function OportunidadesKanban() {
             ) : null}
 
             {!activeId ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-4 text-sm text-[var(--text-soft)]">
                 Salve a proposta para ver o histórico de movimentos.
               </div>
             ) : movementHistoryRows.length === 0 ? (
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-4 text-sm text-[var(--text-soft)]">
                 Nenhum movimento registrado.
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
                 <div className="overflow-auto custom-scrollbar max-h-[65vh]">
                   <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-[#0B1220] border-b border-white/10">
-                      <tr className="text-[10px] uppercase tracking-wider text-slate-400">
+                    <thead className="sticky top-0 bg-[var(--bg-main)] border-b border-[var(--border)]">
+                      <tr className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
                         <th className="px-4 py-3 font-black">Movimento</th>
                         <th className="px-4 py-3 font-black">Detalhe</th>
                         <th className="px-4 py-3 font-black whitespace-nowrap">Data/Hora</th>
@@ -6155,18 +6162,18 @@ export default function OportunidadesKanban() {
                     </thead>
                     <tbody>
                       {movementHistoryRows.map((r) => (
-                        <tr key={r.id} className="border-b border-white/5">
-                          <td className="px-4 py-3 text-xs font-black text-slate-200 whitespace-nowrap">
+                        <tr key={r.id} className="border-b border-[var(--border)]">
+                          <td className="px-4 py-3 text-xs font-black text-[var(--text-soft)] whitespace-nowrap">
                             {r.kind === 'STATUS' ? 'Status' : r.kind === 'FASE' ? 'Fase' : 'Andamento'}
                           </td>
-                          <td className="px-4 py-3 text-[11px] text-slate-200 whitespace-nowrap">{r.detail}</td>
-                          <td className="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">
+                          <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-nowrap">{r.detail}</td>
+                          <td className="px-4 py-3 text-xs text-[var(--text-muted)] whitespace-nowrap">
                             {r.when ? new Date(r.when).toLocaleString('pt-BR') : '-'}
                           </td>
-                          <td className="px-4 py-3 text-[11px] text-slate-200 max-w-[220px] truncate" title={r.createdBy || undefined}>
+                          <td className="px-4 py-3 text-xs text-[var(--text-soft)] max-w-[220px] truncate" title={r.createdBy || undefined}>
                             {r.createdBy ? statusHistoryUserById[r.createdBy] || r.createdBy : '-'}
                           </td>
-                          <td className="px-4 py-3 text-[11px] text-slate-300 whitespace-pre-wrap">{r.comentario}</td>
+                          <td className="px-4 py-3 text-xs text-[var(--text-soft)] whitespace-pre-wrap">{r.comentario}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -6188,7 +6195,7 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setLostOpen(false)}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
               >
                 Cancelar
               </button>
@@ -6214,7 +6221,7 @@ export default function OportunidadesKanban() {
                     statusObs: motivoDesc ? `Motivo: ${motivoDesc}` : 'Motivo informado no cadastro.'
                   })
                 }}
-                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-none shadow-rose-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
               >
                 Confirmar
               </button>
@@ -6226,11 +6233,11 @@ export default function OportunidadesKanban() {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{lostError}</div>
             ) : null}
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Motivo da Perda</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Motivo da Perda</label>
               <select
                 value={lostMotivoId}
                 onChange={(e) => setLostMotivoId(e.target.value)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-rose-500/25 focus:border-rose-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-rose-500/25 focus:border-rose-500/40 transition-all outline-none"
               >
                 <option value="">-</option>
                 {motivos.map((m) => (
@@ -6264,7 +6271,7 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setStatusChangeOpen(false)}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
               >
                 Cancelar
               </button>
@@ -6304,7 +6311,7 @@ export default function OportunidadesKanban() {
                     } catch {}
                   }
                 }}
-                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  transition-all active:scale-95 inline-flex items-center gap-2"
               >
                 Aplicar
               </button>
@@ -6316,11 +6323,11 @@ export default function OportunidadesKanban() {
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{statusChangeError}</div>
             ) : null}
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Fase</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Fase</label>
               <select
                 value={statusChangeFaseId}
                 onChange={(e) => setStatusChangeFaseId(e.target.value)}
-                className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               >
                 <option value="">
                   {`Manter fase atual${draftFaseId ? ` (${stageLabelById.get(draftFaseId) || '—'})` : ''}`}
@@ -6335,11 +6342,11 @@ export default function OportunidadesKanban() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Comentário</label>
+              <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Comentário</label>
               <textarea
                 value={statusChangeObs}
                 onChange={(e) => setStatusChangeObs(e.target.value)}
-                className="w-full h-24 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none placeholder:text-slate-500"
+                className="w-full h-24 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none placeholder:text-[var(--text-muted)]"
                 placeholder="Descreva o andamento..."
               />
             </div>
@@ -6361,7 +6368,7 @@ export default function OportunidadesKanban() {
                 type="button"
                 onClick={() => setDeleteOpen(false)}
                 disabled={deleteSaving}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cancelar
               </button>
@@ -6390,7 +6397,7 @@ export default function OportunidadesKanban() {
                   }
                 }}
                 disabled={deleteSaving}
-                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-none shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
               >
                 {deleteSaving ? (
                   <>
@@ -6408,7 +6415,7 @@ export default function OportunidadesKanban() {
             {deleteError && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{deleteError}</div>
             )}
-            <div className="text-sm text-slate-300">Essa ação não pode ser desfeita.</div>
+            <div className="text-sm text-[var(--text-soft)]">Essa ação não pode ser desfeita.</div>
           </div>
         </Modal>
 
@@ -6424,7 +6431,7 @@ export default function OportunidadesKanban() {
               <button
                 type="button"
                 onClick={() => setItemModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
               >
                 Cancelar
               </button>
@@ -6459,7 +6466,7 @@ export default function OportunidadesKanban() {
                   })
                 }}
                 disabled={!itemSelected}
-                className={`px-7 py-2.5 rounded-xl text-white font-bold text-sm shadow-lg disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 ${
+                className={`px-7 py-2.5 rounded-xl text-white font-bold text-sm shadow-none disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 ${
                   itemModalTipo === 'PRODUTO'
                     ? 'bg-orange-600 hover:bg-orange-500 shadow-orange-500/15'
                     : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/15'
@@ -6472,26 +6479,26 @@ export default function OportunidadesKanban() {
         >
           <div className="space-y-4">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
                 placeholder={itemModalTipo === 'PRODUTO' ? 'Pesquisar por descrição, código ou integ_id...' : 'Pesquisar por descrição, código ou integ_id...'}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] pl-10 pr-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               />
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden">
               <div className="max-h-[45vh] overflow-y-auto custom-scrollbar">
                 {itemOptions.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-slate-400">Nenhum resultado.</div>
+                  <div className="px-4 py-3 text-sm text-[var(--text-muted)]">Nenhum resultado.</div>
                 ) : (
                   itemOptions.map((opt) => (
                     <button
                       key={String(opt.id)}
                       type="button"
                       onClick={() => setItemSelectedId(String(opt.id))}
-                      className={`w-full text-left px-4 py-3 transition-colors border-b border-white/5 ${
+                      className={`w-full text-left px-4 py-3 transition-colors border-b border-[var(--border)] ${
                         String(itemSelectedId) === String(opt.id)
                           ? itemModalTipo === 'PRODUTO'
                             ? 'bg-orange-500/10'
@@ -6499,8 +6506,8 @@ export default function OportunidadesKanban() {
                           : 'hover:bg-white/5'
                       }`}
                     >
-                      <div className="text-sm font-semibold text-slate-100 truncate">{opt.label}</div>
-                      <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-slate-400 font-mono">
+                      <div className="text-sm font-semibold text-[var(--text-main)] truncate">{opt.label}</div>
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[var(--text-muted)] font-mono">
                         <span className="truncate">{String(opt.id)}</span>
                         <span className="shrink-0">{formatCurrency(opt.valor)}</span>
                       </div>
@@ -6511,47 +6518,47 @@ export default function OportunidadesKanban() {
             </div>
 
             {itemSelected ? (
-              <div className="text-[11px] text-slate-400">
-                Valor base: <span className="font-mono text-slate-200">{formatCurrency(itemSelected.valorUnitario)}</span>
+              <div className="text-xs text-[var(--text-muted)]">
+                Valor base: <span className="font-mono text-[var(--text-soft)]">{formatCurrency(itemSelected.valorUnitario)}</span>
               </div>
             ) : null}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Quantidade</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Quantidade</label>
                 <input
                   value={itemQuantidade}
                   onChange={(e) => setItemQuantidade(e.target.value)}
                   inputMode="decimal"
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                   placeholder="1"
                   disabled={!itemSelected}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor Unitário</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Valor Unitário</label>
                 <input
                   value={itemValorUnitario}
                   onChange={(e) => setItemValorUnitario(e.target.value)}
                   inputMode="decimal"
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                   placeholder={itemSelected ? String(itemSelected.valorUnitario ?? 0) : '0'}
                   disabled={!itemSelected}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Desconto (%)</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Desconto (%)</label>
                 <input
                   value={itemDesconto}
                   onChange={(e) => setItemDesconto(e.target.value)}
                   inputMode="decimal"
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                   placeholder="0"
                   disabled={!itemSelected}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Total</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Total</label>
                 <input
                   value={(() => {
                     if (!itemSelected) return formatCurrency(0)
@@ -6575,7 +6582,7 @@ export default function OportunidadesKanban() {
                     )
                   })()}
                   readOnly
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-bold text-emerald-300 outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-bold text-emerald-300 outline-none font-mono"
                 />
               </div>
             </div>
@@ -6602,7 +6609,7 @@ export default function OportunidadesKanban() {
                 setStatusObsError(null)
               }}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50"
             >
               Cancelar
             </button>
@@ -6619,7 +6626,7 @@ export default function OportunidadesKanban() {
                 await handleSave({ skipStatusObsCheck: true, statusObs: obs })
               }}
               disabled={saving}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-[var(--primary-600)] text-white font-bold text-sm shadow-none  disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
             >
               Salvar
             </button>
@@ -6633,11 +6640,11 @@ export default function OportunidadesKanban() {
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observação</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observação</label>
             <textarea
               value={statusObsText}
               onChange={(e) => setStatusObsText(e.target.value)}
-              className="w-full h-28 rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              className="w-full h-28 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none"
               placeholder="Descreva o motivo / contexto da troca de status..."
             />
           </div>

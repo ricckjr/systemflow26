@@ -50,11 +50,11 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="p-6 text-center space-y-2">
           <div className="text-sm text-red-400">{isChunkError ? 'Falha ao carregar módulo.' : 'Ocorreu um erro nesta tela.'}</div>
-          {details ? <div className="text-xs text-slate-500 break-words">{details}</div> : null}
+          {details ? <div className="text-xs text-[var(--text-muted)] break-words">{details}</div> : null}
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+            className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
           >
             Recarregar
           </button>

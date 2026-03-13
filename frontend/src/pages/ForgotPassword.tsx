@@ -53,7 +53,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-[#081522] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-main)] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* Logo/Header */}
@@ -68,7 +68,7 @@ export default function ForgotPassword() {
         </div>
 
         {/* Card */}
-        <div className="bg-industrial-surface border border-industrial-border rounded-2xl shadow-2xl p-6 sm:p-8">
+        <div className="bg-industrial-surface border border-industrial-border rounded-2xl p-6 sm:p-8">
           
           {success ? (
             <div className="text-center space-y-4">
@@ -126,7 +126,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={20} className="animate-spin" /> : 'Enviar Link de Recuperação'}
               </button>

@@ -83,7 +83,7 @@ export const Modal: React.FC<ModalProps> = ({
           relative w-full ${sizeClasses[size]} 
           bg-[var(--bg-panel)] 
           rounded-t-2xl md:rounded-2xl 
-          shadow-2xl border border-[var(--border)] 
+          border border-[var(--border)] 
           overflow-hidden
           flex flex-col 
           max-h-[90vh] h-auto
@@ -100,7 +100,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
           <button 
             onClick={onClose}
-            className="absolute right-4 top-4 md:right-6 md:top-6 p-2 rounded-full hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors z-10"
+            className="absolute right-4 top-4 md:right-6 md:top-6 p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors z-10"
             aria-label="Fechar modal"
           >
             <X size={20} />

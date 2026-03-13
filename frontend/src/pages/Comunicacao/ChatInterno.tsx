@@ -53,7 +53,7 @@ const STATUS_COLORS = {
   online: 'bg-emerald-500',
   busy: 'bg-red-500',
   away: 'bg-amber-500',
-  offline: 'bg-slate-500'
+  offline: 'bg-[var(--text-muted)]'
 };
 
 const STATUS_LABELS = {
@@ -1240,7 +1240,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         const id = match[1]
         if (id === 'all') {
           parts.push(
-            <span key={`m-${idx}`} className="text-cyan-300 font-bold">
+            <span key={`m-${idx}`} className="text-[var(--primary)] font-bold">
               @todos
             </span>
           )
@@ -1252,7 +1252,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               key={`m-${idx}`}
               type="button"
               onClick={() => void openProfileModal(id)}
-              className="text-cyan-300 font-bold hover:underline"
+              className="text-[var(--primary)] font-bold hover:underline"
               title={name}
             >
               @{name}
@@ -1266,7 +1266,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         const norm = getMentionHandle(handle).toLowerCase()
         if (norm === 'todos') {
           parts.push(
-            <span key={`mh-${idx}`} className="text-cyan-300 font-bold">
+            <span key={`mh-${idx}`} className="text-[var(--primary)] font-bold">
               @{handle}
             </span>
           )
@@ -1275,7 +1275,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
           parts.push(
             <span
               key={`mh-${idx}`}
-              className="text-cyan-300 font-bold"
+              className="text-[var(--primary)] font-bold"
               title={member?.nome || handle}
             >
               @{handle}
@@ -1552,9 +1552,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
   if (!profile) return (
     <div className="flex items-center justify-center h-[50vh] text-cyan-500 gap-2">
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-      <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+      <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
     </div>
   );
 
@@ -1571,7 +1571,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         ${showMobileList ? 'flex' : 'hidden md:flex'}
       `}>
         {/* User Status Header */}
-        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] shadow-sm flex items-center justify-between">
+        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] flex items-center justify-between">
            <div className="flex items-center gap-3">
               <div className="relative">
                  <button
@@ -1579,7 +1579,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                    onClick={() => {
                      if (profile?.id) void openProfileModal(profile.id)
                    }}
-                   className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-[#1e293b] border border-[var(--border)] overflow-hidden`}
+                   className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden`}
                    title="Meu perfil"
                  >
                     {profile.avatar_url ? (
@@ -1600,23 +1600,23 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                        {STATUS_LABELS[myStatus]} <MoreVertical size={12} />
                     </button>
                     {statusTextDraft?.trim() ? (
-                      <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[200px]">
+                      <div className="text-xs text-[var(--text-soft)] mt-0.5 truncate max-w-[200px]">
                         {statusTextDraft.trim()}
                       </div>
                     ) : (
-                      <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate max-w-[200px]">
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate max-w-[200px]">
                         Defina uma mensagem de status
                       </div>
                     )}
                     
                     {isStatusMenuOpen && (
-                        <div className="absolute top-6 left-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-2 z-50 w-72 animate-in zoom-in-95 duration-200">
+                        <div className="absolute top-6 left-0 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-2 z-50 w-72 animate-in zoom-in-95 duration-200">
                           <div className="space-y-1">
                             {(Object.keys(STATUS_LABELS) as UserStatus[]).map(status => (
                                 <button
                                   key={status}
                                   onClick={() => handleStatusChange(status)}
-                                  className={`flex items-center gap-2 w-full p-2 text-xs rounded-lg hover:bg-[var(--bg-main)] transition-colors ${myStatus === status ? 'text-cyan-400 bg-cyan-500/10' : 'text-[var(--text-main)]'}`}
+                                  className={`flex items-center gap-2 w-full p-2 text-xs rounded-lg hover:bg-[var(--bg-main)] transition-colors ${myStatus === status ? 'text-[var(--primary)] bg-[var(--primary-soft)]' : 'text-[var(--text-main)]'}`}
                                 >
                                    <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`}></div>
                                    {STATUS_LABELS[status]}
@@ -1626,7 +1626,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
                           <div className="h-px bg-[var(--border)] my-2" />
                           <div className="px-1 pb-1">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-2">
+                            <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-2">
                               Mensagem de Status
                             </div>
                             <input
@@ -1635,7 +1635,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                               onBlur={() => void setStatusText(statusTextDraft.trim())}
                               maxLength={80}
                               placeholder="Ex.: Em reunião • Volto 14h"
-                              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/40 transition-all"
+                              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/40 transition-all"
                               autoFocus
                             />
                           </div>
@@ -1647,7 +1647,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         </div>
 
         {/* Search Header */}
-        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] shadow-sm">
+        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)]">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-cyan-500 transition-colors" size={18} />
             <input 
@@ -1655,13 +1655,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar conversas..."
-              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none transition-all"
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/50 text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none transition-all"
             />
           </div>
         </div>
 
         {/* Rooms List */}
-        <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-sm overflow-hidden flex flex-col">
+        <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] overflow-hidden flex flex-col">
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-panel)]">
             <h4 className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-2">
               <MessageSquare size={14} className="text-cyan-500" />
@@ -1679,7 +1679,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {loading && rooms.length === 0 ? (
                <div className="flex flex-col items-center justify-center h-40 gap-3 text-[var(--text-muted)]">
-                 <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+                 <div className="w-6 h-6 border-2 border-[var(--primary)]/30 border-t-cyan-500 rounded-full animate-spin"></div>
                  <span className="text-xs">Carregando conversas...</span>
                </div>
             ) : (
@@ -1695,7 +1695,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       onClick={() => handleRoomSelect(room.id)}
                       className={`w-full p-3 flex items-center gap-3 rounded-xl transition-all duration-200 group border ${
                         isActive 
-                          ? 'bg-cyan-500/10 border-cyan-500/20 shadow-sm' 
+                          ? 'bg-[var(--primary-soft)] border-[var(--primary)]/20' 
                           : 'hover:bg-[var(--bg-main)] border-transparent hover:border-[var(--border)]'
                       }`}
                     >
@@ -1718,27 +1718,27 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           title="Ver perfil"
                         >
                           {info.avatar_url ? (
-                            <img src={info.avatar_url} alt={info.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--bg-panel)] shadow-sm" />
+                            <img src={info.avatar_url} alt={info.name} className="w-12 h-12 rounded-full object-cover border-2 border-[var(--bg-panel)]" />
                           ) : (
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-[var(--text-main)] font-bold uppercase border-2 border-[var(--bg-panel)] shadow-sm transition-colors ${
-                              isActive ? 'bg-cyan-600 text-white' : 'bg-[#1e293b] text-gray-400'
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-[var(--text-main)] font-bold uppercase border-2 border-[var(--bg-panel)] transition-colors ${
+                              isActive ? 'bg-[var(--primary)] text-white' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
                             }`}>
                               {info.name.substring(0, 2)}
                             </div>
                           )}
                           {info.status && (
-                            <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[info.status]} shadow-sm`}></div>
+                            <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 border-2 border-[var(--bg-panel)] rounded-full ${STATUS_COLORS[info.status]}`}></div>
                           )}
                         </div>
                       </div>
                       
                       <div className="flex-1 min-w-0 text-left">
                         <div className="flex justify-between items-center mb-0.5">
-                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-cyan-400' : 'text-[var(--text-main)]'} ${info.hasUnread ? 'text-white font-bold' : ''}`}>
+                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-[var(--primary)]' : 'text-[var(--text-main)]'} ${info.hasUnread ? 'text-white font-bold' : ''}`}>
                             {info.name}
                           </p>
                           {info.lastMessage && (
-                            <span className={`text-[10px] ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'} ${info.hasUnread ? 'text-cyan-400 font-bold' : ''}`}>
+                            <span className={`text-xs ${isActive ? 'text-cyan-500/70' : 'text-[var(--text-muted)]'} ${info.hasUnread ? 'text-[var(--primary)] font-bold' : ''}`}>
                               {formatTimeBR(info.lastMessage.created_at)}
                             </span>
                           )}
@@ -1755,7 +1755,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                       size={14}
                                       className={
                                         ticks.kind === 'read'
-                                          ? 'text-cyan-400'
+                                          ? 'text-[var(--primary)]'
                                           : isActive
                                             ? 'text-cyan-500'
                                             : 'text-[var(--text-muted)]'
@@ -1776,7 +1776,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             )}
                             </p>
                             {info.hasUnread && (
-                              <div className="min-w-[22px] h-[18px] px-1.5 rounded-full bg-cyan-500 text-black text-[10px] font-black flex items-center justify-center">
+                              <div className="min-w-[22px] h-[18px] px-1.5 rounded-full bg-[var(--primary)] text-black text-xs font-black flex items-center justify-center">
                                 {info.unreadCount > 99 ? '99+' : info.unreadCount}
                               </div>
                             )}
@@ -1794,12 +1794,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
       {/* Chat Area */}
       <div className={`
-        flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-xl shadow-black/10 flex-col overflow-hidden relative
+        flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-black/10 flex-col overflow-hidden relative
         ${!showMobileList ? 'flex' : 'hidden md:flex'}
       `}>
         {activeRoomInfo ? (
           <>
-            <header className="h-[72px] border-b border-[var(--border)] px-6 flex items-center justify-between shrink-0 bg-[var(--bg-panel)] z-10 shadow-sm">
+            <header className="h-[72px] border-b border-[var(--border)] px-6 flex items-center justify-between shrink-0 bg-[var(--bg-panel)] z-10">
               <div className="flex items-center gap-4">
                 <button onClick={handleBackToList} className="md:hidden p-2 -ml-2 text-[var(--text-muted)] hover:text-[var(--text-main)]">
                   <ArrowLeft size={20} />
@@ -1852,13 +1852,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <div className="flex items-center gap-2 mt-1">
                     {activeRoomInfo.type === 'direct' ? (
                       <>
-                        <span className={`w-1.5 h-1.5 rounded-full ${activeRoomInfo.status ? STATUS_COLORS[activeRoomInfo.status] : 'bg-gray-500'}`}></span>
-                        <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeRoomInfo.status ? STATUS_COLORS[activeRoomInfo.status] : 'bg-[var(--text-muted)]'}`}></span>
+                        <span className="text-xs text-[var(--text-muted)] font-medium">
                           {activeRoomInfo.status ? STATUS_LABELS[activeRoomInfo.status] : 'Offline'}
                         </span>
                       </>
                     ) : (
-                      <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                      <span className="text-xs text-[var(--text-muted)] font-medium">
                         {activeRoomInfo.type === 'group'
                           ? `${activeRoomInfo.membersCount} membro${activeRoomInfo.membersCount === 1 ? '' : 's'}`
                           : 'Conversa'}
@@ -1866,7 +1866,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     )}
                   </div>
                   {activeRoomInfo.type === 'direct' && activeRoomInfo.statusText ? (
-                    <div className="text-[11px] text-[var(--text-soft)] mt-0.5 truncate max-w-[50vw]">
+                    <div className="text-xs text-[var(--text-soft)] mt-0.5 truncate max-w-[50vw]">
                       {activeRoomInfo.statusText}
                     </div>
                   ) : null}
@@ -1903,7 +1903,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </button>
 
                   {isRoomMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 min-w-[230px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1 z-30">
+                    <div className="absolute right-0 top-full mt-2 min-w-[230px] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] py-1 z-30">
                       {activeRoom?.type === 'group' && (
                         <>
                           <button
@@ -1918,7 +1918,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             }}
                             className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
                           >
-                            <Camera size={16} className="text-cyan-400" />
+                            <Camera size={16} className="text-[var(--primary)]" />
                             Perfil do grupo
                           </button>
                           <button
@@ -1929,7 +1929,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             }}
                             className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
                           >
-                            <UserPlus size={16} className="text-cyan-400" />
+                            <UserPlus size={16} className="text-[var(--primary)]" />
                             Participantes
                           </button>
                         </>
@@ -1983,7 +1983,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             {/* Messages Area */}
             <div
               ref={messagesScrollRef}
-              className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[#0B0F14] relative"
+              className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-[var(--bg-main)] relative"
               onDragOver={(e) => {
                 if (e.dataTransfer?.types?.includes?.('Files')) e.preventDefault()
               }}
@@ -2007,9 +2007,9 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
               <div ref={messagesContentRef} className="flex flex-col gap-4">
               {pinnedItems.length > 0 && (
-                <div className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-[#0B0F14]/85 backdrop-blur border-b border-white/10">
-                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                    <Pin size={14} className="text-cyan-400" />
+                <div className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-[var(--bg-main)]/85 backdrop-blur border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
+                    <Pin size={14} className="text-[var(--primary)]" />
                     Fixadas
                   </div>
                   <div className="mt-2 flex gap-2 overflow-x-auto custom-scrollbar pb-1">
@@ -2019,7 +2019,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       return (
                         <div
                           key={p.messageId}
-                          className="min-w-[220px] max-w-[280px] rounded-xl border border-white/10 hover:border-white/20 bg-black/20 transition-colors flex items-center gap-2 px-3 py-2"
+                          className="min-w-[220px] max-w-[280px] rounded-xl border border-[var(--border)] hover:border-[var(--border)] bg-black/20 transition-colors flex items-center gap-2 px-3 py-2"
                         >
                           <button
                             type="button"
@@ -2027,10 +2027,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             className="flex-1 text-left min-w-0"
                             title="Ir para mensagem fixada"
                           >
-                            <div className="text-[11px] font-bold text-white/85 truncate">
+                            <div className="text-xs font-bold text-white/85 truncate">
                               {msg?.sender?.nome || 'Mensagem'}
                             </div>
-                            <div className="text-[11px] text-white/60 truncate">
+                            <div className="text-xs text-white/60 truncate">
                               {getMessagePreviewText(msg) || 'Mensagem fixada'}
                             </div>
                           </button>
@@ -2044,7 +2044,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                               }}
                               className={[
                                 'w-8 h-8 grid place-items-center rounded-lg',
-                                'border border-white/10 bg-black/20 hover:bg-black/30',
+                                'border border-[var(--border)] bg-black/20 hover:bg-black/30',
                                 'text-white/65 hover:text-white/90',
                                 'transition-colors',
                                 isBusy ? 'opacity-60 pointer-events-none' : '',
@@ -2088,7 +2088,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   {index === unreadDividerIndex && (
                     <div className="flex items-center gap-3 py-2">
                       <div className="h-px flex-1 bg-white/10" />
-                      <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300/90">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--primary)]/90">
                         Não lidas
                       </div>
                       <div className="h-px flex-1 bg-white/10" />
@@ -2101,7 +2101,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   >
                     <div className={`max-w-[75%] md:max-w-[60%] group relative flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       {!isMe && activeRoom?.type === 'group' && !isSequence && (
-                        <span className="text-[10px] text-[var(--text-soft)] ml-1 mb-1 font-bold">{msg.sender?.nome}</span>
+                        <span className="text-xs text-[var(--text-soft)] ml-1 mb-1 font-bold">{msg.sender?.nome}</span>
                       )}
 
                       <div
@@ -2141,12 +2141,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             }}
                             className={[
                               'w-8 h-8 grid place-items-center rounded-full',
-                              'border border-white/10 shadow-sm shadow-black/20 backdrop-blur',
+                              'border border-[var(--border)] shadow-black/20 backdrop-blur',
                               'bg-black/35 hover:bg-black/45',
                               'text-white/70 hover:text-white/90',
                               'transition-all duration-150',
-                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0F14]',
-                              isMessageMenuOpen ? 'border-white/20 bg-black/55 text-white/95' : '',
+                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0F14]',
+                              isMessageMenuOpen ? 'border-[var(--border)] bg-black/55 text-white/95' : '',
                             ].join(' ')}
                             title="Opções"
                           >
@@ -2156,10 +2156,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       </div>
                       
                       <div className={`
-                        px-4 py-3 text-[14px] leading-relaxed shadow-sm relative break-words
+                        px-4 py-3 text-[14px] leading-relaxed relative break-words
                         ${isMe 
-                          ? 'bg-[#0284C7] text-white rounded-2xl rounded-tr-none' 
-                          : 'bg-[#1E293B] border border-[var(--border)] text-gray-200 rounded-2xl rounded-tl-none'}
+                          ? 'bg-[var(--primary)] text-white rounded-2xl rounded-tr-none' 
+                          : 'bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-soft)] rounded-2xl rounded-tl-none'}
                         ${isSequence ? (isMe ? 'mt-1 rounded-tr-2xl' : 'mt-1 rounded-tl-2xl') : ''}
                         ${msg.id === highlightMessageId ? 'ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-[#0B0F14]' : ''}
                       `}
@@ -2192,13 +2192,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                             onClick={() => {
                               if (msg.reply_to_id) setPendingScrollMessageId(msg.reply_to_id)
                             }}
-                            className={`w-full text-left mb-2 rounded-xl px-3 py-2 border border-white/10 hover:border-white/20 transition-colors ${isMe ? 'bg-black/20' : 'bg-black/10'}`}
+                            className={`w-full text-left mb-2 rounded-xl px-3 py-2 border border-[var(--border)] hover:border-[var(--border)] transition-colors ${isMe ? 'bg-black/20' : 'bg-black/10'}`}
                             title="Ir para mensagem original"
                           >
-                            <div className={`text-[11px] font-bold ${isMe ? 'text-white/90' : 'text-white/80'}`}>
+                            <div className={`text-xs font-bold ${isMe ? 'text-white/90' : 'text-white/80'}`}>
                               Respondendo a {replyTo?.sender?.nome || 'mensagem'}
                             </div>
-                            <div className={`text-[11px] truncate ${isMe ? 'text-white/70' : 'text-white/60'}`}>
+                            <div className={`text-xs truncate ${isMe ? 'text-white/70' : 'text-white/60'}`}>
                               {getMessagePreviewText(replyTo) || 'Mensagem original'}
                             </div>
                           </button>
@@ -2215,7 +2215,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                      <button
                                        type="button"
                                        onClick={() => setPreviewImage({ url: att.url, name: att.name, path: att.path })}
-                                       className="block overflow-hidden rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                                       className="block overflow-hidden rounded-lg border border-[var(--border)] hover:border-[var(--border)] transition-colors"
                                        title="Abrir imagem"
                                      >
                                        <img
@@ -2272,7 +2272,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                          <Download size={14} />
                                        </button>
                                      </div>
-                                     <div className="text-[11px] text-white/70 truncate">
+                                     <div className="text-xs text-white/70 truncate">
                                        {att.name || 'Áudio'} {att.size ? `• ${formatBytes(att.size)}` : ''}
                                      </div>
                                    </div>
@@ -2331,7 +2331,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                        controls
                                        preload="metadata"
                                        src={att.url}
-                                       className="w-full max-h-72 rounded-lg border border-white/10"
+                                       className="w-full max-h-72 rounded-lg border border-[var(--border)]"
                                      />
                                      <div className="flex items-center justify-between gap-2">
                                        <div className="text-xs text-white/70 truncate">
@@ -2399,7 +2399,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                               key={r.emoji}
                               type="button"
                               onClick={() => toggleReaction(msg, r.emoji)}
-                              className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${r.me ? 'border-cyan-400/40 bg-cyan-500/10 text-white' : 'border-white/10 bg-black/10 text-white/90 hover:bg-white/5'}`}
+                              className={`px-2 py-1 rounded-full text-xs border transition-colors ${r.me ? 'border-cyan-400/40 bg-[var(--primary-soft)] text-white' : 'border-[var(--border)] bg-black/10 text-white/90 hover:bg-white/5'}`}
                               title={r.me ? 'Remover reação' : 'Reagir'}
                             >
                               {r.emoji} <span className="opacity-70 font-bold">{r.count}</span>
@@ -2409,11 +2409,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       )}
                       
                       <div className={`flex items-center gap-1 mt-1 px-1 opacity-60 group-hover:opacity-100 transition-opacity`}>
-                        <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                        <span className="text-xs text-[var(--text-muted)] font-medium">
                           {formatTimeBR(msg.created_at)}
                         </span>
                         {(msg.is_edited || msg.edited_at) && !msg.deleted_at && (
-                          <span className="text-[10px] text-[var(--text-muted)] font-medium">(editada)</span>
+                          <span className="text-xs text-[var(--text-muted)] font-medium">(editada)</span>
                         )}
                         {isMe && ticks.kind !== 'none' && (
                           ticks.kind === 'sent' ? (
@@ -2421,7 +2421,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           ) : (
                             <CheckCheck
                               size={12}
-                              className={ticks.kind === 'read' ? 'text-cyan-400' : 'text-[var(--text-muted)]'}
+                              className={ticks.kind === 'read' ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}
                             />
                           )
                         )}
@@ -2434,10 +2434,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               {typingStatusText ? (
                 <div className="flex items-end justify-start">
                   <div className="max-w-[75%] flex flex-col items-start">
-                    <div className="text-[11px] text-[var(--text-soft)] mb-1 truncate max-w-[65vw]">
+                    <div className="text-xs text-[var(--text-soft)] mb-1 truncate max-w-[65vw]">
                       {typingStatusText}
                     </div>
-                    <div className="px-4 py-3 bg-[#1E293B] border border-[var(--border)] text-gray-200 rounded-2xl rounded-tl-none shadow-sm">
+                    <div className="px-4 py-3 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-soft)] rounded-2xl rounded-tl-none">
                       <div className="flex items-center gap-1.5 h-4">
                         <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -2460,7 +2460,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                         void markActiveRoomAsRead()
                       }
                     }}
-                    className="pointer-events-auto px-4 py-2 rounded-full bg-cyan-500 text-black text-xs font-black shadow-lg hover:bg-cyan-400 transition-colors"
+                    className="pointer-events-auto px-4 py-2 rounded-full bg-[var(--primary)] text-black text-xs font-black hover:bg-cyan-400 transition-colors"
                     title="Ir para a última mensagem"
                   >
                     Novas mensagens{pendingNewCount > 0 ? ` (+${pendingNewCount})` : ''} ↓
@@ -2479,7 +2479,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     {editingMessage ? (
                       <Pencil size={16} className="text-amber-400 shrink-0 mt-0.5" />
                     ) : (
-                      <CornerUpLeft size={16} className="text-cyan-400 shrink-0 mt-0.5" />
+                      <CornerUpLeft size={16} className="text-[var(--primary)] shrink-0 mt-0.5" />
                     )}
                     <div className="min-w-0">
                       <div className="text-xs font-bold text-[var(--text-main)]">
@@ -2487,7 +2487,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           ? 'Editando mensagem'
                           : `Respondendo a ${replyingTo?.sender?.nome || 'mensagem'}`}
                       </div>
-                      <div className="text-[11px] text-[var(--text-muted)] truncate max-w-[70vw]">
+                      <div className="text-xs text-[var(--text-muted)] truncate max-w-[70vw]">
                         {editingMessage
                           ? getMessagePreviewText(editingMessage)
                           : getMessagePreviewText(replyingTo)}
@@ -2511,13 +2511,13 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     <div className="text-xs font-bold text-[var(--text-main)] truncate">
                       {uploadLabel || 'Enviando…'}
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] font-mono">
+                    <div className="text-xs text-[var(--text-muted)] font-mono">
                       {uploadPct}%
                     </div>
                   </div>
-                  <div className="mt-2 h-2 rounded-full bg-white/5 overflow-hidden">
+                  <div className="mt-2 h-2 rounded-full bg-[var(--bg-card)] overflow-hidden">
                     <div
-                      className="h-2 rounded-full bg-cyan-500 transition-[width] duration-150"
+                      className="h-2 rounded-full bg-[var(--primary)] transition-[width] duration-150"
                       style={{ width: `${uploadPct}%` }}
                     />
                   </div>
@@ -2525,7 +2525,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               )}
               
               {showAttachmentsMenu && (
-                <div className="absolute bottom-20 left-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-2xl p-2 flex flex-col gap-1 z-20 animate-in slide-in-from-bottom-5 duration-200 min-w-[180px]">
+                <div className="absolute bottom-20 left-4 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-2 flex flex-col gap-1 z-20 animate-in slide-in-from-bottom-5 duration-200 min-w-[180px]">
                   <button onClick={() => imageInputRef.current?.click()} className="flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--bg-main)] rounded-lg text-sm text-[var(--text-main)] transition-colors text-left w-full">
                     <ImageIcon size={18} className="text-purple-400" />
                     Enviar Imagem
@@ -2539,7 +2539,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
 
               {/* Emoji Picker Popover */}
               {showEmojiPicker && (
-                <div className="absolute bottom-20 right-4 z-20 shadow-2xl border border-[var(--border)] rounded-xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+                <div className="absolute bottom-20 right-4 z-20 border border-[var(--border)] rounded-xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
                     <EmojiPicker 
                         onEmojiClick={onEmojiClick}
                         theme={Theme.DARK}
@@ -2560,24 +2560,24 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                    <span className="text-red-400 font-mono font-medium text-sm shrink-0 w-12 text-right">{formatTime(recordingTime)}</span>
                    <div className="flex items-center gap-2 shrink-0">
                       <button onClick={cancelRecording} className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-full transition-colors"><X size={20} /></button>
-                      <button onClick={stopRecording} className="p-2 bg-red-500 text-white hover:bg-red-600 rounded-full transition-colors shadow-lg shadow-red-500/20"><Send size={18} /></button>
+                      <button onClick={stopRecording} className="p-2 bg-red-500 text-white hover:bg-red-600 rounded-full transition-colors shadow-red-500/20"><Send size={18} /></button>
                    </div>
                 </div>
               ) : (
                 <form className="flex items-end gap-2" onSubmit={handleSendMessage}>
-                  <div className="relative flex-1 flex items-end gap-2 bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl p-2 pl-2 shadow-inner focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-500/50 transition-all">
+                  <div className="relative flex-1 flex items-end gap-2 bg-[var(--bg-main)] border border-[var(--border)] rounded-3xl p-2 pl-2 shadow-inner focus-within:ring-2 focus-within:ring-[var(--primary)]/20 focus-within:border-[var(--primary)]/50 transition-all">
                     <button
                       type="button"
                       disabled={!!editingMessage}
                       onClick={() => setShowAttachmentsMenu(!showAttachmentsMenu)}
-                      className={`p-2 rounded-full transition-all mb-0.5 ${editingMessage ? 'opacity-40 cursor-not-allowed text-[var(--text-muted)]' : (showAttachmentsMenu ? 'bg-cyan-500/10 text-cyan-500 rotate-45' : 'text-[var(--text-muted)] hover:text-cyan-500 hover:bg-[var(--bg-panel)]')}`}
+                      className={`p-2 rounded-full transition-all mb-0.5 ${editingMessage ? 'opacity-40 cursor-not-allowed text-[var(--text-muted)]' : (showAttachmentsMenu ? 'bg-[var(--primary-soft)] text-cyan-500 rotate-45' : 'text-[var(--text-muted)] hover:text-cyan-500 hover:bg-[var(--bg-panel)]')}`}
                       title={editingMessage ? 'Finalize ou cancele a edição para anexar arquivos' : 'Anexos'}
                     >
                       <Plus size={20} />
                     </button>
                     
                     {mentionOpen && mentionOptions.length > 0 && (
-                      <div className="absolute bottom-full left-2 right-2 mb-2 max-h-56 overflow-auto rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl z-30">
+                      <div className="absolute bottom-full left-2 right-2 mb-2 max-h-56 overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] z-30">
                         {mentionOptions.map((opt, idx) => {
                           const active = idx === mentionActiveIndex
                           return (
@@ -2588,7 +2588,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                               onClick={() => insertMentionToken(opt)}
                               className={[
                                 'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
-                                active ? 'bg-cyan-500/10' : 'hover:bg-[var(--bg-main)]',
+                                active ? 'bg-[var(--primary-soft)]' : 'hover:bg-[var(--bg-main)]',
                               ].join(' ')}
                             >
                               {opt.id !== 'all' && opt.avatar_url ? (
@@ -2598,7 +2598,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                   className="w-7 h-7 rounded-full object-cover border border-[var(--border)]"
                                 />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-[11px] font-bold text-white uppercase">
+                                <div className="w-7 h-7 rounded-full bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
                                   {(opt.nome || 'U').substring(0, 2)}
                                 </div>
                               )}
@@ -2607,7 +2607,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                                   @{opt.handle}
                                 </div>
                                 {opt.id !== 'all' && (
-                                  <div className="text-[11px] text-[var(--text-muted)] truncate">
+                                  <div className="text-xs text-[var(--text-muted)] truncate">
                                     {opt.nome}
                                   </div>
                                 )}
@@ -2704,11 +2704,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   </div>
 
                   {message.trim() ? (
-                    <button type="submit" className="p-3.5 bg-cyan-600 text-white rounded-full hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 flex-shrink-0">
+                    <button type="submit" className="p-3.5 bg-[var(--primary)] text-white rounded-full hover:bg-[var(--primary)] transition-all shadow-cyan-500/20 hover:scale-105 active:scale-95 flex-shrink-0">
                       <Send size={20} className="ml-0.5" />
                     </button>
                   ) : (
-                    <button type="button" onClick={startRecording} className="p-3.5 bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/30 rounded-full transition-all shadow-sm hover:scale-105 active:scale-95 flex-shrink-0">
+                    <button type="button" onClick={startRecording} className="p-3.5 bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/30 rounded-full transition-all hover:scale-105 active:scale-95 flex-shrink-0">
                       <Mic size={20} />
                     </button>
                   )}
@@ -2719,12 +2719,12 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-soft)] p-8 text-center opacity-60 bg-[var(--bg-panel)]">
             {/* Empty state kept same */}
-            <div className="w-32 h-32 bg-[var(--bg-main)] rounded-full flex items-center justify-center mb-8 border border-[var(--border)] shadow-2xl">
+            <div className="w-32 h-32 bg-[var(--bg-main)] rounded-full flex items-center justify-center mb-8 border border-[var(--border)]">
               <MessageSquare size={48} className="text-[var(--text-muted)]" />
             </div>
             <h3 className="text-2xl font-bold text-[var(--text-main)] mb-3">Chat Interno</h3>
             <p className="max-w-xs text-sm text-[var(--text-muted)] mb-8 leading-relaxed">Selecione um colega de equipe para iniciar uma conversa segura e direta.</p>
-            <button onClick={() => setIsNewChatModalOpen(true)} className="flex items-center gap-3 bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-4 rounded-2xl transition-all shadow-lg shadow-cyan-500/20 font-bold text-sm tracking-wide">
+            <button onClick={() => setIsNewChatModalOpen(true)} className="flex items-center gap-3 bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-8 py-4 rounded-2xl transition-all shadow-cyan-500/20 font-bold text-sm tracking-wide">
               <Plus size={20} /> NOVA CONVERSA
             </button>
           </div>
@@ -2757,11 +2757,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   <div className="text-sm font-bold text-[var(--text-main)] truncate">
                     {profileModalUser?.nome || (profileModalLoading ? 'Carregando...' : 'Usuário')}
                   </div>
-                  <div className="text-[10px] text-[var(--text-muted)] truncate">
+                  <div className="text-xs text-[var(--text-muted)] truncate">
                     {profileModalUser?.cargo || 'Membro da equipe'} • {STATUS_LABELS[usersPresence[profileModalUser?.id || '']?.status || 'offline']}
                   </div>
                   {usersPresence[profileModalUser?.id || '']?.statusText ? (
-                    <div className="text-[10px] text-[var(--text-soft)] mt-0.5 truncate">
+                    <div className="text-xs text-[var(--text-soft)] mt-0.5 truncate">
                       {usersPresence[profileModalUser?.id || '']?.statusText}
                     </div>
                   ) : null}
@@ -2772,33 +2772,33 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
         <div className="space-y-4">
               {profileModalLoading && !profileModalUser ? (
                 <div className="flex items-center justify-center py-10 text-[var(--text-muted)] gap-3">
-                  <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+                  <div className="w-6 h-6 border-2 border-[var(--primary)]/30 border-t-cyan-500 rounded-full animate-spin"></div>
                   <span className="text-sm">Carregando perfil...</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email</div>
                     <div className="text-[var(--text-main)] break-all">{profileModalUser?.email_login || '-'}</div>
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email Corporativo</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Email Corporativo</div>
                     <div className="text-[var(--text-main)] break-all">{profileModalUser?.email_corporativo || '-'}</div>
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Telefone</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Telefone</div>
                     <div className="text-[var(--text-main)] break-all">{profileModalUser?.telefone || '-'}</div>
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ramal</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ramal</div>
                     <div className="text-[var(--text-main)] break-all">{profileModalUser?.ramal || '-'}</div>
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ativo</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Ativo</div>
                     <div className="text-[var(--text-main)]">{profileModalUser?.ativo ? 'Sim' : 'Não'}</div>
                   </div>
                   <div className="bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Criado Em</div>
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">Criado Em</div>
                     <div className="text-[var(--text-main)]">{profileModalUser?.created_at ? formatDateTimeBR(profileModalUser.created_at) : '-'}</div>
                   </div>
                 </div>
@@ -2817,7 +2817,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     <div className="text-sm font-bold text-[var(--text-main)] truncate">
                       {previewImage?.name || 'Imagem'}
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] hidden sm:block">
+                    <div className="text-xs text-[var(--text-muted)] hidden sm:block">
                       Clique fora para fechar • ESC
                     </div>
                 </div>
@@ -2892,7 +2892,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               <div className="text-sm font-bold text-[var(--text-main)] truncate">
                 {previewDoc?.name || 'Documento'}
               </div>
-              <div className="text-[11px] text-[var(--text-muted)] hidden sm:block">
+              <div className="text-xs text-[var(--text-muted)] hidden sm:block">
                 Clique fora para fechar • ESC
               </div>
             </div>
@@ -2963,7 +2963,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               }}
               className="w-full px-4 py-3 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
             >
-              <CornerUpLeft size={18} className="text-cyan-400" />
+              <CornerUpLeft size={18} className="text-[var(--primary)]" />
               Responder
             </button>
             {actionSheetMessage && canEditMessage(actionSheetMessage) && (
@@ -2994,11 +2994,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 ].join(' ')}
               >
                 {Boolean(actionSheetMessage && pinBusyByMessageId[actionSheetMessage.id]) ? (
-                  <Circle size={18} className="animate-spin text-cyan-300" />
+                  <Circle size={18} className="animate-spin text-[var(--primary)]" />
                 ) : pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? (
-                  <PinOff size={18} className="text-cyan-300" />
+                  <PinOff size={18} className="text-[var(--primary)]" />
                 ) : (
-                  <Pin size={18} className="text-cyan-400" />
+                  <Pin size={18} className="text-[var(--primary)]" />
                 )}
                 {pinnedItems.some((p) => p.messageId === actionSheetMessage.id) ? 'Desafixar mensagem' : 'Fixar mensagem'}
               </button>
@@ -3041,10 +3041,10 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               value={messageSearchQuery}
               onChange={(e) => setMessageSearchQuery(e.target.value)}
               placeholder="Buscar por texto, usuário ou data (dd/mm/aaaa)..."
-              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/40 text-[var(--text-main)] outline-none transition-all"
+              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/40 text-[var(--text-main)] outline-none transition-all"
               autoFocus
             />
-            <div className="flex items-center justify-between mt-3 text-[11px] text-[var(--text-muted)]">
+            <div className="flex items-center justify-between mt-3 text-xs text-[var(--text-muted)]">
               <div>
                 {messageSearchQuery.trim().length < 2
                   ? 'Digite pelo menos 2 caracteres'
@@ -3106,7 +3106,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       <div className="text-xs font-bold text-[var(--text-main)] truncate">
                         {m.sender?.nome || 'Usuário'}
                       </div>
-                      <div className="text-[10px] text-[var(--text-muted)] shrink-0">
+                      <div className="text-xs text-[var(--text-muted)] shrink-0">
                         {m.created_at ? formatDateTimeBR(m.created_at) : ''}
                       </div>
                     </div>
@@ -3130,7 +3130,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             <div
               ref={messageMenuRef}
               data-message-menu
-              className="pointer-events-auto min-w-[190px] overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl py-1 animate-in fade-in zoom-in-95"
+              className="pointer-events-auto min-w-[190px] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] py-1 animate-in fade-in zoom-in-95"
               style={{
                 position: 'fixed',
                 left: messageMenuCoords?.left ?? messageMenuAnchor.right,
@@ -3145,7 +3145,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 }}
                 className="w-full px-3 py-2 text-left text-sm text-[var(--text-main)] hover:bg-[var(--bg-main)] flex items-center gap-3"
               >
-                <CornerUpLeft size={16} className="text-cyan-400" />
+                <CornerUpLeft size={16} className="text-[var(--primary)]" />
                 Responder
               </button>
 
@@ -3201,11 +3201,11 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   ].join(' ')}
                 >
                   {Boolean(pinBusyByMessageId[messageMenuMsg.id]) ? (
-                    <Circle size={16} className="animate-spin text-cyan-300" />
+                    <Circle size={16} className="animate-spin text-[var(--primary)]" />
                   ) : pinnedItems.some((p) => p.messageId === messageMenuMsg.id) ? (
-                    <PinOff size={16} className="text-cyan-300" />
+                    <PinOff size={16} className="text-[var(--primary)]" />
                   ) : (
-                    <Pin size={16} className="text-cyan-400" />
+                    <Pin size={16} className="text-[var(--primary)]" />
                   )}
                   {pinnedItems.some((p) => p.messageId === messageMenuMsg.id) ? 'Desafixar mensagem' : 'Fixar mensagem'}
                 </button>
@@ -3245,7 +3245,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             <div
               ref={reactionPickerRef}
               data-reaction-picker
-              className="pointer-events-auto rounded-2xl border border-white/10 bg-[var(--bg-card)] shadow-2xl px-2 py-2 flex items-center gap-1 animate-in fade-in zoom-in-95"
+              className="pointer-events-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-2 py-2 flex items-center gap-1 animate-in fade-in zoom-in-95"
               style={{
                 position: 'fixed',
                 left: reactionPickerCoords?.left ?? reactionPickerAnchor.right,
@@ -3342,7 +3342,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   setUploadLabel(null)
                 }
               }}
-              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={groupProfileBusy || !canEditActiveGroup || !groupNameDraft.trim()}
             >
               Salvar
@@ -3380,14 +3380,14 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               <button
                 type="button"
                 onClick={() => groupAvatarInputRef.current?.click()}
-                className="absolute -bottom-1 -right-1 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                className="absolute -bottom-1 -right-1 p-2 rounded-full bg-[var(--primary)] hover:bg-[var(--primary)] text-white disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={!canEditActiveGroup || groupProfileBusy}
                 title="Alterar foto"
               >
                 <Camera size={14} />
               </button>
             </div>
-            <div className="text-[11px] text-[var(--text-muted)]">
+            <div className="text-xs text-[var(--text-muted)]">
               {canEditActiveGroup ? 'Admin pode alterar nome, descrição e foto.' : 'Apenas admins podem editar o grupo.'}
             </div>
           </div>
@@ -3397,7 +3397,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             <input
               value={groupNameDraft}
               onChange={(e) => setGroupNameDraft(e.target.value)}
-              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               disabled={!canEditActiveGroup || groupProfileBusy}
             />
           </div>
@@ -3407,7 +3407,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             <textarea
               value={groupDescriptionDraft}
               onChange={(e) => setGroupDescriptionDraft(e.target.value)}
-              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30 resize-none"
+              className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
               rows={3}
               placeholder="Descrição do grupo"
               disabled={!canEditActiveGroup || groupProfileBusy}
@@ -3439,7 +3439,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   setAddParticipantsSelected(new Set())
                   setIsAddParticipantsModalOpen(true)
                 }}
-                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold"
+                className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] transition-colors text-white text-sm font-bold"
               >
                 Adicionar participantes
               </button>
@@ -3457,7 +3457,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                 setAddParticipantsSelected(new Set())
                 setIsAddParticipantsModalOpen(true)
               }}
-              className="w-full px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] transition-colors text-white text-sm font-bold flex items-center justify-center gap-2"
             >
               <UserPlus size={16} />
               Adicionar participantes
@@ -3467,7 +3467,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             value={participantsSearch}
             onChange={(e) => setParticipantsSearch(e.target.value)}
             placeholder="Buscar participante..."
-            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
           <div className="space-y-2">
             {(activeRoom?.members ?? [])
@@ -3495,7 +3495,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           className="w-9 h-9 rounded-full object-cover border border-[var(--border)]"
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
+                        <div className="w-9 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
                           {(m.profile?.nome || 'U').substring(0, 2)}
                         </div>
                       )}
@@ -3504,7 +3504,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                           {m.profile?.nome || 'Usuário'}
                           {m.user_id === currentUser?.id ? ' (você)' : ''}
                         </div>
-                        <div className="text-[11px] text-[var(--text-muted)]">
+                        <div className="text-xs text-[var(--text-muted)]">
                           {m.role === 'owner' ? 'Dono' : m.role === 'admin' ? 'Admin' : 'Membro'}
                         </div>
                       </div>
@@ -3565,7 +3565,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                   alert(e?.message || 'Não foi possível adicionar participantes.')
                 }
               }}
-              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] transition-colors text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={addParticipantsSelected.size === 0}
             >
               Adicionar ({addParticipantsSelected.size})
@@ -3578,7 +3578,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
             value={addParticipantsSearch}
             onChange={(e) => setAddParticipantsSearch(e.target.value)}
             placeholder="Buscar usuário..."
-            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-cyan-500/30"
+            className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
           />
           <div className="space-y-2">
             {allUsers
@@ -3609,7 +3609,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                     className={[
                       'w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 text-left transition-colors',
                       selected
-                        ? 'bg-cyan-500/10 border-cyan-500/20'
+                        ? 'bg-[var(--primary-soft)] border-[var(--primary)]/20'
                         : 'bg-[var(--bg-main)] border-[var(--border)] hover:bg-[var(--bg-panel)]',
                     ].join(' ')}
                   >
@@ -3617,16 +3617,16 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
                       {u.avatar_url ? (
                         <img src={u.avatar_url} alt={u.nome} className="w-9 h-9 rounded-full object-cover border border-[var(--border)]" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-[#1e293b] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
+                        <div className="w-9 h-9 rounded-full bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-xs font-bold text-white uppercase">
                           {u.nome.substring(0, 2)}
                         </div>
                       )}
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-[var(--text-main)] truncate">{u.nome}</div>
-                        <div className="text-[11px] text-[var(--text-muted)] truncate">{u.cargo || u.email_login || ''}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">{u.cargo || u.email_login || ''}</div>
                       </div>
                     </div>
-                    <div className={['w-5 h-5 rounded-md border', selected ? 'bg-cyan-500 border-cyan-400' : 'border-[var(--border)]'].join(' ')}>
+                    <div className={['w-5 h-5 rounded-md border', selected ? 'bg-[var(--primary)] border-cyan-400' : 'border-[var(--border)]'].join(' ')}>
                       {selected && <Check size={16} className="text-black" />}
                     </div>
                   </button>
@@ -3705,7 +3705,7 @@ const ChatInterno: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) 
               <div className="text-[var(--text-soft)]">
                 Remove as mensagens desta conversa apenas para você. O outro lado continuará com o histórico.
               </div>
-              <div className="text-[11px] text-[var(--text-muted)]">
+              <div className="text-xs text-[var(--text-muted)]">
                 Novas mensagens continuarão chegando normalmente.
               </div>
             </>

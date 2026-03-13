@@ -19,7 +19,7 @@ const AuthCallback: React.FC = () => {
   }, [session, authReady, navigate])
 
   return (
-    <div className="min-h-screen bg-[#081522] flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center">
       <div className="text-center space-y-4">
         <Loader2 className="w-10 h-10 text-brand-500 animate-spin mx-auto" />
         <p className="text-white text-sm">Autenticando...</p>

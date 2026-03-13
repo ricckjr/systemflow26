@@ -121,7 +121,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
   }, [isTvMode]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0B0F14] text-[#E5E7EB] font-sans selection:bg-[#38BDF8]/30">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[#E5E7EB] font-sans selection:bg-[var(--primary)]/30">
       {/* BACKDROP FOR DESKTOP EXPANSION */}
       {!isTvMode && (
         <div 
@@ -136,8 +136,8 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
       {!isTvMode && (
         <aside
           className={`fixed left-0 top-0 h-full hidden lg:flex flex-col z-50 transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
-            ${isSidebarExpanded ? 'w-64 shadow-2xl shadow-black/50' : 'w-20'}
-            bg-[#0F172A] border-r border-white/5`}
+            ${isSidebarExpanded ? 'w-64 shadow-black/50' : 'w-20'}
+            bg-[var(--bg-panel)] border-r border-[var(--border)]`}
           role="navigation"
           aria-label="Navegação principal"
         >
@@ -158,8 +158,8 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
           onClick={() => setIsMobileMenuOpen(false)}
         >
           <aside
-            className="w-64 h-full bg-[#0F172A] border-r border-white/5 flex flex-col
-                       transition-transform duration-300 ease-in-out translate-x-0 shadow-2xl"
+            className="w-64 h-full bg-[var(--bg-panel)] border-r border-[var(--border)] flex flex-col
+                       transition-transform duration-300 ease-in-out translate-x-0"
             onClick={(e) => e.stopPropagation()}
           >
             <Sidebar
@@ -176,7 +176,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
       {/* Added ml-20 to push content to the right of the dock */}
       <div
         className={`flex-1 flex flex-col min-h-0 relative transition-all duration-300 ${
-          isTvMode ? '' : 'lg:ml-20 pt-16'
+          isTvMode ? '' : 'lg:ml-20 pt-14'
         } ${isFullBleed ? 'overflow-x-visible overflow-y-hidden' : 'overflow-hidden'}`}
       >
         <RealtimeDebugPanel />
@@ -199,7 +199,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
               ? 'overflow-hidden'
               : isFullBleed
                 ? 'overflow-y-auto overflow-x-visible px-0 py-0 custom-scrollbar'
-                : 'overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 custom-scrollbar'
+                : 'overflow-y-auto px-5 py-5 sm:px-6 sm:py-6 custom-scrollbar'
           }`}
         >
           {isTvMode ? (
@@ -208,12 +208,7 @@ const MainLayout: React.FC<LayoutProps> = ({ profile, errorMessage, children }) 
             isFullBleed ? (
               children || <Outlet />
             ) : (
-              <div
-                className="min-h-full rounded-2xl bg-[#111827] border border-white/5
-                         p-4 sm:p-6 shadow-sm"
-              >
-                {children || <Outlet />}
-              </div>
+              children || <Outlet />
             )
           )}
         </main>

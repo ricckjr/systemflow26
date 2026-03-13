@@ -75,7 +75,7 @@ const renderRichText = (text: string, opts?: { onHashtagClick?: (tag: string) =>
           key={`${tokenIndex}-${token}`}
           type="button"
           onClick={() => opts?.onHashtagClick?.(token)}
-          className="text-cyan-500 hover:text-cyan-400 font-semibold"
+          className="text-cyan-500 hover:text-[var(--primary)] font-semibold"
         >
           {token}
         </button>
@@ -149,7 +149,7 @@ const EmojiPicker: React.FC<{
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+      className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden animate-in fade-in zoom-in-95 duration-100"
     >
       <div className="px-4 py-3 border-b border-[var(--border)] text-xs text-[var(--text-soft)]">
         Emojis
@@ -159,7 +159,7 @@ const EmojiPicker: React.FC<{
           <button
             key={e}
             type="button"
-            className="h-7 w-7 rounded-lg hover:bg-[var(--bg-body)] transition-colors text-base leading-none flex items-center justify-center"
+            className="h-7 w-7 rounded-lg hover:bg-[var(--bg-main)] transition-colors text-base leading-none flex items-center justify-center"
             onClick={() => onSelect(e)}
           >
             {e}
@@ -210,7 +210,7 @@ const MediaLightbox: React.FC<{
         >
           <X size={22} />
         </button>
-        <div className="rounded-2xl overflow-hidden border border-white/10 bg-black">
+        <div className="rounded-2xl overflow-hidden border border-[var(--border)] bg-black">
           {kind === 'video' ? (
             <video src={src} controls className="w-full max-h-[90vh] object-contain" />
           ) : (
@@ -503,7 +503,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
       
       {/* HEADER */}
       <div className="flex items-center gap-3 pb-4 border-b border-[var(--border)]">
-        <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white  shadow-cyan-500/20">
           <Sparkles size={20} />
         </div>
         <div>
@@ -518,7 +518,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
               setInstaFlowSoundEnabled(next);
               setSoundEnabled(next);
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${soundEnabled ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+            className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${soundEnabled ? 'border-[var(--primary)]/30 text-[var(--primary)] bg-[var(--primary-soft)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
             title="Som sutil ao chegar novo post"
           >
             Som {soundEnabled ? 'On' : 'Off'}
@@ -527,7 +527,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
       </div>
 
       {/* CREATE POST CARD */}
-      <div className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] p-6 shadow-xl shadow-black/5 relative group">
+      <div className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] p-6 shadow-black/5 relative group">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600"></div>
         
         <div className="flex gap-4">
@@ -536,10 +536,10 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                <img 
                  src={profile.avatar_url} 
                  alt={profile.nome} 
-                 className="w-12 h-12 rounded-full object-cover border-2 border-cyan-500/30 p-[1px]"
+                 className="w-12 h-12 rounded-full object-cover border-2 border-[var(--primary)]/30 p-[1px]"
                />
              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 p-[2px] shadow-lg shadow-cyan-500/20">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 p-[2px]  shadow-cyan-500/20">
                   <div className="w-full h-full rounded-full bg-[var(--bg-panel)] flex items-center justify-center font-bold text-sm text-[var(--text-main)] uppercase">
                     {profile.nome.substring(0, 2)}
                   </div>
@@ -554,7 +554,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 placeholder={`No que você está pensando, ${profile.nome.split(' ')[0]}?`}
-                className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-xl p-4 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 outline-none transition-all resize-none min-h-[100px] placeholder:text-[var(--text-muted)]"
+                className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-4 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] outline-none transition-all resize-none min-h-[100px] placeholder:text-[var(--text-muted)]"
               />
             </div>
             
@@ -574,7 +574,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 />
                 <button
                   onClick={() => inputRef.current?.click()}
-                  className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-cyan-400 transition-colors"
+                  className="p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                   title="Adicionar Foto/Vídeo"
                 >
                   <ImageIcon size={20} />
@@ -583,7 +583,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setPostEmojiOpen(v => !v); }}
-                    className="p-2 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+                    className="p-2 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-amber-400 transition-colors"
                     title="Adicionar Emoji"
                     aria-expanded={postEmojiOpen}
                   >
@@ -600,7 +600,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
               <button
                 onClick={handlePost}
                 disabled={publishing || (!newPost.trim() && files.length === 0)}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2 rounded-xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20"
+                className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-6 py-2 rounded-xl font-medium text-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed  shadow-cyan-500/20"
               >
                 {publishing ? (
                   <span className="animate-pulse">Publicando...</span>
@@ -622,7 +622,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
         </div>
         
         {previewUrls.length > 0 && (
-          <div className="mt-4 ml-14 rounded-xl border border-[var(--border)] bg-[var(--bg-body)]/30 p-3">
+          <div className="mt-4 ml-14 rounded-xl border border-[var(--border)] bg-[var(--bg-main)]/30 p-3">
             <div className="grid grid-cols-3 gap-2">
               {previewUrls.map((u, idx) => {
                 const f = files[idx];
@@ -664,11 +664,11 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
               })}
             </div>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-[11px] text-[var(--text-muted)]">{previewUrls.length} mídia(s) selecionada(s)</span>
+              <span className="text-xs text-[var(--text-muted)]">{previewUrls.length} mídia(s) selecionada(s)</span>
               <button
                 type="button"
                 onClick={() => { setFiles([]); setPreviewUrls([]); }}
-                className="text-[11px] text-rose-400 hover:text-rose-300"
+                className="text-xs text-rose-400 hover:text-rose-300"
               >
                 Limpar
               </button>
@@ -691,7 +691,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
         )}
 
         {visiblePosts.map(post => (
-          <div key={post.id} className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div key={post.id} className="bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] hover:shadow-md transition-shadow duration-300">
             
             {/* Post Header */}
             <div className="px-6 py-4 flex items-center justify-between">
@@ -704,7 +704,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 />
                 <div>
                   <h4 className="font-semibold text-[var(--text-main)] text-sm">{post.usuario_nome}</h4>
-                  <p className="text-[11px] text-[var(--text-muted)]">{formatDateTime(post.created_at)}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{formatDateTime(post.created_at)}</p>
                 </div>
               </div>
               
@@ -714,15 +714,15 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                     e.stopPropagation();
                     setMenuOpenId(menuOpenId === post.id ? null : post.id); 
                   }} 
-                  className="p-2 hover:bg-[var(--bg-body)] rounded-full text-[var(--text-muted)] transition-colors"
+                  className="p-2 hover:bg-[var(--bg-main)] rounded-full text-[var(--text-muted)] transition-colors"
                 >
                   <MoreHorizontal size={20} />
                 </button>
                 
                 {menuOpenId === post.id && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-panel)] rounded-xl shadow-xl border border-[var(--border)] overflow-hidden z-30 py-1 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-panel)] rounded-xl border border-[var(--border)] overflow-hidden z-30 py-1 animate-in fade-in zoom-in-95 duration-100">
                     {(post.usuario_id === profile.id) && (
-                      <button onClick={(e) => handleStartEdit(post, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-body)] flex items-center gap-2 text-[var(--text-main)] transition-colors">
+                      <button onClick={(e) => handleStartEdit(post, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-main)] flex items-center gap-2 text-[var(--text-main)] transition-colors">
                         <Edit2 size={14} /> Editar
                       </button>
                     )}
@@ -731,7 +731,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                         <Trash2 size={14} /> Excluir
                       </button>
                     )}
-                    <button onClick={(e) => handleHide(post.id, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-body)] flex items-center gap-2 text-[var(--text-soft)] transition-colors">
+                    <button onClick={(e) => handleHide(post.id, e)} className="w-full text-left px-4 py-2.5 text-xs hover:bg-[var(--bg-main)] flex items-center gap-2 text-[var(--text-soft)] transition-colors">
                       <EyeOff size={14} /> Ocultar
                     </button>
                   </div>
@@ -746,11 +746,11 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full bg-[var(--bg-body)] border border-[var(--border)] rounded-xl p-3 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/50 outline-none"
+                    className="w-full bg-[var(--bg-main)] border border-[var(--border)] rounded-xl p-3 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/50 outline-none"
                     rows={3}
                   />
                   <div className="flex gap-2 justify-end">
-                    <button onClick={handleCancelEdit} className="p-1.5 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)]"><X size={16} /></button>
+                    <button onClick={handleCancelEdit} className="p-1.5 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)]"><X size={16} /></button>
                     <button onClick={handleSaveEdit} className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"><Check size={16} /></button>
                   </div>
                 </div>
@@ -829,7 +829,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
                 onChange={(next) => setPosts(prev => prev.map(p => p.id === post.id ? next : p))}
               />
               
-              <button className="flex items-center gap-2 text-[var(--text-soft)] hover:text-cyan-400 transition-colors text-sm group">
+              <button className="flex items-center gap-2 text-[var(--text-soft)] hover:text-[var(--primary)] transition-colors text-sm group">
                 <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
                 <span>{commentCounts[post.id] ?? post.comments_count}</span>
               </button>
@@ -840,7 +840,7 @@ const InstaFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) =>
             </div>
 
             {/* Comments */}
-            <div className="bg-[var(--bg-body)]/30 px-6 py-4 border-t border-[var(--border)]">
+            <div className="bg-[var(--bg-main)]/30 px-6 py-4 border-t border-[var(--border)]">
               <CommentSection
                 postId={post.id}
                 userId={user.id}
@@ -992,7 +992,7 @@ const ReactionsBar: React.FC<{
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
         disabled={busy}
-        className={`flex items-center gap-2 transition-all text-sm ${my ? 'text-cyan-400' : 'text-[var(--text-soft)] hover:text-cyan-400'} disabled:opacity-50`}
+        className={`flex items-center gap-2 transition-all text-sm ${my ? 'text-[var(--primary)]' : 'text-[var(--text-soft)] hover:text-[var(--primary)]'} disabled:opacity-50`}
         title="Reagir"
       >
         <span className="text-lg leading-none">{my ?? '❤️'}</span>
@@ -1011,13 +1011,13 @@ const ReactionsBar: React.FC<{
       )}
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl shadow-xl px-3 py-2 flex items-center gap-2">
+        <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl px-3 py-2 flex items-center gap-2">
           {QUICK_REACTIONS.map(r => (
             <button
               key={r}
               type="button"
               onClick={() => void pick(r)}
-              className={`h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-lg ${my === r ? 'bg-cyan-500/10' : ''}`}
+              className={`h-9 w-9 rounded-xl hover:bg-[var(--bg-main)] flex items-center justify-center text-lg ${my === r ? 'bg-[var(--primary-soft)]' : ''}`}
               aria-label={`Reagir com ${r}`}
             >
               {r}
@@ -1027,7 +1027,7 @@ const ReactionsBar: React.FC<{
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setEmojiOpen(v => !v); }}
-              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
+              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
               aria-label="Escolher outro emoji"
               title="Mais emojis"
             >
@@ -1050,13 +1050,13 @@ const ReactionsBar: React.FC<{
       >
         <div className="space-y-4">
           {total > 0 && details.length === 0 && (
-            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-3">
+            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-main)]/40 border border-[var(--border)] rounded-2xl p-3">
               Este post mostra <span className="font-semibold text-[var(--text-main)]">{total}</span> reação(ões), mas não há registros individuais para listar.
             </div>
           )}
 
           {details.length > 0 && details.length < total && (
-            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-body)]/40 border border-[var(--border)] rounded-2xl p-3">
+            <div className="text-sm text-[var(--text-soft)] bg-[var(--bg-main)]/40 border border-[var(--border)] rounded-2xl p-3">
               Mostrando <span className="font-semibold text-[var(--text-main)]">{details.length}</span> de <span className="font-semibold text-[var(--text-main)]">{total}</span> reação(ões).
             </div>
           )}
@@ -1066,19 +1066,19 @@ const ReactionsBar: React.FC<{
               <button
                 type="button"
                 onClick={() => setDetailsFilter('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === 'all' ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === 'all' ? 'border-[var(--primary)]/30 text-[var(--primary)] bg-[var(--primary-soft)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
               >
-                Todos <span className="ml-1 text-[11px] text-[var(--text-muted)]">({detailsStats.total})</span>
+                Todos <span className="ml-1 text-xs text-[var(--text-muted)]">({detailsStats.total})</span>
               </button>
               {detailsStats.reactions.map(r => (
                 <button
                   key={r.reaction}
                   type="button"
                   onClick={() => setDetailsFilter(r.reaction)}
-                  className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === r.reaction ? 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${detailsFilter === r.reaction ? 'border-[var(--primary)]/30 text-[var(--primary)] bg-[var(--primary-soft)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}
                 >
                   <span className="mr-1">{r.reaction}</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">({r.count})</span>
+                  <span className="text-xs text-[var(--text-muted)]">({r.count})</span>
                 </button>
               ))}
             </div>
@@ -1164,7 +1164,7 @@ const CommentReactionsBar: React.FC<{
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
         disabled={busy}
-        className={`flex items-center gap-1 transition-all text-[11px] ${my ? 'text-cyan-400' : 'text-[var(--text-muted)] hover:text-cyan-400'} disabled:opacity-50`}
+        className={`flex items-center gap-1 transition-all text-xs ${my ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--primary)]'} disabled:opacity-50`}
         title="Reagir"
       >
         <span className="text-base leading-none">{my ?? '❤️'}</span>
@@ -1172,13 +1172,13 @@ const CommentReactionsBar: React.FC<{
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl shadow-xl px-3 py-2 flex items-center gap-2">
+        <div className="absolute left-0 top-full mt-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl px-3 py-2 flex items-center gap-2">
           {QUICK_REACTIONS.map(r => (
             <button
               key={r}
               type="button"
               onClick={() => void pick(r)}
-              className={`h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-lg ${my === r ? 'bg-cyan-500/10' : ''}`}
+              className={`h-9 w-9 rounded-xl hover:bg-[var(--bg-main)] flex items-center justify-center text-lg ${my === r ? 'bg-[var(--primary-soft)]' : ''}`}
               aria-label={`Reagir com ${r}`}
             >
               {r}
@@ -1188,7 +1188,7 @@ const CommentReactionsBar: React.FC<{
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setEmojiOpen(v => !v); }}
-              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
+              className="h-9 w-9 rounded-xl hover:bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-muted)] hover:text-amber-400"
               aria-label="Escolher outro emoji"
               title="Mais emojis"
             >
@@ -1361,7 +1361,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2">
                     <span className="font-semibold text-[var(--text-main)] text-xs truncate">{c.usuario_nome}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{formatDateTime(c.created_at)}</span>
+                    <span className="text-xs text-[var(--text-muted)]">{formatDateTime(c.created_at)}</span>
                   </div>
                   <p className="text-[var(--text-main)] bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-2 rounded-xl mt-1 leading-relaxed break-words">
                     {renderRichText(c.content)}
@@ -1374,7 +1374,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                         userId={userId}
                         onChange={(next) => setItems(prev => prev.map(i => i.id === c.id ? next : i))}
                       />
-                      <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
+                      <button type="button" onClick={() => startReply(c)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]">
                         Responder
                       </button>
                     </div>
@@ -1395,7 +1395,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
                           <span className="font-semibold text-[var(--text-main)] text-xs truncate">{r.usuario_nome}</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">{formatDateTime(r.created_at)}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{formatDateTime(r.created_at)}</span>
                         </div>
                         <p className="text-[var(--text-main)] bg-[var(--bg-panel)] border border-[var(--border)] px-3 py-2 rounded-xl mt-1 leading-relaxed break-words">
                           {renderRichText(r.content)}
@@ -1408,7 +1408,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                               userId={userId}
                               onChange={(next) => setItems(prev => prev.map(i => i.id === r.id ? next : i))}
                             />
-                            <button type="button" onClick={() => startReply(c)} className="text-[11px] text-[var(--text-muted)] hover:text-cyan-400">
+                            <button type="button" onClick={() => startReply(c)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]">
                               Responder
                             </button>
                           </div>
@@ -1429,7 +1429,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
           value={text} 
           onChange={e => { setText(e.target.value); updateMentionSuggestions(e.target.value); }} 
           placeholder="Escreva um comentário..." 
-          className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] pl-12 pr-12 py-2.5 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 outline-none transition-all placeholder:text-[var(--text-muted)]" 
+          className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] pl-12 pr-12 py-2.5 text-sm text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] outline-none transition-all placeholder:text-[var(--text-muted)]" 
           onKeyDown={(e) => e.key === 'Enter' && submit()}
         />
         <div className="absolute left-2 top-1.5">
@@ -1437,7 +1437,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setEmojiOpen(v => !v); }}
-              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--bg-body)] transition-colors"
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-amber-400 hover:bg-[var(--bg-main)] transition-colors"
               title="Adicionar Emoji"
               aria-expanded={emojiOpen}
             >
@@ -1451,14 +1451,14 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
           </div>
         </div>
         {replyTo && (
-          <div className="absolute -top-7 left-0 right-0 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+          <div className="absolute -top-7 left-0 right-0 flex items-center justify-between text-xs text-[var(--text-muted)]">
             <div>Respondendo {replyTo.usuario_nome}</div>
             <button type="button" onClick={() => setReplyTo(null)} className="hover:text-[var(--text-main)]">Cancelar</button>
           </div>
         )}
         {mentionOpen && mentionQuery && (
-          <div ref={mentionRef} className="absolute left-0 right-0 bottom-full mb-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl shadow-xl overflow-hidden">
-            <div className="px-3 py-2 border-b border-[var(--border)] text-[11px] text-[var(--text-soft)]">
+          <div ref={mentionRef} className="absolute left-0 right-0 bottom-full mb-2 z-40 bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl overflow-hidden">
+            <div className="px-3 py-2 border-b border-[var(--border)] text-xs text-[var(--text-soft)]">
               Mencionar @{mentionQuery}
             </div>
             <div className="max-h-56 overflow-y-auto">
@@ -1467,7 +1467,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
                   key={u.id}
                   type="button"
                   onClick={() => insertMention(u.id, u.nome)}
-                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[var(--bg-body)] text-left"
+                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[var(--bg-main)] text-left"
                 >
                   <Avatar name={u.nome} src={u.avatar_url} size={28} className="shrink-0 rounded-full object-cover" />
                   <div className="text-sm text-[var(--text-main)]">{u.nome}</div>
@@ -1482,7 +1482,7 @@ const CommentSection: React.FC<{ postId: string; userId: string; onCountChange?:
         <button 
           onClick={submit} 
           disabled={!text.trim()}
-          className="absolute right-2 top-1.5 p-1.5 rounded-lg text-cyan-500 hover:bg-cyan-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          className="absolute right-2 top-1.5 p-1.5 rounded-lg text-cyan-500 hover:bg-[var(--primary-soft)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
         >
           <Send size={16} />
         </button>

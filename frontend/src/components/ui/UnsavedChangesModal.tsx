@@ -40,7 +40,7 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
                        px-4 py-2.5 text-[13px] font-semibold
                        bg-red-500 hover:bg-red-600
                        text-white
-                       transition shadow-sm
+                       transition
                        disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Descartar alterações
@@ -52,9 +52,9 @@ export const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
             disabled={saving}
             className="flex-1 rounded-xl
                        px-4 py-2.5 text-[13px] font-semibold
-                       bg-cyan-600 hover:bg-cyan-500
+                       bg-[var(--primary)] hover:bg-[var(--primary)]
                        text-white
-                       transition shadow-sm
+                       transition
                        disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? 'Salvando…' : 'Salvar e sair'}

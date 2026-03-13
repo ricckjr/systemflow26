@@ -51,12 +51,12 @@ export const ServiceKanbanBoard: React.FC<ServiceKanbanBoardProps> = ({ services
                    {config.label}
                  </h3>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${config.bg} ${config.border} ${config.color}`}>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${config.bg} ${config.border} ${config.color}`}>
                 {items.length}
               </span>
             </div>
 
-            <div className={`flex-1 min-h-0 rounded-2xl border bg-[var(--bg-body)]/50 ${config.border} p-2 transition-colors`}>
+            <div className={`flex-1 min-h-0 rounded-2xl border bg-[var(--bg-main)]/50 ${config.border} p-2 transition-colors`}>
                 <Droppable droppableId={status}>
                 {(provided, snapshot) => (
                     <div

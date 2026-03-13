@@ -248,13 +248,13 @@ function Avatar({
   const initial = (nome || 'U').substring(0, 1).toUpperCase()
   return (
     <div
-      className="rounded-xl bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 border border-white/10"
+      className="rounded-xl bg-[var(--bg-panel)] flex items-center justify-center overflow-hidden shrink-0 border border-[var(--border)]"
       style={{ width: size, height: size }}
     >
       {avatarUrl ? (
         <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
       ) : (
-        <span className="text-sm font-bold text-slate-300">{initial}</span>
+        <span className="text-sm font-bold text-[var(--text-soft)]">{initial}</span>
       )}
     </div>
   )
@@ -296,7 +296,7 @@ function DateBRPicker({
         }}
         placeholder="DD/MM/AAAA"
         maxLength={10}
-        className="w-full px-3 pr-11 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+        className="w-full px-3 pr-11 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
       />
       <button
         type="button"
@@ -306,7 +306,7 @@ function DateBRPicker({
           if (typeof el.showPicker === 'function') el.showPicker()
           else el.click?.()
         }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-400 hover:text-slate-200"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/[0.04] transition-colors text-[var(--text-muted)] hover:text-[var(--text-soft)]"
         aria-label="Abrir calendário"
       >
         <Calendar size={16} />
@@ -1084,7 +1084,7 @@ export default function Colaboradores() {
           type="button"
           onClick={openNovo}
           disabled={loadingAux}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/15 transition-all active:scale-95 shrink-0"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold  shadow-cyan-500/15 transition-all active:scale-95 shrink-0"
         >
           <Plus size={16} />
           {loadingAux ? 'Carregando...' : 'Novo Colaborador'}
@@ -1093,27 +1093,27 @@ export default function Colaboradores() {
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1 min-w-[220px] group">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nome, departamento ou empresa..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
           />
         </div>
 
-        <div className="flex items-center rounded-xl border border-white/10 bg-[#0B1220] p-1 shrink-0">
+        <div className="flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-1 shrink-0">
           <button
             type="button"
             onClick={() => setStatusFilter('ativos')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${statusFilter === 'ativos' ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${statusFilter === 'ativos' ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30' : 'text-[var(--text-muted)] hover:text-[var(--text-soft)]'}`}
           >
             Ativos
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('desativados')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${statusFilter === 'desativados' ? 'bg-rose-600/20 text-rose-300 border border-rose-500/30' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${statusFilter === 'desativados' ? 'bg-rose-600/20 text-rose-300 border border-rose-500/30' : 'text-[var(--text-muted)] hover:text-[var(--text-soft)]'}`}
           >
             Desativados
           </button>
@@ -1124,32 +1124,32 @@ export default function Colaboradores() {
       {loadingInit || loadingAux ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 9 }).map((_, idx) => (
-            <div key={idx} className="rounded-2xl border border-white/10 bg-[#0F172A] p-5 animate-pulse">
+            <div key={idx} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 animate-pulse">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10" />
+                <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-[var(--border)]" />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-3 w-2/3 rounded bg-white/5" />
-                  <div className="h-3 w-1/3 rounded bg-white/5" />
+                  <div className="h-3 w-2/3 rounded bg-white/[0.04]" />
+                  <div className="h-3 w-1/3 rounded bg-white/[0.04]" />
                 </div>
               </div>
               <div className="mt-4 space-y-2">
-                <div className="h-3 w-3/4 rounded bg-white/5" />
-                <div className="h-3 w-1/2 rounded bg-white/5" />
+                <div className="h-3 w-3/4 rounded bg-white/[0.04]" />
+                <div className="h-3 w-1/2 rounded bg-white/[0.04]" />
               </div>
-              <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-                <div className="h-3 w-24 rounded bg-white/5" />
-                <div className="h-3 w-16 rounded bg-white/5" />
+              <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center justify-between">
+                <div className="h-3 w-24 rounded bg-white/[0.04]" />
+                <div className="h-3 w-16 rounded bg-white/[0.04]" />
               </div>
             </div>
           ))}
         </div>
       ) : filteredColaboradores.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-12 text-center flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-            <UserPlus size={32} className="text-slate-500" />
+        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/[0.04] p-12 text-center flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
+            <UserPlus size={32} className="text-[var(--text-muted)]" />
           </div>
-          <p className="text-base font-semibold text-slate-200">Nenhum colaborador encontrado</p>
-          <p className="text-sm text-slate-400 mt-1 max-w-xs">Clique em “Novo Colaborador” para cadastrar.</p>
+          <p className="text-base font-semibold text-[var(--text-soft)]">Nenhum colaborador encontrado</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1 max-w-xs">Clique em “Novo Colaborador” para cadastrar.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1169,14 +1169,14 @@ export default function Colaboradores() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') openCard()
               }}
-              className="text-left rounded-2xl border border-white/10 bg-[#0F172A] p-5 hover:border-cyan-500/30 hover:bg-[#0B1220] transition-colors group relative cursor-pointer outline-none focus:ring-2 focus:ring-cyan-500/25"
+              className="text-left rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 hover:border-[var(--primary)]/30 hover:bg-[var(--bg-main)] transition-colors group relative cursor-pointer outline-none focus:ring-2 focus:ring-[var(--primary)]/25"
             >
               {docAlert === 'vencido' ? (
-                <div className="absolute -top-2 -right-2 p-1.5 bg-orange-500 rounded-full shadow-lg shadow-orange-500/20 animate-pulse z-10" title="Documentos inválidos">
+                <div className="absolute -top-2 -right-2 p-1.5 bg-orange-500 rounded-full  shadow-orange-500/20 animate-pulse z-10" title="Documentos inválidos">
                   <AlertTriangle size={16} className="text-white" />
                 </div>
               ) : docAlert === 'vencendo' ? (
-                <div className="absolute -top-2 -right-2 p-1.5 bg-amber-500 rounded-full shadow-lg shadow-amber-500/20 animate-pulse z-10" title="Documentos vencendo em breve">
+                <div className="absolute -top-2 -right-2 p-1.5 bg-amber-500 rounded-full  shadow-amber-500/20 animate-pulse z-10" title="Documentos vencendo em breve">
                   <AlertTriangle size={16} className="text-white" />
                 </div>
               ) : null}
@@ -1184,25 +1184,25 @@ export default function Colaboradores() {
               <div className="flex items-center gap-3">
                 <Avatar nome={colab.nomeCompleto} avatarUrl={colab.usuario.avatar_url} size={48} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">{colab.nomeCompleto}</div>
-                  <div className="text-xs text-slate-400 truncate">{colab.departamento || '—'}</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] truncate group-hover:text-[var(--primary)] transition-colors">{colab.nomeCompleto}</div>
+                  <div className="text-xs text-[var(--text-muted)] truncate">{colab.departamento || '—'}</div>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 gap-2">
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Building2 size={14} className="text-slate-500" />
+                <div className="flex items-center gap-2 text-xs text-[var(--text-soft)]">
+                  <Building2 size={14} className="text-[var(--text-muted)]" />
                   <span className="truncate">{colab.empresaNome || '—'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Calendar size={14} className="text-slate-500" />
+                <div className="flex items-center gap-2 text-xs text-[var(--text-soft)]">
+                  <Calendar size={14} className="text-[var(--text-muted)]" />
                   <span>Admissão: {colab.dataAdmissao ? formatDateBR(colab.dataAdmissao) : '—'}</span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[11px]">
+              <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-500">{colab.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
+                  <span className="text-[var(--text-muted)]">{colab.docsLoaded ? `${colab.documentos.length} documentos` : '— documentos'}</span>
                 </div>
                 {colab.dataDemissao ? <span className="text-rose-400 font-medium">Desativado</span> : <span className="text-emerald-400 font-medium">Ativo</span>}
               </div>
@@ -1222,7 +1222,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={closeNovo}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -1248,7 +1248,7 @@ export default function Colaboradores() {
           <div className="min-h-[300px]">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Usuário do Sistema *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Usuário do Sistema *</label>
                   <select
                     value={completarUsuario?.id || ''}
                     onChange={(e) => {
@@ -1258,7 +1258,7 @@ export default function Colaboradores() {
                       if (!u) return
                       if (!novoNomeCompleto) setNovoNomeCompleto(u.nome || '')
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   >
                     <option value="">Selecione...</option>
                     {allUsers.map((u) => {
@@ -1272,93 +1272,93 @@ export default function Colaboradores() {
                   </select>
                 </div>
                 {completarUsuario ? (
-                  <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-3">
+                  <div className="md:col-span-2 rounded-2xl border border-[var(--border)] bg-white/[0.04] p-4 flex items-center gap-3">
                     <Avatar nome={completarUsuario.nome} avatarUrl={completarUsuario.avatar_url} size={44} />
                     <div className="min-w-0">
-                      <div className="text-sm font-bold text-slate-100 truncate">{completarUsuario.nome}</div>
-                      <div className="text-xs text-slate-500 truncate">{completarUsuario.id}</div>
+                      <div className="text-sm font-bold text-[var(--text-main)] truncate">{completarUsuario.nome}</div>
+                      <div className="text-xs text-[var(--text-muted)] truncate">{completarUsuario.id}</div>
                     </div>
                   </div>
                 ) : null}
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome Completo *</label>
                   <input
                     value={novoNomeCompleto}
                     onChange={(e) => setNovoNomeCompleto(e.target.value)}
                     placeholder="Nome completo do colaborador"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF ou CNPJ *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CPF ou CNPJ *</label>
                   <input
                     value={novoCpf}
                     onChange={(e) => setNovoCpf(formatCPF(e.target.value))}
                     placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     maxLength={18}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Nascimento *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Nascimento *</label>
                   <input
                     type="date"
                     value={novoDataNascimento}
                     onChange={(e) => setNovoDataNascimento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Pessoal *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email Pessoal *</label>
                   <input
                     type="email"
                     value={novoEmailPessoal}
                     onChange={(e) => setNovoEmailPessoal(e.target.value)}
                     placeholder="exemplo@gmail.com"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Telefone *</label>
                   <input
                     value={novoTelefone}
                     onChange={(e) => setNovoTelefone(formatPhone(e.target.value))}
                     placeholder="(00) 00000-0000"
                     maxLength={15}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endereço Completo *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço Completo *</label>
                   <input
                     onChange={(e) => setNovoEndereco(e.target.value)}
                     placeholder="Rua, Número, Bairro, Cidade - UF"
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CEP *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CEP *</label>
                   <input
                     value={novoCep}
                     onChange={(e) => setNovoCep(formatCEP(e.target.value))}
                     placeholder="00000-000"
                     maxLength={9}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Empresa Correspondente *</label>
                   <select
                     value={novoEmpresaId}
                     onChange={(e) => setNovoEmpresaId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   >
                     <option value="">Selecione...</option>
                     {empresas.map((e) => (
@@ -1370,40 +1370,40 @@ export default function Colaboradores() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Matrícula *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Matrícula *</label>
                   <input
                     value={novoMatricula}
                     onChange={(e) => setNovoMatricula(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Admissão *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Admissão *</label>
                   <input
                     type="date"
                     value={novoDataAdmissao}
                     onChange={(e) => setNovoDataAdmissao(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Departamento *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Departamento *</label>
                   <input
                     value={novoDepartamento}
                     onChange={(e) => setNovoDepartamento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Observações Gerais</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Observações Gerais</label>
                   <textarea
                     value={novoObsGerais}
                     onChange={(e) => setNovoObsGerais(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
                   />
                 </div>
               </div>
@@ -1422,7 +1422,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={() => setIsDetalheOpen(false)}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Fechar
             </button>
@@ -1430,23 +1430,23 @@ export default function Colaboradores() {
         }
       >
         {!activeColaborador ? (
-          <div className="text-sm text-slate-400">Selecione um colaborador.</div>
+          <div className="text-sm text-[var(--text-muted)]">Selecione um colaborador.</div>
         ) : (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <Avatar nome={activeColaborador.nomeCompleto} avatarUrl={activeColaborador.usuario.avatar_url} size={64} />
               <div className="min-w-0">
                 <div className="text-lg font-extrabold text-white truncate">{activeColaborador.nomeCompleto}</div>
-                <div className="text-sm text-slate-400 truncate">{activeColaborador.departamento || '—'}</div>
+                <div className="text-sm text-[var(--text-muted)] truncate">{activeColaborador.departamento || '—'}</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 border-b border-white/10">
+            <div className="flex items-center gap-1 border-b border-[var(--border)]">
               <button
                 type="button"
                 onClick={() => setDetalheTab('pessoal')}
                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  detalheTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                  detalheTab === 'pessoal' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-soft)]'
                 }`}
               >
                 Dados Pessoais
@@ -1455,7 +1455,7 @@ export default function Colaboradores() {
                 type="button"
                 onClick={() => setDetalheTab('documentacao')}
                 className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                  detalheTab === 'documentacao' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                  detalheTab === 'documentacao' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-soft)]'
                 }`}
               >
                 Documentação
@@ -1469,87 +1469,87 @@ export default function Colaboradores() {
                     <button
                       type="button"
                       onClick={openEditar}
-                      className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+                      className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
                     >
                       Editar Informações
                     </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nome Completo</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.nomeCompleto}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome Completo</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.nomeCompleto}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">CPF/CNPJ</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.cpf}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CPF/CNPJ</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.cpf}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Nascimento</div>
-                    <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataNascimento)}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Nascimento</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{formatDateBR(activeColaborador.dataNascimento)}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Pessoal</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.emailPessoal}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email Pessoal</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.emailPessoal}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Telefone</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.telefone}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Telefone</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.telefone}</div>
                   </div>
-                  <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Endereço</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.enderecoCompleto} - CEP: {activeColaborador.cep}</div>
+                  <div className="col-span-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.enderecoCompleto} - CEP: {activeColaborador.cep}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Empresa Correspondente</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.empresaNome}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Empresa Correspondente</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.empresaNome}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matrícula</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.matricula}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Matrícula</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.matricula}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Departamento</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.departamento}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Departamento</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.departamento}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4 md:col-span-2">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Corporativo</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4 md:col-span-2">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email Corporativo</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.usuario.email_corporativo || '—'}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ramal</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.usuario.ramal || '—'}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Ramal</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.usuario.ramal || '—'}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Admissão</div>
-                    <div className="text-sm text-slate-200 mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Admissão</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{formatDateBR(activeColaborador.dataAdmissao)}</div>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Demissão</div>
-                    <div className="text-sm text-slate-200 mt-1">{activeColaborador.dataDemissao ? formatDateBR(activeColaborador.dataDemissao) : '—'}</div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Demissão</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1">{activeColaborador.dataDemissao ? formatDateBR(activeColaborador.dataDemissao) : '—'}</div>
                   </div>
-                  <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observações Gerais</div>
-                    <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsGerais || '—'}</div>
+                  <div className="col-span-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Observações Gerais</div>
+                    <div className="text-sm text-[var(--text-soft)] mt-1 whitespace-pre-wrap">{activeColaborador.obsGerais || '—'}</div>
                   </div>
                   {activeColaborador.dataDemissao && (
-                    <div className="col-span-full rounded-xl border border-white/10 bg-[#0B1220] p-4">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Observação Demissão</div>
-                      <div className="text-sm text-slate-200 mt-1 whitespace-pre-wrap">{activeColaborador.obsDemissao || '—'}</div>
+                    <div className="col-span-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
+                      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Observação Demissão</div>
+                      <div className="text-sm text-[var(--text-soft)] mt-1 whitespace-pre-wrap">{activeColaborador.obsDemissao || '—'}</div>
                     </div>
                   )}
                   </div>
                 </div>
               ) : detalheTab === 'documentacao' ? (
-                <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-5 mt-4 animate-in fade-in slide-in-from-bottom-2">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5 mt-4 animate-in fade-in slide-in-from-bottom-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-bold text-slate-200">Documentos</div>
+                    <div className="text-sm font-bold text-[var(--text-soft)]">Documentos</div>
                     <div className="flex items-center gap-3">
-                      <div className="text-xs text-slate-500">{activeColaborador.docsLoaded ? activeColaborador.documentos.length : '...'}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{activeColaborador.docsLoaded ? activeColaborador.documentos.length : '...'}</div>
                       <button
                         type="button"
                         onClick={openDocumento}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors"
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold transition-colors"
                       >
                         <FilePlus size={16} />
                         Adicionar Documento
@@ -1557,14 +1557,14 @@ export default function Colaboradores() {
                     </div>
                   </div>
                   {!activeColaborador.docsLoaded ? (
-                    <div className="mt-3 text-sm text-slate-500">Carregando documentos...</div>
+                    <div className="mt-3 text-sm text-[var(--text-muted)]">Carregando documentos...</div>
                   ) : activeColaborador.documentos.length === 0 ? (
-                    <div className="mt-3 text-sm text-slate-500">Nenhum documento adicionado.</div>
+                    <div className="mt-3 text-sm text-[var(--text-muted)]">Nenhum documento adicionado.</div>
                   ) : (
-                    <div className="mt-3 rounded-xl border border-white/10 overflow-auto max-h-[60vh]">
+                    <div className="mt-3 rounded-xl border border-[var(--border)] overflow-auto max-h-[60vh]">
                       <table className="min-w-[860px] w-full text-left">
-                        <thead className="sticky top-0 z-10 bg-[#0B1220]/95 backdrop-blur border-b border-white/10">
-                          <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        <thead className="sticky top-0 z-10 bg-[var(--bg-main)]/95 backdrop-blur border-b border-[var(--border)]">
+                          <tr className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
                             <th className="px-4 py-3">Documento</th>
                             <th className="px-4 py-3 whitespace-nowrap">Emissão</th>
                             <th className="px-4 py-3 whitespace-nowrap">Vencimento</th>
@@ -1588,21 +1588,21 @@ export default function Colaboradores() {
                                       <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                                     ) : null}
                                     <div className="min-w-0">
-                                      <div className="text-sm font-semibold text-slate-200 truncate">{d.nome}</div>
-                                      {d.arquivoNome && <div className="text-xs text-slate-500 truncate">{d.arquivoNome}</div>}
+                                      <div className="text-sm font-semibold text-[var(--text-soft)] truncate">{d.nome}</div>
+                                      {d.arquivoNome && <div className="text-xs text-[var(--text-muted)] truncate">{d.arquivoNome}</div>}
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-200">
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--text-soft)]">{d.dataEmissao ? formatDateBR(d.dataEmissao) : '—'}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-[var(--text-soft)]">
                                   <div className="flex items-center gap-2">
                                   <span>{d.dataVencimento ? formatDateBR(d.dataVencimento) : '—'}</span>
                                     {vencido ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/20">
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider border border-rose-500/20">
                                         Vencido
                                       </span>
                                     ) : vencendo ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-xs font-bold uppercase tracking-wider border border-amber-500/20">
                                         Vence em breve
                                       </span>
                                     ) : null}
@@ -1610,15 +1610,15 @@ export default function Colaboradores() {
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   {statusDoc === 'Inválido' ? (
-                                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-[11px] font-bold uppercase tracking-wider border border-rose-500/20">
+                                    <span className="px-2 py-1 rounded bg-rose-500/10 text-rose-400 text-xs font-bold uppercase tracking-wider border border-rose-500/20">
                                       Inválido
                                     </span>
                                   ) : statusDoc === 'Vencendo' ? (
-                                    <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[11px] font-bold uppercase tracking-wider border border-amber-500/20">
+                                    <span className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-xs font-bold uppercase tracking-wider border border-amber-500/20">
                                       Vencendo
                                     </span>
                                   ) : (
-                                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[11px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                    <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-bold uppercase tracking-wider border border-emerald-500/20">
                                       Válido
                                     </span>
                                   )}
@@ -1630,7 +1630,7 @@ export default function Colaboradores() {
                                         href={d.arquivoUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-400 transition-colors"
+                                        className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/10 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
                                         title="Baixar Documento"
                                       >
                                         <Download size={16} />
@@ -1638,7 +1638,7 @@ export default function Colaboradores() {
                                     )}
                                     <button
                                       onClick={() => askDeleteDocumento(d.id)}
-                                      className="p-2 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                                      className="p-2 rounded-lg bg-white/[0.04] hover:bg-rose-500/20 text-[var(--text-muted)] hover:text-rose-400 transition-colors"
                                       title="Excluir Documento"
                                     >
                                       <Trash2 size={16} />
@@ -1670,7 +1670,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={() => setIsEditarOpen(false)}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -1679,7 +1679,7 @@ export default function Colaboradores() {
               onClick={handleSalvarEdicao}
               disabled={savingEdit || !editDirty}
               className={`px-6 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 ${
-                editDirty ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-white/10 text-slate-500'
+                editDirty ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-white/10 text-[var(--text-muted)]'
               } disabled:opacity-60`}
             >
               {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
@@ -1695,12 +1695,12 @@ export default function Colaboradores() {
             </div>
           )}
 
-          <div className="flex items-center gap-1 border-b border-white/10">
+          <div className="flex items-center gap-1 border-b border-[var(--border)]">
             <button
               type="button"
               onClick={() => setEditTab('pessoal')}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                editTab === 'pessoal' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                editTab === 'pessoal' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-soft)]'
               }`}
             >
               Dados Pessoais
@@ -1709,7 +1709,7 @@ export default function Colaboradores() {
               type="button"
               onClick={() => setEditTab('corporativo')}
               className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
-                editTab === 'corporativo' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-500 hover:text-slate-300'
+                editTab === 'corporativo' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-soft)]'
               }`}
             >
               Contato Corporativo
@@ -1721,63 +1721,63 @@ export default function Colaboradores() {
             {editTab === 'pessoal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome Completo *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome Completo *</label>
                   <input
                     value={editNomeCompleto}
                     onChange={(e) => setEditNomeCompleto(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CPF ou CNPJ *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CPF ou CNPJ *</label>
                   <input
                     value={editCpf}
                     onChange={(e) => setEditCpf(formatCPF(e.target.value))}
                     placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     maxLength={18}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Nascimento *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Nascimento *</label>
                   <input
                     type="date"
                     value={editDataNascimento}
                     onChange={(e) => setEditDataNascimento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Pessoal *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email Pessoal *</label>
                   <input
                     type="email"
                     value={editEmailPessoal}
                     onChange={(e) => setEditEmailPessoal(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Telefone *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Telefone *</label>
                   <input
                     value={editTelefone}
                     onChange={(e) => setEditTelefone(formatPhone(e.target.value))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endereço Completo *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço Completo *</label>
                   <input
                     value={editEndereco}
                     onChange={(e) => setEditEndereco(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">CEP *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">CEP *</label>
                   <input
                     value={editCep}
                     onChange={(e) => setEditCep(formatCEP(e.target.value))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
               </div>
@@ -1787,11 +1787,11 @@ export default function Colaboradores() {
             {editTab === 'corporativo' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Empresa Correspondente *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Empresa Correspondente *</label>
                   <select
                     value={editEmpresaId}
                     onChange={(e) => setEditEmpresaId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   >
                     <option value="">Selecione...</option>
                     {empresas.map((e) => (
@@ -1802,28 +1802,28 @@ export default function Colaboradores() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data Admissão *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data Admissão *</label>
                   <input
                     type="date"
                     value={editDataAdmissao}
                     onChange={(e) => setEditDataAdmissao(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Matrícula *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Matrícula *</label>
                   <input
                     value={editMatricula}
                     onChange={(e) => setEditMatricula(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Departamento *</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Departamento *</label>
                   <select
                     value={editDepartamento}
                     onChange={(e) => setEditDepartamento(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   >
                     <option value="">Selecione...</option>
                     <option value="Administrativo">Administrativo</option>
@@ -1837,31 +1837,31 @@ export default function Colaboradores() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Email Corporativo</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email Corporativo</label>
                   <input
                     type="email"
                     value={editEmailCorporativo}
                     onChange={(e) => setEditEmailCorporativo(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Ramal</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Ramal</label>
                   <input
                     value={editRamal}
                     onChange={(e) => setEditRamal(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all"
                   />
                 </div>
                 
-                <div className="col-span-full pt-4 border-t border-white/5">
+                <div className="col-span-full pt-4 border-t border-[var(--border)]">
                   <div className="flex items-center gap-2 mb-2">
-                    <Key size={16} className="text-slate-500" />
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Acesso ao Sistema</span>
+                    <Key size={16} className="text-[var(--text-muted)]" />
+                    <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Acesso ao Sistema</span>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email de Login (Não editável)</label>
-                    <div className="text-sm text-slate-300 mt-1 font-mono">{activeColaborador?.usuario.email_login}</div>
+                  <div className="p-3 rounded-xl bg-white/[0.04] border border-[var(--border)]">
+                    <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Email de Login (Não editável)</label>
+                    <div className="text-sm text-[var(--text-soft)] mt-1 font-mono">{activeColaborador?.usuario.email_login}</div>
                   </div>
                 </div>
               </div>
@@ -1880,7 +1880,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={() => { setIsDeleteDocOpen(false); setDeleteDocId(null) }}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -1895,8 +1895,8 @@ export default function Colaboradores() {
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Tem certeza que deseja excluir este documento?</p>
-          <p className="text-xs text-slate-500">Essa ação não pode ser desfeita.</p>
+          <p className="text-sm text-[var(--text-soft)]">Tem certeza que deseja excluir este documento?</p>
+          <p className="text-xs text-[var(--text-muted)]">Essa ação não pode ser desfeita.</p>
         </div>
       </Modal>
 
@@ -1911,7 +1911,7 @@ export default function Colaboradores() {
             <button
               type="button"
               onClick={() => { setIsDocumentoOpen(false); setIsDetalheOpen(true) }}
-              className="px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-slate-200 text-xs font-bold hover:bg-white/10 transition-colors"
+              className="px-4 py-2 rounded-xl border border-[var(--border)] bg-white/[0.04] text-[var(--text-soft)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Cancelar
             </button>
@@ -2046,7 +2046,7 @@ export default function Colaboradores() {
                 }
               }}
               disabled={savingDoc}
-              className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {savingDoc ? 'Salvando...' : 'Adicionar'}
             </button>
@@ -2056,23 +2056,23 @@ export default function Colaboradores() {
         <div className="space-y-4">
           {docError && <div className="text-rose-400 text-xs">{docError}</div>}
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Nome do Documento</label>
-            <input value={docNome} onChange={e => setDocNome(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 transition-all" />
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Nome do Documento</label>
+            <input value={docNome} onChange={e => setDocNome(e.target.value)} className="w-full px-3 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 transition-all" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Emissão</label>
+               <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data de Emissão</label>
                <DateBRPicker valueISO={docEmissao} onChangeISO={setDocEmissao} />
             </div>
             <div className="space-y-2">
-               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Data de Vencimento</label>
+               <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data de Vencimento</label>
                <DateBRPicker valueISO={docVencimento} onChangeISO={setDocVencimento} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Arquivo</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Arquivo</label>
             <div className="relative group">
                 <input 
                   type="file" 
@@ -2082,10 +2082,10 @@ export default function Colaboradores() {
                 />
                 <label 
                   htmlFor="doc-file-upload" 
-                  className="flex items-center justify-center gap-2 w-full px-3 py-4 rounded-xl bg-[#0B1220] border border-dashed border-white/20 text-sm text-slate-400 cursor-pointer hover:border-cyan-500/50 hover:bg-white/5 transition-all"
+                  className="flex items-center justify-center gap-2 w-full px-3 py-4 rounded-xl bg-[var(--bg-main)] border border-dashed border-[var(--border)] text-sm text-[var(--text-muted)] cursor-pointer hover:border-[var(--primary)]/50 hover:bg-white/[0.04] transition-all"
                 >
                   <Upload size={16} />
-                  {docFile ? <span className="text-cyan-400 font-medium">{docFile.name}</span> : <span>Clique para selecionar um arquivo</span>}
+                  {docFile ? <span className="text-[var(--primary)] font-medium">{docFile.name}</span> : <span>Clique para selecionar um arquivo</span>}
                 </label>
             </div>
           </div>

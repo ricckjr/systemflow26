@@ -26,7 +26,7 @@ type Column = {
 const columnsOrder: ColumnKey[] = ['requisicao', 'pedido-compra', 'aprovacao', 'faturado']
 
 const baseColumns: Record<ColumnKey, Omit<Column, 'cardIds'>> = {
-  requisicao: { key: 'requisicao', title: 'Requisição', accentClass: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200' },
+  requisicao: { key: 'requisicao', title: 'Requisição', accentClass: 'border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)]' },
   'pedido-compra': { key: 'pedido-compra', title: 'Pedido de Compra', accentClass: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-200' },
   aprovacao: { key: 'aprovacao', title: 'Aprovação', accentClass: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
   faturado: { key: 'faturado', title: 'Faturado Pelo Fornecedor', accentClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
@@ -236,7 +236,7 @@ const ComprasKanban: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsNovaRequisicaoOpen(true)}
-          className="h-10 px-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15 transition inline-flex items-center gap-2 text-[13px] font-semibold"
+          className="h-10 px-4 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--primary-soft)] transition inline-flex items-center gap-2 text-[13px] font-semibold"
         >
           <Plus size={16} />
           Nova Requisição
@@ -257,8 +257,8 @@ const ComprasKanban: React.FC = () => {
                   const count = col.cardIds.length
                   return (
                     <div key={col.key} className="flex flex-col w-80 h-full shrink-0">
-                      <div className="mb-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-body)]/40 px-4 py-3">
-                        <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] font-bold ${col.accentClass}`}>
+                      <div className="mb-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)]/40 px-4 py-3">
+                        <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-bold ${col.accentClass}`}>
                           <span>{col.title}</span>
                           <span className="opacity-80">·</span>
                           <span className="opacity-90">{count}</span>
@@ -270,8 +270,8 @@ const ComprasKanban: React.FC = () => {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`flex-1 rounded-2xl border bg-[var(--bg-body)]/40 ${
-                              snapshot.isDraggingOver ? 'border-cyan-500/30 ring-1 ring-cyan-500/20' : 'border-[var(--border)]'
+                            className={`flex-1 rounded-2xl border bg-[var(--bg-main)]/40 ${
+                              snapshot.isDraggingOver ? 'border-[var(--primary)]/30 ring-1 ring-[var(--primary)]/20' : 'border-[var(--border)]'
                             }`}
                           >
                             <div className="h-full overflow-y-scroll px-3 py-3 space-y-2" style={{ overscrollBehavior: 'contain' }}>
@@ -288,26 +288,26 @@ const ComprasKanban: React.FC = () => {
                                         ref={dragProvided.innerRef}
                                         {...dragProvided.draggableProps}
                                         {...dragProvided.dragHandleProps}
-                                        className={`rounded-xl border p-3 bg-[#0F172A] border-white/10 hover:border-white/20 hover:bg-[#0B1220] transition ${
-                                          dragSnapshot.isDragging ? 'ring-2 ring-cyan-500 rotate-2 scale-[1.02] shadow-2xl z-50' : ''
+                                        className={`rounded-xl border p-3 bg-[var(--bg-panel)] border-[var(--border)] hover:border-[var(--border)] hover:bg-[var(--bg-main)] transition ${
+                                          dragSnapshot.isDragging ? 'ring-2 ring-[var(--primary)] rotate-2 scale-[1.02] z-50' : ''
                                         }`}
                                       >
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="min-w-0">
-                                            <div className="text-[13px] font-semibold text-slate-100 truncate">{card.title}</div>
-                                            <div className="mt-1 text-[12px] text-slate-400 flex items-center gap-2">
+                                            <div className="text-[13px] font-semibold text-[var(--text-main)] truncate">{card.title}</div>
+                                            <div className="mt-1 text-[12px] text-[var(--text-muted)] flex items-center gap-2">
                                               <span className="truncate">{subtitleLeft}</span>
-                                              {subtitleRight && <span className="text-slate-600">·</span>}
+                                              {subtitleRight && <span className="text-[var(--text-soft)]">·</span>}
                                               {subtitleRight && <span className="shrink-0">{subtitleRight}</span>}
                                             </div>
                                           </div>
-                                          <div className="text-[10px] font-bold text-slate-500 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
+                                          <div className="text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] px-2 py-1 rounded-lg">
                                             #{card.id.slice(-4)}
                                           </div>
                                         </div>
                                         {chip && (
                                           <div className="mt-3">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-[10px] font-bold text-slate-200">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-soft)]">
                                               {chip}
                                             </span>
                                           </div>
@@ -320,7 +320,7 @@ const ComprasKanban: React.FC = () => {
                               {provided.placeholder}
 
                               {count === 0 && (
-                                <div className="rounded-xl border border-dashed border-white/10 p-3 text-[12px] text-slate-500">
+                                <div className="rounded-xl border border-dashed border-[var(--border)] p-3 text-[12px] text-[var(--text-muted)]">
                                   Solte itens aqui.
                                 </div>
                               )}
@@ -339,11 +339,11 @@ const ComprasKanban: React.FC = () => {
               onPointerDown={onHorizontalTrackPointerDown}
               onPointerMove={onHorizontalTrackPointerMove}
               onPointerUp={onHorizontalTrackPointerUp}
-              className="mt-3 h-3 rounded-full border border-white/10 bg-white/5 relative select-none"
+              className="mt-3 h-3 rounded-full border border-[var(--border)] bg-[var(--bg-card)] relative select-none"
             >
               <div
                 ref={hThumbRef}
-                className="h-full rounded-full bg-slate-200/20 hover:bg-slate-200/25 border border-white/10 shadow-sm cursor-grab active:cursor-grabbing"
+                className="h-full rounded-full bg-[var(--bg-card)] hover:bg-white/8 border border-[var(--border)] cursor-grab active:cursor-grabbing"
               />
             </div>
           </div>

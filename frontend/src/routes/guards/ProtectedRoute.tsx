@@ -72,7 +72,7 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-navy-950 text-white">
         <h1 className="text-2xl font-bold mb-4">Acesso Bloqueado</h1>
-        <p className="text-gray-300 mb-6">
+        <p className="text-[var(--text-soft)] mb-6">
           Seu usuário foi desativado. Entre em contato com o administrador.
         </p>
         <button

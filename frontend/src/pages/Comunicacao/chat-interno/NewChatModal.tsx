@@ -9,7 +9,7 @@ const STATUS_COLORS: Record<string, string> = {
   online: 'bg-emerald-500',
   busy: 'bg-red-500',
   away: 'bg-amber-500',
-  offline: 'bg-slate-500',
+  offline: 'bg-[var(--text-muted)]',
 }
 
 export function NewChatModal(props: {
@@ -78,7 +78,7 @@ export function NewChatModal(props: {
               className={[
                 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors',
                 mode === 'direct'
-                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'
+                  ? 'bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]/25'
                   : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text-main)]',
               ].join(' ')}
             >
@@ -90,7 +90,7 @@ export function NewChatModal(props: {
               className={[
                 'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors',
                 mode === 'group'
-                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'
+                  ? 'bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]/25'
                   : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text-main)]',
               ].join(' ')}
             >
@@ -104,7 +104,7 @@ export function NewChatModal(props: {
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Nome do grupo"
-                className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] outline-none"
+                className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/50 text-[var(--text-main)] outline-none"
                 autoFocus
                 disabled={busy}
               />
@@ -112,7 +112,7 @@ export function NewChatModal(props: {
                 value={groupDescription}
                 onChange={(e) => setGroupDescription(e.target.value)}
                 placeholder="Descrição (opcional)"
-                className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] outline-none resize-none"
+                className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/50 text-[var(--text-main)] outline-none resize-none"
                 rows={2}
                 disabled={busy}
               />
@@ -126,12 +126,12 @@ export function NewChatModal(props: {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={mode === 'direct' ? 'Buscar por nome ou email...' : 'Buscar participantes...'}
-              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] outline-none"
+              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/50 text-[var(--text-main)] outline-none"
               disabled={busy}
             />
           </div>
           {mode === 'group' && (
-            <div className="text-[11px] text-[var(--text-muted)] mt-2">
+            <div className="text-xs text-[var(--text-muted)] mt-2">
               Selecionados: {selectedUserIds.size}
             </div>
           )}
@@ -171,7 +171,7 @@ export function NewChatModal(props: {
                     className={[
                       'w-full p-3 flex items-center gap-4 rounded-xl border transition-all duration-200 text-left group',
                       mode === 'group' && isSelected
-                        ? 'bg-cyan-500/10 border-cyan-500/20'
+                        ? 'bg-[var(--primary-soft)] border-[var(--primary)]/20'
                         : 'hover:bg-[var(--bg-main)] border-transparent hover:border-[var(--border)]',
                       busy ? 'opacity-70 pointer-events-none' : '',
                     ].join(' ')}
@@ -214,17 +214,17 @@ export function NewChatModal(props: {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[var(--text-main)] group-hover:text-cyan-400 transition-colors truncate">
+                      <p className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--primary)] transition-colors truncate">
                         {user.nome}
                       </p>
                       <p className="text-xs text-[var(--text-muted)] truncate">{user.cargo || 'Membro da equipe'}</p>
                     </div>
                     {mode === 'direct' ? (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-cyan-500 bg-cyan-500/10 p-2 rounded-full">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-cyan-500 bg-[var(--primary-soft)] p-2 rounded-full">
                         <MessageSquare size={16} />
                       </div>
                     ) : (
-                      <div className={['w-5 h-5 rounded-md border', isSelected ? 'bg-cyan-500 border-cyan-400' : 'border-[var(--border)]'].join(' ')}>
+                      <div className={['w-5 h-5 rounded-md border', isSelected ? 'bg-[var(--primary)] border-cyan-400' : 'border-[var(--border)]'].join(' ')}>
                         {isSelected && <Check size={16} className="text-black" />}
                       </div>
                     )}
@@ -261,7 +261,7 @@ export function NewChatModal(props: {
                   setBusy(false)
                 }
               }}
-              className="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               disabled={busy || !groupName.trim() || selectedUserIds.size === 0}
             >
               Criar grupo

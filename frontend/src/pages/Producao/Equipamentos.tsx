@@ -180,7 +180,7 @@ const Equipamentos: React.FC = () => {
           />
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 py-3">
-          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Fase</div>
+          <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Fase</div>
           <div className="mt-2 flex items-center gap-3">
             <select
               value={faseFilter}
@@ -212,7 +212,7 @@ const Equipamentos: React.FC = () => {
 
       <div className="flex-1 min-h-0 overflow-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-[var(--bg-body)] text-[var(--text-muted)] text-[10px] uppercase font-bold tracking-wider border-b border-[var(--border)] sticky top-0 z-10">
+          <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] text-xs uppercase font-bold tracking-wider border-b border-[var(--border)] sticky top-0 z-10">
             <tr>
               <th className="px-4 py-3">ID RST</th>
               <th className="px-4 py-3">Cliente</th>
@@ -249,7 +249,7 @@ const Equipamentos: React.FC = () => {
                     <span className="text-xs text-[var(--text-muted)]">{s.data_finalizada ? formatDateBR(s.data_finalizada) : '-'}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-main)] uppercase">
+                    <span className="px-2 py-0.5 rounded text-xs font-bold border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-main)] uppercase">
                       {getOsPhaseConfig(s.fase).label}
                     </span>
                   </td>
@@ -276,11 +276,11 @@ const Equipamentos: React.FC = () => {
         title={
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+              <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                 <Wrench size={18} />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Detalhes do Equipamento</div>
+                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Detalhes do Equipamento</div>
                 <div className="text-lg font-black text-[var(--text-main)] truncate">{selected?.id_rst || '...'}</div>
                 <div className="text-xs text-[var(--text-muted)] truncate">
                   {selected?.cod_proposta ? `Proposta ${selected.cod_proposta}` : 'Proposta —'} • {selected?.cliente || 'Cliente —'}
@@ -289,15 +289,15 @@ const Equipamentos: React.FC = () => {
             </div>
             {selected?.fase ? (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
+                <span className="text-xs font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
                   {getOsPhaseConfig(selected.fase).label}
                 </span>
                 {loadingCrmStatuses || loadingProposta ? (
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-panel)] border-[var(--border)] text-[var(--text-muted)] uppercase whitespace-nowrap">
+                  <span className="text-xs font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-panel)] border-[var(--border)] text-[var(--text-muted)] uppercase whitespace-nowrap">
                     Status CRM...
                   </span>
                 ) : proposta?.id_status && crmStatusById[String((proposta as any).id_status || '').trim()] ? (
-                  <span className="text-[10px] font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-panel)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
+                  <span className="text-xs font-black px-2.5 py-1 rounded-xl border bg-[var(--bg-panel)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
                     {crmStatusById[String((proposta as any).id_status || '').trim()]}
                   </span>
                 ) : null}
@@ -327,7 +327,7 @@ const Equipamentos: React.FC = () => {
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               <div className="lg:col-span-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Resumo</div>
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Resumo</div>
                 <div className="mt-3 space-y-2">
                   <Kv label="ID RST" value={selected.id_rst || '—'} />
                   <Kv label="Código da Proposta" value={selected.cod_proposta || '—'} />
@@ -340,7 +340,7 @@ const Equipamentos: React.FC = () => {
               </div>
 
               <div className="lg:col-span-8 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">
                   <Tag size={14} />
                   Dados do Equipamento
                 </div>
@@ -359,7 +359,7 @@ const Equipamentos: React.FC = () => {
                   <Pill label="Responsável" value={selected.responsavel} />
                 </div>
                 <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Endereço</div>
                   <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
                     {selected.endereco || '—'}
                   </div>
@@ -369,13 +369,13 @@ const Equipamentos: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               <div className="lg:col-span-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Solicitação do Cliente</div>
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Solicitação do Cliente</div>
                 <div className="mt-3 text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
                   {String((selected as any)?.solicitacao_cliente || '').trim() || '—'}
                 </div>
               </div>
               <div className="lg:col-span-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-5">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Análise Visual / Observações Iniciais</div>
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Análise Visual / Observações Iniciais</div>
                 <div className="mt-3 text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
                   {String((selected as any)?.observacoes_equipamento || '').trim() || '—'}
                 </div>
@@ -384,7 +384,7 @@ const Equipamentos: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                   <Layers size={14} />
                   Campos Técnicos
                 </div>
@@ -396,7 +396,7 @@ const Equipamentos: React.FC = () => {
               </div>
 
               <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                   <ImageIcon size={14} />
                   Galeria de Imagens
                 </div>
@@ -417,7 +417,7 @@ const Equipamentos: React.FC = () => {
                               href={url}
                               target="_blank"
                               rel="noreferrer"
-                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-white/10 bg-black/30 text-white hover:bg-black/40"
+                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-black/30 text-white hover:bg-black/40"
                               title="Abrir em nova aba"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -426,7 +426,7 @@ const Equipamentos: React.FC = () => {
                             <a
                               href={url}
                               download
-                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-white/10 bg-black/30 text-white hover:bg-black/40"
+                              className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-black/30 text-white hover:bg-black/40"
                               title="Baixar"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -445,7 +445,7 @@ const Equipamentos: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                   <User size={14} />
                   Vendedor
                 </div>
@@ -466,7 +466,7 @@ const Equipamentos: React.FC = () => {
               </div>
 
               <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                   <FileText size={14} />
                   Documentos Complementares
                 </div>
@@ -478,7 +478,7 @@ const Equipamentos: React.FC = () => {
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                   <History size={14} />
                   Históricos de Andamento
                 </div>
@@ -509,11 +509,11 @@ const Equipamentos: React.FC = () => {
                         </div>
                         <div className="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-3 text-xs">
                           <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-main)] px-3 py-2">
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Responsável</div>
+                            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Responsável</div>
                             <div className="mt-1 text-[var(--text-main)]">{String(h?.responsavel_destino || h?.responsavel_origem || '-').trim() || '-'}</div>
                           </div>
                           <div className="lg:col-span-2 rounded-lg border border-[var(--border)] bg-[var(--bg-main)] px-3 py-2">
-                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
                             <div className="mt-1 text-[var(--text-main)] whitespace-pre-wrap break-words">
                               {String(h?.descricao || h?.servicos_realizados || h?.observacoes || '-').trim() || '-'}
                             </div>
@@ -530,7 +530,7 @@ const Equipamentos: React.FC = () => {
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
               <div className="flex items-center justify-between gap-4">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Dados da Proposta</div>
+                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Dados da Proposta</div>
                 {loadingProposta ? (
                   <div className="inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
                     <Loader2 className="animate-spin" size={14} />
@@ -547,7 +547,7 @@ const Equipamentos: React.FC = () => {
                 {proposta ? (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                         <Hash size={14} />
                         Proposta
                       </div>
@@ -570,7 +570,7 @@ const Equipamentos: React.FC = () => {
                     </div>
 
                     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                         <User size={14} />
                         Cliente / Vendedor
                       </div>
@@ -591,7 +591,7 @@ const Equipamentos: React.FC = () => {
                     </div>
 
                     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                         <FileText size={14} />
                         Descrição
                       </div>
@@ -653,7 +653,7 @@ export default Equipamentos
 function Kv({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 py-3">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] pt-0.5">{label}</div>
+      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] pt-0.5">{label}</div>
       <div className="text-sm font-medium text-[var(--text-main)] text-right whitespace-pre-wrap break-words">{value || '—'}</div>
     </div>
   )
@@ -663,7 +663,7 @@ function Pill({ label, value }: { label: string; value: string | null | undefine
   const v = String(value ?? '').trim()
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 py-3">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">{label}</div>
       <div className="mt-1 text-sm font-bold text-[var(--text-main)] truncate">{v || '—'}</div>
     </div>
   )
@@ -672,7 +672,7 @@ function Pill({ label, value }: { label: string; value: string | null | undefine
 function ReadOnlyBlock({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{title}</div>
+      <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">{title}</div>
       <div className="mt-2 text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">{value || '-'}</div>
     </div>
   )

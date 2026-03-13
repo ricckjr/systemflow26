@@ -8,7 +8,7 @@ export default function Empresa() {
         <p className="text-sm text-industrial-text-secondary">Documentação da empresa</p>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-[#0F172A] p-6 text-sm text-slate-300">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-6 text-sm text-[var(--text-soft)]">
         Em construção
       </div>
     </div>

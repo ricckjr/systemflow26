@@ -280,7 +280,7 @@ export default function LocaisEstoque() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar local..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
             />
           </div>
 
@@ -289,7 +289,7 @@ export default function LocaisEstoque() {
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
               placeholder="Novo local (ex: Prateleira C)"
-              className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+              className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
             />
           </div>
 
@@ -298,7 +298,7 @@ export default function LocaisEstoque() {
               type="button"
               onClick={handleCreate}
               disabled={saving || !novoNome.trim()}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
             >
               {saving ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
               Criar
@@ -314,11 +314,11 @@ export default function LocaisEstoque() {
           <div className="px-4 py-6 text-sm text-[var(--text-muted)]">Nenhum local encontrado.</div>
         ) : (
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
-            <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)]">
-              <div className="col-span-7 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Prateleira</div>
-              <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Itens</div>
-              <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Status</div>
-              <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
+            <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+              <div className="col-span-7 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Prateleira</div>
+              <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Itens</div>
+              <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Status</div>
+              <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
             </div>
 
             <div className="divide-y divide-[var(--border)]">
@@ -330,7 +330,7 @@ export default function LocaisEstoque() {
                         <input
                           value={editNome}
                           onChange={(e) => setEditNome(e.target.value)}
-                          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm text-[var(--text)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                           autoFocus
                         />
                         <button
@@ -346,7 +346,7 @@ export default function LocaisEstoque() {
                           type="button"
                           onClick={cancelEdit}
                           disabled={editSaving || saving}
-                          className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-white/10 text-slate-200 hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                          className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-card)] disabled:opacity-60 disabled:pointer-events-none transition-colors"
                           title="Cancelar"
                         >
                           <X size={16} />
@@ -362,14 +362,14 @@ export default function LocaisEstoque() {
                   </div>
                   <div className="col-span-2 text-right">
                     <div className="text-sm font-mono font-semibold text-emerald-200">{formatQty(quantidadeByNome[i.nome] ?? 0)}</div>
-                    <div className="text-[10px] text-[var(--text-muted)]">itens</div>
+                    <div className="text-xs text-[var(--text-muted)]">itens</div>
                   </div>
                   <div className="col-span-1">
                     <div
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${
                         i.ativo
                           ? 'bg-emerald-500/10 text-emerald-200 border-emerald-500/20'
-                          : 'bg-slate-500/10 text-slate-200 border-white/10'
+                          : 'bg-[var(--bg-card)] text-[var(--text-soft)] border-[var(--border)]'
                       }`}
                     >
                       {i.ativo ? 'Ativo' : 'Inativo'}
@@ -380,7 +380,7 @@ export default function LocaisEstoque() {
                       type="button"
                       onClick={() => startEdit(i)}
                       disabled={saving || editSaving || deleting || editingId === i.local_id}
-                      className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-white/10 text-slate-200 hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-card)] disabled:opacity-60 disabled:pointer-events-none transition-colors"
                       title="Editar nome"
                     >
                       <Pencil size={16} />
@@ -398,10 +398,10 @@ export default function LocaisEstoque() {
                       type="button"
                       onClick={() => handleToggle(i)}
                       disabled={saving || editSaving || deleting}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 text-slate-200 hover:bg-white/5 disabled:opacity-60 disabled:pointer-events-none transition-colors"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-card)] disabled:opacity-60 disabled:pointer-events-none transition-colors"
                       title={i.ativo ? 'Desativar' : 'Ativar'}
                     >
-                      {i.ativo ? <ToggleRight size={18} className="text-emerald-300" /> : <ToggleLeft size={18} className="text-slate-400" />}
+                      {i.ativo ? <ToggleRight size={18} className="text-emerald-300" /> : <ToggleLeft size={18} className="text-[var(--text-muted)]" />}
                       <span className="text-xs font-bold">{i.ativo ? 'Desativar' : 'Ativar'}</span>
                     </button>
                   </div>
@@ -420,7 +420,7 @@ export default function LocaisEstoque() {
         zIndex={140}
         title={
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Locais do Estoque</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Locais do Estoque</div>
             <div className="text-base font-bold text-[var(--text-main)] truncate">Excluir prateleira</div>
           </div>
         }
@@ -430,7 +430,7 @@ export default function LocaisEstoque() {
               type="button"
               onClick={closeDelete}
               disabled={deleting}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Fechar
             </button>
@@ -443,7 +443,7 @@ export default function LocaisEstoque() {
                 !deleteTarget ||
                 !!(deleteInfo && (deleteInfo.movimentos_count > 0 || deleteInfo.produtos_count > 0))
               }
-              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {deleting ? (
                 <>
@@ -458,7 +458,7 @@ export default function LocaisEstoque() {
         }
       >
         <div className="space-y-4">
-          <div className="text-sm text-slate-200">
+          <div className="text-sm text-[var(--text-soft)]">
             Prateleira: <span className="font-semibold">{deleteTarget?.nome || '-'}</span>
           </div>
 
@@ -468,18 +468,18 @@ export default function LocaisEstoque() {
             </div>
           ) : deleteInfo ? (
             <>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Quantidade</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Quantidade</div>
                   <div className="mt-1 text-sm font-mono font-semibold text-emerald-200">{formatQty(deleteInfo.quantidade_total)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Produtos com saldo</div>
-                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{Number(deleteInfo.produtos_count || 0).toLocaleString('pt-BR')}</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Produtos com saldo</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-[var(--text-main)]">{Number(deleteInfo.produtos_count || 0).toLocaleString('pt-BR')}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Movimentações</div>
-                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{Number(deleteInfo.movimentos_count || 0).toLocaleString('pt-BR')}</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Movimentações</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-[var(--text-main)]">{Number(deleteInfo.movimentos_count || 0).toLocaleString('pt-BR')}</div>
                 </div>
               </div>
 
@@ -494,19 +494,19 @@ export default function LocaisEstoque() {
               )}
 
               {(deleteInfo.produtos || []).length > 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-[#0B1220] overflow-hidden">
-                  <div className="px-4 py-3 bg-white/5 border-b border-white/10">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Exemplo de vínculos</div>
-                    <div className="text-xs text-slate-400 mt-1">Produtos com saldo neste local</div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden">
+                  <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Exemplo de vínculos</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">Produtos com saldo neste local</div>
                   </div>
                   <div className="divide-y divide-white/10">
                     {deleteInfo.produtos.slice(0, 12).map((p) => (
                       <div key={p.prod_id} className="px-4 py-3 flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-sm text-slate-100 truncate" title={p.descricao}>
+                          <div className="text-sm text-[var(--text-main)] truncate" title={p.descricao}>
                             {p.descricao || p.prod_id}
                           </div>
-                          <div className="text-[10px] text-slate-500 font-mono truncate">{p.prod_id}</div>
+                          <div className="text-xs text-[var(--text-muted)] font-mono truncate">{p.prod_id}</div>
                         </div>
                         <div className="text-sm font-mono font-semibold text-emerald-200">{formatQty(p.saldo)}</div>
                       </div>

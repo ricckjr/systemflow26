@@ -99,13 +99,13 @@ const getDeadlineBorderClass = (status: ReturnType<typeof getDeadlineStatus>) =>
 // Helper to calculate column color with Neon Theme
 const getColumnTheme = (name: string) => {
   const n = (name || '').toUpperCase();
-  if (n.includes('ENTRADA') || n.includes('TODO')) return { border: 'border-t-slate-400', glow: 'shadow-slate-500/20', text: 'text-slate-400' };
-  if (n.includes('ANÁLISE') || n.includes('ANALYSIS')) return { border: 'border-t-cyan-500', glow: 'shadow-cyan-500/20', text: 'text-cyan-400' };
-  if (n.includes('PENDENTE') || n.includes('WAITING')) return { border: 'border-t-amber-500', glow: 'shadow-amber-500/20', text: 'text-amber-400' };
-  if (n.includes('ANDAMENTO') || n.includes('PROGRESS')) return { border: 'border-t-blue-500', glow: 'shadow-blue-500/20', text: 'text-blue-400' };
-  if (n.includes('REVISÃO') || n.includes('REVIEW')) return { border: 'border-t-purple-500', glow: 'shadow-purple-500/20', text: 'text-purple-400' };
-  if (n.includes('CONCLUÍDO') || n.includes('DONE')) return { border: 'border-t-emerald-500', glow: 'shadow-emerald-500/20', text: 'text-emerald-400' };
-  return { border: 'border-t-slate-500', glow: 'shadow-slate-500/20', text: 'text-slate-400' };
+  if (n.includes('ENTRADA') || n.includes('TODO')) return { dot: 'bg-[var(--text-muted)]', text: 'text-[var(--text-muted)]' };
+  if (n.includes('ANÁLISE') || n.includes('ANALYSIS')) return { dot: 'bg-[var(--primary)]', text: 'text-[var(--text-soft)]' };
+  if (n.includes('PENDENTE') || n.includes('WAITING')) return { dot: 'bg-amber-400', text: 'text-[var(--text-soft)]' };
+  if (n.includes('ANDAMENTO') || n.includes('PROGRESS')) return { dot: 'bg-blue-400', text: 'text-[var(--text-soft)]' };
+  if (n.includes('REVISÃO') || n.includes('REVIEW')) return { dot: 'bg-purple-400', text: 'text-[var(--text-soft)]' };
+  if (n.includes('CONCLUÍDO') || n.includes('DONE')) return { dot: 'bg-emerald-400', text: 'text-[var(--text-soft)]' };
+  return { dot: 'bg-[var(--text-muted)]', text: 'text-[var(--text-muted)]' };
 };
 
 const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => {
@@ -1158,9 +1158,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] text-[var(--text-soft)] gap-4">
         <div className="flex gap-2">
-          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-bounce" style={{ animationDelay: '300ms' }}></div>
         </div>
         <p className="text-xs text-rose-400">Carregando perfil... Se demorar muito, recarregue a página.</p>
       </div>
@@ -1168,11 +1168,11 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col animate-in fade-in duration-700">
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 7rem)' }}>
       {createTaskToast && (
         <div className="fixed top-20 right-4 z-[60] pointer-events-none">
           <div
-            className={`flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-[rgba(16,185,129,0.14)] px-4 py-3 text-xs text-emerald-100 shadow-xl shadow-emerald-500/10 backdrop-blur transition-all duration-200 ${
+            className={`flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-[rgba(16,185,129,0.14)] px-4 py-3 text-xs text-emerald-100 backdrop-blur transition-all duration-200 ${
               createTaskToast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
             }`}
             role="status"
@@ -1183,25 +1183,26 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
           </div>
         </div>
       )}
+
       {/* Header Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0 px-4 md:px-0">
+      <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
-            <Kanban size={20} />
+          <div className="p-2 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]">
+            <Kanban size={16} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[var(--text-main)]">TaskFlow</h2>
-            <p className="text-xs text-[var(--text-soft)]">Gerenciamento de Projetos</p>
+            <h2 className="text-sm font-semibold text-[var(--text-main)]">TaskFlow</h2>
+            <p className="text-xs text-[var(--text-muted)]">Gerenciamento de Projetos</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {/* Removed Board Selector - Unified View Active */}
           <div className="relative hidden">
             <button
               type="button"
               onClick={() => setIsBoardMenuOpen(v => !v)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] text-xs font-bold shadow-sm hover:border-cyan-500/30 hover:bg-[var(--bg-body)] transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] text-xs font-bold hover:border-[var(--primary)]/30 hover:bg-[var(--bg-main)] transition-all"
               title="Selecionar board"
             >
               <span className="max-w-[200px] truncate">{board?.name || 'Board'}</span>
@@ -1209,8 +1210,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             </button>
 
             {isBoardMenuOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-[var(--bg-panel)] rounded-xl shadow-2xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-body)]">
+              <div className="absolute right-0 mt-2 w-72 bg-[var(--bg-panel)] rounded-xl border border-[var(--border)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-main)]">
                   <h5 className="text-xs font-bold text-[var(--text-main)]">Boards</h5>
                 </div>
                 <div className="max-h-72 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -1224,8 +1225,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                         onClick={() => loadBoard(b)}
                         className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                           isSelected
-                            ? 'bg-cyan-500/10 text-cyan-300 font-bold'
-                            : 'text-[var(--text-main)] hover:bg-[var(--bg-body)]'
+                            ? 'bg-[var(--primary-soft)] text-[var(--primary)] font-bold'
+                            : 'text-[var(--text-main)] hover:bg-[var(--bg-main)]'
                         }`}
                       >
                         <div className="flex items-center gap-2 truncate">
@@ -1245,63 +1246,71 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             )}
           </div>
 
-          <button 
+          <button
             onClick={() => openNewTaskModal()}
-            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
+            className="flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#041018] px-4 py-2 rounded-xl font-semibold text-xs transition-all active:scale-95"
           >
-            <Plus size={16} />
-            NOVA TAREFA
+            <Plus size={15} />
+            Nova tarefa
           </button>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="flex items-center gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide shrink-0 px-4 md:px-0">
-        <div className="relative flex-1 min-w-[240px] max-w-sm group">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-cyan-400 transition-colors" />
-          <input 
+      <div className="flex items-center gap-2 mb-4 shrink-0">
+        <div className="relative group">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors pointer-events-none" />
+          <input
             id="taskflow-search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por título ou ID..." 
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] shadow-sm"
+            placeholder="Buscar tarefas..."
+            className="w-56 pl-9 pr-3 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-xs focus:ring-1 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/40 focus:w-72 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none"
           />
         </div>
-        <div className="min-w-[190px]">
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as any)}
-            className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm text-[var(--text-main)] shadow-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 outline-none"
-          >
-            <option value="all">Todas urgências</option>
-            <option value="high">Alta</option>
-            <option value="medium">Média</option>
-            <option value="low">Baixa</option>
-          </select>
-        </div>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value as any)}
+          className="px-3 py-2 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-xs text-[var(--text-main)] focus:ring-1 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/40 outline-none"
+        >
+          <option value="all">Todas as prioridades</option>
+          <option value="high">Alta</option>
+          <option value="medium">Média</option>
+          <option value="low">Baixa</option>
+        </select>
       </div>
 
       {columns.length === 0 ? (
-        <div className="flex-1 px-4 md:px-0">
+        <div className="flex-1">
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-6 text-sm text-[var(--text-muted)]">
             Carregando colunas do TaskFlow...
           </div>
         </div>
       ) : (
         <DragDropContext onDragEnd={onDragEnd}>
-          <HorizontalScrollArea className="flex-1 overflow-x-scroll overflow-y-hidden pb-4 px-4 md:px-0 taskflow-kanban-scroll">
-            <div className="flex h-full gap-5 min-w-[1200px]">
-              {columns.map(col => {
+          {/* Wrapper que cresce e tem a scrollbar embaixo */}
+          <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-[rgba(255,255,255,0.06)] overflow-hidden">
+
+            {/* Área horizontal com scroll — cresce para preencher */}
+            <HorizontalScrollArea className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden taskflow-kanban-scroll" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="flex divide-x divide-[rgba(255,255,255,0.05)]" style={{ minWidth: `${columns.length * 288 + 1}px`, flex: '1 1 0', minHeight: 0 }}>
+              {columns.map((col) => {
                 const theme = getColumnTheme(col.name);
                 return (
-                  <div key={col.id} className="flex flex-col w-80 shrink-0">
-                    <div className={`flex items-center justify-between mb-4 pb-2 border-t-4 ${theme.border} bg-[var(--bg-panel)] px-4 py-3 rounded-xl shadow-sm border-x border-b border-[var(--border)] group hover:shadow-md transition-shadow`}>
-                       <div className="flex items-center gap-2">
-                         <h3 className={`text-xs font-black uppercase tracking-widest ${theme.text}`}>{col.name}</h3>
-                       </div>
-                       <span className="text-[10px] font-bold bg-[var(--bg-body)] text-[var(--text-soft)] px-2.5 py-1 rounded-lg border border-[var(--border)]">
-                         {byColumn[col.id]?.length || 0}
-                       </span>
+                  <div
+                    key={col.id}
+                    className="flex flex-col shrink-0 bg-[#0D1521]"
+                    style={{ width: 288 }}
+                  >
+                    {/* Cabeçalho fixo da coluna */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.05)] shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${theme.dot}`} />
+                        <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{col.name}</h3>
+                      </div>
+                      <span className="text-xs font-medium text-[var(--text-muted)]/50 tabular-nums">
+                        {byColumn[col.id]?.length || 0}
+                      </span>
                     </div>
 
                     <Droppable droppableId={col.id}>
@@ -1309,7 +1318,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`flex-1 rounded-2xl p-2 overflow-y-auto custom-scrollbar transition-all ${snapshot.isDraggingOver ? 'bg-cyan-500/5 ring-2 ring-cyan-500/20' : ''}`}
+                          className={`flex-1 overflow-y-auto p-3 custom-scrollbar transition-colors duration-150 ${snapshot.isDraggingOver ? 'bg-[var(--primary)]/[0.04]' : ''}`}
                         >
                           {byColumn[col.id]?.map((task, index) => (
                             <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -1321,22 +1330,22 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                   onClick={() => openTask(task.id)}
                                   style={{ ...provided.draggableProps.style }}
                                   className={`
-                                    group relative mb-3 p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] 
-                                    shadow-sm hover:shadow-lg hover:border-cyan-500/30 cursor-grab active:cursor-grabbing transition-all
-                                    ${snapshot.isDragging ? 'rotate-2 scale-105 shadow-2xl ring-2 ring-cyan-500 z-50 bg-slate-800' : ''}
+                                    group relative mb-2 p-3.5 rounded-xl bg-[#111827] border border-[rgba(255,255,255,0.07)]
+                                    hover:border-[var(--primary)]/25 hover:bg-[#131e2e] cursor-pointer transition-all duration-150
+                                    ${snapshot.isDragging ? 'rotate-1 scale-[1.02] ring-2 ring-[var(--primary)]/40 z-50 shadow-[0_8px_24px_rgba(0,0,0,0.4)]' : ''}
                                     ${getDeadlineBorderClass(getDeadlineStatus(task.due_date, nowMs))}
                                   `}
                                 >
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                                      task.priority === 'high' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
-                                      task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 
-                                      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                {/* Header: prioridade + unseen + owner */}
+                                <div className="flex items-center justify-between gap-2 mb-2.5">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md border ${
+                                      task.priority === 'high' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                      task.priority === 'medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                     }`}>
                                       {priorities[task.priority as keyof typeof priorities] || task.priority}
                                     </span>
-
                                     {(() => {
                                       const isUnseen = isUnseenActivity(
                                         task.last_activity_at || task.updated_at || task.created_at,
@@ -1345,74 +1354,66 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                       const isSharedTask =
                                         task.created_by !== profileId ||
                                         (task.assignees_list || []).some(a => a?.id && a.id !== task.created_by);
-
                                       if (!isUnseen || !isSharedTask) return null;
-
                                       return (
                                         <span
                                           title="Nova atividade disponível"
-                                          className={`w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-panel)] bg-emerald-400 taskflow-unseen-marker ${
+                                          className={`w-2 h-2 rounded-full bg-emerald-400 taskflow-unseen-marker ${
                                             fadingUnseenByTaskId[task.id] ? 'taskflow-unseen-marker--fading' : ''
                                           }`}
                                         />
                                       );
                                     })()}
                                   </div>
-                                  
-                                  {/* Owner Avatar if shared */}
                                   {task.owner_avatar && task.created_by !== profileId && (
-                                     <div className="flex items-center gap-1.5 bg-[var(--bg-body)] px-1.5 py-0.5 rounded-full border border-[var(--border)]" title={`Tarefa de ${task.owner_name || ''}`}>
-                                       <img src={task.owner_avatar} className="w-4 h-4 rounded-full" />
-                                       <span className="text-[9px] font-bold max-w-[60px] truncate">{task.owner_name?.split(' ')[0]}</span>
-                                     </div>
+                                    <div className="flex items-center gap-1 shrink-0" title={`Tarefa de ${task.owner_name || ''}`}>
+                                      <img src={task.owner_avatar} className="w-4 h-4 rounded-full opacity-70" />
+                                      <span className="text-xs text-[var(--text-muted)] max-w-[50px] truncate">{task.owner_name?.split(' ')[0]}</span>
+                                    </div>
                                   )}
                                 </div>
-                                
-                                <h4 className="text-sm font-semibold text-[var(--text-main)] mb-3 line-clamp-2 leading-relaxed group-hover:text-cyan-400 transition-colors">
+
+                                {/* Title */}
+                                <h4 className="text-[13px] font-semibold text-[var(--text-main)] mb-2.5 line-clamp-2 leading-snug">
                                   {task.title}
                                 </h4>
-                                
-                                <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
-                                  <div className="flex -space-x-2 overflow-hidden pl-1 py-1">
-                                    {/* Owner Avatar (Always show if exists) */}
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.06)]">
+                                  {/* Avatars */}
+                                  <div className="flex -space-x-1.5 overflow-hidden">
                                     {task.owner_avatar && (
-                                      <div className="w-6 h-6 rounded-full border-2 border-[var(--bg-panel)] shadow-sm z-30" title={`Criado por ${task.owner_name || ''}`}>
+                                      <div className="w-5 h-5 rounded-full border border-[var(--bg-panel)]" title={`Criado por ${task.owner_name || ''}`}>
                                         <img src={task.owner_avatar} className="w-full h-full object-cover rounded-full" />
                                       </div>
                                     )}
-                                    
-                                    {/* Assignees Avatars */}
                                     {(task.assignees_list || [])
                                       .filter(a => a.id !== task.created_by)
                                       .map((a, i) => (
-                                      <div key={a.id || i} className="w-6 h-6 rounded-full border-2 border-[var(--bg-panel)] bg-slate-700 flex items-center justify-center text-[8px] text-white font-bold uppercase shadow-sm z-20" title={a.nome}>
-                                        {a.avatar_url ? (
-                                          <img src={a.avatar_url} className="w-full h-full object-cover rounded-full" />
-                                        ) : (
-                                          <span>{a.nome?.substring(0, 2)}</span>
-                                        )}
-                                      </div>
+                                        <div key={a.id || i} className="w-5 h-5 rounded-full border border-[var(--bg-panel)] bg-[var(--bg-card)] flex items-center justify-center text-xs text-[var(--text-muted)] font-medium uppercase" title={a.nome}>
+                                          {a.avatar_url ? (
+                                            <img src={a.avatar_url} className="w-full h-full object-cover rounded-full" />
+                                          ) : (
+                                            <span>{a.nome?.substring(0, 1)}</span>
+                                          )}
+                                        </div>
                                     ))}
-                                    
-                                    {/* Fallback if no one */}
-                                    {!task.owner_avatar && (task.assignees_list || []).length === 0 && (
-                                      <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-[8px] text-white font-bold border-2 border-[var(--bg-panel)]">
-                                        ?
-                                      </div>
-                                    )}
                                   </div>
-                                  
-                                  <div className="flex items-center gap-3 text-[var(--text-soft)]">
+
+                                  {/* Meta */}
+                                  <div className="flex items-center gap-2 text-[var(--text-muted)]">
                                     {task.due_date && (
-                                      <div className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${new Date(task.due_date) < new Date() ? 'text-rose-400 bg-rose-500/10' : 'bg-[var(--bg-body)]'}`} title="Prazo">
+                                      <span className={`flex items-center gap-1 text-xs ${new Date(task.due_date) < new Date() ? 'text-rose-400' : ''}`} title="Prazo">
                                         <Clock size={10} />
-                                        <span>{formatDateBR(task.due_date)}</span>
-                                      </div>
+                                        {formatDateBR(task.due_date)}
+                                      </span>
                                     )}
-                                    <div className="flex items-center gap-1 text-[10px] font-medium hover:text-cyan-400 transition-colors">
-                                      <MessageCircle size={10} />
-                                      <span>{task.comments_count || 0}</span>
-                                    </div>
+                                    {(task.comments_count || 0) > 0 && (
+                                      <span className="flex items-center gap-1 text-xs">
+                                        <MessageCircle size={10} />
+                                        {task.comments_count}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 </div>
@@ -1421,9 +1422,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                           ))}
                           {provided.placeholder}
                           
-                          <button 
+                          <button
                             onClick={() => openNewTaskModal(col.id)}
-                            className="w-full py-3 rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-400 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all text-xs font-bold flex items-center justify-center gap-2 mt-2 group opacity-60 hover:opacity-100"
+                            className="w-full py-2.5 rounded-xl border border-dashed border-[rgba(255,255,255,0.08)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30 hover:bg-[var(--primary)]/5 transition-all text-xs font-medium flex items-center justify-center gap-1.5 mt-1 group"
                           >
                             <Plus size={14} className="group-hover:scale-110 transition-transform" />
                             Adicionar Tarefa
@@ -1434,8 +1435,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   </div>
                 );
               })}
-            </div>
-          </HorizontalScrollArea>
+              </div>
+            </HorizontalScrollArea>
+          </div>
         </DragDropContext>
       )}
 
@@ -1448,7 +1450,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+            <div className="p-1.5 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
               <Zap size={18} />
             </div>
             Nova Tarefa
@@ -1464,10 +1466,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             >
               Cancelar
             </button>
-            <button 
+            <button
               onClick={handleCreateTask}
               disabled={isCreatingTask || !newTaskTitle.trim() || !newTaskDueDate.trim() || !board || columns.length === 0}
-              className="px-8 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#041018] font-semibold text-sm disabled:opacity-50 transition-all active:scale-95 flex items-center gap-2"
             >
               {isCreatingTask ? (
                 <>
@@ -1491,7 +1493,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   <input 
                     value={newTaskTitle}
                     onChange={e => setNewTaskTitle(e.target.value)}
-                    className="w-full rounded-xl bg-[var(--bg-body)] border border-[var(--border)] px-4 py-3 text-lg font-medium focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-[var(--text-main)] transition-all outline-none placeholder:text-[var(--text-muted)]/50"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-lg font-medium focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] text-[var(--text-main)] transition-all outline-none placeholder:text-[var(--text-muted)]/50"
                     placeholder="O que precisa ser feito?"
                     autoFocus
                   />
@@ -1508,7 +1510,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   <textarea 
                     value={newTaskDesc}
                     onChange={e => setNewTaskDesc(e.target.value)}
-                    className="w-full h-32 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] transition-all resize-none outline-none placeholder:text-[var(--text-muted)]/50"
+                    className="w-full h-32 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-[var(--primary)]/50 text-[var(--text-main)] transition-all resize-none outline-none placeholder:text-[var(--text-muted)]/50"
                     placeholder="Adicione contexto, requisitos ou checklist..."
                   />
                 </div>
@@ -1562,7 +1564,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       type="date"
                       value={newTaskDueDate}
                       onChange={e => setNewTaskDueDate(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-medium focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-[var(--text-main)] transition-all outline-none"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm font-medium focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] text-[var(--text-main)] transition-all outline-none"
                       required
                     />
                   </div>
@@ -1581,8 +1583,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       htmlFor="new-task-media"
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed cursor-pointer transition-all ${
                         newTaskMedia 
-                          ? 'bg-cyan-500/10 border-cyan-500 text-cyan-400' 
-                          : 'border-[var(--border)] text-[var(--text-muted)] hover:border-cyan-500/50 hover:text-[var(--text-main)]'
+                          ? 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]' 
+                          : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text-main)]'
                       }`}
                     >
                       <Paperclip size={16} />
@@ -1655,7 +1657,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                 setNewTaskAssignments(Array.from(new Set([profileId, ...shareDraft])));
                 setIsShareModalOpen(false);
               }}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              className="px-6 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#041018] font-semibold text-sm transition-all active:scale-95"
             >
               Confirmar
             </button>
@@ -1669,7 +1671,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   value={shareSearch}
                   onChange={e => setShareSearch(e.target.value)}
                   placeholder="Buscar usuário..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] shadow-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
@@ -1688,10 +1690,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
                           isSelected
                             ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                            : 'bg-[var(--bg-body)] border-[var(--border)] text-[var(--text-main)] hover:border-blue-500/20'
+                            : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-blue-500/20'
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold uppercase ${
                           isSelected ? 'bg-blue-500 text-white' : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border)]'
                         }`}>
                           {isSelected ? <CheckCircle2 size={14} /> : u.nome.substring(0, 2)}
@@ -1740,7 +1742,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                 if (ok) setIsTaskShareModalOpen(false);
               }}
               disabled={!canShareActiveTask}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+              className="px-6 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#041018] font-semibold text-sm transition-all active:scale-95"
             >
               Confirmar
             </button>
@@ -1765,7 +1767,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   onChange={e => setTaskShareSearch(e.target.value)}
                   placeholder="Buscar usuário..."
                   disabled={!canShareActiveTask}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)] shadow-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
@@ -1788,10 +1790,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
                           isSelected
                             ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                            : 'bg-[var(--bg-body)] border-[var(--border)] text-[var(--text-main)] hover:border-blue-500/20'
+                            : 'bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] hover:border-blue-500/20'
                         } ${locked ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold uppercase ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold uppercase ${
                           isSelected ? 'bg-blue-500 text-white' : 'bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border)]'
                         }`}>
                           {isSelected ? <CheckCircle2 size={14} /> : u.nome.substring(0, 2)} 
@@ -1816,7 +1818,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
         title={
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="shrink-0 px-2 py-0.5 rounded-md bg-[var(--bg-body)] border border-[var(--border)] text-[10px] font-mono text-[var(--text-muted)]">
+              <span className="shrink-0 px-2 py-0.5 rounded-md bg-[var(--bg-main)] border border-[var(--border)] text-xs font-mono text-[var(--text-muted)]">
                 #{activeTaskShortId}
               </span>
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1825,7 +1827,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                     <input
                       value={editTitleContent}
                       onChange={(e) => setEditTitleContent(e.target.value)}
-                      className="w-full min-w-0 px-3 py-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm font-bold text-[var(--text-main)] focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 outline-none"
+                      className="w-full min-w-0 px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm font-bold text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/50 outline-none"
                     />
                     <button
                       type="button"
@@ -1834,7 +1836,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                         setEditTitleContent(activeTask?.title || '');
                         setTitleError(null);
                       }}
-                      className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-body)] text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                      className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-main)] text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]"
                     >
                       Cancelar
                     </button>
@@ -1842,7 +1844,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       type="button"
                       onClick={handleUpdateTitle}
                       disabled={isUpdatingTitle}
-                      className="px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold disabled:opacity-60"
+                      className="px-3 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-white text-xs font-bold disabled:opacity-60"
                     >
                       {isUpdatingTitle ? 'Salvando...' : 'Salvar'}
                     </button>
@@ -1860,7 +1862,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                           setTitleError(null);
                           setIsEditingTitle(true);
                         }}
-                        className="shrink-0 p-2 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-[var(--text-muted)] hover:text-cyan-300 hover:border-cyan-500/30"
+                        className="shrink-0 p-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/30"
                         title="Editar título"
                       >
                         <Pencil size={14} />
@@ -1871,7 +1873,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
               </div>
             </div>
             {isEditingTitle && titleError && (
-              <div className="text-[11px] font-medium text-rose-300">
+              <div className="text-xs font-medium text-rose-300">
                 {titleError}
               </div>
             )}
@@ -1887,9 +1889,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
           tabIndex={-1}
         >
           {isDragOver && (
-            <div className="absolute inset-0 z-[60] bg-cyan-500/10 backdrop-blur-sm border-2 border-dashed border-cyan-500/50 flex items-center justify-center m-2 rounded-xl animate-in fade-in duration-200 pointer-events-none">
-              <div className="bg-[var(--bg-panel)] p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border border-[var(--border)]">
-                <div className="p-4 rounded-full bg-cyan-500/10 text-cyan-400 animate-bounce">
+            <div className="absolute inset-0 z-[60] bg-[var(--primary-soft)] backdrop-blur-sm border-2 border-dashed border-[var(--primary)]/50 flex items-center justify-center m-2 rounded-xl animate-in fade-in duration-200 pointer-events-none">
+              <div className="bg-[var(--bg-panel)] p-8 rounded-3xl flex flex-col items-center gap-4 border border-[var(--border)]">
+                <div className="p-4 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] animate-bounce">
                    <Download size={32} />
                 </div>
                 <div className="text-center">
@@ -1908,13 +1910,13 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                <div className="flex items-center gap-2">
                  {/* Status Badge */}
                  <div className="flex flex-col">
-                   <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Fase Atual</span>
+                   <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Fase Atual</span>
                    <div className="flex items-center gap-2">
                       <div className={`w-2.5 h-2.5 rounded-full ${
                         activeTaskVisualStatus.includes('CONCLUÍDO') ? 'bg-emerald-500' : 
                         activeTaskVisualStatus.includes('ANDAMENTO') ? 'bg-blue-500' :
-                        activeTaskVisualStatus.includes('ANÁLISE') ? 'bg-cyan-500' :
-                        'bg-slate-500'
+                        activeTaskVisualStatus.includes('ANÁLISE') ? 'bg-[var(--primary)]' :
+                        'bg-[var(--text-muted)]'
                       }`} />
                       <span className="text-sm font-bold text-[var(--text-main)]">{activeTaskVisualStatus}</span>
                    </div>
@@ -1967,10 +1969,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             </div>
 
             {/* 2. Properties Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 border-b border-[var(--border)] bg-[var(--bg-body)]/30">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 border-b border-[var(--border)] bg-[var(--bg-main)]/30">
                {/* Priority */}
                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                     <AlertTriangle size={12} /> Prioridade
                   </div>
                   <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${
@@ -1984,7 +1986,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
 
                {/* Due Date */}
                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                     <Calendar size={12} /> Prazo
                   </div>
                   <div className="flex items-center gap-2 group relative">
@@ -1994,7 +1996,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                     {canEditActiveTaskDueDate && (
                        <button 
                          onClick={() => setIsUpdatingDueDate(true)} // Or toggle edit mode
-                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--bg-panel)] rounded text-cyan-400 transition-all"
+                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--bg-panel)] rounded text-[var(--primary)] transition-all"
                        >
                          <Pencil size={12} />
                        </button>
@@ -2019,11 +2021,11 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                {/* Assignees */}
                <div className="col-span-2 md:col-span-2 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                       <Users size={12} /> Responsáveis
                     </div>
                     {canShareActiveTask && (
-                      <button onClick={openTaskShareModal} className="text-[10px] font-bold text-blue-400 hover:underline">
+                      <button onClick={openTaskShareModal} className="text-xs font-bold text-blue-400 hover:underline">
                         + Adicionar
                       </button>
                     )}
@@ -2035,10 +2037,10 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                        if (!u) return null;
                        return (
                          <div key={uid} className="flex items-center gap-2 bg-[var(--bg-panel)] border border-[var(--border)] rounded-full pl-1 pr-2 py-0.5">
-                           <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[8px] text-white font-bold">
+                           <div className="w-5 h-5 rounded-full bg-[var(--bg-card)] flex items-center justify-center text-[8px] text-white font-bold">
                              {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full rounded-full" /> : u.nome.substring(0,2)}
                            </div>
-                           <span className="text-[10px] font-bold text-[var(--text-main)] max-w-[60px] truncate">{u.nome.split(' ')[0]}</span>
+                           <span className="text-xs font-bold text-[var(--text-main)] max-w-[60px] truncate">{u.nome.split(' ')[0]}</span>
                            {canShareActiveTask && activeTaskOwnerId !== uid && (
                              <button onClick={() => handleAssign(assignedUsers.filter(id => id !== uid))} className="text-[var(--text-muted)] hover:text-rose-400">
                                <X size={10} />
@@ -2058,14 +2060,14 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                    <AlertTriangle size={14} className="text-[var(--text-muted)]" /> Descrição
                  </h4>
                  {!isEditingDesc && (
-                    <button onClick={() => setIsEditingDesc(true)} className="text-xs font-medium text-cyan-400 hover:underline">
+                    <button onClick={() => setIsEditingDesc(true)} className="text-xs font-medium text-[var(--primary)] hover:underline">
                       Editar
                     </button>
                  )}
                </div>
                
                {isEditingDesc ? (
-                 <div className="bg-[var(--bg-body)] p-1 rounded-xl border border-cyan-500/30 ring-4 ring-cyan-500/10 transition-all">
+                 <div className="bg-[var(--bg-main)] p-1 rounded-xl border border-[var(--primary)]/30 ring-4 ring-[var(--primary)]/10 transition-all">
                     <textarea
                       value={editDescContent}
                       onChange={e => setEditDescContent(e.target.value)}
@@ -2075,7 +2077,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                     />
                     <div className="flex justify-end gap-2 p-2 border-t border-[var(--border)] bg-[var(--bg-panel)] rounded-b-lg">
                       <button onClick={() => setIsEditingDesc(false)} className="px-3 py-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]">Cancelar</button>
-                      <button onClick={handleUpdateDescription} disabled={isUpdatingDesc} className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors">
+                      <button onClick={handleUpdateDescription} disabled={isUpdatingDesc} className="px-4 py-1.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-600)] text-white text-xs font-bold transition-colors">
                         {isUpdatingDesc ? 'Salvando...' : 'Salvar Alterações'}
                       </button>
                     </div>
@@ -2083,7 +2085,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                ) : (
                  <div 
                    onClick={() => setIsEditingDesc(true)}
-                   className="min-h-[100px] text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap cursor-text hover:bg-[var(--bg-body)]/50 p-2 -ml-2 rounded-lg transition-colors border border-transparent hover:border-[var(--border)]"
+                   className="min-h-[100px] text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap cursor-text hover:bg-[var(--bg-main)]/50 p-2 -ml-2 rounded-lg transition-colors border border-transparent hover:border-[var(--border)]"
                  >
                    {activeTask?.description || <span className="text-[var(--text-muted)] italic">Clique para adicionar uma descrição...</span>}
                  </div>
@@ -2091,12 +2093,12 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             </div>
 
             {/* 4. Attachments Section */}
-            <div className="p-6 border-t border-[var(--border)] bg-[var(--bg-body)]/20">
+            <div className="p-6 border-t border-[var(--border)] bg-[var(--bg-main)]/20">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--text-soft)] flex items-center gap-2">
                    <Paperclip size={14} className="text-[var(--text-muted)]" /> Anexos ({taskAttachments.length})
                 </h4>
-                <label className="cursor-pointer text-xs font-bold text-cyan-400 hover:underline flex items-center gap-1">
+                <label className="cursor-pointer text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1">
                    <Plus size={12} /> Adicionar
                    <input type="file" className="hidden" onChange={handleUploadAttachment} />
                 </label>
@@ -2105,20 +2107,20 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
               {taskAttachments.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {taskAttachments.map(att => (
-                    <div key={att.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] hover:border-cyan-500/30 transition-all">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--bg-body)] flex items-center justify-center text-[var(--text-muted)]">
+                    <div key={att.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] hover:border-[var(--primary)]/30 transition-all">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--bg-main)] flex items-center justify-center text-[var(--text-muted)]">
                         <Paperclip size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <a href={att.file_url} target="_blank" rel="noreferrer" className="block text-sm font-medium text-[var(--text-main)] truncate hover:text-cyan-400 transition-colors">
+                        <a href={att.file_url} target="_blank" rel="noreferrer" className="block text-sm font-medium text-[var(--text-main)] truncate hover:text-[var(--primary)] transition-colors">
                           {att.file_name}
                         </a>
-                        <span className="text-[10px] text-[var(--text-muted)]">
+                        <span className="text-xs text-[var(--text-muted)]">
                           {formatDateTimeBR(att.created_at)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <a href={att.file_url} download className="p-1.5 rounded-lg hover:bg-[var(--bg-body)] text-[var(--text-muted)] hover:text-[var(--text-main)]">
+                         <a href={att.file_url} download className="p-1.5 rounded-lg hover:bg-[var(--bg-main)] text-[var(--text-muted)] hover:text-[var(--text-main)]">
                            <Download size={14} />
                          </a>
                          {(att.created_by === profileId || activeTask?.created_by === profileId) && (
@@ -2131,7 +2133,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                   ))}
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-6 text-center transition-colors hover:border-cyan-500/30 hover:bg-cyan-500/5">
+                <div className="border-2 border-dashed border-[var(--border)] rounded-xl p-6 text-center transition-colors hover:border-[var(--primary)]/30 hover:bg-[var(--primary)]/5">
                    <p className="text-sm text-[var(--text-muted)]">Arraste arquivos aqui</p>
                 </div>
               )}
@@ -2139,7 +2141,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
           </div>
 
           {/* RIGHT COLUMN: Timeline & Activity */}
-          <div className="w-full lg:w-[400px] bg-[var(--bg-body)]/50 flex flex-col h-[500px] lg:h-full border-l border-[var(--border)]">
+          <div className="w-full lg:w-[400px] bg-[var(--bg-main)]/50 flex flex-col h-[500px] lg:h-full border-l border-[var(--border)]">
              <div className="p-4 border-b border-[var(--border)] bg-[var(--bg-panel)]/50 backdrop-blur sticky top-0">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--text-main)]">Histórico & Atividades</h4>
              </div>
@@ -2157,7 +2159,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       {item.kind === 'activity' ? (
                         <>
                            <div className="flex flex-col items-center">
-                              <div className="w-6 h-6 rounded-full bg-[var(--bg-body)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-[10px]">
+                              <div className="w-6 h-6 rounded-full bg-[var(--bg-main)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] text-xs">
                                  <Clock size={12} />
                               </div>
                               <div className="w-px h-full bg-[var(--border)] my-1 group-last:hidden" />
@@ -2173,8 +2175,8 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                                     {!['status_changed', 'task_created', 'attachment_added', 'comment_added'].includes(item.type) && 'atualizou a tarefa'}
                                  </span>
                               </div>
-                              {item.details && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 italic">{item.details}</div>}
-                              <div className="text-[9px] text-[var(--text-muted)] opacity-60 mt-1">
+                              {item.details && <div className="text-xs text-[var(--text-muted)] mt-0.5 italic">{item.details}</div>}
+                              <div className="text-xs text-[var(--text-muted)] opacity-60 mt-1">
                                  {formatDateTimeBR(item.created_at)}
                               </div>
                            </div>
@@ -2182,7 +2184,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       ) : (
                         <>
                            <div className="flex flex-col items-center">
-                              <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold">
+                              <div className="w-8 h-8 rounded-full bg-[var(--primary-soft)] border border-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs font-bold">
                                  {item.user_nome?.substring(0,2)}
                               </div>
                               <div className="w-px h-full bg-[var(--border)] my-1 group-last:hidden" />
@@ -2190,9 +2192,9 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                            <div className="pb-4 flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
                                  <span className="text-xs font-bold text-[var(--text-main)]">{item.user_nome}</span>
-                                 <span className="text-[9px] text-[var(--text-muted)]">{formatTimeBR(item.created_at)}</span>
+                                 <span className="text-xs text-[var(--text-muted)]">{formatTimeBR(item.created_at)}</span>
                               </div>
-                              <div className="bg-[var(--bg-panel)] p-3 rounded-xl rounded-tl-none border border-[var(--border)] text-sm text-[var(--text-main)] shadow-sm">
+                              <div className="bg-[var(--bg-panel)] p-3 rounded-xl rounded-tl-none border border-[var(--border)] text-sm text-[var(--text-main)]">
                                  {item.content}
                               </div>
                            </div>
@@ -2213,17 +2215,17 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
                       }}
                       onKeyDown={e => e.key === 'Enter' && handleAddComment()}
                       placeholder="Escreva um comentário..."
-                      className="w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--bg-body)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 outline-none transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
+                      className="w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)]/50 outline-none transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted)]"
                    />
                    <button 
                       onClick={handleAddComment}
                       disabled={!newComment.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-cyan-400 hover:bg-cyan-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
                    >
                       <Send size={16} />
                    </button>
                 </div>
-                {commentError && <p className="text-[10px] text-rose-400 mt-2">{commentError}</p>}
+                {commentError && <p className="text-xs text-rose-400 mt-2">{commentError}</p>}
              </div>
           </div>
         </div>
@@ -2254,7 +2256,7 @@ const TaskFlow: React.FC<{ profile?: Profile }> = ({ profile: propProfile }) => 
             <button
               type="button"
               onClick={handleDeleteTask}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 transition-all active:scale-95"
+              className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-all active:scale-95"
             >
               Deletar
             </button>

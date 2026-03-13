@@ -57,7 +57,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-[#081522] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-main)] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* Header */}
@@ -72,7 +72,7 @@ export default function ResetPassword() {
         </div>
 
         {/* Card */}
-        <div className="bg-industrial-surface border border-industrial-border rounded-2xl shadow-2xl p-6 sm:p-8">
+        <div className="bg-industrial-surface border border-industrial-border rounded-2xl p-6 sm:p-8">
           
           {success ? (
             <div className="text-center space-y-4">
@@ -83,7 +83,7 @@ export default function ResetPassword() {
               <p className="text-industrial-text-secondary text-sm">
                 Sua senha foi atualizada com sucesso. Você já pode acessar o sistema com a nova credencial.
               </p>
-              <Link to="/login" className="w-full mt-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2">
+              <Link to="/login" className="w-full mt-6 py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-brand-500/20 transition-all flex items-center justify-center gap-2">
                 Ir para Login
                 <ArrowRight size={18} />
               </Link>
@@ -134,7 +134,7 @@ export default function ResetPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={20} className="animate-spin" /> : 'Definir Nova Senha'}
               </button>

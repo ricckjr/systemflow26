@@ -34,7 +34,7 @@ type CatalogCrudPageProps = {
 }
 
 const HeaderCard = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">{children}</div>
+  <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-5">{children}</div>
 )
 
 const ACCENTS: Record<
@@ -52,15 +52,15 @@ const ACCENTS: Record<
   }
 > = {
   cyan: {
-    primaryBg: 'bg-cyan-600',
-    primaryHover: 'hover:bg-cyan-500',
+    primaryBg: 'bg-[var(--primary)]',
+    primaryHover: 'hover:bg-[var(--primary)]',
     primaryShadow: 'shadow-cyan-500/15',
-    focusRing: 'focus:ring-cyan-500/25',
-    focusBorder: 'focus:border-cyan-500/40',
-    searchFocusText: 'group-focus-within:text-cyan-400',
-    iconBg: 'bg-cyan-500/10',
-    iconBorder: 'border-cyan-500/20',
-    iconText: 'text-cyan-300'
+    focusRing: 'focus:ring-[var(--primary)]/25',
+    focusBorder: 'focus:border-[var(--primary)]/40',
+    searchFocusText: 'group-focus-within:text-[var(--primary)]',
+    iconBg: 'bg-[var(--primary-soft)]',
+    iconBorder: 'border-[var(--primary)]/20',
+    iconText: 'text-[var(--primary)]'
   },
   orange: {
     primaryBg: 'bg-orange-600',
@@ -118,13 +118,13 @@ const formatNcmCodigo = (raw: string) => {
 const renderSituacaoBadge = (situacao: boolean) => {
   if (situacao) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 text-xs font-black uppercase tracking-widest">
         Ativo
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-500/10 text-slate-200 border border-white/10 text-[10px] font-black uppercase tracking-widest">
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[var(--bg-card)] text-[var(--text-soft)] border border-[var(--border)] text-xs font-black uppercase tracking-widest">
       Inativo
     </span>
   )
@@ -511,11 +511,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">{title}</h1>
-          <p className="text-sm text-slate-400 mt-1">{subtitle}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--text-main)]">{title}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</p>
         </div>
-        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Settings size={14} className="text-cyan-400" />
+        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text-soft)]">
+          <Settings size={14} className="text-[var(--primary)]" />
           Config Gerais
         </div>
       </div>
@@ -525,20 +525,20 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           <div className="relative flex-1 min-w-[220px] group">
             <Search
               size={16}
-              className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 ${colors.searchFocusText} transition-colors`}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] ${colors.searchFocusText} transition-colors`}
             />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Buscar ${singularLabel.toLowerCase()}...`}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all`}
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all`}
             />
           </div>
 
           <button
             type="button"
             onClick={handleOpenCreate}
-            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold shadow-lg ${colors.primaryShadow} transition-all active:scale-95`}
+            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold ${colors.primaryShadow} transition-all active:scale-95`}
           >
             <Plus size={16} />
             Novo {singularLabel}
@@ -554,57 +554,57 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         <div className="mt-4">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="animate-spin text-slate-500" size={28} />
+              <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-              <p className="text-sm font-semibold text-slate-200">Nada por aqui</p>
-              <p className="text-sm text-slate-400 mt-1">Crie o primeiro registro para começar.</p>
+            <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-6 text-center">
+              <p className="text-sm font-semibold text-[var(--text-soft)]">Nada por aqui</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Crie o primeiro registro para começar.</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/5">
-              <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
-                <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Situação</div>
-                {isProduto && <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Unid.</div>}
-                {isProduto && <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">NCM</div>}
-                <div className={`${isProduto ? 'col-span-2' : 'col-span-6'} text-[10px] font-black uppercase tracking-widest text-slate-400`}>Descrição</div>
-                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">{isServico ? 'Valor Unit.' : 'Preço'}</div>
-                <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
+            <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+              <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+                <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Situação</div>
+                {isProduto && <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>}
+                {isProduto && <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">NCM</div>}
+                <div className={`${isProduto ? 'col-span-2' : 'col-span-6'} text-xs font-black uppercase tracking-widest text-[var(--text-muted)]`}>Descrição</div>
+                <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">{isServico ? 'Valor Unit.' : 'Preço'}</div>
+                <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
                 {filtered.map((i) => (
                   <div
                     key={i.id}
                     onClick={() => handleOpenDetails(i.id)}
-                    className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors cursor-pointer"
+                    className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors cursor-pointer"
                   >
                     <div className="col-span-2 min-w-0">
-                      <div className="text-sm font-semibold text-slate-200 truncate" title={i.codigo || ''}>
+                      <div className="text-sm font-semibold text-[var(--text-soft)] truncate" title={i.codigo || ''}>
                         {i.codigo || '-'}
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">#{i.id.split('-')[0]}</div>
+                      <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">#{i.id.split('-')[0]}</div>
                     </div>
                     <div className="col-span-1 min-w-0">{renderSituacaoBadge(!!i.situacao)}</div>
                     {isProduto && (
                       <div className="col-span-1 min-w-0">
-                        <div className="text-sm text-slate-300 font-mono truncate">{i.unidade || '-'}</div>
+                        <div className="text-sm text-[var(--text-soft)] font-mono truncate">{i.unidade || '-'}</div>
                       </div>
                     )}
                     {isProduto && (
                       <div className="col-span-2 min-w-0">
-                        <div className="text-sm text-slate-300 font-mono truncate" title={i.ncmId || ''}>
+                        <div className="text-sm text-[var(--text-soft)] font-mono truncate" title={i.ncmId || ''}>
                           {formatNcmCodigo(i.ncmId || '') || '-'}
                         </div>
                       </div>
                     )}
                     <div className={`${isProduto ? 'col-span-2' : 'col-span-6'} min-w-0`}>
-                      <div className="text-sm font-semibold text-slate-200 truncate" title={i.descricao}>
+                      <div className="text-sm font-semibold text-[var(--text-soft)] truncate" title={i.descricao}>
                         {i.descricao}
                       </div>
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <div className="text-sm text-slate-300 truncate">{formatCurrency(i.preco)}</div>
+                      <div className="text-sm text-[var(--text-soft)] truncate">{formatCurrency(i.preco)}</div>
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
@@ -615,8 +615,8 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                         }}
                         className={`p-2 rounded-lg border transition-colors ${
                           canEditExisting
-                            ? 'text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-transparent hover:border-cyan-500/20'
-                            : 'text-slate-600 border-transparent opacity-50 cursor-not-allowed'
+                            ? 'text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] border-transparent hover:border-[var(--primary)]/20'
+                            : 'text-[var(--text-soft)] border-transparent opacity-50 cursor-not-allowed'
                         }`}
                         title={canEditExisting ? 'Editar' : `Somente ADMIN pode editar ${singularLabel.toLowerCase()}`}
                       >
@@ -628,7 +628,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                           e.stopPropagation()
                           handleAskDelete(i.id)
                         }}
-                        className="p-2 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
+                        className="p-2 rounded-lg text-[var(--text-muted)] hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors"
                         title="Excluir"
                       >
                         <Trash2 size={14} />
@@ -668,7 +668,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 setActiveId(null)
                 setViewOnly(false)
               }}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
             >
               Fechar
             </button>
@@ -682,7 +682,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                   setActiveId(null)
                   setViewOnly(false)
                 }}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
                 disabled={saving}
               >
                 Cancelar
@@ -691,7 +691,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={saving || !draftDescricao.trim()}
-                className={`px-7 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white font-bold text-sm shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2`}
+                className={`px-7 py-2.5 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white font-bold text-sm ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2`}
               >
                 {saving ? (
                   <>
@@ -715,12 +715,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
           <div className={`grid grid-cols-1 ${isEditing ? 'sm:grid-cols-2' : ''} gap-4`}>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Situação</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Situação</label>
               <select
                 value={draftSituacao ? 'ATIVO' : 'INATIVO'}
                 onChange={(e) => setDraftSituacao(e.target.value === 'ATIVO')}
                 disabled={readOnlyForm}
-                className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
+                className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
               >
                 <option value="ATIVO">Ativo</option>
                 <option value="INATIVO">Inativo</option>
@@ -729,12 +729,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
             {isEditing && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código</label>
                 <input
                   value={active?.codigo || ''}
                   readOnly
                   disabled
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 opacity-80 outline-none placeholder:text-slate-500 font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-soft)] opacity-80 outline-none placeholder:text-[var(--text-muted)] font-mono"
                   placeholder="Gerado automaticamente"
                 />
               </div>
@@ -742,12 +742,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{isServico ? 'Descrição Serviço' : 'Descrição'}</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">{isServico ? 'Descrição Serviço' : 'Descrição'}</label>
             <input
               value={draftDescricao}
               onChange={(e) => setDraftDescricao(e.target.value)}
               readOnly={readOnlyForm}
-              className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
+              className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)]`}
               placeholder={`Ex: ${singularLabel} A`}
               autoFocus
             />
@@ -755,12 +755,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
           {isServico && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Categorias</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Categorias</label>
               <input
                 value={draftCategoria}
                 readOnly
                 disabled
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 opacity-80 outline-none placeholder:text-slate-500"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-soft)] opacity-80 outline-none placeholder:text-[var(--text-muted)]"
               />
             </div>
           )}
@@ -768,22 +768,22 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           {isServico && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código (NBS)</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código (NBS)</label>
                 <input
                   value={draftCodNbs}
                   onChange={(e) => setDraftCodNbs(e.target.value)}
                   readOnly={readOnlyForm}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)] font-mono`}
                   placeholder="Ex: 1.01.01"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código da LC 116</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código da LC 116</label>
                 <input
                   value={draftCodLc116}
                   onChange={(e) => setDraftCodLc116(e.target.value)}
                   readOnly={readOnlyForm}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)] font-mono`}
                   placeholder="Ex: 14.01"
                 />
               </div>
@@ -792,13 +792,13 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
           {isServico && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição Detalhada do Serviço</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Descrição Detalhada do Serviço</label>
               <textarea
                 value={draftDescricaoDetalhada}
                 onChange={(e) => setDraftDescricaoDetalhada(e.target.value)}
                 rows={4}
                 readOnly={readOnlyForm}
-                className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
+                className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)]`}
                 placeholder="Descreva o serviço em detalhes..."
               />
             </div>
@@ -807,12 +807,12 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           {isProduto && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Unidade</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Unidade</label>
                 <select
                   value={draftUnidade}
                   onChange={(e) => setDraftUnidade(e.target.value)}
                   disabled={readOnlyForm}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
+                  className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
                 >
                   <option value="UN">UN</option>
                   <option value="PC">Peça</option>
@@ -839,11 +839,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
           {isProduto && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Família</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Família</label>
               <select
                 value={draftFamiliaId}
                 onChange={(e) => setDraftFamiliaId(e.target.value)}
-                className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
+                className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none`}
                 disabled={familiaLoading || readOnlyForm}
               >
                 <option value="">{familiaLoading ? 'Carregando...' : 'Selecione (opcional)'}</option>
@@ -859,14 +859,14 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                   value={draftFamiliaNova}
                   onChange={(e) => setDraftFamiliaNova(e.target.value)}
                   readOnly={readOnlyForm}
-                  className={`flex-1 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500`}
+                  className={`flex-1 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)]`}
                   placeholder="Criar nova família..."
                 />
                 <button
                   type="button"
                   onClick={handleCreateFamilia}
                   disabled={readOnlyForm || familiaSaving || !draftFamiliaNova.trim()}
-                  className={`px-5 py-3 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold shadow-lg ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2`}
+                  className={`px-5 py-3 rounded-xl ${colors.primaryBg} ${colors.primaryHover} text-white text-xs font-bold ${colors.primaryShadow} disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2`}
                 >
                   {familiaSaving ? (
                     <>
@@ -883,9 +883,9 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
 
           {isProduto && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código NCM</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código NCM</label>
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   value={ncmSearch}
                   onChange={(e) => {
@@ -894,24 +894,24 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                     setDraftNcmId('')
                   }}
                   readOnly={readOnlyForm}
-                  className={`w-full rounded-xl bg-[#0B1220] border border-white/10 pl-10 pr-10 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+                  className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] pl-10 pr-10 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)] font-mono`}
                   placeholder="Buscar NCM por código ou descrição..."
                 />
                 {ncmLoading && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
                     <Loader2 className="animate-spin" size={16} />
                   </div>
                 )}
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
-                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-white/5 border-b border-white/10">
-                  <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
-                  <div className="col-span-9 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição</div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden">
+                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 bg-[var(--bg-card)] border-b border-[var(--border)]">
+                  <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                  <div className="col-span-9 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
                 </div>
                 <div className="max-h-56 overflow-auto custom-scrollbar">
                   {ncmOptions.length === 0 ? (
-                    <div className="px-4 py-3 text-xs text-slate-400">{ncmLoading ? 'Carregando...' : 'Nenhum NCM encontrado.'}</div>
+                    <div className="px-4 py-3 text-xs text-[var(--text-muted)]">{ncmLoading ? 'Carregando...' : 'Nenhum NCM encontrado.'}</div>
                   ) : (
                     ncmOptions.map((opt) => (
                       <button
@@ -923,11 +923,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
                         setNcmSearch(formatNcmCodigo(opt.ncm_id) || opt.codigo)
                         }}
                         disabled={readOnlyForm}
-                        className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
+                        className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-[var(--border)] last:border-b-0"
                       >
                         <div className="grid grid-cols-12 gap-3 items-start">
-                        <div className="col-span-3 text-sm font-mono text-slate-200">{formatNcmCodigo(opt.ncm_id) || opt.codigo}</div>
-                          <div className="col-span-9 text-xs text-slate-400">{opt.descricao}</div>
+                        <div className="col-span-3 text-sm font-mono text-[var(--text-soft)]">{formatNcmCodigo(opt.ncm_id) || opt.codigo}</div>
+                          <div className="col-span-9 text-xs text-[var(--text-muted)]">{opt.descricao}</div>
                         </div>
                       </button>
                     ))
@@ -938,13 +938,13 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">{isServico ? 'Valor Unitário (R$)' : 'Preço (R$)'}</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">{isServico ? 'Valor Unitário (R$)' : 'Preço (R$)'}</label>
             <input
               value={draftPreco}
               onChange={(e) => setDraftPreco(e.target.value)}
               inputMode="decimal"
               readOnly={readOnlyForm}
-              className={`w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-slate-500 font-mono`}
+              className={`w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 ${colors.focusRing} ${colors.focusBorder} transition-all outline-none placeholder:text-[var(--text-muted)] font-mono`}
               placeholder="Ex: 199,90"
             />
           </div>
@@ -972,7 +972,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               type="button"
               onClick={() => setIsDeleteOpen(false)}
               disabled={deleting}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -980,7 +980,7 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {deleting ? (
                 <>
@@ -995,11 +995,11 @@ export const CatalogCrudPage: React.FC<CatalogCrudPageProps> = ({
         }
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Essa ação não pode ser desfeita.</p>
+          <p className="text-sm text-[var(--text-soft)]">Essa ação não pode ser desfeita.</p>
           {active && (
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-100 truncate">{active.descricao}</div>
-              <div className="text-xs text-slate-500 font-mono mt-1">{active.codigo || `#${active.id.split('-')[0]}`}</div>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3">
+              <div className="text-sm font-semibold text-[var(--text-main)] truncate">{active.descricao}</div>
+              <div className="text-xs text-[var(--text-muted)] font-mono mt-1">{active.codigo || `#${active.id.split('-')[0]}`}</div>
             </div>
           )}
           {error && (

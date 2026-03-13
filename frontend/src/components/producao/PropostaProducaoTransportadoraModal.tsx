@@ -216,17 +216,17 @@ export function PropostaProducaoTransportadoraModal(props: {
         title={
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
+              <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] shrink-0">
                 <Truck size={18} />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Proposta Comercial</div>
+                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Proposta Comercial</div>
                 <div className="mt-1 text-lg font-black text-[var(--text-main)] truncate">{active ? getCodProposta(active) || '-' : '-'}</div>
                 <div className="text-xs text-[var(--text-muted)] truncate">{active ? getCliente(active) || '-' : '-'}</div>
               </div>
             </div>
             {statusLabel ? (
-              <span className="text-[10px] font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
+              <span className="text-xs font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
                 {statusLabel}
               </span>
             ) : null}
@@ -239,7 +239,7 @@ export function PropostaProducaoTransportadoraModal(props: {
                 type="button"
                 onClick={onClose}
                 disabled={saving}
-                className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50"
               >
                 Fechar
               </button>
@@ -247,7 +247,7 @@ export function PropostaProducaoTransportadoraModal(props: {
                 type="button"
                 onClick={handleSaveTransportadora}
                 disabled={saving}
-                className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50 disabled:shadow-none"
+                className="px-7 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm shadow-cyan-500/15 transition-all active:scale-95 inline-flex items-center gap-2 disabled:opacity-50 disabled:shadow-none"
               >
                 {saving ? <Loader2 className="animate-spin" size={16} /> : <Pencil size={16} />}
                 Salvar
@@ -257,7 +257,7 @@ export function PropostaProducaoTransportadoraModal(props: {
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)]"
             >
               Fechar
             </button>
@@ -265,14 +265,14 @@ export function PropostaProducaoTransportadoraModal(props: {
         }
       >
         {loading ? (
-          <div className="flex items-center justify-center py-10 text-slate-300 gap-2">
+          <div className="flex items-center justify-center py-10 text-[var(--text-soft)] gap-2">
             <Loader2 className="animate-spin" size={18} />
             Carregando...
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>
         ) : !active ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Proposta não encontrada.</div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 text-sm text-[var(--text-soft)]">Proposta não encontrada.</div>
         ) : (
           <div>
             <div className="pt-2">
@@ -287,11 +287,11 @@ export function PropostaProducaoTransportadoraModal(props: {
                       type="button"
                       onClick={() => setTab(t.id as TabId)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                        tab === t.id ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                        tab === t.id ? 'bg-[var(--primary-soft)] border-[var(--primary)]/40 text-[var(--primary)]' : 'bg-white/5 border-[var(--border)] text-[var(--text-soft)] hover:bg-white/10'
                       }`}
                     >
                       <span className="inline-flex items-center gap-2">
-                        {t.editable ? <Pencil size={12} className={tab === t.id ? 'text-cyan-200' : 'text-slate-400'} /> : null}
+                        {t.editable ? <Pencil size={12} className={tab === t.id ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'} /> : null}
                         {t.label}
                       </span>
                     </button>
@@ -303,11 +303,11 @@ export function PropostaProducaoTransportadoraModal(props: {
             <div className="py-4">
               {tab === 'producao' ? (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="text-xs font-black uppercase tracking-widest text-slate-300">Produção</div>
-                        <div className="mt-1 text-[11px] text-slate-400">Entrada de equipamento vinculada à proposta</div>
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Produção</div>
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">Entrada de equipamento vinculada à proposta</div>
                       </div>
                       <button
                         type="button"
@@ -315,8 +315,8 @@ export function PropostaProducaoTransportadoraModal(props: {
                         onClick={() => setEquipmentEntryOpen(true)}
                         className={`shrink-0 inline-flex items-center gap-2 px-4 py-3 rounded-xl font-black text-sm transition-all active:scale-[0.99] ${
                           canOpenEquipmentEntry
-                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/15'
-                            : 'bg-white/5 border border-white/10 text-slate-400 cursor-not-allowed'
+                            ? 'bg-[var(--primary)] hover:bg-[var(--primary)] text-white shadow-cyan-500/15'
+                            : 'bg-white/5 border border-[var(--border)] text-[var(--text-muted)] cursor-not-allowed'
                         }`}
                       >
                         <Wrench size={16} />
@@ -327,7 +327,7 @@ export function PropostaProducaoTransportadoraModal(props: {
                   {String((equipmentInitialData as any)?.cod_proposta || '').trim() ? (
                     <EquipmentList codProposta={String((equipmentInitialData as any)?.cod_proposta || '').trim()} lastUpdate={equipmentLastUpdate} />
                   ) : (
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 text-sm text-[var(--text-soft)]">
                       Salve a proposta para vincular equipamentos em produção.
                     </div>
                   )}
@@ -338,129 +338,129 @@ export function PropostaProducaoTransportadoraModal(props: {
                     <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{saveError}</div>
                   ) : null}
 
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="text-xs font-black uppercase tracking-widest text-slate-300">Transportadora</div>
-                        <div className="mt-1 text-[11px] text-slate-400">Dados de transporte e nota fiscal</div>
+                        <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Transportadora</div>
+                        <div className="mt-1 text-xs text-[var(--text-muted)]">Dados de transporte e nota fiscal</div>
                       </div>
                     </div>
 
                     <div className="mt-4 space-y-5">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Remetente Completo</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Remetente Completo</label>
                           <textarea
                             value={draftRemetenteCompleto}
                             onChange={(e) => setDraftRemetenteCompleto(e.target.value)}
                             rows={4}
                             placeholder="Informe o remetente completo..."
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all resize-y disabled:opacity-60"
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Destinatário Completo</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Destinatário Completo</label>
                           <textarea
                             value={draftDestinatarioCompleto}
                             onChange={(e) => setDraftDestinatarioCompleto(e.target.value)}
                             rows={4}
                             placeholder="Informe o destinatário completo..."
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all resize-y disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all resize-y disabled:opacity-60"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Nº da Nota Fiscal</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Nº da Nota Fiscal</label>
                           <input
                             value={draftNumeroNotaFiscal}
                             onChange={(e) => setDraftNumeroNotaFiscal(e.target.value)}
                             placeholder="Ex: 123456"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Valor da Nota Fiscal</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Valor da Nota Fiscal</label>
                           <input
                             value={draftValorNotaFiscal}
                             onChange={(e) => setDraftValorNotaFiscal(e.target.value)}
                             inputMode="decimal"
                             placeholder="0,00"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all font-mono disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Transportadora</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Transportadora</label>
                           <input
                             value={draftTransportadora}
                             onChange={(e) => setDraftTransportadora(e.target.value)}
                             placeholder="Nome da transportadora..."
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Material</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Material</label>
                           <input
                             value={draftMaterial}
                             onChange={(e) => setDraftMaterial(e.target.value)}
                             placeholder="Descrição do material..."
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Quantidade de Volumes</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Quantidade de Volumes</label>
                           <input
                             value={draftQuantidadeVolumes}
                             onChange={(e) => setDraftQuantidadeVolumes(e.target.value.replace(/[^\d]/g, ''))}
                             inputMode="numeric"
                             placeholder="0"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all font-mono disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Espécie (Caixa, Palete etc)</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Espécie (Caixa, Palete etc)</label>
                           <input
                             value={draftEspecie}
                             onChange={(e) => setDraftEspecie(e.target.value)}
                             placeholder="Ex: Caixa"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Peso</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Peso</label>
                           <input
                             value={draftPeso}
                             onChange={(e) => setDraftPeso(e.target.value)}
                             inputMode="decimal"
                             placeholder="0"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all font-mono disabled:opacity-60"
                           />
                         </div>
 
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-300 ml-1">Medidas (AxCxL)</label>
+                          <label className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] ml-1">Medidas (AxCxL)</label>
                           <input
                             value={draftMedidas}
                             onChange={(e) => setDraftMedidas(e.target.value)}
                             placeholder="Ex: 10x20x30"
                             disabled={saving}
-                            className="w-full rounded-xl bg-[#0F172A] border border-white/10 px-4 py-3 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all font-mono disabled:opacity-60"
+                            className="w-full rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] px-4 py-3 text-sm font-semibold text-[var(--text-main)] outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all font-mono disabled:opacity-60"
                           />
                         </div>
                       </div>

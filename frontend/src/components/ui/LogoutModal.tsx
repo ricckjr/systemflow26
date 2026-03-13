@@ -33,7 +33,7 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({
               className="flex-1 rounded-xl border border-[var(--border)]
                          px-4 py-2.5 text-[13px] font-medium
                          text-[var(--text-muted)]
-                         hover:text-[var(--text-main)] hover:bg-[var(--bg-body)]
+                         hover:text-[var(--text-main)] hover:bg-[var(--bg-main)]
                          transition"
             >
               Cancelar
@@ -45,7 +45,7 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({
                          px-4 py-2.5 text-[13px] font-semibold
                          bg-red-500 hover:bg-red-600
                          text-white
-                         transition shadow-sm"
+                         transition"
             >
               Sair
             </button>

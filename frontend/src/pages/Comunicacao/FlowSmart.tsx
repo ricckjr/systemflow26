@@ -87,17 +87,17 @@ const FlowSmart: React.FC = () => {
       <div className="w-full md:w-[400px] flex flex-col gap-4 shrink-0">
         
         {/* Status Header */}
-        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] shadow-lg shadow-cyan-500/5 flex items-center justify-between">
+        <div className="bg-[var(--bg-panel)] p-4 rounded-2xl border border-[var(--border)] shadow-cyan-500/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 animate-pulse">
               <Smartphone size={20} />
             </div>
             <div>
               <h3 className="text-sm font-bold text-[var(--text-main)]">WhatsApp Business</h3>
-              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Conectado • (11) 9999-9999</p>
+              <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Conectado • (11) 9999-9999</p>
             </div>
           </div>
-          <button className="p-2 hover:bg-[var(--bg-body)] rounded-xl text-[var(--text-muted)] transition-colors">
+          <button className="p-2 hover:bg-[var(--bg-main)] rounded-xl text-[var(--text-muted)] transition-colors">
             <MoreVertical size={18} />
           </button>
         </div>
@@ -110,23 +110,23 @@ const FlowSmart: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar conversa ou cliente..."
-              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-cyan-500/50 text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none transition-all shadow-sm"
+              className="w-full bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-[var(--primary)]/50 text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none transition-all"
             />
           </div>
-          <button className="p-3 bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-cyan-500/30 transition-all shadow-sm">
+          <button className="p-3 bg-[var(--bg-panel)] border border-[var(--border)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--primary)]/30 transition-all">
             <Filter size={18} />
           </button>
         </div>
 
         {/* Contacts List */}
-        <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-xl shadow-black/5 overflow-hidden flex flex-col">
+        <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-black/5 overflow-hidden flex flex-col">
           <div className="overflow-y-auto custom-scrollbar flex-1">
             {mockContacts.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(contact => (
               <div 
                 key={contact.id}
                 onClick={() => setActiveChatId(contact.id)}
-                className={`p-4 border-b border-[var(--border)] cursor-pointer transition-all hover:bg-[var(--bg-body)] group relative
-                  ${activeChatId === contact.id ? 'bg-[var(--bg-body)] border-l-4 border-l-cyan-500' : 'border-l-4 border-l-transparent'}
+                className={`p-4 border-b border-[var(--border)] cursor-pointer transition-all hover:bg-[var(--bg-main)] group relative
+                  ${activeChatId === contact.id ? 'bg-[var(--bg-main)] border-l-4 border-l-cyan-500' : 'border-l-4 border-l-transparent'}
                 `}
               >
                 <div className="flex justify-between items-start mb-1">
@@ -145,15 +145,15 @@ const FlowSmart: React.FC = () => {
                       <h4 className={`font-bold text-sm ${activeChatId === contact.id ? 'text-[var(--text-main)]' : 'text-[var(--text-main)]'}`}>
                         {contact.name}
                       </h4>
-                      <span className="text-[10px] text-[var(--text-soft)] capitalize">{contact.source}</span>
+                      <span className="text-xs text-[var(--text-soft)] capitalize">{contact.source}</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={`text-[10px] font-medium ${contact.unread > 0 ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`}>
+                    <span className={`text-xs font-medium ${contact.unread > 0 ? 'text-emerald-400' : 'text-[var(--text-muted)]'}`}>
                       {contact.time}
                     </span>
                     {contact.unread > 0 && (
-                      <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm shadow-emerald-500/20">
+                      <span className="bg-emerald-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-emerald-500/20">
                         {contact.unread}
                       </span>
                     )}
@@ -169,13 +169,13 @@ const FlowSmart: React.FC = () => {
       </div>
 
       {/* Main Chat Window */}
-      <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-2xl shadow-black/10 flex flex-col overflow-hidden relative">
+      <div className="flex-1 bg-[var(--bg-panel)] rounded-2xl border border-[var(--border)] shadow-black/10 flex flex-col overflow-hidden relative">
         {activeContact ? (
           <>
             {/* Header */}
-            <header className="h-20 border-b border-[var(--border)] bg-[var(--bg-body)]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
+            <header className="h-20 border-b border-[var(--border)] bg-[var(--bg-main)]/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-cyan-500/20">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-cyan-500/20">
                   {activeContact.name.substring(0, 1)}
                 </div>
                 <div>
@@ -187,13 +187,13 @@ const FlowSmart: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button className="p-2.5 text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 rounded-xl transition-all" title="Ligar">
+                <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] rounded-xl transition-all" title="Ligar">
                   <Phone size={20} />
                 </button>
-                <button className="p-2.5 text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 rounded-xl transition-all" title="Pesquisar na conversa">
+                <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] rounded-xl transition-all" title="Pesquisar na conversa">
                   <Search size={20} />
                 </button>
-                <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-body)] rounded-xl transition-all">
+                <button className="p-2.5 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-main)] rounded-xl transition-all">
                   <MoreVertical size={20} />
                 </button>
               </div>
@@ -201,21 +201,21 @@ const FlowSmart: React.FC = () => {
 
             {/* Chat Background & Messages */}
             <div className="flex-1 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed bg-opacity-5 relative flex flex-col">
-              <div className="absolute inset-0 bg-[var(--bg-body)]/30 pointer-events-none" />
+              <div className="absolute inset-0 bg-[var(--bg-main)]/30 pointer-events-none" />
               
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 relative z-0">
                 {currentMessages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[65%] rounded-2xl p-3 shadow-sm relative group
+                    <div className={`max-w-[65%] rounded-2xl p-3 relative group
                       ${msg.sender === 'me' 
                         ? 'bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-tr-none' 
                         : 'bg-[var(--bg-panel)] border border-[var(--border)] text-[var(--text-main)] rounded-tl-none'}
                     `}>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                       <div className={`flex items-center justify-end gap-1 mt-1 ${msg.sender === 'me' ? 'text-emerald-100' : 'text-[var(--text-muted)]'}`}>
-                        <span className="text-[10px] font-medium">{msg.time}</span>
+                        <span className="text-xs font-medium">{msg.time}</span>
                         {msg.sender === 'me' && (
-                          <CheckCheck size={14} className={msg.status === 'read' ? 'text-cyan-300' : 'opacity-70'} />
+                          <CheckCheck size={14} className={msg.status === 'read' ? 'text-[var(--primary)]' : 'opacity-70'} />
                         )}
                       </div>
                     </div>
@@ -227,11 +227,11 @@ const FlowSmart: React.FC = () => {
             {/* Footer / Input */}
             <div className="p-4 bg-[var(--bg-panel)] border-t border-[var(--border)]">
               <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-                <div className="flex items-center gap-1 bg-[var(--bg-body)] border border-[var(--border)] rounded-2xl px-2 py-1 shadow-inner flex-1 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/50 transition-all">
+                <div className="flex items-center gap-1 bg-[var(--bg-main)] border border-[var(--border)] rounded-2xl px-2 py-1 shadow-inner flex-1 focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500/50 transition-all">
                   <button type="button" className="p-2 text-[var(--text-muted)] hover:text-amber-400 transition-colors">
                     <Smile size={20} />
                   </button>
-                  <button type="button" className="p-2 text-[var(--text-muted)] hover:text-cyan-400 transition-colors">
+                  <button type="button" className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
                     <Paperclip size={20} />
                   </button>
                   <input 
@@ -243,11 +243,11 @@ const FlowSmart: React.FC = () => {
                 </div>
                 
                 {inputText.trim() ? (
-                  <button type="submit" className="p-3.5 bg-emerald-500 text-white rounded-full hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+                  <button type="submit" className="p-3.5 bg-emerald-500 text-white rounded-full hover:bg-emerald-400 transition-all shadow-emerald-500/20 active:scale-95">
                     <Send size={20} className="ml-0.5" />
                   </button>
                 ) : (
-                  <button type="button" className="p-3.5 bg-[var(--bg-body)] text-[var(--text-muted)] border border-[var(--border)] rounded-full hover:text-emerald-400 hover:border-emerald-500/30 transition-all active:scale-95">
+                  <button type="button" className="p-3.5 bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border)] rounded-full hover:text-emerald-400 hover:border-emerald-500/30 transition-all active:scale-95">
                     <Mic size={20} />
                   </button>
                 )}
@@ -256,7 +256,7 @@ const FlowSmart: React.FC = () => {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center opacity-50">
-            <div className="w-24 h-24 bg-[var(--bg-body)] rounded-full flex items-center justify-center mb-6 border-4 border-[var(--border)]">
+            <div className="w-24 h-24 bg-[var(--bg-main)] rounded-full flex items-center justify-center mb-6 border-4 border-[var(--border)]">
               <Smartphone size={40} className="text-[var(--text-muted)]" />
             </div>
             <h3 className="text-xl font-bold text-[var(--text-main)]">FlowSmart Web</h3>

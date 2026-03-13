@@ -961,7 +961,7 @@ const Estoque: React.FC = () => {
             setIsNcmOpen(false)
             setIsCreateOpen(true)
           }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-lg shadow-orange-500/15 transition-all active:scale-95"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold shadow-orange-500/15 transition-all active:scale-95"
         >
           <Plus size={16} />
           NOVO PRODUTO
@@ -976,23 +976,23 @@ const Estoque: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por código, descrição ou finalidade..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
             />
           </div>
           <div className="relative md:w-[260px]" ref={finalidadePickerRef}>
             <button
               type="button"
               onClick={() => setIsFinalidadeOpen((v) => !v)}
-              className="w-full inline-flex items-center justify-between gap-2 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all hover:bg-white/5"
+              className="w-full inline-flex items-center justify-between gap-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all hover:bg-[var(--bg-card)]"
             >
               <span className="truncate">
                 {finalidadeFilter === 'TODAS' ? 'Todas as finalidades' : finalidadeFilter}
               </span>
-              <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${isFinalidadeOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`shrink-0 text-[var(--text-muted)] transition-transform ${isFinalidadeOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isFinalidadeOpen && (
-              <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0B1220] shadow-xl">
+              <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-main)]">
                 <div className="py-1">
                   {(
                     ['TODAS', 'Revenda', 'Venda', 'Consumo Interno'] as Array<
@@ -1007,7 +1007,7 @@ const Estoque: React.FC = () => {
                         setIsFinalidadeOpen(false)
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                        finalidadeFilter === opt ? 'bg-emerald-500/15 text-emerald-200' : 'text-slate-200 hover:bg-white/5'
+                        finalidadeFilter === opt ? 'bg-emerald-500/15 text-emerald-200' : 'text-[var(--text-soft)] hover:bg-[var(--bg-card)]'
                       }`}
                     >
                       {opt === 'TODAS' ? 'Todas as finalidades' : opt}
@@ -1030,8 +1030,8 @@ const Estoque: React.FC = () => {
             <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
           </div>
         ) : (
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg)] overflow-hidden">
-            <div className="px-4 py-3 bg-white/5 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
+            <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] flex items-center justify-between">
               <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Produtos</div>
               <div className="text-xs text-[var(--text-muted)]">{filteredSorted.length} itens</div>
             </div>
@@ -1042,21 +1042,21 @@ const Estoque: React.FC = () => {
               <div className="overflow-auto">
                 <div className="min-w-[980px]">
                   {isConsultaEstoque ? (
-                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)] sticky top-0 backdrop-blur supports-[backdrop-filter]:bg-white/5">
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
-                      <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Quantidade</div>
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] sticky top-0">
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                      <div className="col-span-6 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Quantidade</div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-[var(--border)] sticky top-0 backdrop-blur supports-[backdrop-filter]:bg-white/5">
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
-                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo</div>
-                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
-                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
-                      <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] sticky top-0">
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                      <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo</div>
+                      <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Unid.</div>
+                      <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Família</div>
+                      <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Preço</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
                     </div>
                   )}
 
@@ -1071,25 +1071,25 @@ const Estoque: React.FC = () => {
                         <div
                           key={p.prod_id}
                           onClick={() => openProdutoModal(p)}
-                          className="grid grid-cols-12 gap-3 px-4 py-3 text-left w-full hover:bg-white/5 transition-colors cursor-pointer"
+                          className="grid grid-cols-12 gap-3 px-4 py-3 text-left w-full hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
                         >
                           {isConsultaEstoque ? (
                             <>
                               <div className="col-span-2 min-w-0">
-                                <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
+                                <div className="text-sm font-semibold text-[var(--text-main)] truncate" title={p.codigo_prod || ''}>
                                   {p.codigo_prod || '-'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{p.finalidade_item || '-'}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">{p.finalidade_item || '-'}</div>
                               </div>
                               <div className="col-span-6 min-w-0">
-                                <div className="text-sm text-[var(--text)] font-semibold truncate" title={p.descricao_prod}>
+                                <div className="text-sm text-[var(--text-main)] font-semibold truncate" title={p.descricao_prod}>
                                   {p.descricao_prod}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
                               </div>
                               <div className="col-span-2 min-w-0">
                                 <div
-                                  className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[var(--text)] truncate"
+                                  className="inline-flex max-w-full items-center rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-xs font-semibold text-[var(--text-main)] truncate"
                                   title={p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
                                 >
                                   {p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
@@ -1101,7 +1101,7 @@ const Estoque: React.FC = () => {
                                     {hasSaldo ? quantidade.toLocaleString('pt-BR') : saldosLoading ? '...' : '—'}
                                   </span>
                                 </div>
-                                <div className="mt-1 text-[10px] text-[var(--text-muted)] truncate" title={`Locais: ${qtdLocais}`}>
+                                <div className="mt-1 text-xs text-[var(--text-muted)] truncate" title={`Locais: ${qtdLocais}`}>
                                   Locais: {hasSaldo ? qtdLocais : saldosLoading ? '...' : '—'}
                                 </div>
                               </div>
@@ -1109,35 +1109,35 @@ const Estoque: React.FC = () => {
                           ) : (
                             <>
                               <div className="col-span-2 min-w-0">
-                                <div className="text-sm font-semibold text-[var(--text)] truncate" title={p.codigo_prod || ''}>
+                                <div className="text-sm font-semibold text-[var(--text-main)] truncate" title={p.codigo_prod || ''}>
                                   {p.codigo_prod || '-'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">#{p.prod_id.split('-')[0]}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">#{p.prod_id.split('-')[0]}</div>
                               </div>
                               <div className="col-span-3 min-w-0">
-                                <div className="text-sm text-[var(--text)] truncate" title={p.descricao_prod}>
+                                <div className="text-sm text-[var(--text-main)] truncate" title={p.descricao_prod}>
                                   {p.descricao_prod}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
+                                <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">{formatNcmCodigo(p.ncm_id || '') || '-'}</div>
                               </div>
                               <div className="col-span-2 min-w-0">
-                                <div className="text-sm text-[var(--text)] font-mono truncate">
+                                <div className="text-sm text-[var(--text-main)] font-mono truncate">
                                   Total: {hasSaldo ? total.toLocaleString('pt-BR') : saldosLoading ? '...' : '—'}
                                 </div>
-                                <div className="text-[10px] text-[var(--text-muted)] font-mono truncate">
+                                <div className="text-xs text-[var(--text-muted)] font-mono truncate">
                                   Locais: {hasSaldo ? qtdLocais : saldosLoading ? '...' : '—'}
                                 </div>
                               </div>
                               <div className="col-span-1 min-w-0">
-                                <div className="text-sm text-[var(--text)] font-mono truncate">{p.unidade_prod || '-'}</div>
+                                <div className="text-sm text-[var(--text-main)] font-mono truncate">{p.unidade_prod || '-'}</div>
                               </div>
                               <div className="col-span-1 min-w-0">
-                                <div className="text-sm text-[var(--text)] truncate">
+                                <div className="text-sm text-[var(--text-main)] truncate">
                                   {p.familia_id ? familiasById[p.familia_id] || '-' : '-'}
                                 </div>
                               </div>
                               <div className="col-span-1 min-w-0 text-right">
-                                <div className="text-sm text-[var(--text)] truncate">{formatCurrency(p.produto_valor)}</div>
+                                <div className="text-sm text-[var(--text-main)] truncate">{formatCurrency(p.produto_valor)}</div>
                               </div>
                               <div className="col-span-2 min-w-0 flex items-center justify-end gap-2">
                                 <button
@@ -1178,12 +1178,12 @@ const Estoque: React.FC = () => {
         title={
           savedProduto ? (
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Produtos</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Produtos</div>
               <div className="text-base font-bold text-[var(--text-main)] truncate">{savedProduto.descricao_prod}</div>
             </div>
           ) : (
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Estoque</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Estoque</div>
               <div className="text-base font-bold text-[var(--text-main)] truncate">Novo Produto</div>
             </div>
           )
@@ -1202,7 +1202,7 @@ const Estoque: React.FC = () => {
                     setNcmOptions([])
                   }}
                   disabled={creating || familiaSaving || deleting}
-                  className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                  className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Cancelar
                 </button>
@@ -1211,7 +1211,7 @@ const Estoque: React.FC = () => {
                     type="button"
                     onClick={() => setIsDeleteOpen(true)}
                     disabled={creating || familiaSaving || deleting}
-                    className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                   >
                     Excluir Produto
                   </button>
@@ -1220,7 +1220,7 @@ const Estoque: React.FC = () => {
                   type="button"
                   onClick={handleSaveProduto}
                   disabled={creating || familiaSaving || deleting || !draftDescricao.trim()}
-                  className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+                  className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
                 >
                   {creating ? (
                     <>
@@ -1242,7 +1242,7 @@ const Estoque: React.FC = () => {
                     setIsCreateOpen(false)
                   }}
                   disabled={creating || familiaSaving || deleting}
-                  className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                  className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
                 >
                   Fechar
                 </button>
@@ -1253,7 +1253,7 @@ const Estoque: React.FC = () => {
                     openMovimentoModal(savedProduto)
                   }}
                   disabled={creating || familiaSaving || deleting}
-                  className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                  className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                 >
                   Novo Movimento
                 </button>
@@ -1269,7 +1269,7 @@ const Estoque: React.FC = () => {
                   setIsCreateOpen(false)
                 }}
                 disabled={creating || familiaSaving}
-                className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cancelar
               </button>
@@ -1277,7 +1277,7 @@ const Estoque: React.FC = () => {
                 type="button"
                 onClick={handleSaveProduto}
                 disabled={creating || familiaSaving || !draftDescricao.trim()}
-                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+                className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
               >
                 {creating ? (
                   <>
@@ -1294,9 +1294,9 @@ const Estoque: React.FC = () => {
       >
         {savedProduto && !editing ? (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-4">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300">Dados do Produto</div>
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Dados do Produto</div>
                 {isAdmin ? (
                   <button
                     type="button"
@@ -1307,7 +1307,7 @@ const Estoque: React.FC = () => {
                       setEditing(true)
                     }}
                     disabled={creating || familiaSaving}
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 text-xs font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:bg-white/10 text-[var(--text-soft)] text-xs font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
                     title="Editar"
                   >
                     <Pencil size={14} />
@@ -1317,72 +1317,72 @@ const Estoque: React.FC = () => {
               </div>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Descrição</div>
-                  <div className="text-sm font-semibold text-slate-100 break-words">{savedProduto.descricao_prod || '-'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] break-words">{savedProduto.descricao_prod || '-'}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.codigo_prod || '-'}</div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Marca</div>
-                  <div className="text-sm font-semibold text-slate-100">{savedProduto.marca_prod || '-'}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Modelo</div>
-                  <div className="text-sm font-semibold text-slate-100">{savedProduto.modelo_prod || '-'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{savedProduto.codigo_prod || '-'}</div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Finalidade</div>
-                  <div className="text-sm font-semibold text-slate-100">{savedProduto.finalidade_item || '-'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Marca</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">{savedProduto.marca_prod || '-'}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Situação</div>
-                  <div className="text-sm font-semibold text-slate-100">{savedProduto.situacao_prod ? 'Ativo' : 'Inativo'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Modelo</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">{savedProduto.modelo_prod || '-'}</div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Unidade</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{savedProduto.unidade_prod || '-'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Finalidade</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">{savedProduto.finalidade_item || '-'}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Situação</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">{savedProduto.situacao_prod ? 'Ativo' : 'Inativo'}</div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Unidade</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{savedProduto.unidade_prod || '-'}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                     Saldo Total ({savedProduto.unidade_prod || 'UN'})
                   </div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{saldosResumoMov.total.toLocaleString('pt-BR')}</div>
-                  <div className="text-[10px] text-slate-500">Locais: {saldosResumoMov.locais.toLocaleString('pt-BR')}</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{saldosResumoMov.total.toLocaleString('pt-BR')}</div>
+                  <div className="text-xs text-[var(--text-muted)]">Locais: {saldosResumoMov.locais.toLocaleString('pt-BR')}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Código NCM</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatNcmCodigo(savedProduto.ncm_id || '') || '-'}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Código NCM</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{formatNcmCodigo(savedProduto.ncm_id || '') || '-'}</div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Família</div>
-                  <div className="text-sm font-semibold text-slate-100">
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Família</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)]">
                     {savedProduto.familia_id ? familiasById[savedProduto.familia_id] || '-' : '-'}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Preço Unitário (Venda)</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrency(savedProduto.produto_valor)}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Preço Unitário (Venda)</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{formatCurrency(savedProduto.produto_valor)}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Valor de Compra (Unit.)</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">{formatCurrencyOrDash(savedProduto.valor_compra)}</div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Valor de Compra (Unit.)</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">{formatCurrencyOrDash(savedProduto.valor_compra)}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Atualizado em</div>
-                  <div className="text-sm font-semibold text-slate-100 font-mono">
+                  <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Atualizado em</div>
+                  <div className="text-sm font-semibold text-[var(--text-main)] font-mono">
                     {savedProduto.atualizado_em ? formatDateBR(savedProduto.atualizado_em) : '-'}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="border-b border-white/10 overflow-x-auto custom-scrollbar">
+            <div className="border-b border-[var(--border)] overflow-x-auto custom-scrollbar">
               <div className="flex items-center gap-1 min-w-max">
                 {(
                   [
@@ -1397,7 +1397,7 @@ const Estoque: React.FC = () => {
                     type="button"
                     onClick={() => setProdutoInfoTab(t.key)}
                     className={`px-3 py-2 text-xs font-bold uppercase tracking-widest rounded-t-lg transition-colors whitespace-nowrap ${
-                      produtoInfoTab === t.key ? 'text-emerald-200 bg-emerald-500/10' : 'text-slate-400 hover:text-slate-200'
+                      produtoInfoTab === t.key ? 'text-emerald-200 bg-emerald-500/10' : 'text-[var(--text-muted)] hover:text-[var(--text-soft)]'
                     }`}
                   >
                     {t.label}
@@ -1406,15 +1406,15 @@ const Estoque: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-[#0B1220] p-4">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] p-4">
               {produtoInfoTab === 'detalhada' && (
-                <div className="text-sm text-slate-100 whitespace-pre-wrap break-words">
+                <div className="text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
                   {savedProduto.descricao_detalhada?.trim() ? savedProduto.descricao_detalhada : '-'}
                 </div>
               )}
 
               {produtoInfoTab === 'observacoes' && (
-                <div className="text-sm text-slate-100 whitespace-pre-wrap break-words">
+                <div className="text-sm text-[var(--text-main)] whitespace-pre-wrap break-words">
                   {savedProduto.obs_interna?.trim() ? savedProduto.obs_interna : '-'}
                 </div>
               )}
@@ -1422,9 +1422,9 @@ const Estoque: React.FC = () => {
               {produtoInfoTab === 'local' && (
                 <div className="overflow-auto">
                   <div className="min-w-[520px]">
-                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10 rounded-xl">
-                      <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
-                      <div className="col-span-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Disponível</div>
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] rounded-xl">
+                      <div className="col-span-8 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Local</div>
+                      <div className="col-span-4 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Disponível</div>
                     </div>
                     {(() => {
                       const saldos = saldosResumoMov.byLocal || {}
@@ -1449,15 +1449,15 @@ const Estoque: React.FC = () => {
                           : fromSaldos
 
                       if (rows.length === 0) {
-                        return <div className="px-4 py-4 text-xs text-slate-400">Saldo indisponível.</div>
+                        return <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Saldo indisponível.</div>
                       }
 
                       return rows.map((r) => (
-                        <div key={r.key} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
-                          <div className="col-span-8 text-sm text-slate-100 truncate" title={r.nome}>
+                        <div key={r.key} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-[var(--border)] last:border-b-0">
+                          <div className="col-span-8 text-sm text-[var(--text-main)] truncate" title={r.nome}>
                             {r.nome}
                           </div>
-                          <div className="col-span-4 text-sm font-mono text-slate-100 text-right">{r.qty.toLocaleString('pt-BR')}</div>
+                          <div className="col-span-4 text-sm font-mono text-[var(--text-main)] text-right">{r.qty.toLocaleString('pt-BR')}</div>
                         </div>
                       ))
                     })()}
@@ -1468,26 +1468,26 @@ const Estoque: React.FC = () => {
               {produtoInfoTab === 'historico' && (
                 <div className="overflow-auto">
                   <div className="min-w-[980px]">
-                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/10 rounded-xl">
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</div>
-                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Local</div>
-                      <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Qtd / Compra</div>
-                      <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Motivo</div>
+                    <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)] rounded-xl">
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Data</div>
+                      <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Tipo</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Local</div>
+                      <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Qtd / Compra</div>
+                      <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Motivo</div>
                     </div>
                     {(movimentosByProdutoId[savedProduto.prod_id] || []).length === 0 ? (
-                      <div className="px-4 py-4 text-xs text-slate-400">Nenhum movimento registrado.</div>
+                      <div className="px-4 py-4 text-xs text-[var(--text-muted)]">Nenhum movimento registrado.</div>
                     ) : (
                       (movimentosByProdutoId[savedProduto.prod_id] || []).map((m) => (
-                        <div key={m.mov_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-white/5 last:border-b-0">
-                          <div className="col-span-2 text-sm text-slate-100 font-mono">{formatDateBR(m.data_movimentacao)}</div>
-                          <div className="col-span-3 text-sm text-slate-100">{m.tipo_movimentacao}</div>
-                          <div className="col-span-2 text-sm text-slate-100">{m.local_estoque}</div>
+                        <div key={m.mov_id} className="grid grid-cols-12 gap-3 px-4 py-3 border-b border-[var(--border)] last:border-b-0">
+                          <div className="col-span-2 text-sm text-[var(--text-main)] font-mono">{formatDateBR(m.data_movimentacao)}</div>
+                          <div className="col-span-3 text-sm text-[var(--text-main)]">{m.tipo_movimentacao}</div>
+                          <div className="col-span-2 text-sm text-[var(--text-main)]">{m.local_estoque}</div>
                           <div className="col-span-2">
-                            <div className="text-sm text-slate-100 font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{formatCurrencyOrDash(m.valor_compra_unit)}</div>
+                            <div className="text-sm text-[var(--text-main)] font-mono">{m.quantidade.toLocaleString('pt-BR')}</div>
+                            <div className="text-xs text-[var(--text-muted)] font-mono">{formatCurrencyOrDash(m.valor_compra_unit)}</div>
                           </div>
-                          <div className="col-span-3 text-sm text-slate-100 truncate" title={m.motivo || ''}>
+                          <div className="col-span-3 text-sm text-[var(--text-main)] truncate" title={m.motivo || ''}>
                             {m.motivo || '-'}
                           </div>
                         </div>
@@ -1509,11 +1509,11 @@ const Estoque: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               <div className="lg:col-span-9 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição do Produto</label>
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Descrição do Produto</label>
                   <input
                     value={draftDescricao}
                     onChange={(e) => setDraftDescricao(e.target.value)}
-                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                     placeholder="Ex: Produto A"
                     autoFocus
                   />
@@ -1521,8 +1521,8 @@ const Estoque: React.FC = () => {
 
                 {savedProduto ? (
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código do Produto</label>
-                    <div className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 font-mono">
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código do Produto</label>
+                    <div className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] font-mono">
                       {savedProduto.codigo_prod || '-'}
                     </div>
                   </div>
@@ -1530,20 +1530,20 @@ const Estoque: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Marca</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Marca</label>
                     <input
                       value={draftMarca}
                       onChange={(e) => setDraftMarca(e.target.value)}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder="Ex: DJI"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Modelo</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Modelo</label>
                     <input
                       value={draftModelo}
                       onChange={(e) => setDraftModelo(e.target.value)}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder="Ex: Mavic 3"
                     />
                   </div>
@@ -1551,14 +1551,14 @@ const Estoque: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Finalidade do Item</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Finalidade do Item</label>
                     <select
                       value={draftFinalidadeItem}
                       onChange={(e) => {
                         const v = e.target.value as 'Revenda' | 'Consumo Interno' | 'Venda'
                         setDraftFinalidadeItem(v)
                       }}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                     >
                       <option value="Revenda">Revenda</option>
                       <option value="Consumo Interno">Consumo Interno</option>
@@ -1566,11 +1566,11 @@ const Estoque: React.FC = () => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Situação</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Situação</label>
                     <select
                       value={draftSituacao ? 'ATIVO' : 'INATIVO'}
                       onChange={(e) => setDraftSituacao(e.target.value === 'ATIVO')}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                     >
                       <option value="ATIVO">Ativo</option>
                       <option value="INATIVO">Inativo</option>
@@ -1580,11 +1580,11 @@ const Estoque: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Unidade</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Unidade</label>
                     <select
                       value={draftUnidade}
                       onChange={(e) => setDraftUnidade(e.target.value)}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                     >
                       <option value="UN">UN</option>
                       <option value="PC">Peça (PC)</option>
@@ -1608,23 +1608,23 @@ const Estoque: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
                     <input
                       value={draftValorCompra}
                       onChange={(e) => setDraftValorCompra(e.target.value)}
                       inputMode="decimal"
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)] font-mono text-right"
                       placeholder="Ex: 149,90"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Preço Unitário de Venda</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Preço Unitário de Venda</label>
                     <input
                       value={draftPreco}
                       onChange={(e) => setDraftPreco(e.target.value)}
                       inputMode="decimal"
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)] font-mono text-right"
                       placeholder="Ex: 199,90"
                     />
                   </div>
@@ -1632,7 +1632,7 @@ const Estoque: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Código NCM</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Código NCM</label>
                     <div className="relative" ref={ncmPickerRef}>
                       <button
                         type="button"
@@ -1640,38 +1640,38 @@ const Estoque: React.FC = () => {
                           setIsNcmOpen((v) => !v)
                           if (!isNcmOpen) setNcmSearch('')
                         }}
-                        className="w-full inline-flex items-center justify-between gap-3 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all hover:bg-white/5"
+                        className="w-full inline-flex items-center justify-between gap-3 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all hover:bg-[var(--bg-card)]"
                       >
-                        <span className={`truncate font-mono ${draftNcmCodigo ? 'text-slate-100' : 'text-slate-500 font-sans'}`}>
+                        <span className={`truncate font-mono ${draftNcmCodigo ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)] font-sans'}`}>
                           {draftNcmCodigo || 'Selecionar NCM'}
                         </span>
                         <span className="shrink-0 inline-flex items-center gap-2">
                           {ncmLoading ? (
-                            <Loader2 className="animate-spin text-slate-500" size={16} />
+                            <Loader2 className="animate-spin text-[var(--text-muted)]" size={16} />
                           ) : (
-                            <Search size={16} className="text-slate-400" />
+                            <Search size={16} className="text-[var(--text-muted)]" />
                           )}
-                          <ChevronDown size={16} className={`text-slate-400 transition-transform ${isNcmOpen ? 'rotate-180' : ''}`} />
+                          <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform ${isNcmOpen ? 'rotate-180' : ''}`} />
                         </span>
                       </button>
 
                       {isNcmOpen && (
-                        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0B1220] shadow-xl">
-                          <div className="p-3 border-b border-white/10">
+                        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-main)]">
+                          <div className="p-3 border-b border-[var(--border)]">
                             <div className="relative">
-                              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                               <input
                                 value={ncmSearch}
                                 onChange={(e) => setNcmSearch(e.target.value)}
                                 placeholder="Buscar por código ou descrição..."
-                                className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-black/20 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                                className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-black/20 border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                               />
                             </div>
                           </div>
 
                           <div className="max-h-64 overflow-auto custom-scrollbar">
                             {ncmOptions.length === 0 ? (
-                              <div className="px-4 py-4 text-xs text-slate-400">
+                              <div className="px-4 py-4 text-xs text-[var(--text-muted)]">
                                 {ncmLoading ? 'Carregando...' : 'Nenhum NCM encontrado.'}
                               </div>
                             ) : (
@@ -1684,10 +1684,10 @@ const Estoque: React.FC = () => {
                                     setDraftNcmId(opt.ncm_id)
                                     setIsNcmOpen(false)
                                   }}
-                                  className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
+                                  className="w-full text-left px-4 py-2.5 hover:bg-[var(--bg-card)] transition-colors border-b border-[var(--border)] last:border-b-0"
                                 >
-                                  <div className="text-sm font-mono text-slate-200">{formatNcmCodigo(opt.ncm_id) || opt.codigo}</div>
-                                  <div className="text-xs text-slate-400">{opt.descricao}</div>
+                                  <div className="text-sm font-mono text-[var(--text-soft)]">{formatNcmCodigo(opt.ncm_id) || opt.codigo}</div>
+                                  <div className="text-xs text-[var(--text-muted)]">{opt.descricao}</div>
                                 </button>
                               ))
                             )}
@@ -1698,11 +1698,11 @@ const Estoque: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Família de Produto</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Família de Produto</label>
                     <select
                       value={draftFamiliaId}
                       onChange={(e) => setDraftFamiliaId(e.target.value)}
-                      className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                      className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                     >
                       <option value="">Selecione (opcional)</option>
                       {familiaOptions.map((f) => (
@@ -1716,14 +1716,14 @@ const Estoque: React.FC = () => {
                       <input
                         value={draftFamiliaNova}
                         onChange={(e) => setDraftFamiliaNova(e.target.value)}
-                        className="flex-1 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                        className="flex-1 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                         placeholder="Criar nova família..."
                       />
                       <button
                         type="button"
                         onClick={handleCreateFamilia}
                         disabled={familiaSaving || !draftFamiliaNova.trim()}
-                        className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2"
+                        className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-emerald-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center justify-center gap-2"
                       >
                         {familiaSaving ? (
                           <>
@@ -1740,20 +1740,20 @@ const Estoque: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Descrição detalhada</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Descrição detalhada</label>
                     <textarea
                       value={draftDescricaoDetalhada}
                       onChange={(e) => setDraftDescricaoDetalhada(e.target.value)}
-                      className="w-full min-h-[140px] rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      className="w-full min-h-[140px] rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder=""
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações internas</label>
+                    <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observações internas</label>
                     <textarea
                       value={draftObsProd}
                       onChange={(e) => setDraftObsProd(e.target.value)}
-                      className="w-full min-h-[140px] rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500"
+                      className="w-full min-h-[140px] rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)]"
                       placeholder=""
                     />
                   </div>
@@ -1777,7 +1777,7 @@ const Estoque: React.FC = () => {
         zIndex={130}
         title={
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Produtos</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Produtos</div>
             <div className="text-base font-bold text-[var(--text-main)] truncate">Excluir Produto</div>
           </div>
         }
@@ -1787,7 +1787,7 @@ const Estoque: React.FC = () => {
               type="button"
               onClick={() => setIsDeleteOpen(false)}
               disabled={deleting}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1802,7 +1802,7 @@ const Estoque: React.FC = () => {
                   (deleteInfo.movimentosCount > 0 || Math.abs(deleteInfo.saldoTotal) > 0 || deleteInfo.oportunidadesItensCount > 0)
                 )
               }
-              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-rose-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {deleting ? (
                 <>
@@ -1817,33 +1817,33 @@ const Estoque: React.FC = () => {
         }
       >
         <div className="space-y-3">
-          <div className="text-sm text-slate-200">
+          <div className="text-sm text-[var(--text-soft)]">
             Tem certeza que deseja excluir o produto <span className="font-semibold">{savedProduto?.descricao_prod || '-'}</span>?
           </div>
-          <div className="text-xs text-slate-400">Esta ação não pode ser desfeita.</div>
+          <div className="text-xs text-[var(--text-muted)]">Esta ação não pode ser desfeita.</div>
           {deleteInfoLoading ? (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <Loader2 className="animate-spin" size={14} />
               Verificando vínculos...
             </div>
           ) : deleteInfo ? (
             <>
-              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saldo total</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Saldo total</div>
                   <div className="mt-1 text-sm font-mono font-semibold text-emerald-200">{deleteInfo.saldoTotal.toLocaleString('pt-BR')}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Locais com saldo</div>
-                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{deleteInfo.locaisComSaldo.toLocaleString('pt-BR')}</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Locais com saldo</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-[var(--text-main)]">{deleteInfo.locaisComSaldo.toLocaleString('pt-BR')}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Movimentações</div>
-                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">{deleteInfo.movimentosCount.toLocaleString('pt-BR')}</div>
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Movimentações</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-[var(--text-main)]">{deleteInfo.movimentosCount.toLocaleString('pt-BR')}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Propostas (itens)</div>
-                  <div className="mt-1 text-sm font-mono font-semibold text-slate-100">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Propostas (itens)</div>
+                  <div className="mt-1 text-sm font-mono font-semibold text-[var(--text-main)]">
                     {deleteInfo.oportunidadesItensCount.toLocaleString('pt-BR')}
                   </div>
                 </div>
@@ -1856,19 +1856,19 @@ const Estoque: React.FC = () => {
               ) : null}
 
               {deleteInfo.oportunidades.length > 0 ? (
-                <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
-                  <div className="px-4 py-2.5 bg-white/5 border-b border-white/10">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Exemplo</div>
-                    <div className="text-xs text-slate-400 mt-1">Itens de proposta que usam este produto</div>
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden">
+                  <div className="px-4 py-2.5 bg-[var(--bg-card)] border-b border-[var(--border)]">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Exemplo</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">Itens de proposta que usam este produto</div>
                   </div>
                   <div className="divide-y divide-white/10">
                     {deleteInfo.oportunidades.map((it) => (
                       <div key={it.id_oport} className="px-4 py-2.5 flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-sm text-slate-100 truncate" title={it.descricao_item || ''}>
+                          <div className="text-sm text-[var(--text-main)] truncate" title={it.descricao_item || ''}>
                             {it.descricao_item || 'Item de proposta'}
                           </div>
-                          <div className="text-[10px] text-slate-500 font-mono truncate">{it.id_oport}</div>
+                          <div className="text-xs text-[var(--text-muted)] font-mono truncate">{it.id_oport}</div>
                         </div>
                       </div>
                     ))}
@@ -1877,15 +1877,15 @@ const Estoque: React.FC = () => {
               ) : null}
 
               {deleteInfo.locais.length > 0 ? (
-                <div className="rounded-xl border border-white/10 bg-[#0B1220] overflow-hidden">
-                  <div className="px-4 py-2.5 bg-white/5 border-b border-white/10">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-300">Exemplo</div>
-                    <div className="text-xs text-slate-400 mt-1">Saldo por local (top 8)</div>
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden">
+                  <div className="px-4 py-2.5 bg-[var(--bg-card)] border-b border-[var(--border)]">
+                    <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">Exemplo</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">Saldo por local (top 8)</div>
                   </div>
                   <div className="divide-y divide-white/10">
                     {deleteInfo.locais.map((l) => (
                       <div key={l.local} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                        <div className="text-sm text-slate-100 truncate" title={l.local}>
+                        <div className="text-sm text-[var(--text-main)] truncate" title={l.local}>
                           {l.local}
                         </div>
                         <div className="text-sm font-mono font-semibold text-emerald-200">{Number(l.saldo).toLocaleString('pt-BR')}</div>
@@ -1910,7 +1910,7 @@ const Estoque: React.FC = () => {
         zIndex={120}
         title={
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Novo Movimento de Estoque</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Novo Movimento de Estoque</div>
             <div className="text-base font-bold text-[var(--text-main)] truncate">{savedProduto?.descricao_prod || '-'}</div>
           </div>
         }
@@ -1923,7 +1923,7 @@ const Estoque: React.FC = () => {
                 setIsMovimentoOpen(false)
               }}
               disabled={movimentoSaving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-60 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-60 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1931,7 +1931,7 @@ const Estoque: React.FC = () => {
               type="button"
               onClick={handleSalvarMovimento}
               disabled={movimentoSaving}
-              className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
+              className="px-7 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
             >
               {movimentoSaving ? 'Salvando...' : 'Salvar Movimento'}
             </button>
@@ -1947,11 +1947,11 @@ const Estoque: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Tipo do Movimento de Estoque</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Tipo do Movimento de Estoque</label>
               <select
                 value={movTipo}
                 onChange={(e) => setMovTipo(e.target.value as any)}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               >
                 {MOV_TIPOS.map((t) => (
                   <option key={t.key} value={t.key}>
@@ -1961,45 +1961,45 @@ const Estoque: React.FC = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Data</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Data</label>
               <input
                 type="date"
                 value={movData}
                 onChange={(e) => setMovData(e.target.value)}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">
                 Quantidade ({savedProduto?.unidade_prod || 'UN'})
               </label>
               <input
                 value={movQuantidade}
                 onChange={(e) => setMovQuantidade(e.target.value)}
                 inputMode="decimal"
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)] font-mono text-right"
                 placeholder="0,000000"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Valor de Compra (Unit.)</label>
               <input
                 value={movValorCompra}
                 onChange={(e) => setMovValorCompra(e.target.value)}
                 inputMode="decimal"
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all placeholder:text-slate-500 font-mono text-right"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all placeholder:text-[var(--text-muted)] font-mono text-right"
                 placeholder="Ex: 149,90"
               />
             </div>
             {movTipo === 'Transferencia' ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Origem</label>
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Local de Origem</label>
                   <select
                     value={movLocalOrigem}
                     onChange={(e) => setMovLocalOrigem(e.target.value)}
-                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                   >
                     {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
                     {locaisAtivos.map((l) => (
@@ -2010,11 +2010,11 @@ const Estoque: React.FC = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Destino</label>
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Local de Destino</label>
                   <select
                     value={movLocalDestino}
                     onChange={(e) => setMovLocalDestino(e.target.value)}
-                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                   >
                     {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
                     {locaisAtivos.map((l) => (
@@ -2027,11 +2027,11 @@ const Estoque: React.FC = () => {
               </>
             ) : (
               <div className="space-y-2 sm:col-span-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Local de Estoque</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Local de Estoque</label>
                 <select
                   value={movLocalOrigem}
                   onChange={(e) => setMovLocalOrigem(e.target.value)}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
                 >
                   {locaisAtivos.length === 0 ? <option value="">Nenhum local cadastrado</option> : null}
                   {locaisAtivos.map((l) => (
@@ -2043,11 +2043,11 @@ const Estoque: React.FC = () => {
               </div>
             )}
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Motivo do Movimento de Estoque</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Motivo do Movimento de Estoque</label>
               <select
                 value={movMotivo}
                 onChange={(e) => setMovMotivo(e.target.value)}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               >
                 {MOV_MOTIVOS.map((m) => (
                   <option key={m} value={m}>

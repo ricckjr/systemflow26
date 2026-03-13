@@ -78,15 +78,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       <div className="fixed bottom-4 right-4 z-[9998] flex w-[360px] max-w-[calc(100vw-2rem)] flex-col gap-2">
         {items.map((t) => {
           const isChat = t.kind === 'chat'
-          const titleColor = isChat ? 'text-violet-200' : 'text-cyan-200'
-          const border = isChat ? 'border-violet-500/20' : 'border-cyan-500/20'
-          const bg = isChat ? 'bg-violet-500/10' : 'bg-cyan-500/10'
-          const ring = isChat ? 'hover:ring-violet-500/25' : 'hover:ring-cyan-500/25'
+          const titleColor = isChat ? 'text-violet-200' : 'text-[var(--primary)]'
+          const border = isChat ? 'border-violet-500/20' : 'border-[var(--primary)]/20'
+          const bg = isChat ? 'bg-violet-500/10' : 'bg-[var(--primary-soft)]'
+          const ring = isChat ? 'hover:ring-violet-500/25' : 'hover:ring-[var(--primary)]/25'
 
           return (
             <div
               key={t.id}
-              className={`group relative overflow-hidden rounded-2xl border ${border} bg-[#0B0F14]/85 backdrop-blur shadow-2xl ring-1 ring-white/10 ${ring}`}
+              className={`group relative overflow-hidden rounded-2xl border ${border} bg-[var(--bg-main)]/85 backdrop-blur ring-1 ring-white/10 ${ring}`}
             >
               <button
                 type="button"
@@ -98,7 +98,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }}
                 className="w-full text-left p-3 pr-9"
               >
-                <div className={`inline-flex items-center rounded-lg px-2 py-1 text-[10px] font-bold tracking-wide ${bg} ${titleColor}`}>
+                <div className={`inline-flex items-center rounded-lg px-2 py-1 text-xs font-bold tracking-wide ${bg} ${titleColor}`}>
                   {t.title}
                 </div>
                 {t.message && (
@@ -111,7 +111,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <button
                 type="button"
                 onClick={() => dismissToast(t.id)}
-                className="absolute top-2.5 right-2.5 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-white/10"
+                className="absolute top-2.5 right-2.5 inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-white/70 hover:text-white hover:bg-white/10"
                 aria-label="Fechar"
               >
                 <X size={14} />

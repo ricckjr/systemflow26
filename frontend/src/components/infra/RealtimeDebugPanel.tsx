@@ -200,7 +200,7 @@ export function RealtimeDebugPanel() {
   const systemEvents = Math.max(0, notificationsEvents - chatEvents)
 
   return (
-    <div className="fixed bottom-3 right-3 z-[9999] w-[340px] rounded-2xl border border-white/10 bg-black/70 p-3 text-[11px] text-white backdrop-blur">
+    <div className="fixed bottom-3 right-3 z-[9999] w-[340px] rounded-2xl border border-[var(--border)] bg-black/70 p-3 text-xs text-white backdrop-blur">
       <div className="flex items-center justify-between">
         <div className="text-[12px] font-black tracking-widest uppercase text-white/85">Realtime Debug</div>
         <div className="text-white/55">{new Date().toLocaleTimeString()}</div>
@@ -249,7 +249,7 @@ export function RealtimeDebugPanel() {
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-2">
+      <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2">
         <div className="flex items-center justify-between">
           <span>broadcast status</span>
           <span className="text-white/90">{broadcastStatus}</span>
@@ -263,7 +263,7 @@ export function RealtimeDebugPanel() {
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2">
           <div className="flex items-center justify-between">
             <span>sistema</span>
             <span className="text-white/90">{notificationsStatus}</span>
@@ -273,7 +273,7 @@ export function RealtimeDebugPanel() {
             <span className="text-white/90">{systemEvents}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2">
           <div className="flex items-center justify-between">
             <span>chat</span>
             <span className="text-white/90">{notificationsStatus}</span>
@@ -285,7 +285,7 @@ export function RealtimeDebugPanel() {
         </div>
       </div>
 
-      <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2">
+      <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2">
         <div className="flex items-center justify-between">
           <span>sound</span>
           <span className="text-white/90">{soundEvents.length ? `${soundEvents[0].type}:${soundEvents[0].ok ? 'ok' : 'fail'}` : '-'}</span>
@@ -302,13 +302,13 @@ export function RealtimeDebugPanel() {
         )}
       </div>
 
-      <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2">
+      <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2">
         <div className="flex items-center justify-between">
           <span>rt test</span>
           <span className="text-white/90">{testResult ?? '-'}</span>
         </div>
         <button
-          className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-white/90 hover:bg-white/10 disabled:opacity-50"
+          className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1 text-xs text-white/90 hover:bg-white/10 disabled:opacity-50"
           disabled={!accessToken || !apiBase || testRunning}
           onClick={async () => {
             if (!accessToken || !apiBase) return

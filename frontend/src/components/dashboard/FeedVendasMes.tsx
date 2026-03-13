@@ -195,15 +195,15 @@ export function FeedVendasMes() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <p className="text-[10px] sm:text-xs text-emerald-300/90 font-bold uppercase tracking-wider">Tempo real • Mês atual</p>
+              <p className="text-xs sm:text-xs text-emerald-300/90 font-bold uppercase tracking-wider">Tempo real • Mês atual</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--text-soft)]">
+          <span className="text-xs sm:text-xs font-bold px-2.5 py-1 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-soft)]">
             Últimas 20
           </span>
-          <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+          <span className="text-xs sm:text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
             Conquistado
           </span>
         </div>
@@ -218,7 +218,7 @@ export function FeedVendasMes() {
             <button
               type="button"
               onClick={() => fetchVendasIniciais()}
-              className="mt-3 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-[var(--text-main)] text-xs font-bold hover:bg-white/10 transition-colors"
+              className="mt-3 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-main)] text-xs font-bold hover:bg-white/10 transition-colors"
             >
               Tentar novamente
             </button>
@@ -238,13 +238,13 @@ export function FeedVendasMes() {
                       'p-4 sm:p-4.5',
                       venda.is_new
                         ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[var(--shadow-soft)]'
-                        : 'bg-[var(--bg-panel)] border-[var(--border)] hover:border-white/15 hover:bg-[var(--bg-panel)]/80'
+                        : 'bg-[var(--bg-panel)] border-[var(--border)] hover:border-[var(--border)] hover:bg-[var(--bg-panel)]/80'
                     ].join(' ')}
                 >
                     {venda.is_new && (
                       <>
                         <div className="absolute inset-y-0 left-0 w-1 bg-emerald-400/80" />
-                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-500 text-white text-[10px] font-black rounded-full shadow-sm z-10 flex items-center gap-1">
+                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-emerald-500 text-white text-xs font-black rounded-full z-10 flex items-center gap-1">
                           <Trophy className="w-3 h-3" />
                           NOVA
                         </div>
@@ -253,7 +253,7 @@ export function FeedVendasMes() {
 
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative w-11 h-11 min-w-[2.75rem] rounded-full overflow-hidden border border-white/10 bg-emerald-500/10 shadow-sm">
+                        <div className="relative w-11 h-11 min-w-[2.75rem] rounded-full overflow-hidden border border-[var(--border)] bg-emerald-500/10">
                           {venda.vendedor_avatar_url ? (
                             <>
                               <img
@@ -295,21 +295,21 @@ export function FeedVendasMes() {
                         <span className="font-black text-emerald-300 text-sm sm:text-base tabular-nums">
                           {currency.format(venda.valor)}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
                           <CalendarDays className="w-3.5 h-3.5" />
                           <span className="font-semibold">{safeDate(venda.data_conquistado)}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-dashed border-white/10 flex items-center justify-between gap-2">
+                    <div className="mt-3 pt-3 border-t border-dashed border-[var(--border)] flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <Briefcase className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                         <span className="text-xs font-bold text-[var(--text-soft)] truncate" title={venda.produto}>
                           {venda.produto}
                         </span>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full bg-white/5 border border-white/10 text-[var(--text-muted)]">
+                      <span className="text-xs font-black uppercase tracking-wider px-2 py-1 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)]">
                         CONQUISTA
                       </span>
                     </div>

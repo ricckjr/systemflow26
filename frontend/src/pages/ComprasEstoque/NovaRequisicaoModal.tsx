@@ -185,7 +185,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
       scrollableContent={false}
       title={
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Compras</div>
+          <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Compras</div>
           <div className="text-base font-bold text-[var(--text-main)] truncate">Nova Requisição</div>
         </div>
       }
@@ -203,7 +203,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]/40 p-4 min-h-0 flex flex-col">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Categoria da Compra</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Categoria da Compra</label>
                 <select
                   value={categoria}
                   onChange={(e) => {
@@ -220,7 +220,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Sugestão de Entrega</label>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Sugestão de Entrega</label>
                 <input
                   type="date"
                   value={sugestaoEntrega}
@@ -233,7 +233,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
             {categoria === 'Compra de Mercadoria para Revenda' && (
               <div className="mt-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Cod da Proposta Referente</label>
+                  <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Cod da Proposta Referente</label>
                   <input
                     value={codPropostaReferente}
                     onChange={(e) => setCodPropostaReferente(e.target.value)}
@@ -249,7 +249,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                 type="button"
                 onClick={() => setTab('itens')}
                 className={`px-3 py-2 text-[12px] font-bold transition-colors ${
-                  tab === 'itens' ? 'text-cyan-300 border-b-2 border-cyan-500' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                  tab === 'itens' ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
                 Itens da Requisição
@@ -259,7 +259,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                 onClick={() => setTab('observacoes')}
                 className={`px-3 py-2 text-[12px] font-bold transition-colors ${
                   tab === 'observacoes'
-                    ? 'text-cyan-300 border-b-2 border-cyan-500'
+                    ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
@@ -273,7 +273,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                   <button
                     type="button"
                     onClick={openNewItem}
-                    className="h-9 px-3 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/20 hover:bg-cyan-500/15 transition inline-flex items-center gap-2 text-[12px] font-bold"
+                    className="h-9 px-3 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/20 hover:bg-[var(--primary-soft)] transition inline-flex items-center gap-2 text-[12px] font-bold"
                   >
                     <Plus size={14} />
                     Novo Item
@@ -282,7 +282,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                     type="button"
                     onClick={openEditItem}
                     disabled={!selectedItem}
-                    className="h-9 px-3 rounded-lg bg-white/5 text-[var(--text-main)] border border-white/10 hover:bg-white/10 transition inline-flex items-center gap-2 text-[12px] font-bold disabled:opacity-40 disabled:hover:bg-white/5"
+                    className="h-9 px-3 rounded-lg bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border)] hover:bg-white/10 transition inline-flex items-center gap-2 text-[12px] font-bold disabled:opacity-40 disabled:hover:bg-[var(--bg-card)]"
                   >
                     <Pencil size={14} />
                     Editar Item
@@ -299,7 +299,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                 </div>
 
                 <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden flex flex-col min-h-0">
-                  <div className="grid grid-cols-[90px_1fr_110px_130px_140px] gap-0 border-b border-[var(--border)] bg-[var(--bg-panel)]/60 text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                  <div className="grid grid-cols-[90px_1fr_110px_130px_140px] gap-0 border-b border-[var(--border)] bg-[var(--bg-panel)]/60 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
                     <div className="px-3 py-2">Código</div>
                     <div className="px-3 py-2">Descrição</div>
                     <div className="px-3 py-2 text-right">Qtd</div>
@@ -319,8 +319,8 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                             type="button"
                             key={it.id}
                             onClick={() => setSelectedItemId(it.id)}
-                            className={`w-full text-left grid grid-cols-[90px_1fr_110px_130px_140px] gap-0 px-0 border-b border-[var(--border)] last:border-b-0 hover:bg-white/5 transition ${
-                              active ? 'bg-cyan-500/10' : ''
+                            className={`w-full text-left grid grid-cols-[90px_1fr_110px_130px_140px] gap-0 px-0 border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--bg-card)] transition ${
+                              active ? 'bg-[var(--primary-soft)]' : ''
                             }`}
                           >
                             <div className="px-3 py-2 text-[12px] font-semibold text-[var(--text-main)] truncate">
@@ -389,7 +389,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
               {editorOpen ? (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Código</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Código</label>
                     <input
                       value={draft.codigo}
                       onChange={(e) => setDraft((prev) => ({ ...prev, codigo: e.target.value }))}
@@ -398,7 +398,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Descrição</label>
+                    <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Descrição</label>
                     <input
                       value={draft.descricao}
                       onChange={(e) => setDraft((prev) => ({ ...prev, descricao: e.target.value }))}
@@ -408,7 +408,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Quantidade</label>
+                      <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Quantidade</label>
                       <input
                         value={String(draft.quantidade)}
                         onChange={(e) => setDraft((prev) => ({ ...prev, quantidade: Math.max(0, Math.floor(ensureNumber(e.target.value))) }))}
@@ -417,7 +417,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Preço Unit.</label>
+                      <label className="text-xs font-bold text-[var(--text-muted)] uppercase">Preço Unit.</label>
                       <input
                         value={String(draft.precoUnitario).replace('.', ',')}
                         onChange={(e) => setDraft((prev) => ({ ...prev, precoUnitario: Math.max(0, ensureNumber(e.target.value)) }))}
@@ -445,7 +445,7 @@ export const NovaRequisicaoModal: React.FC<Props> = ({ isOpen, onClose, onSave }
                     <button
                       type="button"
                       onClick={saveItem}
-                      className="flex-1 h-9 px-3 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/20 hover:bg-cyan-500/15 transition inline-flex items-center justify-center gap-2 text-[12px] font-bold"
+                      className="flex-1 h-9 px-3 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/20 hover:bg-[var(--primary-soft)] transition inline-flex items-center justify-center gap-2 text-[12px] font-bold"
                     >
                       <Check size={14} />
                       Salvar item

@@ -382,7 +382,7 @@ const Logistica: FC = () => {
       <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Fases</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Fases</div>
             <div className="mt-1 text-xs text-[var(--text-muted)]">
               Colunas do Kanban
             </div>
@@ -395,7 +395,7 @@ const Logistica: FC = () => {
             >
               <span>Fases</span>
               {selectedFaseIds.filter(Boolean).length > 0 ? (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-[var(--primary-soft)] border border-[var(--primary)]/20 text-[var(--primary)]">
                   {selectedFaseIds.filter(Boolean).length}
                 </span>
               ) : null}
@@ -403,13 +403,13 @@ const Logistica: FC = () => {
             </button>
 
             {faseFilterOpen ? (
-              <div className="absolute right-0 z-[200] mt-2 w-[320px] rounded-2xl border border-white/10 bg-[#0B1220] shadow-2xl overflow-hidden">
-                <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtro: Fases</div>
+              <div className="absolute right-0 z-[200] mt-2 w-[320px] rounded-2xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden">
+                <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                  <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Filtro: Fases</div>
                   <button
                     type="button"
                     onClick={() => setSelectedFaseIds([])}
-                    className="text-[10px] font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
+                    className="text-xs font-black uppercase tracking-widest text-rose-200 hover:text-rose-100"
                     disabled={selectedFaseIds.length === 0}
                   >
                     Limpar
@@ -422,7 +422,7 @@ const Logistica: FC = () => {
                       const checked = !!id && selectedFaseIds.includes(id)
                       const cor = String((s as any)?.cor || '').trim() || null
                       return (
-                        <label key={id || label} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/5 cursor-pointer">
+                        <label key={id || label} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/[0.04] cursor-pointer">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -436,12 +436,12 @@ const Logistica: FC = () => {
                             className="h-4 w-4 accent-cyan-500"
                           />
                           {cor ? <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cor }} /> : null}
-                          <span className="text-xs font-bold text-slate-200">{label}</span>
+                          <span className="text-xs font-bold text-[var(--text-soft)]">{label}</span>
                         </label>
                       )
                     })}
                   {faseOptions.length === 0 ? (
-                    <div className="px-2 py-3 text-sm text-slate-400">Nenhuma fase cadastrada.</div>
+                    <div className="px-2 py-3 text-sm text-[var(--text-muted)]">Nenhuma fase cadastrada.</div>
                   ) : null}
                 </div>
               </div>
@@ -494,7 +494,7 @@ const Logistica: FC = () => {
                 data-kanban-col="1"
               >
                 <div
-                  className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[#0F172A] border-white/5"
+                  className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg border-b-2 bg-[var(--bg-panel)] border-[var(--border)]"
                   style={{
                     borderBottomColor: borderBottomColor,
                     backgroundColor: headerBg
@@ -505,11 +505,11 @@ const Logistica: FC = () => {
                       {col.label}
                     </span>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${theme.badge}`}>{items.length}</span>
+                  <span className={`text-xs font-black px-2 py-0.5 rounded-full border ${theme.badge}`}>{items.length}</span>
                 </div>
 
                 <div
-                  className="flex flex-col flex-1 min-h-0 rounded-xl bg-slate-900/20 border border-white/5 p-2 transition-colors"
+                  className="flex flex-col flex-1 min-h-0 rounded-xl bg-[var(--bg-main)]/20 border border-[var(--border)] p-2 transition-colors"
                   style={{ backgroundColor: colBg }}
                 >
                   <Droppable droppableId={col.id}>
@@ -519,7 +519,7 @@ const Logistica: FC = () => {
                         {...provided.droppableProps}
                         data-kanban-cards="1"
                         className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 min-h-[100px] transition-colors ${
-                          snapshot.isDraggingOver ? 'bg-white/5 rounded-lg' : ''
+                          snapshot.isDraggingOver ? 'bg-white/[0.04] rounded-lg' : ''
                         }`}
                       >
                         {items.map((o, index) => {
@@ -554,27 +554,27 @@ const Logistica: FC = () => {
                                   onClick={() => openDetails(o)}
                                   className={`
                                     group relative flex flex-col gap-2 p-4 mb-3 rounded-xl border transition-all duration-200
-                                    ${dragSnapshot.isDragging ? 'shadow-2xl ring-2 ring-cyan-500 rotate-2 scale-105 z-50 bg-[#1E293B]' : 'bg-[#0F172A] border-white/5 shadow-sm hover:shadow-md hover:border-white/10'}
+                                    ${dragSnapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--primary)] rotate-2 scale-105 z-50 bg-[var(--bg-card)]' : 'bg-[var(--bg-panel)] border-[var(--border)] hover:shadow-md hover:border-[var(--border)]'}
                                   `}
                                 >
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest truncate">{cod}</div>
-                                      <div className="mt-1 text-sm font-bold text-slate-100 truncate">{cliente}</div>
-                                      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                                      <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest truncate">{cod}</div>
+                                      <div className="mt-1 text-sm font-bold text-[var(--text-main)] truncate">{cliente}</div>
+                                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--text-soft)]">
                                         <div>
-                                          <span className="text-slate-500 font-bold uppercase tracking-widest">Tempo Aberto</span>
-                                          <div className="mt-1 font-mono text-slate-200">{tempoAberto}</div>
+                                          <span className="text-[var(--text-muted)] font-bold uppercase tracking-widest">Tempo Aberto</span>
+                                          <div className="mt-1 font-mono text-[var(--text-soft)]">{tempoAberto}</div>
                                         </div>
                                         <div>
-                                          <span className="text-slate-500 font-bold uppercase tracking-widest">Solução</span>
-                                          <div className="mt-1 font-black text-slate-200 truncate">{solucao}</div>
+                                          <span className="text-[var(--text-muted)] font-bold uppercase tracking-widest">Solução</span>
+                                          <div className="mt-1 font-black text-[var(--text-soft)] truncate">{solucao}</div>
                                         </div>
                                       </div>
 
                                       <div className="mt-3 flex items-center justify-between gap-2">
                                         <span
-                                          className="inline-flex items-center px-3 py-1 rounded-xl border text-[11px] font-black"
+                                          className="inline-flex items-center px-3 py-1 rounded-xl border text-xs font-black"
                                           style={{
                                             backgroundColor: statusBg,
                                             borderColor: statusBorder,
@@ -588,10 +588,10 @@ const Logistica: FC = () => {
                                             <img
                                               src={vendedorAvatarUrl}
                                               alt={vendedorNome || 'Vendedor'}
-                                              className="h-9 w-9 rounded-full object-cover border border-white/10"
+                                              className="h-9 w-9 rounded-full object-cover border border-[var(--border)]"
                                             />
                                           ) : (
-                                            <div className="h-9 w-9 rounded-full bg-white/5 border border-white/10 inline-flex items-center justify-center text-[11px] font-black text-slate-200">
+                                            <div className="h-9 w-9 rounded-full bg-white/[0.04] border border-[var(--border)] inline-flex items-center justify-center text-xs font-black text-[var(--text-soft)]">
                                               {String(vendedorNome || '?')
                                                 .trim()
                                                 .split(/\s+/)
@@ -604,7 +604,7 @@ const Logistica: FC = () => {
                                         ) : null}
                                       </div>
                                     </div>
-                                    {saving ? <Loader2 className="animate-spin text-slate-500" size={16} /> : null}
+                                    {saving ? <Loader2 className="animate-spin text-[var(--text-muted)]" size={16} /> : null}
                                   </div>
                                 </div>
                               )}

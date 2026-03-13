@@ -129,7 +129,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
         <>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] overflow-hidden">
                 <table className="w-full text-left border-collapse">
-                <thead className="bg-[var(--bg-body)] text-[var(--text-muted)] text-[10px] uppercase font-bold tracking-wider border-b border-[var(--border)]">
+                <thead className="bg-[var(--bg-main)] text-[var(--text-muted)] text-xs uppercase font-bold tracking-wider border-b border-[var(--border)]">
                     <tr>
                         <th className="px-4 py-2">ID RST</th>
                         <th className="px-4 py-2">Modelo</th>
@@ -153,7 +153,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                 </span>
                             </td>
                             <td className="px-4 py-2">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-main)] uppercase">
+                                <span className="px-2 py-0.5 rounded text-xs font-bold border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-main)] uppercase">
                                     {getOsPhaseConfig(service.fase).label}
                                 </span>
                             </td>
@@ -186,17 +186,17 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                 title={
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                            <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                                 <Wrench size={18} />
                             </div>
                             <div className="min-w-0">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Equipamento em Produção</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Equipamento em Produção</div>
                                 <div className="text-lg font-bold text-[var(--text-main)] truncate">{selected?.id_rst || '...'}</div>
                                 <div className="text-xs text-[var(--text-muted)] truncate">{selected?.cliente || 'NÃO INFORMADO'}</div>
                             </div>
                         </div>
                         {selected?.fase && (
-                            <span className="text-[10px] font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
+                            <span className="text-xs font-bold px-2 py-1 rounded-lg border bg-[var(--bg-main)] border-[var(--border)] text-[var(--text-main)] uppercase whitespace-nowrap">
                                 {getOsPhaseConfig(selected.fase).label}
                             </span>
                         )}
@@ -249,7 +249,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Identificação</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Identificação</div>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-[var(--text-muted)]">ID RST</span>
@@ -271,7 +271,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                             </div>
 
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Vendedor</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Vendedor</div>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-[var(--text-muted)] flex items-center gap-2"><User size={14} /> Nome</span>
@@ -289,7 +289,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                             </div>
 
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Datas</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Datas</div>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-[var(--text-muted)] flex items-center gap-2"><Calendar size={14} /> Entrada</span>
@@ -313,10 +313,10 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Equipamento</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Equipamento</div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Modelo</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Modelo</div>
                                         {isEditing ? (
                                             <input value={draft.modelo} onChange={(e) => setDraft((p) => ({ ...p, modelo: e.target.value }))} className={inputBase} placeholder="Modelo" />
                                         ) : (
@@ -324,7 +324,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Fabricante</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Fabricante</div>
                                         {isEditing ? (
                                             <input value={draft.fabricante} onChange={(e) => setDraft((p) => ({ ...p, fabricante: e.target.value }))} className={inputBase} placeholder="Fabricante" />
                                         ) : (
@@ -332,7 +332,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 1</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Série 1</div>
                                         {isEditing ? (
                                             <input value={draft.numero_serie} onChange={(e) => setDraft((p) => ({ ...p, numero_serie: e.target.value }))} className={inputBase} placeholder="Nº Série 1" />
                                         ) : (
@@ -340,7 +340,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Série 2</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Série 2</div>
                                         {isEditing ? (
                                             <input value={draft.numero_serie2} onChange={(e) => setDraft((p) => ({ ...p, numero_serie2: e.target.value }))} className={inputBase} placeholder="Nº Série 2" />
                                         ) : (
@@ -348,7 +348,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">TAG</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">TAG</div>
                                         {isEditing ? (
                                             <input value={draft.tag} onChange={(e) => setDraft((p) => ({ ...p, tag: e.target.value }))} className={inputBase} placeholder="TAG" />
                                         ) : (
@@ -356,7 +356,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Faixa</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Faixa</div>
                                         {isEditing ? (
                                             <input value={draft.faixa} onChange={(e) => setDraft((p) => ({ ...p, faixa: e.target.value }))} className={inputBase} placeholder="Faixa" />
                                         ) : (
@@ -364,7 +364,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Garantia</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Garantia</div>
                                         {isEditing ? (
                                             <label className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)]">
                                                 <input
@@ -380,7 +380,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Responsável</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Responsável</div>
                                         {isEditing ? (
                                             <input value={draft.responsavel} onChange={(e) => setDraft((p) => ({ ...p, responsavel: e.target.value }))} className={inputBase} placeholder="Responsável" />
                                         ) : (
@@ -391,10 +391,10 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                             </div>
 
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Documento / Calibração</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Documento / Calibração</div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">NF</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">NF</div>
                                         {isEditing ? (
                                             <input value={draft.numero_nf} onChange={(e) => setDraft((p) => ({ ...p, numero_nf: e.target.value }))} className={inputBase} placeholder="NF" />
                                         ) : (
@@ -402,7 +402,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Pedido</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Pedido</div>
                                         {isEditing ? (
                                             <input value={draft.numero_pedido} onChange={(e) => setDraft((p) => ({ ...p, numero_pedido: e.target.value }))} className={inputBase} placeholder="Pedido" />
                                         ) : (
@@ -410,7 +410,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Nº Certificado</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Nº Certificado</div>
                                         {isEditing ? (
                                             <input value={draft.numero_certificado} onChange={(e) => setDraft((p) => ({ ...p, numero_certificado: e.target.value }))} className={inputBase} placeholder="Nº Certificado" />
                                         ) : (
@@ -418,7 +418,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Data Calibração</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Data Calibração</div>
                                         {isEditing ? (
                                             <input type="date" value={draft.data_calibracao} onChange={(e) => setDraft((p) => ({ ...p, data_calibracao: e.target.value }))} className={inputBase} />
                                         ) : (
@@ -426,7 +426,7 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div className="sm:col-span-2">
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Solução</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Solução</div>
                                         <div className="text-[var(--text-main)] font-semibold whitespace-pre-wrap">{selected.solucao || 'NÃO INFORMADO'}</div>
                                     </div>
                                 </div>
@@ -435,10 +435,10 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Técnico</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Técnico</div>
                                 <div className="space-y-3 text-sm">
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Observações do equipamento</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Observações do equipamento</div>
                                         {isEditing ? (
                                             <textarea
                                                 value={draft.observacoes_equipamento}
@@ -452,18 +452,18 @@ export const EquipmentList: React.FC<EquipmentListProps> = ({ codProposta, lastU
                                         )}
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Testes realizados</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Testes realizados</div>
                                         <div className="text-[var(--text-main)] whitespace-pre-wrap">{selected.testes_realizados || 'NÃO INFORMADO'}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Serviços a fazer</div>
+                                        <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Serviços a fazer</div>
                                         <div className="text-[var(--text-main)] whitespace-pre-wrap">{selected.servicos_a_fazer || 'NÃO INFORMADO'}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="p-4 rounded-xl bg-[var(--bg-main)] border border-[var(--border)]">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Anexos</div>
+                                <div className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">Anexos</div>
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-muted)] uppercase">
                                         <ImageIcon size={14} />

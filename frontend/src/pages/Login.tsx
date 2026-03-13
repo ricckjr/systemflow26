@@ -29,8 +29,8 @@ const Login: React.FC = () => {
   // Evita flash visual e erros de imagem durante bootstrap do auth
   if (!authReady || session) {
     return (
-      <div className="min-h-screen bg-[#0B0F14] flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#38BDF8]" size={48} />
+      <div className="min-h-screen bg-[var(--bg-main)] flex items-center justify-center">
+        <Loader2 className="animate-spin text-[var(--primary)]" size={48} />
       </div>
     )
   }
@@ -62,7 +62,7 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#0B0F14] text-white">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[var(--bg-main)] text-white">
 
       {/* ================= ESQUERDA ================= */}
       <div className="hidden lg:flex lg:col-span-7 relative overflow-hidden">
@@ -89,7 +89,7 @@ const Login: React.FC = () => {
       <div className="lg:col-span-5 flex items-center justify-center px-6 sm:px-10">
         <div className="w-full max-w-md">
 
-          <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-10 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-10 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
 
             {/* Logo */}
             <div className="flex justify-center mb-10">
@@ -129,7 +129,7 @@ const Login: React.FC = () => {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
-                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-gray-500 focus:outline-none focus:border-[#38BDF8] focus:ring-2 focus:ring-[#38BDF8]/30 transition"
+                    className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/30 transition"
                     placeholder="usuario@empresa.com"
                   />
                 </div>
@@ -150,13 +150,13 @@ const Login: React.FC = () => {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
-                    className="w-full h-12 pl-11 pr-12 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-gray-500 focus:outline-none focus:border-[#38BDF8] focus:ring-2 focus:ring-[#38BDF8]/30 transition"
+                    className="w-full h-12 pl-11 pr-12 rounded-xl bg-[#EEF4FF] border border-transparent text-[#0B0F14] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/30 transition"
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-soft)] hover:text-black"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -167,7 +167,7 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-12 rounded-xl bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0B0F14] font-bold tracking-wide transition shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px] disabled:opacity-60 flex items-center justify-center"
+                className="w-full h-12 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-600)] text-[#0B0F14] font-bold tracking-wide transition shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px] disabled:opacity-60 flex items-center justify-center"
               >
                 {submitting ? <Loader2 className="animate-spin" size={18} /> : 'ENTRAR'}
               </button>

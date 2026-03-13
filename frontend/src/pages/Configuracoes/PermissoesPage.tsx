@@ -20,7 +20,7 @@ export default function PermissoesPage() {
           onClick={() => setTab('perfis')}
           className={`h-10 px-4 rounded-xl border text-sm font-bold transition-colors ${
             tab === 'perfis'
-              ? 'border-[#38BDF8]/40 bg-[#38BDF8]/10 text-white'
+              ? 'border-[var(--primary)]/40 bg-[var(--primary)]/10 text-white'
               : 'border-industrial-border bg-industrial-surface text-industrial-text-secondary hover:text-white hover:bg-industrial-bg/30'
           }`}
         >
@@ -31,7 +31,7 @@ export default function PermissoesPage() {
           onClick={() => setTab('paginas')}
           className={`h-10 px-4 rounded-xl border text-sm font-bold transition-colors ${
             tab === 'paginas'
-              ? 'border-[#38BDF8]/40 bg-[#38BDF8]/10 text-white'
+              ? 'border-[var(--primary)]/40 bg-[var(--primary)]/10 text-white'
               : 'border-industrial-border bg-industrial-surface text-industrial-text-secondary hover:text-white hover:bg-industrial-bg/30'
           }`}
         >
@@ -253,7 +253,7 @@ function PermissoesPaginas() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-industrial-text-secondary">
-        <Loader2 className="animate-spin text-[#38BDF8]" size={32} />
+        <Loader2 className="animate-spin text-[var(--primary)]" size={32} />
       </div>
     )
   }
@@ -274,20 +274,20 @@ function PermissoesPaginas() {
       <div className="flex flex-col md:flex-row md:items-end gap-3">
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
           <div>
-            <div className="text-[11px] font-bold text-industrial-text-secondary uppercase mb-1">Selecione o Perfil</div>
+            <div className="text-xs font-bold text-industrial-text-secondary uppercase mb-1">Selecione o Perfil</div>
             <input
               value={perfilQuery}
               onChange={(e) => setPerfilQuery(e.target.value)}
               placeholder="Filtrar perfis..."
-              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white placeholder:text-gray-600 focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
+              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white placeholder:text-[var(--text-soft)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none"
             />
           </div>
           <div>
-            <div className="text-[11px] font-bold text-industrial-text-secondary uppercase mb-1">Perfil</div>
+            <div className="text-xs font-bold text-industrial-text-secondary uppercase mb-1">Perfil</div>
             <select
               value={activePerfilId ?? ''}
               onChange={(e) => setActivePerfilId(e.target.value || null)}
-              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white focus:border-[#38BDF8] focus:ring-1 focus:ring-[#38BDF8] outline-none"
+              className="w-full h-10 bg-industrial-surface border border-industrial-border rounded-xl px-3 text-white focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] outline-none"
             >
               {filteredPerfis.map((p: any) => (
                 <option key={p.perfil_id} value={p.perfil_id}>
@@ -304,8 +304,8 @@ function PermissoesPaginas() {
           disabled={saving || !activePerfilId || !isDirty}
           className={`h-10 px-4 rounded-xl text-[#0B0F14] font-extrabold flex items-center justify-center gap-2 transition ${
             saving || !activePerfilId || !isDirty
-              ? 'bg-[#38BDF8]/40 opacity-60'
-              : 'bg-[#38BDF8] hover:bg-[#0EA5E9] shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px]'
+              ? 'bg-[var(--primary)]/40 opacity-60'
+              : 'bg-[var(--primary)] hover:bg-[var(--primary-600)] shadow-[0_12px_30px_rgba(56,189,248,0.35)] hover:-translate-y-[1px]'
           }`}
         >
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
@@ -357,12 +357,12 @@ function PermissoesPaginas() {
                                 togglePage(pg.pageModulo, 'VIEW', checked)
                               }
                             }}
-                            className="h-4 w-4 accent-[#38BDF8] disabled:opacity-50"
+                            className="h-4 w-4 accent-[var(--primary)] disabled:opacity-50"
                           />
                           habilitar
                         </label>
                         {!activePerfilId && (
-                          <span className="text-[11px] text-industrial-text-secondary">selecione um perfil</span>
+                          <span className="text-xs text-industrial-text-secondary">selecione um perfil</span>
                         )}
                       </div>
                     </td>
@@ -399,7 +399,7 @@ function PermissoesPaginas() {
                             disabled={disabled || !viewId}
                             checked={viewChecked}
                             onChange={(e) => togglePage(pg.pageModulo as string, 'VIEW', e.target.checked)}
-                            className="h-4 w-4 accent-[#38BDF8] disabled:opacity-50"
+                            className="h-4 w-4 accent-[var(--primary)] disabled:opacity-50"
                           />
                         ) : (
                           <span className="text-industrial-text-secondary text-xs">—</span>
@@ -412,7 +412,7 @@ function PermissoesPaginas() {
                             disabled={disabled || !editId}
                             checked={editChecked}
                             onChange={(e) => togglePage(pg.pageModulo as string, 'EDIT', e.target.checked)}
-                            className="h-4 w-4 accent-[#38BDF8] disabled:opacity-50"
+                            className="h-4 w-4 accent-[var(--primary)] disabled:opacity-50"
                           />
                         ) : (
                           <span className="text-industrial-text-secondary text-xs">—</span>
@@ -425,7 +425,7 @@ function PermissoesPaginas() {
                             disabled={disabled || !controlId}
                             checked={controlChecked}
                             onChange={(e) => togglePage(pg.pageModulo as string, 'CONTROL', e.target.checked)}
-                            className="h-4 w-4 accent-[#38BDF8] disabled:opacity-50"
+                            className="h-4 w-4 accent-[var(--primary)] disabled:opacity-50"
                           />
                         ) : (
                           <span className="text-industrial-text-secondary text-xs">—</span>

@@ -146,14 +146,14 @@ export default function CadastroNcm() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[220px] group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 transition-colors" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por código ou descrição..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/25 focus:border-[var(--primary)]/40 transition-all"
             />
-            <div className="mt-1 text-[10px] text-slate-500 font-mono">
+            <div className="mt-1 text-xs text-[var(--text-muted)] font-mono">
               Sem máscara: {search.trim() ? (search.replace(/\D/g, '') || '-') : '-'}
             </div>
           </div>
@@ -163,27 +163,27 @@ export default function CadastroNcm() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0B1220]/40 p-4">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-main)]/40 p-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             <div className="md:col-span-3">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Código NCM</div>
+              <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-2">Código NCM</div>
               <input
                 value={novoCodigo}
                 onChange={(e) => setNovoCodigo(e.target.value)}
                 placeholder="1234.56.78"
-                className="w-full px-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               />
-              <div className="mt-1 text-[10px] text-slate-500 font-mono">
+              <div className="mt-1 text-xs text-[var(--text-muted)] font-mono">
                 Sem máscara: {toDigits8(novoCodigo) ?? '-'}
               </div>
             </div>
             <div className="md:col-span-7">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Descrição</div>
+              <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-2">Descrição</div>
               <input
                 value={novaDescricao}
                 onChange={(e) => setNovaDescricao(e.target.value)}
                 placeholder="Descrição do NCM"
-                className="w-full px-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500/40 transition-all"
+                className="w-full px-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-soft)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               />
             </div>
             <div className="md:col-span-2 flex items-end">
@@ -191,7 +191,7 @@ export default function CadastroNcm() {
                 type="button"
                 onClick={handleCreate}
                 disabled={creating || !toDigits8(novoCodigo) || !novaDescricao.trim()}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-emerald-500/15 transition-all active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
               >
                 {creating ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
                 Cadastrar
@@ -208,43 +208,43 @@ export default function CadastroNcm() {
 
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <Loader2 className="animate-spin text-slate-500" size={28} />
+            <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-            <p className="text-sm font-semibold text-slate-200">Nenhum NCM encontrado</p>
-            <p className="text-sm text-slate-400 mt-1">
+          <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] p-6 text-center">
+            <p className="text-sm font-semibold text-[var(--text-soft)]">Nenhum NCM encontrado</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
               Se a base estiver vazia, rode o seed de NCM no backend para popular a tabela.
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/5">
-            <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-              <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Código</div>
-              <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-slate-400">Descrição</div>
-              <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Sem Máscara</div>
+          <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+            <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border)]">
+              <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Código</div>
+              <div className="col-span-8 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Descrição</div>
+              <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Sem Máscara</div>
             </div>
             <div className="divide-y divide-white/5">
               {items.map((i) => (
                 <div
                   key={i.codigo}
-                  className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors"
+                  className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors"
                 >
                   <div className="col-span-2 min-w-0">
-                    <div className="text-sm font-semibold text-slate-200 truncate" title={i.codigo}>
+                    <div className="text-sm font-semibold text-[var(--text-soft)] truncate" title={i.codigo}>
                       {formatCodigo(i.codigo)}
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono mt-0.5 truncate" title={i.codigo}>
+                    <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5 truncate" title={i.codigo}>
                       {i.codigo}
                     </div>
                   </div>
                   <div className="col-span-8 min-w-0">
-                    <div className="text-sm text-slate-200 truncate" title={i.descricao}>
+                    <div className="text-sm text-[var(--text-soft)] truncate" title={i.descricao}>
                       {i.descricao}
                     </div>
                   </div>
                   <div className="col-span-2 min-w-0">
-                    <div className="text-xs text-slate-300 font-mono truncate">{i.ncm_id}</div>
+                    <div className="text-xs text-[var(--text-soft)] font-mono truncate">{i.ncm_id}</div>
                   </div>
                 </div>
               ))}
@@ -257,7 +257,7 @@ export default function CadastroNcm() {
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1 || loading}
-            className="px-4 py-2 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            className="px-4 py-2 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
           >
             Anterior
           </button>
@@ -268,7 +268,7 @@ export default function CadastroNcm() {
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages || loading}
-            className="px-4 py-2 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            className="px-4 py-2 rounded-xl text-[var(--text-soft)] hover:bg-[var(--bg-card)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
           >
             Próxima
           </button>

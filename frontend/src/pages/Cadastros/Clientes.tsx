@@ -459,44 +459,44 @@ export default function Clientes() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold text-slate-100">Clientes</h1>
-          <p className="text-sm text-slate-400 mt-1">Gestão de clientes e dados cadastrais (CRM + Fiscal + Integração).</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--text-main)]">Clientes</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Gestão de clientes e dados cadastrais (CRM + Fiscal + Integração).</p>
         </div>
-        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs text-slate-300">
-          <Users size={14} className="text-cyan-400" />
+        <div className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-panel)] text-xs text-[var(--text-soft)]">
+          <Users size={14} className="text-[var(--primary)]" />
           Cadastros
         </div>
       </div>
 
-      <div className="bg-[#0F172A] border border-white/5 rounded-2xl p-5 shadow-sm">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border)] rounded-2xl p-5 ">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <Building2 size={18} className="text-cyan-300" />
+            <div className="w-10 h-10 rounded-2xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <Building2 size={18} className="text-[var(--primary)]" />
             </div>
             <div>
-              <div className="text-sm font-bold text-slate-100">Base de Clientes</div>
-              <div className="text-xs text-slate-400">
-                Total: <span className="text-slate-200 font-semibold">{headerStats.total}</span> · Fornecedores:{' '}
-                <span className="text-slate-200 font-semibold">{headerStats.fornecedores}</span>
+              <div className="text-sm font-bold text-[var(--text-main)]">Base de Clientes</div>
+              <div className="text-xs text-[var(--text-muted)]">
+                Total: <span className="text-[var(--text-main)] font-semibold">{headerStats.total}</span> · Fornecedores:{' '}
+                <span className="text-[var(--text-main)] font-semibold">{headerStats.fornecedores}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative group w-full md:w-[320px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por nome, documento, email..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B1220] border border-white/10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-sm text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all"
               />
             </div>
             <button
               type="button"
               onClick={openCreate}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/15 transition-all active:scale-95"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold shadow-cyan-500/15 transition-all active:scale-95"
             >
               <Plus size={16} />
               Novo Cliente
@@ -513,47 +513,47 @@ export default function Clientes() {
         <div className="mt-4">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="animate-spin text-slate-500" size={28} />
+              <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
             </div>
           ) : items.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center">
-              <p className="text-sm font-semibold text-slate-200">Nenhum cliente encontrado</p>
-              <p className="text-sm text-slate-400 mt-1">Crie o primeiro cadastro para começar.</p>
+            <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-panel)] p-6 text-center">
+              <p className="text-sm font-semibold text-[var(--text-main)]">Nenhum cliente encontrado</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Crie o primeiro cadastro para começar.</p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-white/5">
-              <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-                <div className="col-span-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Cliente</div>
-                <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Documento</div>
-                <div className="col-span-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Vendedor</div>
-                <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
+            <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+              <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-panel)] border-b border-[var(--border)]">
+                <div className="col-span-6 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Cliente</div>
+                <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Documento</div>
+                <div className="col-span-2 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Vendedor</div>
+                <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
               </div>
               <div className="divide-y divide-white/5">
                 {items.map(i => {
                   const vendedor = usuarios.find(u => u.id === i.user_id) || null
                   const isFornecedor = (i.cliente_tags || []).includes('FORNECEDOR')
                   return (
-                    <div key={i.cliente_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
+                    <div key={i.cliente_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors">
                       <div className="col-span-6 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
                           className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
-                            isFornecedor ? 'bg-amber-500/10 border-amber-500/20' : 'bg-cyan-500/10 border-cyan-500/20'
+                            isFornecedor ? 'bg-amber-500/10 border-amber-500/20' : 'bg-[var(--primary-soft)] border-[var(--primary)]/20'
                           }`}
                         >
                           {isFornecedor ? (
                             <Building2 size={14} className="text-amber-300" />
                           ) : (
-                            <User size={14} className="text-cyan-300" />
+                            <User size={14} className="text-[var(--primary)]" />
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-slate-200 truncate" title={i.cliente_nome_razao_social}>
+                          <div className="text-sm font-semibold text-[var(--text-main)] truncate" title={i.cliente_nome_razao_social}>
                             {i.cliente_nome_razao_social}
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] mt-0.5">
                             {(i.cliente_tags || []).slice(0, 2).map(t => (
-                              <span key={t} className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-slate-300">
+                              <span key={t} className="px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-soft)]">
                                 {t}
                               </span>
                             ))}
@@ -562,8 +562,8 @@ export default function Clientes() {
                       </div>
                     </div>
                     <div className="col-span-3 min-w-0">
-                      <div className="text-sm text-slate-200 font-mono truncate">{i.cliente_documento_formatado || i.cliente_documento || '-'}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">{i.cliente_tipo_pessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</div>
+                      <div className="text-sm text-[var(--text-main)] font-mono truncate">{i.cliente_documento_formatado || i.cliente_documento || '-'}</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-0.5">{i.cliente_tipo_pessoa === 'FISICA' ? 'CPF' : 'CNPJ'}</div>
                     </div>
                     <div className="col-span-2 min-w-0">
                       {vendedor ? (
@@ -572,28 +572,28 @@ export default function Clientes() {
                             <img
                               src={vendedor.avatar_url}
                               alt={vendedor.nome}
-                              className="w-8 h-8 rounded-full object-cover border border-white/10"
+                              className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-slate-200">
+                            <div className="w-8 h-8 rounded-full bg-[var(--bg-panel)] border border-[var(--border)] flex items-center justify-center text-xs font-black text-[var(--text-main)]">
                               {initials(vendedor.nome)}
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="text-sm text-slate-200 truncate">{vendedor.nome}</div>
-                            <div className="text-[10px] text-slate-500 mt-0.5 truncate">{vendedor.cargo || ''}</div>
+                            <div className="text-sm text-[var(--text-main)] truncate">{vendedor.nome}</div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{vendedor.cargo || ''}</div>
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-slate-400">-</div>
+                        <div className="text-sm text-[var(--text-muted)]">-</div>
                       )}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button
                         type="button"
                         onClick={() => openEdit(i.cliente_id)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
+                        className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] border border-transparent hover:border-[var(--primary)]/20 transition-colors"
                         title="Editar"
                       >
                         <Pencil size={14} />
@@ -601,7 +601,7 @@ export default function Clientes() {
                       <button
                         type="button"
                         onClick={() => openHistory(i.cliente_id)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
+                        className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-panel)] border border-transparent hover:border-[var(--border)] transition-colors"
                         title="Histórico"
                       >
                         <History size={14} />
@@ -610,7 +610,7 @@ export default function Clientes() {
                         <button
                           type="button"
                           onClick={() => openTransfer(i.cliente_id)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors"
+                          className="p-2 rounded-lg text-[var(--text-muted)] hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-colors"
                           title="Transferir para vendedor"
                         >
                           <ArrowRightLeft size={14} />
@@ -635,8 +635,8 @@ export default function Clientes() {
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <BadgeCheck size={18} className="text-cyan-300" />
+            <div className="w-9 h-9 rounded-2xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <BadgeCheck size={18} className="text-[var(--primary)]" />
             </div>
             {activeId ? 'Editar Cliente' : 'Novo Cliente'}
           </div>
@@ -652,14 +652,14 @@ export default function Clientes() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1 flex items-center gap-2">
-                <Building2 size={12} className="text-slate-500" />
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1 flex items-center gap-2">
+                <Building2 size={12} className="text-[var(--text-muted)]" />
                 Nome/Razão Social
               </label>
               <input
                 value={draft.cliente_nome_razao_social}
                 onChange={e => setDraft(prev => ({ ...prev, cliente_nome_razao_social: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: Empresa XYZ LTDA"
               />
             </div>
@@ -668,11 +668,11 @@ export default function Clientes() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {isAdmin && (
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Vendedor</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Vendedor</label>
                 <select
                   value={draft.user_id}
                   onChange={e => setDraft(prev => ({ ...prev, user_id: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   disabled={usuariosLoading}
                 >
                   <option value="" disabled>
@@ -687,27 +687,27 @@ export default function Clientes() {
               </div>
             )}
             <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome Fantasia</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Nome Fantasia</label>
               <input
                 value={draft.cliente_nome_fantasia}
                 onChange={e => setDraft(prev => ({ ...prev, cliente_nome_fantasia: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: XYZ"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Tipo Pessoa</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Tipo Pessoa</label>
               <select
                 value={draft.cliente_tipo_pessoa}
                 onChange={e => setDraft(prev => ({ ...prev, cliente_tipo_pessoa: e.target.value as any }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               >
                 <option value="JURIDICA">Jurídica</option>
                 <option value="FISICA">Física</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Documento</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Documento</label>
               <input
                 value={draft.cliente_documento}
                 onChange={e =>
@@ -719,7 +719,7 @@ export default function Clientes() {
                     return { ...prev, cliente_documento: nextValue, cliente_tipo_pessoa: nextTipo }
                   })
                 }
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                 placeholder="CPF (11) ou CNPJ (14)"
               />
             </div>
@@ -727,119 +727,119 @@ export default function Clientes() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1 flex items-center gap-2">
-                <Mail size={12} className="text-slate-500" />
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1 flex items-center gap-2">
+                <Mail size={12} className="text-[var(--text-muted)]" />
                 Email
               </label>
               <input
                 value={draft.cliente_email}
                 onChange={e => setDraft(prev => ({ ...prev, cliente_email: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="contato@empresa.com"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1 flex items-center gap-2">
-                <Phone size={12} className="text-slate-500" />
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1 flex items-center gap-2">
+                <Phone size={12} className="text-[var(--text-muted)]" />
                 Telefone
               </label>
               <input
                 value={draft.cliente_telefone}
                 onChange={e => setDraft(prev => ({ ...prev, cliente_telefone: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="(00) 00000-0000"
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300 mb-4">
-              <MapPin size={14} className="text-slate-500" />
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-4">
+              <MapPin size={14} className="text-[var(--text-muted)]" />
               Endereço
             </div>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">CEP</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">CEP</label>
                 <input
                   value={draft.cliente_cep}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_cep: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none font-mono"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none font-mono"
                   placeholder="00000-000"
                 />
               </div>
               <div className="md:col-span-4 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Endereço</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Endereço</label>
                 <input
                   value={draft.cliente_endereco}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_endereco: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Rua/Av..."
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Número</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Número</label>
                 <input
                   value={draft.cliente_numero}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_numero: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="md:col-span-4 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Complemento</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Complemento</label>
                 <input
                   value={draft.cliente_complemento}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_complemento: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Bairro</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Bairro</label>
                 <input
                   value={draft.cliente_bairro}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_bairro: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cidade</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Cidade</label>
                 <input
                   value={draft.cliente_cidade}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_cidade: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="md:col-span-1 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">UF</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">UF</label>
                 <input
                   value={draft.cliente_uf}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_uf: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none uppercase"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none uppercase"
                   placeholder="SP"
                 />
               </div>
               <div className="md:col-span-1 space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">País</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">País</label>
                 <input
                   value={draft.cliente_pais}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_pais: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none uppercase"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none uppercase"
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300 mb-4">
-              <BadgeCheck size={14} className="text-slate-500" />
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-4">
+              <BadgeCheck size={14} className="text-[var(--text-muted)]" />
               Fiscal / Tributário
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">CNAE</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">CNAE</label>
                 <select
                   value={draft.cliente_cnae}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_cnae: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 >
                   <option value="">Não informado</option>
                   {cnaeCodigos.map(x => (
@@ -850,11 +850,11 @@ export default function Clientes() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">IBGE</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">IBGE</label>
                 <select
                   value={draft.cliente_ibge}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_ibge: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 >
                   <option value="">Não informado</option>
                   {ibgeCodigos.map(x => (
@@ -865,19 +865,19 @@ export default function Clientes() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Inscrição Estadual</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Inscrição Estadual</label>
                 <input
                   value={draft.cliente_inscricao_estadual}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_inscricao_estadual: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Inscrição Municipal</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Inscrição Municipal</label>
                 <input
                   value={draft.cliente_inscricao_municipal}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_inscricao_municipal: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 />
               </div>
               <div className="flex items-center gap-3">
@@ -885,18 +885,18 @@ export default function Clientes() {
                   type="button"
                   onClick={() => setDraft(prev => ({ ...prev, cliente_optante_simples_nacional: !prev.cliente_optante_simples_nacional, cliente_regime_tributario: !prev.cliente_optante_simples_nacional ? 'SIMPLES_NACIONAL' : prev.cliente_regime_tributario }))}
                   className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
-                    draft.cliente_optante_simples_nacional ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'border-white/10 text-slate-300 hover:bg-white/5'
+                    draft.cliente_optante_simples_nacional ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-panel)]'
                   }`}
                 >
                   Optante Simples Nacional
                 </button>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Regime Tributário</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Regime Tributário</label>
                 <select
                   value={draft.cliente_regime_tributario}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_regime_tributario: e.target.value as any }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 >
                   <option value="">Não informado</option>
                   {regimeOptions.map(o => (
@@ -910,17 +910,17 @@ export default function Clientes() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-white/5 bg-white/5 p-4 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
-                <Globe2 size={14} className="text-slate-500" />
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
+                <Globe2 size={14} className="text-[var(--text-muted)]" />
                 Presença Digital
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Website</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Website</label>
                 <input
                   value={draft.cliente_website}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_website: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="https://"
                 />
               </div>
@@ -928,36 +928,36 @@ export default function Clientes() {
                 <input
                   value={draft.cliente_instagram}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_instagram: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Instagram"
                 />
                 <input
                   value={draft.cliente_facebook}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_facebook: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   placeholder="Facebook"
                 />
                 <input
                   value={draft.cliente_linkedin}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_linkedin: e.target.value }))}
-                  className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none md:col-span-2"
+                  className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none md:col-span-2"
                   placeholder="LinkedIn"
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/5 bg-white/5 p-4 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
-                <Tags size={14} className="text-slate-500" />
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
+                <Tags size={14} className="text-[var(--text-muted)]" />
                 CRM / Classificação
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Origem do Lead</label>
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Origem do Lead</label>
                   <select
                     value={draft.cliente_origem_lead}
                     onChange={e => setDraft(prev => ({ ...prev, cliente_origem_lead: e.target.value }))}
-                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   >
                     <option value="">Não informado</option>
                     {origensLead.map(o => (
@@ -968,11 +968,11 @@ export default function Clientes() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Vertical</label>
+                  <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Vertical</label>
                   <select
                     value={draft.cliente_vertical}
                     onChange={e => setDraft(prev => ({ ...prev, cliente_vertical: e.target.value }))}
-                    className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                    className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                   >
                     <option value="">Não informado</option>
                     {draft.cliente_vertical && !verticais.some(v => v.label === draft.cliente_vertical) && (
@@ -987,13 +987,13 @@ export default function Clientes() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Tags</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Tags</label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => toggleTag('CLIENTE')}
                     className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
-                      (draft.cliente_tags || []).includes('CLIENTE') ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300' : 'border-white/10 text-slate-300 hover:bg-white/5'
+                      (draft.cliente_tags || []).includes('CLIENTE') ? 'bg-[var(--primary-soft)] border-[var(--primary)]/30 text-[var(--primary)]' : 'border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-panel)]'
                     }`}
                   >
                     CLIENTE
@@ -1002,7 +1002,7 @@ export default function Clientes() {
                     type="button"
                     onClick={() => toggleTag('FORNECEDOR')}
                     className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
-                      (draft.cliente_tags || []).includes('FORNECEDOR') ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'border-white/10 text-slate-300 hover:bg-white/5'
+                      (draft.cliente_tags || []).includes('FORNECEDOR') ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--bg-panel)]'
                     }`}
                   >
                     FORNECEDOR
@@ -1010,28 +1010,28 @@ export default function Clientes() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+                <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observações</label>
                 <textarea
                   value={draft.cliente_observacoes}
                   onChange={e => setDraft(prev => ({ ...prev, cliente_observacoes: e.target.value }))}
-                  className="w-full h-32 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+                  className="w-full h-32 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none"
                   placeholder="Notas fiscais, preferências, histórico..."
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-300">
-                <Users size={14} className="text-slate-500" />
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[var(--text-soft)]">
+                <Users size={14} className="text-[var(--text-muted)]" />
                 Contatos
               </div>
               <button
                 type="button"
                 onClick={openContatoCreate}
                 disabled={!activeId}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white text-xs font-bold shadow-cyan-500/15 transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               >
                 <UserPlus size={16} />
                 Adicionar contato
@@ -1039,45 +1039,45 @@ export default function Clientes() {
             </div>
 
             {!activeId ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">Salve o cliente para cadastrar contatos.</p>
+              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                <p className="text-sm text-[var(--text-soft)]">Salve o cliente para cadastrar contatos.</p>
               </div>
             ) : contatosLoading ? (
               <div className="flex items-center justify-center h-24">
-                <Loader2 className="animate-spin text-slate-500" size={24} />
+                <Loader2 className="animate-spin text-[var(--text-muted)]" size={24} />
               </div>
             ) : contatos.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4">
-                <p className="text-sm text-slate-300">Nenhum contato cadastrado para este cliente.</p>
+              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                <p className="text-sm text-[var(--text-soft)]">Nenhum contato cadastrado para este cliente.</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-white/5">
-                <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-white/5 border-b border-white/5">
-                  <div className="col-span-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contato</div>
-                  <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Cargo</div>
-                  <div className="col-span-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Comunicação</div>
-                  <div className="col-span-1 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</div>
+              <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+                <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-panel)] border-b border-[var(--border)]">
+                  <div className="col-span-5 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Contato</div>
+                  <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Cargo</div>
+                  <div className="col-span-3 text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Comunicação</div>
+                  <div className="col-span-1 text-xs font-black uppercase tracking-widest text-[var(--text-muted)] text-right">Ações</div>
                 </div>
                 <div className="divide-y divide-white/5">
                   {contatos.map(c => (
-                    <div key={c.contato_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[#0B1220]/60 hover:bg-[#0B1220] transition-colors">
+                    <div key={c.contato_id} className="grid grid-cols-12 gap-3 px-4 py-3 bg-[var(--bg-main)]/60 hover:bg-[var(--bg-main)] transition-colors">
                       <div className="col-span-5 min-w-0">
-                        <div className="text-sm font-semibold text-slate-200 truncate">{c.contato_nome}</div>
-                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">#{c.contato_id.split('-')[0]}</div>
+                        <div className="text-sm font-semibold text-[var(--text-main)] truncate">{c.contato_nome}</div>
+                        <div className="text-xs text-[var(--text-muted)] font-mono mt-0.5">#{c.contato_id.split('-')[0]}</div>
                       </div>
                       <div className="col-span-3 min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-slate-300 truncate">
-                          <Briefcase size={14} className="text-slate-500" />
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-soft)] truncate">
+                          <Briefcase size={14} className="text-[var(--text-muted)]" />
                           <span className="truncate">{c.contato_cargo || '-'}</span>
                         </div>
                       </div>
                       <div className="col-span-3 min-w-0">
-                        <div className="flex items-center gap-2 text-sm text-slate-300 truncate">
-                          <Phone size={14} className="text-slate-500" />
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-soft)] truncate">
+                          <Phone size={14} className="text-[var(--text-muted)]" />
                           <span className="truncate">{c.contato_telefone01 || '-'}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-400 truncate mt-1">
-                          <AtSign size={14} className="text-slate-500" />
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] truncate mt-1">
+                          <AtSign size={14} className="text-[var(--text-muted)]" />
                           <span className="truncate">{c.contato_email || '-'}</span>
                         </div>
                       </div>
@@ -1085,7 +1085,7 @@ export default function Clientes() {
                         <button
                           type="button"
                           onClick={() => openContatoEdit(c.contato_id)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-colors"
+                          className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] border border-transparent hover:border-[var(--primary)]/20 transition-colors"
                           title="Editar contato"
                         >
                           <Pencil size={14} />
@@ -1107,7 +1107,7 @@ export default function Clientes() {
               setIsFormOpen(false)
               setActiveId(null)
             }}
-            className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             disabled={saving}
           >
             Cancelar
@@ -1116,7 +1116,7 @@ export default function Clientes() {
             type="button"
             onClick={onSave}
             disabled={saving}
-            className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+            className="px-7 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
           >
             {saving ? (
               <>
@@ -1138,8 +1138,8 @@ export default function Clientes() {
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-              <UserPlus size={18} className="text-cyan-300" />
+            <div className="w-9 h-9 rounded-2xl bg-[var(--primary-soft)] border border-[var(--primary)]/20 flex items-center justify-center">
+              <UserPlus size={18} className="text-[var(--primary)]" />
             </div>
             {contatoActiveId ? 'Editar Contato' : 'Adicionar Contato'}
           </div>
@@ -1151,7 +1151,7 @@ export default function Clientes() {
               type="button"
               onClick={() => setIsContatoOpen(false)}
               disabled={contatoSaving}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1159,7 +1159,7 @@ export default function Clientes() {
               type="button"
               onClick={onSaveContato}
               disabled={contatoSaving}
-              className="px-7 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)] text-white font-bold text-sm shadow-cyan-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {contatoSaving ? (
                 <>
@@ -1182,20 +1182,20 @@ export default function Clientes() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Nome</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Nome</label>
               <input
                 value={contatoDraft.contato_nome}
                 onChange={e => setContatoDraft(prev => ({ ...prev, contato_nome: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: João da Silva"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">ID Integração</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">ID Integração</label>
               <input
                 value={contatoDraft.integ_id}
                 onChange={e => setContatoDraft(prev => ({ ...prev, integ_id: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: OMIE_CONTATO_123"
               />
             </div>
@@ -1203,20 +1203,20 @@ export default function Clientes() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Cargo</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Cargo</label>
               <input
                 value={contatoDraft.contato_cargo}
                 onChange={e => setContatoDraft(prev => ({ ...prev, contato_cargo: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="Ex: Compras, Financeiro..."
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Email</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Email</label>
               <input
                 value={contatoDraft.contato_email}
                 onChange={e => setContatoDraft(prev => ({ ...prev, contato_email: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="email@empresa.com"
               />
             </div>
@@ -1224,31 +1224,31 @@ export default function Clientes() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 01</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Telefone 01</label>
               <input
                 value={contatoDraft.contato_telefone01}
                 onChange={e => setContatoDraft(prev => ({ ...prev, contato_telefone01: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="(00) 00000-0000"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Telefone 02</label>
+              <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Telefone 02</label>
               <input
                 value={contatoDraft.contato_telefone02}
                 onChange={e => setContatoDraft(prev => ({ ...prev, contato_telefone02: e.target.value }))}
-                className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+                className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
                 placeholder="(00) 00000-0000"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Observações</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Observações</label>
             <textarea
               value={contatoDraft.contato_obs}
               onChange={e => setContatoDraft(prev => ({ ...prev, contato_obs: e.target.value }))}
-              className="w-full h-28 rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none resize-none"
+              className="w-full h-28 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none resize-none"
               placeholder="Observações do contato..."
             />
           </div>
@@ -1276,7 +1276,7 @@ export default function Clientes() {
               type="button"
               onClick={() => setIsTransferOpen(false)}
               disabled={transferring}
-              className="px-6 py-2.5 rounded-xl text-slate-200 hover:bg-white/5 font-medium text-sm transition-colors border border-transparent hover:border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+              className="px-6 py-2.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-panel)] font-medium text-sm transition-colors border border-transparent hover:border-[var(--border)] disabled:opacity-50 disabled:pointer-events-none"
             >
               Cancelar
             </button>
@@ -1284,7 +1284,7 @@ export default function Clientes() {
               type="button"
               onClick={onTransfer}
               disabled={transferring}
-              className="px-7 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow-lg shadow-amber-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
+              className="px-7 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm shadow-amber-500/15 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 inline-flex items-center gap-2"
             >
               {transferring ? (
                 <>
@@ -1300,17 +1300,17 @@ export default function Clientes() {
       >
         <div className="space-y-3">
           {active && (
-            <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-100 truncate">{active.cliente_nome_razao_social}</div>
-              <div className="text-xs text-slate-500 font-mono mt-1">{active.cliente_documento_formatado || active.cliente_documento || '-'}</div>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 py-3">
+              <div className="text-sm font-semibold text-[var(--text-main)] truncate">{active.cliente_nome_razao_social}</div>
+              <div className="text-xs text-[var(--text-muted)] font-mono mt-1">{active.cliente_documento_formatado || active.cliente_documento || '-'}</div>
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wide ml-1">Novo vendedor</label>
+            <label className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wide ml-1">Novo vendedor</label>
             <select
               value={transferUserId}
               onChange={e => setTransferUserId(e.target.value)}
-              className="w-full rounded-xl bg-[#0B1220] border border-white/10 px-4 py-3 text-sm font-medium text-slate-100 focus:ring-2 focus:ring-cyan-500/25 focus:border-cyan-500/40 transition-all outline-none"
+              className="w-full rounded-xl bg-[var(--bg-main)] border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-main)] focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)]/40 transition-all outline-none"
               disabled={usuariosLoading}
             >
               <option value="" disabled>
@@ -1334,8 +1334,8 @@ export default function Clientes() {
         }}
         title={
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <History size={18} className="text-slate-200" />
+            <div className="w-9 h-9 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border)] flex items-center justify-center">
+              <History size={18} className="text-[var(--text-main)]" />
             </div>
             Histórico do Cliente
           </div>
@@ -1344,36 +1344,36 @@ export default function Clientes() {
       >
         <div className="space-y-5">
           {active && (
-            <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-              <div className="text-sm font-semibold text-slate-100">{active.cliente_nome_razao_social}</div>
-              <div className="text-xs text-slate-400 mt-1">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+              <div className="text-sm font-semibold text-[var(--text-main)]">{active.cliente_nome_razao_social}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">
                 Documento:{' '}
-                <span className="font-mono text-slate-200">{active.cliente_documento_formatado || active.cliente_documento || '-'}</span>
+                <span className="font-mono text-[var(--text-main)]">{active.cliente_documento_formatado || active.cliente_documento || '-'}</span>
               </div>
             </div>
           )}
 
           {historyLoading ? (
             <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-slate-500" size={28} />
+              <Loader2 className="animate-spin text-[var(--text-muted)]" size={28} />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Propostas Comerciais</div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-3">Propostas Comerciais</div>
                 {historyOportunidades.length === 0 ? (
-                  <div className="text-sm text-slate-400">Nenhuma proposta comercial vinculada.</div>
+                  <div className="text-sm text-[var(--text-muted)]">Nenhuma proposta comercial vinculada.</div>
                 ) : (
                   <div className="space-y-2">
                     {historyOportunidades.slice(0, 12).map((o: any) => (
-                      <div key={o.id_oport} className="rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2">
+                      <div key={o.id_oport} className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] px-3 py-2">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-semibold text-slate-200 truncate">
+                          <div className="text-sm font-semibold text-[var(--text-main)] truncate">
                             {o.cod_oport || o.id_oport?.slice?.(0, 8) || 'Proposta Comercial'}
                           </div>
-                          <div className="text-[10px] text-slate-500">{o.data_inclusao ? new Date(o.data_inclusao).toLocaleDateString() : ''}</div>
+                          <div className="text-xs text-[var(--text-muted)]">{o.data_inclusao ? new Date(o.data_inclusao).toLocaleDateString() : ''}</div>
                         </div>
-                        <div className="text-xs text-slate-400 mt-1 truncate">
+                        <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
                           {o.fase || o.id_fase || '-'} · {o.status || o.id_status || '-'}
                         </div>
                       </div>
@@ -1382,16 +1382,16 @@ export default function Clientes() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-                <div className="text-xs font-black uppercase tracking-widest text-slate-300 mb-3">Contatos</div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+                <div className="text-xs font-black uppercase tracking-widest text-[var(--text-soft)] mb-3">Contatos</div>
                 {historyContatos.length === 0 ? (
-                  <div className="text-sm text-slate-400">Nenhum contato vinculado.</div>
+                  <div className="text-sm text-[var(--text-muted)]">Nenhum contato vinculado.</div>
                 ) : (
                   <div className="space-y-2">
                     {historyContatos.slice(0, 12).map(c => (
-                      <div key={c.contato_id} className="rounded-xl border border-white/10 bg-[#0B1220] px-3 py-2">
-                        <div className="text-sm font-semibold text-slate-200 truncate">{c.contato_nome}</div>
-                        <div className="text-xs text-slate-400 mt-1 truncate">
+                      <div key={c.contato_id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-main)] px-3 py-2">
+                        <div className="text-sm font-semibold text-[var(--text-main)] truncate">{c.contato_nome}</div>
+                        <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
                           {(c.contato_email || '-') + ' · ' + (c.contato_telefone01 || '-')}
                         </div>
                       </div>
